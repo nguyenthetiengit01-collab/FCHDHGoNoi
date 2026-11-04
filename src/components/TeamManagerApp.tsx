@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import {
@@ -70,17 +70,15 @@ const GUEST_SESSION: AuthSession = {
 export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const [data, setData] = useState<FullAppData>(initialData);
 
+  // Mặc định vào trang luôn là Giao diện Khách (Guest Portal) theo đúng yêu cầu
+  const [session, setSession] = useState<AuthSession>(GUEST_SESSION);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("public");
+  const [isSaving, setIsSaving] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const defaultCaptain =
     initialData.players.find((p) => p.full_name === "Nguyễn Thế Tiếng") ||
     initialData.players[0];
-
-  const [session, setSession] = useState<AuthSession>(
-    defaultCaptain ? buildSessionFromPlayer(defaultCaptain) : GUEST_SESSION
-  );
-  // Ưu tiên hiển thị Lịch, thông báo và điểm danh ngay khi đăng nhập
-  const [activeTab, setActiveTab] = useState<ActiveTab>("schedule");
-  const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Login modal states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
