@@ -22,4 +22,7 @@ next-env.d.ts
 .env*.local
 .DS_Store
 Thumbs.db
+theme_reference/
+football-coach-club*/
+
 

@@ -13,7 +13,6 @@ import {
   HandCoins,
   UserCircle2,
   Globe,
-  LogIn,
   LogOut,
   ExternalLink,
   KeyRound,
@@ -305,42 +304,42 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   return (
     <div className="min-h-dvh flex flex-col pb-20 md:pb-8">
       <a href="#main-content" className="skip-link">Bỏ qua điều hướng, tới nội dung chính</a>
-      {/* Top Navigation Bar — Đồng bộ màu Xanh Navy Đậm (#1e4fc2) & Vàng Hoàng Kim (#ffc933) của Logo */}
-      <header className="sticky top-0 z-40 app-header text-white border-b border-[#4a7fe8] shadow-md">
-        <div className="mx-auto max-w-7xl px-3 sm:px-6">
-          <div className="flex h-16 items-center justify-between gap-2.5">
-            {/* Logo Chính Thức & Tên Đội */}
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={OFFICIAL_LOGO_URL}
-                alt="Logo FC HĐH Gò Nổi"
-                className="h-11 w-11 shrink-0 rounded-xl object-contain bg-white p-0.5 border-2 border-[#ffc933] shadow-xs"
-              />
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h1 className="font-extrabold text-sm sm:text-base tracking-tight text-white truncate">
-                    FC HĐH GÒ NỔI
-                  </h1>
-                  <a
-                    href={fanpageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hidden lg:inline-flex items-center gap-1 rounded-full bg-[#1877F2] hover:bg-[#166fe5] px-2.5 py-0.5 text-[11px] font-bold text-white transition"
-                  >
-                    <span>Fanpage Chính Thức</span>
-                    <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
+      {/* Top Navigation Bar — Khi đã đăng nhập (Cầu thủ / Quản lý) hiển thị App Header; khi là Khách hiển thị thanh công khai */}
+      {session.role !== "guest" ? (
+        <header className="sticky top-0 z-40 app-header text-white border-b border-[#4a7fe8] shadow-md">
+          <div className="mx-auto max-w-7xl px-3 sm:px-6">
+            <div className="flex h-16 items-center justify-between gap-2.5">
+              {/* Logo Chính Thức & Tên Đội */}
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={OFFICIAL_LOGO_URL}
+                  alt="Logo FC HĐH Gò Nổi"
+                  className="h-11 w-11 shrink-0 rounded-xl object-contain bg-white p-0.5 border-2 border-[#ffc933] shadow-xs"
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h1 className="font-extrabold text-sm sm:text-base tracking-tight text-white truncate">
+                      FC HĐH GÒ NỔI
+                    </h1>
+                    <a
+                      href={fanpageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hidden lg:inline-flex items-center gap-1 rounded-full bg-[#1877F2] hover:bg-[#166fe5] px-2.5 py-0.5 text-[11px] font-bold text-white transition"
+                    >
+                      <span>Fanpage Chính Thức</span>
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
+                  <p className="text-[11px] text-[#ffc933] font-semibold truncate">
+                    Tại TP. Hồ Chí Minh
+                  </p>
                 </div>
-                <p className="text-[11px] text-[#ffc933] font-semibold truncate">
-                  Tại TP. Hồ Chí Minh
-                </p>
               </div>
-            </div>
 
-            {/* Khu vực Tài khoản đang đăng nhập & Công cụ */}
-            <div className="flex items-center gap-2 shrink-0">
-              {session.role !== "guest" && (
+              {/* Khu vực Tài khoản đang đăng nhập & Công cụ */}
+              <div className="flex items-center gap-2 shrink-0">
                 <div className="hidden sm:block rounded-xl bg-[#2f66dd] border border-[#4a7fe8] px-3 py-1 text-right">
                   <span className="block text-[10px] uppercase tracking-wider text-sky-300 font-bold">
                     Tồn Quỹ Đội
@@ -349,73 +348,62 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                     {formatVND(data.summary.currentBalance)}
                   </span>
                 </div>
-              )}
 
-              {session.role === "manager" && (
-                <>
-                  <label
-                    className="hidden xl:inline-flex items-center gap-1.5 rounded-xl bg-[#2f66dd] hover:bg-[#4a7fe8] border border-sky-700/60 px-3 py-2 text-xs font-bold text-white transition cursor-pointer"
-                    title="Nhập dữ liệu từ file Excel (.xlsx)"
-                  >
-                    <Upload className="h-3.5 w-3.5 text-[#ffc933]" />
-                    <span>Nhập Excel</span>
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls"
-                      onChange={handleUploadExcel}
-                      className="sr-only"
-                    />
-                  </label>
-
-                  <a
-                    href="/api/export"
-                    className="hidden xl:inline-flex items-center gap-1.5 rounded-xl bg-[#2f66dd] hover:bg-[#4a7fe8] border border-sky-700/60 px-3 py-2 text-xs font-bold text-white transition"
-                    title="Tải file Excel 5 sheets chuẩn GONOIFC"
-                  >
-                    <Download className="h-3.5 w-3.5 text-[#ffc933]" />
-                    <span>Xuất Excel</span>
-                  </a>
-                </>
-              )}
-
-              {/* Nút hiển thị Vai trò hiện tại & Đổi tài khoản */}
-              <button
-                type="button"
-                onClick={() => setLoginModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#ffc933] hover:bg-[#ffd95e] px-3 py-1.5 text-xs font-extrabold text-slate-950 transition cursor-pointer shadow-xs"
-              >
-                {session.role === "guest" ? (
+                {session.role === "manager" && (
                   <>
-                    <LogIn className="h-4 w-4" />
-                    <span>Đăng Nhập</span>
-                  </>
-                ) : (
-                  <>
-                    {currentPlayerObj?.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={currentPlayerObj.avatar_url}
-                        alt={session.shortName}
-                        className="h-6 w-6 rounded-full object-cover border border-slate-900"
+                    <label
+                      className="hidden xl:inline-flex items-center gap-1.5 rounded-xl bg-[#2f66dd] hover:bg-[#4a7fe8] border border-sky-700/60 px-3 py-2 text-xs font-bold text-white transition cursor-pointer"
+                      title="Nhập dữ liệu từ file Excel (.xlsx)"
+                    >
+                      <Upload className="h-3.5 w-3.5 text-[#ffc933]" />
+                      <span>Nhập Excel</span>
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleUploadExcel}
+                        className="sr-only"
                       />
-                    ) : (
-                      <ShieldCheck className="h-4 w-4 text-slate-950" />
-                    )}
-                    <div className="text-left leading-tight">
-                      <div className="text-[9px] uppercase font-extrabold text-slate-800">
-                        {session.role === "manager"
-                          ? "Ban Quản Lý"
-                          : "Cầu Thủ"}
-                      </div>
-                      <div className="font-extrabold">
-                        #{session.jerseyNumber ?? "-"} {session.shortName}
-                      </div>
-                    </div>
+                    </label>
+
+                    <a
+                      href="/api/export"
+                      className="hidden xl:inline-flex items-center gap-1.5 rounded-xl bg-[#2f66dd] hover:bg-[#4a7fe8] border border-sky-700/60 px-3 py-2 text-xs font-bold text-white transition"
+                      title="Tải file Excel 5 sheets chuẩn GONOIFC"
+                    >
+                      <Download className="h-3.5 w-3.5 text-[#ffc933]" />
+                      <span>Xuất Excel</span>
+                    </a>
                   </>
                 )}
-              </button>
 
-              {session.role !== "guest" && (
+                {/* Nút hiển thị Vai trò hiện tại & Đổi tài khoản */}
+                <button
+                  type="button"
+                  onClick={() => setLoginModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#ffc933] hover:bg-[#ffd95e] px-3 py-1.5 text-xs font-extrabold text-slate-950 transition cursor-pointer shadow-xs"
+                >
+                  {currentPlayerObj?.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={currentPlayerObj.avatar_url}
+                      alt={session.shortName}
+                      className="h-6 w-6 rounded-full object-cover border border-slate-900"
+                    />
+                  ) : (
+                    <ShieldCheck className="h-4 w-4 text-slate-950" />
+                  )}
+                  <div className="text-left leading-tight">
+                    <div className="text-[9px] uppercase font-extrabold text-slate-800">
+                      {session.role === "manager"
+                        ? "Ban Quản Lý"
+                        : "Cầu Thủ"}
+                    </div>
+                    <div className="font-extrabold">
+                      #{session.jerseyNumber ?? "-"} {session.shortName}
+                    </div>
+                  </div>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => handleQuickSwitchRole(null)}
@@ -424,105 +412,148 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 >
                   <LogOut className="h-4 w-4" />
                 </button>
-              )}
+              </div>
+            </div>
+
+            {/* Desktop Navigation Tabs */}
+            <nav
+              aria-label="Điều hướng chính"
+              className="hidden md:flex items-center gap-1 pt-1 -mb-px overflow-x-auto"
+            >
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveTab(item.id)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs lg:text-sm font-bold border-b-2 transition cursor-pointer whitespace-nowrap ${
+                      isActive
+                        ? "border-[#ffc933] text-[#ffc933] bg-[#2f66dd] rounded-t-xl"
+                        : "border-transparent text-sky-100/80 hover:text-white hover:bg-[#2f66dd]/50 rounded-t-xl"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </header>
+      ) : (
+        <div className="bg-[#0b1320] text-slate-300 border-b border-blue-900/40 px-3 py-1.5 text-xs">
+          <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="bg-[#ffc933] text-slate-950 font-black px-2 py-0.5 rounded text-[10px] uppercase">
+                Giao Diện Khách
+              </span>
+              <span className="text-slate-300 hidden sm:inline">
+                Theme Football Coach Club • Bấm Đăng Nhập để vào trang Cầu thủ & Quản lý
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 hidden sm:inline">Trải nghiệm nhanh:</span>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSwitchRole(managers[0] || data.players[1])
+                }
+                className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-2.5 py-0.5 rounded text-[11px] transition cursor-pointer"
+              >
+                1. Ban Quản Lý
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const samplePlayer =
+                    data.players.find(
+                      (p) => p.full_name === "Nguyễn Phi Vương"
+                    ) ||
+                    data.players.find((p) => p.access_role === "player") ||
+                    data.players[0];
+                  handleQuickSwitchRole(samplePlayer);
+                }}
+                className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-2.5 py-0.5 rounded text-[11px] transition cursor-pointer"
+              >
+                2. Cầu Thủ
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginModalOpen(true)}
+                className="bg-[#ffc933] hover:bg-[#ffd95e] text-slate-950 font-black px-2.5 py-0.5 rounded text-[11px] transition cursor-pointer"
+              >
+                Đăng Nhập PIN
+              </button>
             </div>
           </div>
-
-          {/* Desktop Navigation Tabs */}
-          <nav
-            aria-label="Điều hướng chính"
-            className="hidden md:flex items-center gap-1 pt-1 -mb-px overflow-x-auto"
-          >
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs lg:text-sm font-bold border-b-2 transition cursor-pointer whitespace-nowrap ${
-                    isActive
-                      ? "border-[#ffc933] text-[#ffc933] bg-[#2f66dd] rounded-t-xl"
-                      : "border-transparent text-sky-100/80 hover:text-white hover:bg-[#2f66dd]/50 rounded-t-xl"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
         </div>
-      </header>
+      )}
 
-      {/* Thanh chuyển nhanh phân quyền để tiện kiểm tra 3 góc nhìn: Quản lý - Cầu thủ - Khách */}
-      <div className="hidden sm:block bg-[#1e4fc2]/5 border-b border-[#1e4fc2]/10 px-3 sm:px-6 py-2">
-        <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2 text-slate-700">
-            <span className="font-extrabold text-[#1e4fc2]">
-              🔐 Góc nhìn hiện tại:
-            </span>
-            <span className="rounded-md bg-white border border-slate-300 px-2 py-0.5 font-bold text-[#1e4fc2]">
-              {session.role === "manager"
-                ? `Ban Quản Lý (${session.fullName})`
-                : session.role === "player"
-                ? `Cầu Thủ (${session.fullName})`
-                : "Trang Khách (Công khai & Fanpage)"}
-            </span>
-          </div>
+      {/* Thanh chuyển nhanh phân quyền cho tài khoản đã đăng nhập */}
+      {session.role !== "guest" && (
+        <div className="hidden sm:block bg-[#1e4fc2]/5 border-b border-[#1e4fc2]/10 px-3 sm:px-6 py-2">
+          <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 text-slate-700">
+              <span className="font-extrabold text-[#1e4fc2]">
+                🔐 Góc nhìn hiện tại:
+              </span>
+              <span className="rounded-md bg-white border border-slate-300 px-2 py-0.5 font-bold text-[#1e4fc2]">
+                {session.role === "manager"
+                  ? `Ban Quản Lý (${session.fullName})`
+                  : `Cầu Thủ (${session.fullName})`}
+              </span>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-slate-500 hidden sm:inline">
-              Chuyển nhanh để trải nghiệm:
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                handleQuickSwitchRole(managers[0] || data.players[1])
-              }
-              className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                session.role === "manager"
-                  ? "bg-[#1e4fc2] text-[#ffc933]"
-                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-              }`}
-            >
-              1. Quản lý ({managers[0]?.short_name || "Tiếng"})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const samplePlayer =
-                  data.players.find(
-                    (p) => p.full_name === "Nguyễn Phi Vương"
-                  ) ||
-                  data.players.find((p) => p.access_role === "player") ||
-                  data.players[0];
-                handleQuickSwitchRole(samplePlayer);
-              }}
-              className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                session.role === "player"
-                  ? "bg-[#1e4fc2] text-[#ffc933]"
-                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-              }`}
-            >
-              2. Cầu thủ (Phi Vương #13)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickSwitchRole(null)}
-              className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                session.role === "guest"
-                  ? "bg-[#1e4fc2] text-[#ffc933]"
-                  : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-              }`}
-            >
-              3. Trang Khách
-            </button>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-slate-500 hidden sm:inline">
+                Chuyển nhanh:
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  handleQuickSwitchRole(managers[0] || data.players[1])
+                }
+                className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  session.role === "manager"
+                    ? "bg-[#1e4fc2] text-[#ffc933]"
+                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                1. Quản lý ({managers[0]?.short_name || "Tiếng"})
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const samplePlayer =
+                    data.players.find(
+                      (p) => p.full_name === "Nguyễn Phi Vương"
+                    ) ||
+                    data.players.find((p) => p.access_role === "player") ||
+                    data.players[0];
+                  handleQuickSwitchRole(samplePlayer);
+                }}
+                className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  session.role === "player"
+                    ? "bg-[#1e4fc2] text-[#ffc933]"
+                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                2. Cầu thủ (Phi Vương #13)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickSwitchRole(null)}
+                className="px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 transition cursor-pointer"
+              >
+                3. Về Trang Khách
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (
