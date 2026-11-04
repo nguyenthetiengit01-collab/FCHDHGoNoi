@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import {
@@ -658,7 +658,7 @@ export function PlayerPersonalTab({
               id="old-pin"
               type="password"
               required
-              placeholder="Nhập mật khẩu hiện tại (mặc định: 1234)"
+              placeholder="Nhập mật khẩu hiện tại"
               value={oldPin}
               onChange={(e) => setOldPin(e.target.value)}
               className="form-input"

@@ -255,17 +255,38 @@ export function PublicGuestPortal({
             </div>
           </div>
 
-          {/* Right Column (42% width): Cutout Player Action Banner Graphic (banner1.png) */}
+          {/* Right Column (45% width): Ảnh Bìa Đại Diện FC HĐH Gò Nổi */}
           <div className="lg:col-span-5 flex justify-center items-center relative">
-            <div className="relative max-w-[360px] sm:max-w-[420px] lg:max-w-none">
-              {/* Subtle stadium glow halo behind player */}
-              <div className="absolute inset-0 bg-[#0D5EF4]/20 rounded-full blur-3xl transform scale-90" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/theme/banner1.png"
-                alt="FC HĐH Gò Nổi Striker"
-                className="relative z-10 w-full h-auto object-contain drop-shadow-[0_20px_35px_rgba(0,0,0,0.8)] transform hover:scale-105 transition duration-500"
-              />
+            <div className="relative w-full max-w-[480px] group">
+              {/* Stadium blue & gold glow halo */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-[#0D5EF4] via-[#ffc933] to-[#0D5EF4] rounded-3xl blur-md opacity-60 group-hover:opacity-100 transition duration-500" />
+
+              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-[#ffc933] bg-slate-950 shadow-2xl">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={OFFICIAL_COVER_URL}
+                  alt="Tập thể FC HĐH Gò Nổi tại TP.HCM"
+                  className="w-full h-[280px] sm:h-[340px] object-cover object-center group-hover:scale-105 transition duration-700 filter brightness-100 contrast-105"
+                />
+
+                {/* Gradient caption overlay */}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent p-4 sm:p-5 text-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="bg-[#ffc933] text-slate-950 text-[10px] sm:text-xs font-black uppercase px-2.5 py-0.5 rounded-full shadow">
+                      Ảnh Bìa Đại Diện CLB
+                    </span>
+                    <span className="text-[11px] text-slate-300 font-semibold">
+                      Mùa giải 2025 - 2026
+                    </span>
+                  </div>
+                  <h4 className="font-black text-sm sm:text-base text-white uppercase tracking-wide">
+                    Tập Thể FC HĐH Gò Nổi
+                  </h4>
+                  <p className="text-[11px] text-slate-300">
+                    Hội Đồng Hương Gò Nổi (Điện Bàn, Quảng Nam) tại TP. Hồ Chí Minh
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -402,18 +423,18 @@ export function PublicGuestPortal({
 
         {/* 2 Columns Layout matching about-section.php */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Left Column: about-img.png with primary border radius 10px */}
+          {/* Left Column: Ảnh đại diện tập thể FC HĐH Gò Nổi */}
           <div className="lg:col-span-5 flex justify-center">
-            <div className="relative rounded-[10px] overflow-hidden border-2 border-[#0D5EF4] shadow-xl group max-w-md w-full">
+            <div className="relative rounded-2xl overflow-hidden border-2 border-[#0D5EF4] shadow-xl group max-w-md w-full bg-slate-900">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/images/theme/about-img.png"
-                alt="About Football Coach Club"
-                className="w-full h-auto object-cover group-hover:scale-105 transition duration-500"
+                src={OFFICIAL_COVER_URL}
+                alt="FC HĐH Gò Nổi"
+                className="w-full h-[260px] sm:h-[300px] object-cover group-hover:scale-105 transition duration-500"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0f2239]/80 via-transparent to-transparent flex items-end p-4">
-                <span className="text-white font-black uppercase text-xs tracking-wider bg-[#0D5EF4] px-3 py-1 rounded">
-                  FC HĐH Gò Nổi - Thành Lập 2024
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0f2239]/90 via-transparent to-transparent flex items-end p-4">
+                <span className="text-white font-black uppercase text-xs tracking-wider bg-[#0D5EF4] px-3 py-1.5 rounded-lg shadow">
+                  FC HĐH Gò Nổi • Thành Lập 2024
                 </span>
               </div>
             </div>

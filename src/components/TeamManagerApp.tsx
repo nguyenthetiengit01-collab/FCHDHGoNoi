@@ -84,7 +84,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const [selectedLoginPlayerId, setSelectedLoginPlayerId] = useState<string>(
     String(defaultCaptain?.id || "")
   );
-  const [pinInput, setPinInput] = useState<string>("1234");
+  const [pinInput, setPinInput] = useState<string>("");
   const [loginError, setLoginError] = useState<string>("");
 
   const showToast = (msg: string) => {
@@ -168,7 +168,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
     const expectedPin = p.pin_code || "1234";
     if (pinInput.trim() !== expectedPin) {
       setLoginError(
-        "Mật khẩu / Mã PIN chưa đúng (Nếu quên, vui lòng nhờ Ban Quản Lý reset)"
+        "Mã PIN không chính xác. Vui lòng kiểm tra lại hoặc liên hệ Ban Quản Lý để được hỗ trợ."
       );
       return;
     }
@@ -185,7 +185,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
     if (!targetPlayer) {
       setSession(GUEST_SESSION);
       setActiveTab("public");
-      showToast("Đã chuyển sang Trang Khách (Thông tin công khai & Fanpage)");
+      showToast("Đã đăng xuất về Trang Khách");
       setLoginModalOpen(false);
       return;
     }
@@ -297,7 +297,6 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   };
 
   const navItems = getVisibleNavItems();
-  const managers = data.players.filter((p) => p.access_role === "manager");
   const fanpageUrl = data.settings.fanpage_url || FANPAGE_URL;
   const currentPlayerObj = data.players.find((p) => p.id === session.playerId);
 
@@ -443,117 +442,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
             </nav>
           </div>
         </header>
-      ) : (
-        <div className="bg-[#0b1320] text-slate-300 border-b border-blue-900/40 px-3 py-1.5 text-xs">
-          <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="bg-[#ffc933] text-slate-950 font-black px-2 py-0.5 rounded text-[10px] uppercase">
-                Giao Diện Khách
-              </span>
-              <span className="text-slate-300 hidden sm:inline">
-                Theme Football Coach Club • Bấm Đăng Nhập để vào trang Cầu thủ & Quản lý
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400 hidden sm:inline">Trải nghiệm nhanh:</span>
-              <button
-                type="button"
-                onClick={() =>
-                  handleQuickSwitchRole(managers[0] || data.players[1])
-                }
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-2.5 py-0.5 rounded text-[11px] transition cursor-pointer"
-              >
-                1. Ban Quản Lý
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const samplePlayer =
-                    data.players.find(
-                      (p) => p.full_name === "Nguyễn Phi Vương"
-                    ) ||
-                    data.players.find((p) => p.access_role === "player") ||
-                    data.players[0];
-                  handleQuickSwitchRole(samplePlayer);
-                }}
-                className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-2.5 py-0.5 rounded text-[11px] transition cursor-pointer"
-              >
-                2. Cầu Thủ
-              </button>
-              <button
-                type="button"
-                onClick={() => setLoginModalOpen(true)}
-                className="bg-[#ffc933] hover:bg-[#ffd95e] text-slate-950 font-black px-2.5 py-0.5 rounded text-[11px] transition cursor-pointer"
-              >
-                Đăng Nhập PIN
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Thanh chuyển nhanh phân quyền cho tài khoản đã đăng nhập */}
-      {session.role !== "guest" && (
-        <div className="hidden sm:block bg-[#1e4fc2]/5 border-b border-[#1e4fc2]/10 px-3 sm:px-6 py-2">
-          <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2 text-slate-700">
-              <span className="font-extrabold text-[#1e4fc2]">
-                🔐 Góc nhìn hiện tại:
-              </span>
-              <span className="rounded-md bg-white border border-slate-300 px-2 py-0.5 font-bold text-[#1e4fc2]">
-                {session.role === "manager"
-                  ? `Ban Quản Lý (${session.fullName})`
-                  : `Cầu Thủ (${session.fullName})`}
-              </span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-slate-500 hidden sm:inline">
-                Chuyển nhanh:
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  handleQuickSwitchRole(managers[0] || data.players[1])
-                }
-                className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                  session.role === "manager"
-                    ? "bg-[#1e4fc2] text-[#ffc933]"
-                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                }`}
-              >
-                1. Quản lý ({managers[0]?.short_name || "Tiếng"})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const samplePlayer =
-                    data.players.find(
-                      (p) => p.full_name === "Nguyễn Phi Vương"
-                    ) ||
-                    data.players.find((p) => p.access_role === "player") ||
-                    data.players[0];
-                  handleQuickSwitchRole(samplePlayer);
-                }}
-                className={`px-2.5 py-1 rounded-lg font-bold transition cursor-pointer ${
-                  session.role === "player"
-                    ? "bg-[#1e4fc2] text-[#ffc933]"
-                    : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-100"
-                }`}
-              >
-                2. Cầu thủ (Phi Vương #13)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickSwitchRole(null)}
-                className="px-2.5 py-1 rounded-lg font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 transition cursor-pointer"
-              >
-                3. Về Trang Khách
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* Toast Notification */}
       {toastMessage && (
@@ -679,11 +568,11 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         isOpen={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
         title="Đăng Nhập Thành Viên FC HĐH Gò Nổi"
-        subtitle="Sau khi đăng nhập, hệ thống ưu tiên hiển thị ngay Lịch thi đấu, Thông báo & Điểm danh tuần."
+        subtitle="Cổng thông tin & điều hành nội bộ dành riêng cho Cầu thủ và Ban Quản Lý CLB."
       >
         <div className="space-y-5">
-          {/* Logo & Giới thiệu ngắn */}
-          <div className="flex items-center gap-3.5 rounded-xl bg-[#1e4fc2] text-white p-3.5 border border-[#4a7fe8]">
+          {/* Logo & Tiêu đề CLB */}
+          <div className="flex items-center gap-3.5 rounded-xl bg-[#0f2239] text-white p-3.5 border border-blue-900/50">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={OFFICIAL_LOGO_URL}
@@ -691,46 +580,23 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
               className="h-12 w-12 rounded-xl object-contain bg-white p-0.5 border border-[#ffc933] shrink-0"
             />
             <div className="text-xs">
-              <div className="font-extrabold text-sm text-[#ffc933]">
-                ĐỘI BÓNG HĐH GÒ NỔI TẠI TP. HCM
+              <div className="font-extrabold text-sm text-[#ffc933] uppercase">
+                CLB BÓNG ĐÁ HĐH GÒ NỔI (TP.HCM)
               </div>
-              <p className="text-sky-100/90 mt-0.5">
-                Cầu thủ tự đổi được mật khẩu cá nhân hoặc nhờ Ban Quản Lý reset
-                về <strong>1234</strong>.
+              <p className="text-slate-300 mt-0.5">
+                Vui lòng chọn tài khoản thành viên và nhập mã PIN cá nhân để truy cập hệ thống.
               </p>
             </div>
           </div>
 
-          {/* Chọn nhanh Ban Quản Lý phụ trách thu tiền */}
-          <div className="rounded-xl bg-amber-50 border border-amber-200 p-3.5 space-y-2">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-amber-950 block">
-              ⚡ Đăng nhập nhanh Ban Quản Lý Thu Tiền ({managers.length} người):
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {managers.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => handleQuickSwitchRole(m)}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3 py-2 text-xs font-bold text-[#ffc933] transition cursor-pointer"
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  <span>
-                    #{m.jersey_number ?? "-"} {m.full_name}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Form đăng nhập dành cho mọi cầu thủ trong đội */}
+          {/* Form đăng nhập dành cho mọi cầu thủ và quản lý */}
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
               <label
                 htmlFor="login-player-select"
-                className="block text-sm font-semibold text-slate-700 mb-1"
+                className="block text-sm font-bold text-slate-700 mb-1"
               >
-                Chọn Tên & Số Áo Cầu Thủ
+                Tài khoản Thành viên / Cầu thủ
               </label>
               <select
                 id="login-player-select"
@@ -743,8 +609,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
               >
                 {data.players.map((p) => (
                   <option key={p.id} value={String(p.id)}>
-                    #{p.jersey_number ?? "-"} - {p.full_name} ({p.short_name}) —{" "}
-                    {p.access_role === "manager" ? "Ban Quản Lý" : "Cầu thủ"}
+                    #{p.jersey_number ?? "-"} - {p.full_name} ({p.access_role === "manager" ? "Ban Quản Lý" : "Cầu thủ"})
                   </option>
                 ))}
               </select>
@@ -753,9 +618,9 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
             <div>
               <label
                 htmlFor="login-pin-input"
-                className="block text-sm font-semibold text-slate-700 mb-1"
+                className="block text-sm font-bold text-slate-700 mb-1"
               >
-                Mật khẩu / Mã PIN cá nhân (Mặc định: 1234)
+                Mật khẩu / Mã PIN cá nhân
               </label>
               <div className="relative">
                 <KeyRound className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -763,11 +628,13 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   id="login-pin-input"
                   type="password"
                   value={pinInput}
+                  placeholder="Nhập mã PIN cá nhân"
                   onChange={(e) => {
                     setPinInput(e.target.value);
                     setLoginError("");
                   }}
                   className="form-input !pl-9 font-bold tracking-widest"
+                  autoFocus
                 />
               </div>
               {loginError && (
@@ -777,20 +644,23 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-200">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
               <button
                 type="button"
-                onClick={() => handleQuickSwitchRole(null)}
-                className="rounded-lg border border-slate-300 px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                onClick={() => {
+                  setLoginModalOpen(false);
+                  setLoginError("");
+                }}
+                className="rounded-lg border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
-                Xem Trang Khách
+                Đóng
               </button>
 
               <button
                 type="submit"
-                className="rounded-lg bg-[#1e4fc2] px-5 py-2.5 text-sm font-bold text-[#ffc933] hover:bg-[#2f66dd] cursor-pointer"
+                className="rounded-lg bg-[#0D5EF4] hover:bg-blue-600 px-6 py-2.5 text-sm font-extrabold text-white transition shadow-sm cursor-pointer"
               >
-                Đăng Nhập & Điểm Danh Ngay
+                Đăng Nhập Hệ Thống
               </button>
             </div>
           </form>
