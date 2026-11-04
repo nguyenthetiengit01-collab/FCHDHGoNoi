@@ -1,0 +1,25 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# sqlite temp lock files (giữ lại data/gonoifc.sqlite để có sẵn dữ liệu khi deploy)
+/data/*.sqlite-shm
+/data/*.sqlite-wal
+
+# env
+.env*.local
+.DS_Store
+Thumbs.db
+

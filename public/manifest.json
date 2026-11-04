@@ -1,0 +1,16 @@
+﻿{
+  "name": "FC HĐH Gò Nổi - Tại TP. Hồ Chí Minh",
+  "short_name": "FC HĐH Gò Nổi",
+  "description": "Ứng dụng quản lý Hồ sơ cầu thủ, Quỹ đội bóng, Điểm danh & Lịch thi đấu FC HĐH Gò Nổi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e4fc2",
+  "theme_color": "#1e4fc2",
+  "icons": [
+    {
+      "src": "/images/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
