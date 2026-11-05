@@ -310,6 +310,9 @@ function PlayerCard3D({ player, onOpenProfile }: PlayerCard3DProps) {
       >
         {/* ==================== MẶT TRƯỚC (FRONT 3D PROFILE CARD - XANH LAM SANG TRỌNG) ==================== */}
         <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden bg-gradient-to-b from-[#133b73] via-[#0d2a54] to-[#081b38] border-2 border-[#d4af37]/80 shadow-[0_20px_60px_rgba(10,35,75,0.7)] flex flex-col justify-between p-4 sm:p-5">
+          {/* ScrollCraft Chromatic Hologram Sweep */}
+          <div aria-hidden="true" className="sc-hologram-sweep" />
+
           {/* Holographic Diamond Glare */}
           <div
             aria-hidden="true"
@@ -1045,14 +1048,6 @@ export function PublicGuestPortal({
               </button>
             ))}
             <a
-              href="/trai-nghiem"
-              className="text-[#d4af37] hover:text-[#f3e5ab] inline-flex items-center gap-1.5 transition px-3 py-1 rounded-full bg-[#d4af37]/15 border border-[#d4af37]/40 shadow-sm"
-              title="Trải nghiệm cuộn trang điện ảnh ScrollCraft"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-[#d4af37] animate-pulse" />
-              <span>Hào Khí 3D</span>
-            </a>
-            <a
               href={fanpageUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -1091,15 +1086,31 @@ export function PublicGuestPortal({
           />
         ))}
 
-        {/* Lớp phủ chuyển sắc xanh lam sapphire sang trọng */}
+        {/* Lớp phủ chuyển sắc xanh lam sapphire sang trọng & chiều sâu sân vận động ScrollCraft */}
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-t from-[#092244] via-[#0b2952]/70 to-[#071933]/40"
+          className="absolute inset-0 bg-radial-[circle_at_50%_25%] from-[#10346a]/30 via-transparent to-transparent mix-blend-screen pointer-events-none"
         />
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-r from-[#0c2850]/80 via-transparent to-transparent"
+          className="absolute inset-0 bg-radial-[circle_at_20%_20%] from-[#d4af37]/15 via-transparent to-transparent mix-blend-screen pointer-events-none"
         />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-t from-[#092244] via-[#0b2952]/75 to-[#071933]/45"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-r from-[#0c2850]/85 via-[#0b2952]/40 to-transparent"
+        />
+
+        {/* Chữ in chìm không gian sâu (Depth Watermark) */}
+        <div
+          aria-hidden="true"
+          className="absolute top-[32%] left-1/2 -translate-x-1/2 -translate-y-1/2 font-display font-black text-[22vw] leading-none text-white/[0.03] select-none whitespace-nowrap pointer-events-none tracking-widest uppercase"
+        >
+          GO NOI FC
+        </div>
 
         <div className={`${WRAP} relative z-10 pt-40 pb-14 sm:pb-20`}>
           <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -1127,17 +1138,10 @@ export function PublicGuestPortal({
               Ngôi nhà chung của <strong className="text-[#fde047] font-bold">23+ anh em chiến binh</strong> và không ngừng mở rộng, hướng đến việc quy tụ toàn bộ anh em con em Điện Quang, Điện Trung, Điện Phong tại TP.HCM. Bất kể bạn đá ở vị trí nào, chỉ cần mang trong mình tinh thần Gò Nổi — sân bóng luôn sẵn sàng đón bạn!
             </p>
             <div className="flex flex-wrap items-center gap-4">
-              <a
-                href="/trai-nghiem"
-                className="inline-flex items-center gap-3 bg-gradient-to-r from-[#d4af37] via-[#f3e5ab] to-[#d4af37] text-slate-950 font-extrabold px-8 py-4 sm:py-5 text-sm uppercase tracking-widest rounded-xl transition shadow-[0_0_25px_rgba(212,175,55,0.4)] hover:scale-105"
-              >
-                <Sparkles className="h-5 w-5 text-slate-950" />
-                <span>Trải nghiệm Hào Khí 3D</span>
-              </a>
               <button
                 type="button"
                 onClick={onOpenLogin}
-                className="inline-flex items-center gap-3 bg-gradient-to-r from-[#17488c] to-[#1e5eb8] hover:from-[#1e5eb8] hover:to-[#2563eb] text-white font-bold px-8 py-4 sm:py-5 text-sm uppercase tracking-widest rounded-xl cursor-pointer shadow-xl border border-sky-300/30 transition"
+                className="inline-flex items-center gap-3 bg-gradient-to-r from-[#17488c] to-[#1e5eb8] hover:from-[#1e5eb8] hover:to-[#2563eb] text-white font-bold px-8 py-4 sm:py-5 text-sm uppercase tracking-widest rounded-xl cursor-pointer shadow-xl border border-sky-300/30 transition hover:scale-[1.02]"
               >
                 <span>Vào khu thành viên</span>
                 <ArrowRight className="h-5 w-5" />
@@ -1145,7 +1149,7 @@ export function PublicGuestPortal({
               <button
                 type="button"
                 onClick={() => go("join-us")}
-                className="inline-flex items-center gap-3 border-2 border-[#d4af37] hover:bg-[#d4af37] hover:text-slate-950 text-[#d4af37] font-bold px-8 py-[14px] sm:py-[18px] text-sm uppercase tracking-widest rounded-xl cursor-pointer transition shadow-md"
+                className="inline-flex items-center gap-3 border-2 border-[#d4af37] hover:bg-[#d4af37] hover:text-slate-950 text-[#d4af37] font-bold px-8 py-[14px] sm:py-[18px] text-sm uppercase tracking-widest rounded-xl cursor-pointer transition shadow-md hover:scale-[1.02]"
               >
                 <HeartHandshake className="h-5 w-5" />
                 <span>Gia nhập đội bóng</span>
@@ -1539,9 +1543,17 @@ export function PublicGuestPortal({
         <div className={WRAP}>
           <Reveal>
             <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 px-4 py-1.5 text-xs font-bold text-[#fde047] mb-4 backdrop-blur-md">
-                <Users className="h-4 w-4" />
-                <span>Mái nhà chung của 23+ cầu thủ & Toàn thể anh em đồng hương</span>
+              <div className="flex items-center gap-3.5 mb-4">
+                <div className="h-12 w-12 rounded-full border-2 border-[#d4af37] p-1.5 shadow-[0_0_25px_rgba(212,175,55,0.4)] shrink-0 bg-[#071933]/80">
+                  <svg viewBox="0 0 32 32" className="w-full h-full">
+                    <circle cx="16" cy="16" r="14" fill="none" stroke="#D4AF37" strokeWidth="1.5" />
+                    <polygon points="16,6 19.5,13.5 27,14.5 21.5,19.5 23,27 16,23 9,27 10.5,19.5 5,14.5 12.5,13.5" fill="#D4AF37" />
+                  </svg>
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 px-4 py-1.5 text-xs font-bold text-[#fde047] backdrop-blur-md">
+                  <Users className="h-4 w-4" />
+                  <span>Mái nhà chung của 23+ cầu thủ & Toàn thể anh em đồng hương</span>
+                </div>
               </div>
               <h2 className="font-display font-bold uppercase leading-[0.88] text-6xl sm:text-8xl lg:text-9xl text-white drop-shadow">
                 Mở rộng cửa đón
