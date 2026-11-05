@@ -294,10 +294,9 @@ function getPlayerHamlet(player: Player): string {
    ========================================================================= */
 interface ExpandedPlayerDetailProps {
   player: Player | null;
-  onOpenLogin: () => void;
 }
 
-function ExpandedPlayerDetail({ player, onOpenLogin }: ExpandedPlayerDetailProps) {
+function ExpandedPlayerDetail({ player }: ExpandedPlayerDetailProps) {
   if (!player) return null;
 
   const posBadge = getPlayerPositionBadge(player);
@@ -333,14 +332,20 @@ function ExpandedPlayerDetail({ player, onOpenLogin }: ExpandedPlayerDetailProps
         </div>
       </div>
 
-      {/* Ảnh chân dung lớn */}
-      <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] rounded-2xl overflow-hidden border-2 border-[#d4af37]/50 shadow-2xl bg-[#071933]">
+      {/* Ảnh chân dung lớn: Hiển thị ít nhất nửa thân trên, chuẩn chỉnh và nổi bật */}
+      <div className="relative w-full aspect-[3/4] max-h-[520px] rounded-2xl overflow-hidden border-2 border-[#d4af37]/60 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_25px_rgba(212,175,55,0.2)] bg-gradient-to-b from-[#133b73] via-[#092244] to-[#051326] flex items-center justify-center">
+        {/* Hào quang ánh sáng sân cỏ chiếu sau lưng cầu thủ */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-radial-[circle_at_50%_35%] from-sky-400/20 via-[#0d2a54]/50 to-transparent pointer-events-none"
+        />
+
         {player.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={player.avatar_url}
             alt={player.full_name}
-            className="w-full h-full object-cover object-top filter brightness-105"
+            className="w-full h-full object-cover object-top filter brightness-105 contrast-[1.02]"
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-[#133b73] to-[#071933]">
@@ -354,10 +359,16 @@ function ExpandedPlayerDetail({ player, onOpenLogin }: ExpandedPlayerDetailProps
           </div>
         )}
 
+        {/* Lớp phủ chuyển sắc nhẹ đáy ảnh để tôn thông tin */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#071933] via-[#071933]/50 to-transparent pointer-events-none"
+        />
+
         {/* Số áo in chìm nghệ thuật góc ảnh */}
         <span
           aria-hidden="true"
-          className="absolute -right-4 -bottom-6 font-display font-black text-9xl text-transparent [-webkit-text-stroke:2px_rgba(212,175,55,0.4)] pointer-events-none select-none leading-none"
+          className="absolute right-3 bottom-2 font-display font-black text-8xl text-transparent [-webkit-text-stroke:2px_rgba(212,175,55,0.45)] pointer-events-none select-none leading-none drop-shadow-lg"
         >
           {player.jersey_number ?? ""}
         </span>
@@ -413,19 +424,6 @@ function ExpandedPlayerDetail({ player, onOpenLogin }: ExpandedPlayerDetailProps
           <strong className="text-[#d4af37]">Ghi chú:</strong> {player.notes}
         </div>
       )}
-
-      {/* Chân trang thông tin: Nút cầu thủ tự sửa profile */}
-      <div className="pt-3 border-t border-white/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-sky-200/80">
-        <span>💡 Cầu thủ đăng nhập để tự cập nhật Bio & Ảnh đại diện.</span>
-        <button
-          type="button"
-          onClick={onOpenLogin}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-4 py-2 text-xs uppercase tracking-wider transition shadow-md shrink-0 cursor-pointer"
-        >
-          <LogIn className="h-3.5 w-3.5" />
-          <span>Chỉnh sửa Profile</span>
-        </button>
-      </div>
     </div>
   );
 }
@@ -1053,20 +1051,14 @@ export function PublicGuestPortal({
 
               {/* Thông số nhanh */}
               <div className="flex items-center gap-3">
-                <div className="bg-[#071933]/90 px-4 py-2.5 rounded-2xl border border-[#d4af37]/40 shadow-sm text-right">
-                  <span className="text-xs uppercase font-bold text-sky-200 block">Đã có</span>
+                <div className="bg-[#071933]/90 px-5 py-3 rounded-2xl border border-[#d4af37]/40 shadow-sm text-right">
+                  <span className="text-[11px] uppercase tracking-wider font-bold text-sky-200 block">
+                    Đội hình chính thức
+                  </span>
                   <span className="text-2xl font-display font-black text-[#fde047] leading-none">
-                    {activePlayers.length}+ Anh em
+                    {activePlayers.length}+ Chiến binh
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={onOpenLogin}
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-5 py-3 text-xs uppercase tracking-wider rounded-xl transition shadow-lg cursor-pointer shrink-0"
-                >
-                  <LogIn className="h-3.5 w-3.5" />
-                  <span>Sửa Profile</span>
-                </button>
               </div>
             </div>
           </Reveal>
@@ -1076,10 +1068,7 @@ export function PublicGuestPortal({
             {/* CỘT 1/2 BÊN TRÁI: CHI TIẾT CẦU THỦ ĐƯỢC CHỌN (KHÔNG LẬT NGHIÊNG) */}
             <div className="lg:col-span-6 lg:sticky lg:top-24">
               <Reveal>
-                <ExpandedPlayerDetail
-                  player={selectedPlayer}
-                  onOpenLogin={onOpenLogin}
-                />
+                <ExpandedPlayerDetail player={selectedPlayer} />
               </Reveal>
             </div>
 
