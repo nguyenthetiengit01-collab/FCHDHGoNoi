@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FC HĐH Gò Nổi · Hào Khí Đất Quảng Giữa Sài Gòn (ScrollCraft)</title>
+<meta name="description" content="Trải nghiệm điện ảnh cuộn trang của FC HĐH Gò Nổi - Hơn 23 chiến binh bóng đá phong trào xứ Quảng mang khát khao và nghĩa tình rực lửa sân 7.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%230B1B3D' stroke='%23D4AF37' stroke-width='2'/><polygon points='16,7 19,13 25,14 21,18 22,25 16,21 10,25 11,18 7,14 13,13' fill='%23D4AF37'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="scrollcraft.css">
+<style>
+  :root {
+    --sc-canvas:     #050B17;
+    --sc-surface:    #0B1B3D;
+    --sc-surface-alt:#0E234E;
+    --sc-ink:        #F8FAFC;
+    --sc-ink-soft:   #94A3B8;
+    --sc-ink-muted:  #64748B;
+    --sc-accent:     #D4AF37;
+    --sc-accent-soft:#F3E5AB;
+    --sc-accent-ink: #050B17;
+    --sc-font-display: "Cinzel", "Plus Jakarta Sans", Georgia, serif;
+    --sc-font-text:    "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    --sc-gold-gradient: linear-gradient(135deg, #FFF1B0 0%, #D4AF37 50%, #997A15 100%);
+    --sc-sapphire-card: rgba(11, 27, 61, 0.75);
+  }
+
+  /* Base enhancements */
+  body {
+    background-color: var(--sc-canvas);
+    color: var(--sc-ink);
+    font-family: var(--sc-font-text);
+    overflow-x: hidden;
+    letter-spacing: -0.01em;
+  }
+
+  /* Floating Royal Nav Dock */
+  .royal-nav {
+    position: fixed;
+    top: 1.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 99;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.5rem 1.25rem;
+    background: rgba(5, 11, 23, 0.85);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 9999px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .royal-nav:hover {
+    border-color: rgba(212, 175, 55, 0.6);
+    box-shadow: 0 12px 35px rgba(212, 175, 55, 0.15);
+  }
+  .royal-nav__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--sc-font-display);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--sc-accent-soft);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+  }
+  .royal-nav__crest {
+    width: 26px;
+    height: 26px;
+    filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.5));
+  }
+  .royal-nav__links {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .royal-nav__link {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--sc-ink-soft);
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: color 0.2s ease;
+  }
+  .royal-nav__link:hover {
+    color: var(--sc-accent);
+  }
+  .royal-nav__cta {
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--sc-accent-ink);
+    background: var(--sc-gold-gradient);
+    border-radius: 9999px;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 2px 10px rgba(212, 175, 55, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .royal-nav__cta:hover {
+    transform: scale(1.04);
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.5);
+  }
+
+  /* Dimensional Hero Elements */
+  .hero-depth {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  .hero-plane--bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 30%, #0F2A66 0%, #050B17 75%);
+    z-index: 1;
+  }
+  .hero-plane--lights {
+    position: absolute;
+    inset: 0;
+    background-image: 
+      radial-gradient(circle at 20% 15%, rgba(212, 175, 55, 0.18) 0%, transparent 40%),
+      radial-gradient(circle at 80% 20%, rgba(56, 189, 248, 0.22) 0%, transparent 45%);
+    mix-blend-mode: screen;
+    z-index: 2;
+  }
+  .hero-plane--typo {
+    position: absolute;
+    top: 24%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    text-align: center;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .hero-title-massive {
+    font-family: var(--sc-font-display);
+    font-size: clamp(3rem, 9vw, 8.5rem);
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: 0.06em;
+    background: var(--sc-gold-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    margin: 0;
+  }
+  .hero-subtitle-grand {
+    font-size: clamp(0.9rem, 2vw, 1.4rem);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.35em;
+    color: #CBD5E1;
+    margin-top: 1rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+  }
+  .hero-plane--subject {
+    position: absolute;
+    bottom: -5%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 85%;
+    max-width: 1200px;
+    z-index: 4;
+    filter: drop-shadow(0 20px 40px rgba(0,0,0,0.9));
+  }
+  .hero-plane--subject img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 1.5rem;
+    box-shadow: 0 25px 60px -15px rgba(0,0,0,0.8), 0 0 0 1px rgba(212, 175, 55, 0.3);
+  }
+  .hero-plane--mist {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 45%;
+    background: linear-gradient(to top, #050B17 15%, rgba(5, 11, 23, 0.8) 50%, transparent 100%);
+    z-index: 5;
+    pointer-events: none;
+  }
+  .hero-lead-card {
+    position: absolute;
+    bottom: 3.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 1rem 2rem;
+    background: rgba(11, 27, 61, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 1.25rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+  }
+  .hero-stat {
+    text-align: center;
+  }
+  .hero-stat__val {
+    font-family: var(--sc-font-display);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--sc-accent);
+    display: block;
+    line-height: 1.1;
+  }
+  .hero-stat__label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sc-ink-soft);
+  }
+
+  /* 3D Holographic Player Cards (Signature Move) */
+  .squad-stage {
+    padding: 3rem 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .squad-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 0 1.5rem;
+  }
+  .squad-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 1rem;
+    border-radius: 9999px;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: var(--sc-accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+  }
+  .squad-rail {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem 4vw 2rem 4vw;
+    width: max-content;
+    will-change: transform;
+  }
+  .player-hologram-card {
+    position: relative;
+    width: 320px;
+    height: 480px;
+    border-radius: 1.5rem;
+    background: linear-gradient(165deg, rgba(17, 38, 82, 0.9) 0%, rgba(5, 11, 23, 0.95) 100%);
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    overflow: hidden;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: border-color 0.4s, box-shadow 0.4s, transform 0.3s;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+  }
+  .player-hologram-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(130deg, transparent 30%, rgba(212, 175, 55, 0.15) 50%, transparent 70%);
+    opacity: 0.4;
+    transition: opacity 0.4s, transform 0.6s;
+    pointer-events: none;
+    transform: translateX(-100%);
+  }
+  .player-hologram-card:hover::before {
+    opacity: 0.9;
+    transform: translateX(100%);
+  }
+  .player-hologram-card:hover {
+    border-color: rgba(212, 175, 55, 0.8);
+    box-shadow: 0 20px 45px rgba(212, 175, 55, 0.25), 0 0 25px rgba(56, 189, 248, 0.15);
+  }
+  .player-card__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+  .player-card__num {
+    font-family: var(--sc-font-display);
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--sc-accent);
+    line-height: 1;
+  }
+  .player-card__badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.25rem 0.65rem;
+    background: rgba(212, 175, 55, 0.18);
+    border: 1px solid rgba(212, 175, 55, 0.4);
+    color: #FFF;
+    border-radius: 9999px;
+  }
+  .player-card__photo {
+    position: absolute;
+    top: 4.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 220px;
+    height: 240px;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .player-card__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    transition: transform 0.5s ease;
+  }
+  .player-hologram-card:hover .player-card__photo img {
+    transform: scale(1.06);
+  }
+  .player-card__bottom {
+    position: relative;
+    z-index: 2;
+    background: rgba(5, 11, 23, 0.88);
+    backdrop-filter: blur(12px);
+    border-radius: 1rem;
+    padding: 1rem;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .player-card__name {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #FFF;
+    margin: 0 0 0.25rem 0;
+  }
+  .player-card__sub {
+    font-size: 0.78rem;
+    color: var(--sc-accent-soft);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Act 3: Tournament Battle (The Peak) */
+  .peak-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 70% 30%, #152E63 0%, #050B17 80%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 4vw;
+  }
+  .peak-container {
+    max-width: 1300px;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 3.5rem;
+    align-items: center;
+  }
+  .peak-gallery {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+  .peak-photo {
+    position: relative;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.7);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+  }
+  .peak-photo img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+  }
+  .peak-photo--wide {
+    grid-column: span 2;
+  }
+  .peak-photo--wide img {
+    height: 260px;
+  }
+
+  /* Act 4: Fellowship & Warmth */
+  .fellowship-section {
+    padding: 7rem 4vw;
+    background: linear-gradient(180deg, #050B17 0%, #09152E 50%, #050B17 100%);
+  }
+  .fellowship-wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .fellowship-quote {
+    font-family: var(--sc-font-display);
+    font-size: clamp(1.4rem, 3.2vw, 2.5rem);
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--sc-accent-soft);
+    margin: 2.5rem 0;
+    padding: 0 1rem;
+    text-wrap: balance;
+  }
+  .fellowship-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 3.5rem;
+  }
+  .fellowship-card {
+    border-radius: 1.25rem;
+    overflow: hidden;
+    background: rgba(11, 27, 61, 0.5);
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: transform 0.3s ease, border-color 0.3s;
+  }
+  .fellowship-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(212, 175, 55, 0.4);
+  }
+  .fellowship-card img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    display: block;
+  }
+  .fellowship-card__caption {
+    padding: 1.25rem;
+    text-align: left;
+    font-size: 0.9rem;
+    color: var(--sc-ink-soft);
+  }
+
+  /* Act 5: Golden Brotherhood Circle */
+  .solidarity-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 50%, #112857 0%, #050B17 75%);
+    text-align: center;
+    padding: 2rem;
+  }
+  .golden-seal {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 2px solid var(--sc-accent);
+    padding: 6px;
+    box-shadow: 0 0 50px rgba(212, 175, 55, 0.3);
+    margin-bottom: 2rem;
+    animation: pulseGlow 4s infinite alternate ease-in-out;
+  }
+  @keyframes pulseGlow {
+    from { box-shadow: 0 0 25px rgba(212, 175, 55, 0.2); }
+    to { box-shadow: 0 0 60px rgba(212, 175, 55, 0.5); }
+  }
+  .golden-seal svg {
+    width: 100%;
+    height: 100%;
+    fill: var(--sc-accent);
+  }
+  .close-pledge {
+    max-width: 650px;
+    margin: 0 auto 2.5rem;
+    font-size: 1.15rem;
+    color: var(--sc-ink-soft);
+    line-height: 1.6;
+  }
+  .pledge-button {
+    display: inline-block;
+    padding: 1rem 3rem;
+    font-size: 1rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--sc-accent-ink);
+    background: var(--sc-gold-gradient);
+    border-radius: 9999px;
+    text-decoration: none;
+    box-shadow: 0 10px 30px rgba(212, 175, 55, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .pledge-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 15px 45px rgba(212, 175, 55, 0.6);
+  }
+
+  /* Responsive queries */
+  @media (max-width: 900px) {
+    .royal-nav__links { display: none; }
+    .hero-lead-card { display: none; }
+    .peak-container { grid-template-columns: 1fr; gap: 2rem; }
+    .peak-photo--wide img { height: 180px; }
+    .peak-photo img { height: 160px; }
+    .player-hologram-card { width: 280px; height: 420px; }
+  }
+</style>
+</head>
+<body>
+
+<span data-sc-progress></span>
+<div class="sc-grain" aria-hidden="true"></div>
+
+<!-- Floating Royal Nav Dock -->
+<header class="royal-nav">
+  <a href="#top" class="royal-nav__brand">
+    <svg class="royal-nav__crest" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="14" fill="#0B1B3D" stroke="#D4AF37" stroke-width="2"/>
+      <polygon points="16,7 19,13 25,14 21,18 22,25 16,21 10,25 11,18 7,14 13,13" fill="#D4AF37"/>
+    </svg>
+    <span>GÒ NỔI FC</span>
+  </a>
+  <ul class="royal-nav__links">
+    <li><a href="#khi-the" class="royal-nav__link">Khí Thế</a></li>
+    <li><a href="#chien-binh" class="royal-nav__link">Chiến Binh</a></li>
+    <li><a href="#giai-dau" class="royal-nav__link">Giải Đấu</a></li>
+    <li><a href="#nghia-tinh" class="royal-nav__link">Nghĩa Tình</a></li>
+  </ul>
+  <a href="/" class="royal-nav__cta">Cổng CLB</a>
+</header>
+
+<main id="top">
+
+  <!-- ACT 1 · KHÍ THẾ GÒ NỔI -->
+  <section id="khi-the" data-sc-act="pin" data-sc-span="2.2" data-sc-drift="#050B17">
+    <div data-sc-stage class="hero-depth">
+      <div class="hero-plane--bg"></div>
+      <div class="hero-plane--lights"></div>
+
+      <div class="hero-plane--typo" data-sc-cue="0 0.85 0">
+        <h1 class="hero-title-massive" data-sc-kinetic="lines">FC HĐH GÒ NỔI</h1>
+        <p class="hero-subtitle-grand">Hào Khí Xứ Quảng Giữa Sài Gòn</p>
+      </div>
+
+      <div class="hero-plane--subject" data-sc-cue="0.05 0.95 0">
+        <img src="/images/hinhanh-webp/anhbia/DSC06734.webp" alt="Tập thể FC HĐH Gò Nổi dàn quân khí thế" width="1600" height="900">
+      </div>
+
+      <div class="hero-plane--mist"></div>
+
+      <div class="hero-lead-card" data-sc-cue="0.1 0.9">
+        <div class="hero-stat">
+          <span class="hero-stat__val">23+</span>
+          <span class="hero-stat__label">Chiến Binh</span>
+        </div>
+        <div style="width: 1px; height: 35px; background: rgba(212,175,55,0.3);"></div>
+        <div class="hero-stat">
+          <span class="hero-stat__val">SÂN 7</span>
+          <span class="hero-stat__label">Rực Lửa Sài Gòn</span>
+        </div>
+        <div style="width: 1px; height: 35px; background: rgba(212,175,55,0.3);"></div>
+        <div class="hero-stat">
+          <span class="hero-stat__val">1 TRÁI TIM</span>
+          <span class="hero-stat__label">Nghĩa Tình Đồng Hương</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 2 · 23+ CHIẾN BINH ĐẤT QUẢNG -->
+  <section id="chien-binh" data-sc-act="pan" data-sc-span="3.2" data-sc-drift="#071226">
+    <div data-sc-stage class="squad-stage">
+      <div class="squad-header">
+        <div class="squad-pill">Đội Hình 2026</div>
+        <h2 class="sc-display sc-display--lg" style="margin: 0; color: #FFF;">23+ Chiến Binh Gò Nổi</h2>
+        <p style="color: var(--sc-ink-soft); margin-top: 0.5rem; font-size: 0.95rem;">Cuộn trang ngang để chiêm ngưỡng từng gương mặt đại diện cho quê hương đất mẹ</p>
+      </div>
+
+      <div class="squad-rail" data-sc-pan="0.08">
+        <article class="player-hologram-card" data-sc-tilt="7">
+          <div class="player-card__top">
+            <span class="player-card__num">#10</span>
+            <span class="player-card__badge">Tiền Vệ Tấn Công</span>
+          </div>
+          <div class="player-card__photo">
+            <img src="/images/hinhanh-webp/cauthu/53bf36c3037e8220db6f.webp" alt="Cầu thủ Gò Nổi">
+          </div>
+          <div class="player-card__bottom">
+            <h3 class="player-card__name">Nguyễn Thế Tiền</h3>
+            <div class="player-card__sub">
+              <span>Điện Quang · Gò Nổi</span>
+              <span style="color: var(--sc-accent);">Nhạc Trưởng</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="player-hologram-card" data-sc-tilt="7">
+          <div class="player-card__top">
+            <span class="player-card__num">#07</span>
+            <span class="player-card__badge">Tiền Đạo Cánh</span>
+          </div>
+          <div class="player-card__photo">
+            <img src="/images/hinhanh-webp/cauthu/05f39aceaf732e2d776225.webp" alt="Cầu thủ Gò Nổi">
+          </div>
+          <div class="player-card__bottom">
+            <h3 class="player-card__name">Trần Tuấn Huy</h3>
+            <div class="player-card__sub">
+              <span>Điện Trung · Gò Nổi</span>
+              <span style="color: var(--sc-accent);">Mũi Khoan Lửa</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="player-hologram-card" data-sc-tilt="7">
+          <div class="player-card__top">
+            <span class="player-card__num">#04</span>
+            <span class="player-card__badge">Trung Vệ Thép</span>
+          </div>
+          <div class="player-card__photo">
+            <img src="/images/hinhanh-webp/cauthu/64f89d533bedd0be03fc.webp" alt="Cầu thủ Gò Nổi">
+          </div>
+          <div class="player-card__bottom">
+            <h3 class="player-card__name">Lê Văn Bảo</h3>
+            <div class="player-card__sub">
+              <span>Điện Phong · Gò Nổi</span>
+              <span style="color: var(--sc-accent);">Thủ Lĩnh Phòng Ngự</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="player-hologram-card" data-sc-tilt="7">
+          <div class="player-card__top">
+            <span class="player-card__num">#01</span>
+            <span class="player-card__badge">Thủ Môn</span>
+          </div>
+          <div class="player-card__photo">
+            <img src="/images/hinhanh-webp/cauthu/836423c9e67f6727dfec.webp" alt="Cầu thủ Gò Nổi">
+          </div>
+          <div class="player-card__bottom">
+            <h3 class="player-card__name">Đặng Minh Thắng</h3>
+            <div class="player-card__sub">
+              <span>Điện Quang · Gò Nổi</span>
+              <span style="color: var(--sc-accent);">Người Nhện Khung Gỗ</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="player-hologram-card" data-sc-tilt="7">
+          <div class="player-card__top">
+            <span class="player-card__num">#08</span>
+            <span class="player-card__badge">Tiền Vệ Trung Tâm</span>
+          </div>
+          <div class="player-card__photo">
+            <img src="/images/hinhanh-webp/cauthu/83818e954b2d357bbb1e.webp" alt="Cầu thủ Gò Nổi">
+          </div>
+          <div class="player-card__bottom">
+            <h3 class="player-card__name">Phạm Ngọc Đạt</h3>
+            <div class="player-card__sub">
+              <span>Điện Trung · Gò Nổi</span>
+              <span style="color: var(--sc-accent);">Máy Quét Tuyến Giữa</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="player-hologram-card" data-sc-tilt="7">
+          <div class="player-card__top">
+            <span class="player-card__num">#11</span>
+            <span class="player-card__badge">Tiền Đạo Mục Tiêu</span>
+          </div>
+          <div class="player-card__photo">
+            <img src="/images/hinhanh-webp/cauthu/c75124b8e2025357db33.webp" alt="Cầu thủ Gò Nổi">
+          </div>
+          <div class="player-card__bottom">
+            <h3 class="player-card__name">Võ Hoàng Nam</h3>
+            <div class="player-card__sub">
+              <span>Điện Phong · Gò Nổi</span>
+              <span style="color: var(--sc-accent);">Sát Thủ Vòng Cấm</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 3 · RỰC LỬA SÂN 7 SÀI GÒN (THE PEAK) -->
+  <section id="giai-dau" data-sc-act="pin" data-sc-span="3.5" data-sc-drift="#0A1838">
+    <div data-sc-stage class="peak-stage">
+      <div class="peak-container">
+        <div class="sc-stack" data-sc-cue="0.08 0.88">
+          <div class="squad-pill">Đỉnh Cao Phong Trào</div>
+          <h2 class="sc-display sc-display--xl" style="color: #FFF; margin: 0.5rem 0;" data-sc-kinetic="lines">
+            Rực Lửa Trận Cầu Sân 7
+          </h2>
+          <p class="sc-body" style="color: var(--sc-ink-soft); font-size: 1.05rem; line-height: 1.65;">
+            Khi tiếng còi khai cuộc cất lên dưới ánh đèn vàng sân cỏ nhân tạo Sài Gòn, từng giọt mồ hôi và từng bước chạy đều hướng về màu cờ quê hương Gò Nổi. Không lùi bước trước bất kỳ đối thủ nào.
+          </p>
+
+          <div style="display: flex; gap: 2rem; margin-top: 1.5rem;">
+            <div>
+              <div style="font-family: var(--sc-font-display); font-size: 2.2rem; font-weight: 900; color: var(--sc-accent);">100%</div>
+              <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--sc-ink-soft); letter-spacing: 0.08em;">Nhiệt Huyết Cống Hiến</div>
+            </div>
+            <div>
+              <div style="font-family: var(--sc-font-display); font-size: 2.2rem; font-weight: 900; color: var(--sc-accent);">SÂN 7</div>
+              <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--sc-ink-soft); letter-spacing: 0.08em;">Chiến Thuật Hiện Đại</div>
+            </div>
+            <div>
+              <div style="font-family: var(--sc-font-display); font-size: 2.2rem; font-weight: 900; color: var(--sc-accent);">VÔ ĐỊCH</div>
+              <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--sc-ink-soft); letter-spacing: 0.08em;">Tinh Thần Đoàn Kết</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="peak-gallery" data-sc-cue="0.12 0.85">
+          <div class="peak-photo peak-photo--wide">
+            <img src="/images/hinhanh-webp/giaidau/DSC06290.webp" alt="Pha tranh chấp bóng rực lửa giải sân 7">
+          </div>
+          <div class="peak-photo">
+            <img src="/images/hinhanh-webp/giaidau/DSC06522.webp" alt="Khoảnh khắc ăn mừng bàn thắng">
+          </div>
+          <div class="peak-photo">
+            <img src="/images/hinhanh-webp/giaidau/DSC06530.webp" alt="Tinh thần chiến đấu ngoan cường">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 4 · NGHĨA TÌNH ĐỒNG HƯƠNG -->
+  <section id="nghia-tinh" class="fellowship-section" data-sc-act="flow" data-sc-drift="#060D1E">
+    <div class="fellowship-wrap">
+      <div class="squad-pill" data-sc-in>Mái Nhà Chung</div>
+      <blockquote class="fellowship-quote" data-sc-in data-sc-stagger="50">
+        "Sau 90 phút nảy lửa, bóng đá trả chúng tôi về với nụ cười, chén bia giao hữu và nghĩa tình Gò Nổi son sắt giữa đất phương Nam."
+      </blockquote>
+
+      <div class="fellowship-grid">
+        <div class="fellowship-card" data-sc-in>
+          <img src="/images/hinhanh-webp/giaoluu/29c7f1c6ac0f2c51751e1.webp" alt="Giao lưu họp mặt sau trận đấu">
+          <div class="fellowship-card__caption">
+            <strong style="color: #FFF; display: block; margin-bottom: 0.25rem;">Họp Mặt Truyền Thống</strong>
+            Bữa cơm ấm tình người xa xứ, chia sẻ công việc, cuộc sống và tiếp lửa cho thế hệ trẻ.
+          </div>
+        </div>
+
+        <div class="fellowship-card" data-sc-in data-sc-stagger="100">
+          <img src="/images/hinhanh-webp/giaoluu/f799b42fe9e669b830f79.webp" alt="Giao hữu bóng đá đồng hương">
+          <div class="fellowship-card__caption">
+            <strong style="color: #FFF; display: block; margin-bottom: 0.25rem;">Gắn Kết Các Xã</strong>
+            Điện Quang, Điện Trung, Điện Phong hội tụ – bóng đá là nhịp cầu bền chặt nhất.
+          </div>
+        </div>
+
+        <div class="fellowship-card" data-sc-in data-sc-stagger="200">
+          <img src="/images/hinhanh-webp/taitro/16a77ea82361a33ffa703.webp" alt="Đồng hành cùng nhà tài trợ và mạnh thường quân">
+          <div class="fellowship-card__caption">
+            <strong style="color: #FFF; display: block; margin-bottom: 0.25rem;">Tiếp Sức Ngọn Lửa</strong>
+            Tri ân các anh chị doanh nghiệp và mạnh thường quân luôn đồng hành cùng đội bóng.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT 5 · CHUNG MỘT MÀU CỜ -->
+  <section id="gia-nhap" data-sc-act="pin" data-sc-span="1.25" data-sc-drift="#050B17">
+    <div data-sc-stage class="solidarity-stage" data-sc-spotlight>
+      <div class="golden-seal" data-sc-cue="0.05">
+        <svg viewBox="0 0 32 32">
+          <circle cx="16" cy="16" r="14" fill="none" stroke="#D4AF37" stroke-width="1.5"/>
+          <polygon points="16,6 19.5,13.5 27,14.5 21.5,19.5 23,27 16,23 9,27 10.5,19.5 5,14.5 12.5,13.5" fill="#D4AF37"/>
+        </svg>
+      </div>
+
+      <h2 class="sc-display sc-display--xl" style="color: #FFF; margin: 0 0 1rem 0;" data-sc-cue="0.06" data-sc-kinetic="lines">
+        Gia Nhập Hào Khí Gò Nổi
+      </h2>
+
+      <p class="close-pledge" data-sc-cue="0.08">
+        Dù bạn là cầu thủ muốn thử lửa trên sân cỏ, hay người con Gò Nổi muốn đồng hành tiếp lửa cho đội bóng quê nhà — cánh cửa FC HĐH Gò Nổi luôn rộng mở chào đón bạn.
+      </p>
+
+      <div>
+        <a href="/" class="pledge-button" data-sc-magnet="0.26" data-sc-cue="0.08" data-sc-rise="0">
+          Về Cổng Thông Tin CLB
+        </a>
+      </div>
+
+      <footer style="position: absolute; bottom: 1.5rem; font-size: 0.75rem; color: var(--sc-ink-muted); text-transform: uppercase; letter-spacing: 0.1em;">
+        FC HĐH Gò Nổi © 2026 · Tự Hào Bản Sắc Đất Quảng Tại Sài Gòn
+      </footer>
+    </div>
+  </section>
+
+</main>
+
+<script src="scrollcraft.js"></script>
+<script>
+  // Mount ScrollCraft Engine with native 60fps scroll drivers
+  ScrollCraft.mount(document.body);
+</script>
+</body>
+</html>
+

@@ -1045,6 +1045,14 @@ export function PublicGuestPortal({
               </button>
             ))}
             <a
+              href="/trai-nghiem"
+              className="text-[#d4af37] hover:text-[#f3e5ab] inline-flex items-center gap-1.5 transition px-3 py-1 rounded-full bg-[#d4af37]/15 border border-[#d4af37]/40 shadow-sm"
+              title="Trải nghiệm cuộn trang điện ảnh ScrollCraft"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-[#d4af37] animate-pulse" />
+              <span>Hào Khí 3D</span>
+            </a>
+            <a
               href={fanpageUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -1119,6 +1127,13 @@ export function PublicGuestPortal({
               Ngôi nhà chung của <strong className="text-[#fde047] font-bold">23+ anh em chiến binh</strong> và không ngừng mở rộng, hướng đến việc quy tụ toàn bộ anh em con em Điện Quang, Điện Trung, Điện Phong tại TP.HCM. Bất kể bạn đá ở vị trí nào, chỉ cần mang trong mình tinh thần Gò Nổi — sân bóng luôn sẵn sàng đón bạn!
             </p>
             <div className="flex flex-wrap items-center gap-4">
+              <a
+                href="/trai-nghiem"
+                className="inline-flex items-center gap-3 bg-gradient-to-r from-[#d4af37] via-[#f3e5ab] to-[#d4af37] text-slate-950 font-extrabold px-8 py-4 sm:py-5 text-sm uppercase tracking-widest rounded-xl transition shadow-[0_0_25px_rgba(212,175,55,0.4)] hover:scale-105"
+              >
+                <Sparkles className="h-5 w-5 text-slate-950" />
+                <span>Trải nghiệm Hào Khí 3D</span>
+              </a>
               <button
                 type="button"
                 onClick={onOpenLogin}

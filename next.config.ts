@@ -6,6 +6,14 @@ const nextConfig: NextConfig = {
     "/": ["./data/**/*"],
     "/api/**/*": ["./data/**/*"],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/trai-nghiem",
+        destination: "/trai-nghiem/index.html",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
