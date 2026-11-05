@@ -244,3 +244,22 @@ dialog::backdrop {
     display: none !important;
   }
 }
+
+/* Trang khách: font hi?n th? & hi?u ?ng bóng dá ph?i */
+.font-display {
+  font-family: var(--font-display), Impact, "Arial Narrow", sans-serif;
+}
+@keyframes gn-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes gn-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(12deg); }
+}
+.gn-marquee { animation: gn-marquee 40s linear infinite; }
+.gn-float { animation: gn-float 3.5s ease-in-out infinite; }
+.gn-float-slow { animation: gn-float 5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .gn-marquee, .gn-float, .gn-float-slow { animation: none; }
+}

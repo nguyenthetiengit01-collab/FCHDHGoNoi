@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Clock,
   MapPin,
@@ -13,7 +13,12 @@ import {
   Users,
   Activity,
   ArrowRight,
-  CheckCircle2,
+  Flame,
+  Wallet,
+  Camera,
+  Beer,
+  HeartHandshake,
+  Zap,
 } from "lucide-react";
 import type { FullAppData, Player } from "@/types/app";
 import {
@@ -31,25 +36,152 @@ interface PublicGuestPortalProps {
 const ACTION_GALLERY = [
   {
     src: OFFICIAL_COVER_URL,
-    title: "Đội hình sinh hoạt tuần FC HĐH Gò Nổi tại TP.HCM",
-    tag: "Tập thể CLB",
+    title: "Anh em Gò Nổi ra sân cuối tuần tại TP.HCM",
+    tag: "Tập thể",
   },
   {
     src: "/uploads/avatars/member-10.jpg",
-    title: "Tinh thần thi đấu nhiệt huyết, gắn kết quê hương",
+    title: "Tinh thần phủi: đá hết mình, cười hết cỡ",
     tag: "Ra sân",
   },
   {
     src: "/uploads/avatars/member-5.jpg",
-    title: "Giao lưu thể thao đồng hương Điện Bàn - Gò Nổi",
+    title: "Giao lưu đồng hương Điện Bàn - Gò Nổi",
     tag: "Giao hữu",
   },
   {
     src: "/uploads/avatars/member-13.jpg",
-    title: "Rèn luyện thể lực và phong trào bóng đá bền vững",
-    tag: "Phong trào",
+    title: "Mồ hôi trên sân, tình nghĩa ngoài sân",
+    tag: "Tình anh em",
   },
 ];
+
+const ACTIVITIES = [
+  {
+    icon: Flame,
+    title: "Đá phủi cuối tuần",
+    text: "Sân 7, sân 11, mưa hay nắng anh em vẫn có mặt. Đá cho đã, về còn kể chuyện.",
+    accent: "from-orange-500 to-amber-400",
+  },
+  {
+    icon: Trophy,
+    title: "Giao hữu & giải phong trào",
+    text: "Kết nối các đội đồng hương và CLB bạn, đá nghiêm túc nhưng luôn vui vẻ, fair-play.",
+    accent: "from-sky-500 to-blue-600",
+  },
+  {
+    icon: Beer,
+    title: "Sau trận là nghĩa tình",
+    text: "Ly nước, tô hủ tiếu, vài câu chuyện quê nhà. Đá xong mới thấy nhà gần ngay đây.",
+    accent: "from-emerald-500 to-teal-400",
+  },
+  {
+    icon: Wallet,
+    title: "Quỹ đội minh bạch",
+    text: "Thu chi sân bãi, tiền nước đều ghi rõ từng trận. Cầu thủ đăng nhập là xem được.",
+    accent: "from-yellow-400 to-amber-500",
+  },
+  {
+    icon: Camera,
+    title: "Khoảnh khắc & kỷ niệm",
+    text: "Ảnh tập thể, pha bóng đẹp, cú sút lệch cột dọc. Tất cả lên Fanpage cho cả xóm cười.",
+    accent: "from-pink-500 to-rose-500",
+  },
+  {
+    icon: HeartHandshake,
+    title: "Hướng về quê hương",
+    text: "Gắn kết đồng hương Điện Quang, Điện Trung, Điện Phong, sẻ chia khi anh em cần.",
+    accent: "from-violet-500 to-indigo-500",
+  },
+];
+
+/** Hiệu ứng hiện dần khi cuộn tới */
+function Reveal({
+  children,
+  className = "",
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setShown(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.12 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={`transition-all duration-700 ease-out motion-reduce:transition-none ${
+        shown
+          ? "opacity-100 translate-y-0"
+          : "opacity-0 translate-y-6 motion-reduce:opacity-100 motion-reduce:translate-y-0"
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SectionTitle({
+  kicker,
+  title,
+  desc,
+  light = false,
+}: {
+  kicker: string;
+  title: string;
+  desc?: string;
+  light?: boolean;
+}) {
+  return (
+    <div className="text-center space-y-2 max-w-2xl mx-auto">
+      <span className="inline-block text-[11px] font-black uppercase tracking-[0.25em] text-[#ffc933]">
+        {kicker}
+      </span>
+      <h2
+        className={`font-display text-4xl sm:text-5xl font-extrabold uppercase leading-none tracking-tight ${
+          light ? "text-white" : "text-[#0b1a33]"
+        }`}
+      >
+        {title}
+      </h2>
+      <div className="flex items-center justify-center gap-2 pt-1">
+        <span className="h-1 w-10 rounded-full bg-[#0D5EF4]" />
+        <span className="h-1 w-4 rounded-full bg-[#ffc933]" />
+      </div>
+      {desc && (
+        <p
+          className={`text-sm sm:text-base ${
+            light ? "text-slate-300" : "text-slate-500"
+          }`}
+        >
+          {desc}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function PublicGuestPortal({
   data,
@@ -60,1055 +192,806 @@ export function PublicGuestPortal({
   const encodedFanpage = encodeURIComponent(fanpageUrl);
 
   const [matchTab, setMatchTab] = useState<"fixtures" | "results">("fixtures");
+  const [squadFilter, setSquadFilter] = useState<"all" | "manager" | "player">(
+    "all"
+  );
+  const [showAllSquad, setShowAllSquad] = useState(false);
 
-  // Lọc trận sắp tới và trận đã đá
   const upcomingMatches = matches.filter((m) => m.status === "Sắp diễn ra");
   const pastMatches = matches
     .filter((m) => m.status === "Đã kết thúc")
     .slice()
     .reverse();
-
-  // Trận kế tiếp tiêu điểm
   const nextMatch = upcomingMatches[0] || matches[matches.length - 1];
 
-  // Danh sách ban điều hành & cầu thủ tiêu biểu
-  const featuredSquad: Player[] = players
-    .filter((p) => p.status === "active")
-    .slice(0, 8);
+  // Thống kê thật từ dữ liệu
+  const wins = pastMatches.filter(
+    (m) =>
+      m.team_score !== null &&
+      m.opponent_score !== null &&
+      m.team_score > m.opponent_score
+  ).length;
+
+  const activePlayers: Player[] = players.filter(
+    (p) => !/nghỉ|rời|ngưng/i.test(p.status || "")
+  );
+  const filteredSquad = activePlayers
+    .filter((p) => (squadFilter === "all" ? true : p.access_role === squadFilter))
+    .slice()
+    .sort((a, b) => (a.jersey_number ?? 999) - (b.jersey_number ?? 999));
+  const visibleSquad = showAllSquad ? filteredSquad : filteredSquad.slice(0, 8);
 
   const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-    }
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const navLinks: { id: string; label: string }[] = [
+    { id: "banner-hero", label: "Trang Chủ" },
+    { id: "match-center", label: "Lịch Đấu" },
+    { id: "activities", label: "Hoạt Động" },
+    { id: "squad-section", label: "Cầu Thủ" },
+    { id: "gallery", label: "Khoảnh Khắc" },
+  ];
+
+  const tickerItems = [
+    "ĐÁ PHỦI HẾT MÌNH",
+    "ĐOÀN KẾT • BẢN LĨNH • NGHĨA TÌNH",
+    "GÒ NỔI TẠI SÀI GÒN",
+    "ĐÁ XONG LÀ ANH EM",
+    "FC HĐH GÒ NỔI",
+  ];
+
   return (
-    <div className="w-full font-sans text-slate-800 -mt-4 sm:-mt-5 space-y-12 sm:space-y-16">
-      {/* =========================================================================
-          THEME HEADER PILL NAV (Tham khảo header.php của football-coach-club)
-          ========================================================================= */}
-      <div className="pt-2">
-        <div className="bg-[#0f2239] rounded-full p-2 sm:p-2.5 shadow-xl border border-blue-900/40 flex items-center justify-between gap-3 text-white">
-          {/* Logo capsule block: Primary Blue #0D5EF4 */}
-          <div className="flex items-center gap-2.5 bg-[#0D5EF4] px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full font-black tracking-wider text-xs sm:text-sm shrink-0 shadow-md">
+    <div className="w-full font-sans text-slate-800 -mt-4 sm:-mt-5 space-y-14 sm:space-y-20">
+      {/* ============================ NAV ============================ */}
+      <div className="pt-2 sticky top-2 z-30">
+        <div className="bg-[#07142b]/95 backdrop-blur rounded-full p-2 sm:p-2.5 shadow-2xl border border-[#ffc933]/30 flex items-center justify-between gap-3 text-white">
+          <button
+            type="button"
+            onClick={() => scrollToSection("banner-hero")}
+            className="flex items-center gap-2.5 bg-gradient-to-r from-[#0D5EF4] to-[#2f7bff] pl-1.5 pr-4 sm:pr-5 py-1.5 rounded-full shrink-0 shadow-md cursor-pointer"
+            aria-label="Về đầu trang"
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={OFFICIAL_LOGO_URL}
               alt="Logo FC HĐH Gò Nổi"
-              className="h-6 w-6 sm:h-7 sm:w-7 rounded-full object-contain bg-white p-0.5"
+              className="h-8 w-8 rounded-full object-contain bg-white p-0.5 ring-2 ring-[#ffc933]"
             />
-            <span className="uppercase tracking-tight truncate max-w-[150px] sm:max-w-none">
-              FC HĐH GÒ NỔI
+            <span className="font-display font-extrabold uppercase text-base sm:text-lg tracking-wide truncate">
+              FC HĐH Gò Nổi
             </span>
-          </div>
+          </button>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-6 text-xs uppercase font-bold tracking-wider text-slate-200">
-            <button
-              onClick={() => scrollToSection("banner-hero")}
-              className="hover:text-[#0D5EF4] transition cursor-pointer text-[#0D5EF4]"
-            >
-              Trang Chủ
-            </button>
-            <button
-              onClick={() => scrollToSection("match-center")}
-              className="hover:text-[#0D5EF4] transition cursor-pointer"
-            >
-              Lịch Đấu
-            </button>
-            <button
-              onClick={() => scrollToSection("about-club")}
-              className="hover:text-[#0D5EF4] transition cursor-pointer"
-            >
-              Về CLB
-            </button>
-            <button
-              onClick={() => scrollToSection("club-news")}
-              className="hover:text-[#0D5EF4] transition cursor-pointer"
-            >
-              Bản Tin
-            </button>
-            <button
-              onClick={() => scrollToSection("squad-section")}
-              className="hover:text-[#0D5EF4] transition cursor-pointer"
-            >
-              Đội Hình
-            </button>
+          <nav
+            aria-label="Điều hướng trang khách"
+            className="hidden lg:flex items-center gap-1 text-xs uppercase font-bold tracking-wider text-slate-200"
+          >
+            {navLinks.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => scrollToSection(l.id)}
+                className="px-3.5 py-2 rounded-full hover:bg-white/10 hover:text-[#ffc933] transition cursor-pointer"
+              >
+                {l.label}
+              </button>
+            ))}
             <a
               href={fanpageUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-[#ffc933] transition flex items-center gap-1"
+              className="px-3.5 py-2 rounded-full hover:bg-white/10 hover:text-[#ffc933] transition inline-flex items-center gap-1"
             >
               <span>Fanpage</span>
               <ExternalLink className="h-3 w-3" />
             </a>
           </nav>
 
-          {/* Right Action: Đăng Nhập Button */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onOpenLogin}
-              className="inline-flex items-center gap-2 bg-[#ffc933] hover:bg-[#ffd95e] text-slate-950 font-black px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm uppercase tracking-wide transition shadow-md hover:shadow-lg cursor-pointer shrink-0"
-            >
-              <LogIn className="h-4 w-4" />
-              <span>Đăng Nhập</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onOpenLogin}
+            className="inline-flex items-center gap-2 bg-[#ffc933] hover:bg-[#ffd95e] text-slate-950 font-black px-4 sm:px-5 py-2.5 rounded-full text-xs sm:text-sm uppercase tracking-wide shadow-md hover:shadow-[0_0_24px_rgba(255,201,51,0.5)] cursor-pointer shrink-0"
+          >
+            <LogIn className="h-4 w-4" />
+            <span>Đăng Nhập</span>
+          </button>
         </div>
       </div>
 
-      {/* =========================================================================
-          1. HERO BANNER (Tham khảo banner.php: 2-column cover, banner.png & banner1.png)
-          ========================================================================= */}
+      {/* ============================ HERO ============================ */}
       <section
         id="banner-hero"
-        className="relative rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-[#0d1322] text-white"
-        style={{
-          backgroundImage: "radial-gradient(ellipse at 80% 20%, #1e3a8a 0%, #0d1322 70%)",
-        }}
+        className="relative rounded-[2rem] overflow-hidden text-white shadow-2xl border border-[#ffc933]/20 bg-[#06122a]"
       >
-        {/* Background stadium lighting image from theme */}
-        <div className="absolute inset-0 z-0 opacity-40 mix-blend-screen pointer-events-none">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/theme/banner.png"
-            alt=""
-            className="w-full h-full object-cover object-center"
-          />
+        {/* Sân cỏ về đêm: vạch sân + ánh đèn */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              "radial-gradient(ellipse at 15% 0%, rgba(13,94,244,.55) 0%, transparent 55%), radial-gradient(ellipse at 90% 100%, rgba(255,201,51,.22) 0%, transparent 50%), repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 80px, transparent 80px 160px)",
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="absolute -right-24 -top-24 h-96 w-96 rounded-full border-[3px] border-white/10"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute -left-16 bottom-0 h-64 w-64 rounded-full border-[3px] border-[#ffc933]/10"
+        />
+
+        {/* Ticker */}
+        <div className="relative z-10 bg-[#ffc933] text-slate-950 overflow-hidden border-b-2 border-slate-950/20">
+          <div className="gn-marquee flex w-max gap-10 py-2 font-display font-extrabold uppercase text-sm tracking-widest">
+            {[...tickerItems, ...tickerItems, ...tickerItems, ...tickerItems].map(
+              (t, i) => (
+                <span key={i} className="inline-flex items-center gap-10">
+                  <span>{t}</span>
+                  <span aria-hidden="true">⚽</span>
+                </span>
+              )
+            )}
+          </div>
         </div>
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 items-center gap-8 px-6 sm:px-12 py-10 sm:py-16 min-h-[580px]">
-          {/* Left Column (58% width): Date, Primary tag, Large Title, Text, CTA buttons */}
-          <div className="lg:col-span-7 space-y-5 text-left">
-            {/* Short Heading / Date tag */}
-            <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold uppercase tracking-widest text-slate-300">
-              <span className="h-2 w-2 rounded-full bg-[#0D5EF4] animate-pulse" />
-              <span>Mùa giải 2025 - 2026 • TP. Hồ Chí Minh</span>
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 items-center gap-10 px-6 sm:px-12 py-12 sm:py-16">
+          <div className="lg:col-span-7 space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-[#ffc933]">
+              <Zap className="h-3.5 w-3.5 fill-current" />
+              <span>Bóng đá phủi • Đồng hương Gò Nổi • TP.HCM</span>
             </div>
 
-            {/* Level 3 Heading in Primary Color (#0D5EF4) */}
-            <h3 className="text-[#0D5EF4] font-black uppercase text-xl sm:text-2xl md:text-3xl tracking-wide drop-shadow-sm">
-              LATEST MATCH • TRẬN CẦU TÂM ĐIỂM
-            </h3>
+            <h1 className="font-display font-extrabold uppercase leading-[0.9] tracking-tight">
+              <span className="block text-6xl sm:text-7xl lg:text-8xl text-white">
+                Đá phủi
+              </span>
+              <span className="block text-6xl sm:text-7xl lg:text-8xl bg-gradient-to-r from-[#ffc933] via-[#ffe38a] to-[#ffc933] bg-clip-text text-transparent">
+                Hết mình
+              </span>
+              <span className="block text-2xl sm:text-3xl mt-3 text-[#6fa8ff] tracking-[0.12em]">
+                FC HĐH Gò Nổi
+              </span>
+            </h1>
 
-            {/* Level 2 Heading: Massive Uppercase White (55px style) */}
-            <div className="space-y-1">
-              <h1 className="text-3xl sm:text-5xl md:text-6xl font-black uppercase tracking-tight text-white drop-shadow-md leading-none">
-                FC HĐH GÒ NỔI
-              </h1>
-              <p className="text-[#ffc933] font-black uppercase text-lg sm:text-2xl tracking-wider">
-                ĐOÀN KẾT - BẢN LĨNH - NGHĨA TÌNH
-              </p>
-            </div>
-
-            {/* Description */}
-            <p className="text-slate-300 text-sm sm:text-base leading-relaxed max-w-xl">
-              Nơi hội tụ, rèn luyện sức khoẻ và thắt chặt tình cảm của những người con vùng đất Gò Nổi (Điện Quang, Điện Trung, Điện Phong - Điện Bàn, Quảng Nam) đang học tập, làm việc và sinh sống tại TP. Hồ Chí Minh.
+            <p className="text-slate-300 text-base sm:text-lg leading-relaxed max-w-xl">
+              Những người con Điện Quang, Điện Trung, Điện Phong xa quê cùng
+              chung một niềm vui: ra sân, đá cho đã, cười cho thoả và về nhà
+              với đầy năng lượng.
             </p>
 
-            {/* CTA Button Group matching banner.php */}
-            <div className="pt-3 flex flex-wrap items-center gap-4">
-              {/* Primary Button */}
+            <div className="flex flex-wrap items-center gap-4 pt-1">
               <button
                 type="button"
                 onClick={onOpenLogin}
-                className="inline-flex items-center gap-2.5 bg-[#0D5EF4] hover:bg-blue-600 text-white font-extrabold px-6 sm:px-8 py-3.5 rounded-[7px] text-sm sm:text-base uppercase tracking-wider transition shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 cursor-pointer"
+                className="inline-flex items-center gap-2.5 bg-[#0D5EF4] hover:bg-[#2f7bff] text-white font-black px-7 py-4 rounded-xl text-sm sm:text-base uppercase tracking-wider shadow-[0_10px_30px_rgba(13,94,244,0.45)] hover:-translate-y-0.5 cursor-pointer"
               >
                 <LogIn className="h-5 w-5" />
-                <span>ĐĂNG NHẬP HỆ THỐNG</span>
+                <span>Vào khu thành viên</span>
               </button>
-
-              {/* Watch Video / Fanpage Button with watch.png */}
-              <a
-                href={fanpageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 text-white hover:text-[#ffc933] font-bold text-sm sm:text-base capitalize transition group"
+              <button
+                type="button"
+                onClick={() => scrollToSection("squad-section")}
+                className="inline-flex items-center gap-2 border-2 border-[#ffc933] text-[#ffc933] hover:bg-[#ffc933] hover:text-slate-950 font-black px-6 py-3.5 rounded-xl text-sm sm:text-base uppercase tracking-wider cursor-pointer"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/images/theme/watch.png"
-                  alt="Watch"
-                  className="h-10 w-10 transition group-hover:scale-110 drop-shadow"
-                />
-                <span className="underline underline-offset-4">Xem Fanpage & Video</span>
-              </a>
+                <Users className="h-5 w-5" />
+                <span>Gặp anh em</span>
+              </button>
             </div>
 
-            {/* Quick Points */}
-            <div className="pt-2 flex flex-wrap items-center gap-6 text-xs text-slate-300">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-[#0D5EF4]" />
-                <span>Minh bạch quỹ 100%</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-[#0D5EF4]" />
-                <span>Sinh hoạt cuối tuần cố định</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-[#0D5EF4]" />
-                <span>Điểm danh số hóa</span>
-              </div>
+            {/* Số liệu thật */}
+            <div className="grid grid-cols-3 gap-3 pt-4 max-w-md">
+              {[
+                { n: activePlayers.length, l: "Cầu thủ" },
+                { n: matches.length, l: "Trận đã lên lịch" },
+                { n: wins, l: "Trận thắng" },
+              ].map((s) => (
+                <div
+                  key={s.l}
+                  className="rounded-2xl bg-white/5 border border-white/10 px-3 py-3 text-center backdrop-blur"
+                >
+                  <div className="font-display text-4xl font-extrabold text-[#ffc933] leading-none">
+                    {s.n}
+                  </div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-300 mt-1">
+                    {s.l}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Right Column (45% width): Ảnh Bìa Đại Diện FC HĐH Gò Nổi */}
-          <div className="lg:col-span-5 flex justify-center items-center relative">
-            <div className="relative w-full max-w-[480px] group">
-              {/* Stadium blue & gold glow halo */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-[#0D5EF4] via-[#ffc933] to-[#0D5EF4] rounded-3xl blur-md opacity-60 group-hover:opacity-100 transition duration-500" />
-
-              <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-[#ffc933] bg-slate-950 shadow-2xl">
+          {/* Ảnh bìa */}
+          <div className="lg:col-span-5 flex justify-center">
+            <div className="relative w-full max-w-[460px] group">
+              <div className="absolute -inset-2 rounded-[1.75rem] bg-gradient-to-br from-[#0D5EF4] via-[#ffc933] to-[#0D5EF4] opacity-70 blur-lg group-hover:opacity-100 transition duration-500" />
+              <div className="relative rounded-3xl overflow-hidden border-2 border-[#ffc933] bg-slate-950 shadow-2xl lg:rotate-2 group-hover:rotate-0 transition-transform duration-500">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={OFFICIAL_COVER_URL}
                   alt="Tập thể FC HĐH Gò Nổi tại TP.HCM"
-                  className="w-full h-[280px] sm:h-[340px] object-cover object-center group-hover:scale-105 transition duration-700 filter brightness-100 contrast-105"
+                  className="w-full h-[320px] sm:h-[400px] object-cover object-center"
                 />
-
-                {/* Gradient caption overlay */}
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent p-4 sm:p-5 text-white">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="bg-[#ffc933] text-slate-950 text-[10px] sm:text-xs font-black uppercase px-2.5 py-0.5 rounded-full shadow">
-                      Ảnh Bìa Đại Diện CLB
-                    </span>
-                    <span className="text-[11px] text-slate-300 font-semibold">
-                      Mùa giải 2025 - 2026
-                    </span>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#06122a] via-[#06122a]/80 to-transparent p-5">
+                  <div className="font-display font-extrabold uppercase text-2xl leading-none">
+                    Tập thể FC HĐH Gò Nổi
                   </div>
-                  <h4 className="font-black text-sm sm:text-base text-white uppercase tracking-wide">
-                    Tập Thể FC HĐH Gò Nổi
-                  </h4>
-                  <p className="text-[11px] text-slate-300">
-                    Hội Đồng Hương Gò Nổi (Điện Bàn, Quảng Nam) tại TP. Hồ Chí Minh
+                  <p className="text-xs text-slate-300 mt-1">
+                    Điện Bàn, Quảng Nam • tại TP. Hồ Chí Minh
                   </p>
                 </div>
               </div>
+              <div
+                aria-hidden="true"
+                className="gn-float absolute -top-5 -right-3 sm:-right-6 h-16 w-16 rounded-full bg-[#ffc933] text-3xl flex items-center justify-center shadow-xl border-4 border-[#06122a]"
+              >
+                ⚽
+              </div>
+              <div className="gn-float-slow absolute -bottom-4 -left-3 sm:-left-6 rounded-2xl bg-[#0D5EF4] px-4 py-2 font-display font-extrabold uppercase text-lg shadow-xl border-2 border-white/20">
+                Đá xong là anh em
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* =========================================================================
-          2. MATCH CENTER CARD (High-impact Fixture & Scoreboard Bar)
-          ========================================================================= */}
+      {/* ============================ MATCH CENTER ============================ */}
       {nextMatch && (
-        <section
-          id="match-center"
-          className="bg-white rounded-2xl border-2 border-slate-200 shadow-lg overflow-hidden"
-        >
-          {/* Top Bar with Primary Blue #0D5EF4 */}
-          <div className="bg-[#0f2239] text-white px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#0D5EF4]">
-            <div className="flex items-center gap-2.5">
-              <Activity className="h-4 w-4 text-[#ffc933]" />
-              <span className="font-black text-xs sm:text-sm uppercase tracking-wider text-[#ffc933]">
-                Match Center • Trận Đấu Tâm Điểm
-              </span>
-              <span className="text-slate-300 text-xs hidden sm:inline">
-                • {nextMatch.label}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="bg-[#0D5EF4] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
+        <Reveal>
+          <section
+            id="match-center"
+            className="rounded-3xl overflow-hidden shadow-xl border border-slate-200 bg-white"
+          >
+            <div className="bg-gradient-to-r from-[#06122a] to-[#0b2a5e] text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b-4 border-[#ffc933]">
+              <div className="flex items-center gap-2.5">
+                <Activity className="h-5 w-5 text-[#ffc933]" />
+                <span className="font-display font-extrabold text-xl uppercase tracking-wide text-[#ffc933]">
+                  Trận cầu tâm điểm
+                </span>
+                <span className="text-slate-300 text-xs hidden sm:inline">
+                  • {nextMatch.label}
+                </span>
+              </div>
+              <span className="bg-[#0D5EF4] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
                 {nextMatch.status}
               </span>
             </div>
-          </div>
 
-          {/* Match Scoreboard Body */}
-          <div className="p-6 sm:p-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-6">
-              {/* Home Team: FC HĐH Gò Nổi */}
-              <div className="flex flex-col items-center text-center space-y-2">
-                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-white border-2 border-[#0D5EF4] p-2 flex items-center justify-center shadow-md">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={OFFICIAL_LOGO_URL}
-                    alt="FC HĐH Gò Nổi"
-                    className="h-full w-full object-contain"
-                  />
-                </div>
-                <div>
-                  <h3 className="font-black text-base sm:text-lg text-slate-900 uppercase">
-                    FC HĐH GÒ NỔI
+            <div className="p-6 sm:p-10">
+              <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-8">
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className="h-24 w-24 rounded-3xl bg-white border-4 border-[#0D5EF4] p-2 shadow-lg flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={OFFICIAL_LOGO_URL}
+                      alt="FC HĐH Gò Nổi"
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
+                  <h3 className="font-display font-extrabold text-2xl uppercase text-[#0b1a33] leading-none">
+                    FC HĐH Gò Nổi
                   </h3>
-                  <span className="inline-block text-xs font-bold text-[#0D5EF4] bg-blue-50 px-2 py-0.5 rounded-full">
-                    Chủ nhà • Áo Vàng
-                  </span>
                 </div>
-              </div>
 
-              {/* VS or Match Score */}
-              <div className="flex flex-col items-center justify-center text-center space-y-3 py-4 md:py-0 border-y md:border-y-0 md:border-x border-slate-100">
-                {nextMatch.team_score !== null && nextMatch.opponent_score !== null ? (
-                  <div className="inline-flex items-center gap-4 bg-[#0f2239] text-[#ffc933] px-7 py-3 rounded-2xl text-3xl font-black tracking-widest shadow-md">
-                    <span>{nextMatch.team_score}</span>
-                    <span className="text-slate-500 text-xl">-</span>
-                    <span>{nextMatch.opponent_score}</span>
-                  </div>
-                ) : (
-                  <div className="inline-block bg-[#0D5EF4] text-white font-black text-2xl px-6 py-2.5 rounded-2xl tracking-wider shadow-md">
-                    VS
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <div className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-slate-800">
-                    <Clock className="h-4 w-4 text-[#0D5EF4]" />
-                    <span>
-                      {nextMatch.kickoff_time} • {formatDateVN(nextMatch.match_date)}
-                    </span>
-                  </div>
-                  <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                    <MapPin className="h-4 w-4 text-rose-500" />
-                    <span>{nextMatch.venue}</span>
+                <div className="flex flex-col items-center text-center gap-4">
+                  {nextMatch.team_score !== null &&
+                  nextMatch.opponent_score !== null ? (
+                    <div className="inline-flex items-center gap-4 bg-[#06122a] text-[#ffc933] px-8 py-3 rounded-2xl font-display text-6xl font-extrabold shadow-lg">
+                      <span>{nextMatch.team_score}</span>
+                      <span className="text-slate-500 text-4xl">:</span>
+                      <span>{nextMatch.opponent_score}</span>
+                    </div>
+                  ) : (
+                    <div className="font-display text-7xl font-extrabold text-[#0D5EF4] leading-none">
+                      VS
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <div className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-800">
+                      <Clock className="h-4 w-4 text-[#0D5EF4]" />
+                      <span>
+                        {nextMatch.kickoff_time} •{" "}
+                        {formatDateVN(nextMatch.match_date)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-sm font-semibold text-slate-600">
+                      <MapPin className="h-4 w-4 text-rose-500" />
+                      <span>{nextMatch.venue}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Opponent Team */}
-              <div className="flex flex-col items-center text-center space-y-2">
-                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-slate-100 border-2 border-slate-300 flex items-center justify-center shadow-md text-slate-500">
-                  <Shield className="h-10 w-10 text-slate-400" />
-                </div>
-                <div>
-                  <h3 className="font-black text-base sm:text-lg text-slate-900 uppercase">
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className="h-24 w-24 rounded-3xl bg-slate-100 border-4 border-slate-300 flex items-center justify-center shadow-lg">
+                    <Shield className="h-11 w-11 text-slate-400" />
+                  </div>
+                  <h3 className="font-display font-extrabold text-2xl uppercase text-[#0b1a33] leading-none">
                     {nextMatch.opponent}
                   </h3>
-                  <span className="inline-block text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                    Đội khách • Giao hữu
-                  </span>
                 </div>
               </div>
-            </div>
 
-            {/* Bottom notification & Action */}
-            <div className="mt-6 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between text-xs text-slate-600 gap-3">
-              <span className="italic text-slate-500">
-                * Kính mời quý bà con & cổ động viên đồng hương đến sân tiếp lửa cho đội bóng.
-              </span>
-              <button
-                type="button"
-                onClick={onOpenLogin}
-                className="bg-[#0D5EF4] hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-lg inline-flex items-center gap-1.5 transition shadow-xs cursor-pointer"
-              >
-                <span>Cầu thủ đăng nhập điểm danh trận này</span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
+              <div className="mt-8 pt-5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-sm">
+                <span className="text-slate-500 italic">
+                  Mời bà con và cổ động viên đồng hương ra sân tiếp lửa cho anh em!
+                </span>
+                <button
+                  type="button"
+                  onClick={onOpenLogin}
+                  className="bg-[#0D5EF4] hover:bg-[#2f7bff] text-white font-bold px-5 py-2.5 rounded-xl inline-flex items-center gap-1.5 shadow-md cursor-pointer"
+                >
+                  <span>Cầu thủ đăng nhập để điểm danh</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </Reveal>
       )}
 
-      {/* =========================================================================
-          3. ABOUT CLUB SECTION (Tham khảo about-section.php & about-img.png)
-          ========================================================================= */}
+      {/* ============================ HOẠT ĐỘNG ============================ */}
+      <section id="activities" className="space-y-10">
+        <Reveal>
+          <SectionTitle
+            kicker="Sống trọn niềm vui"
+            title="Hoạt động của anh em"
+            desc="Không chỉ là đá bóng. Đây là nơi gặp gỡ, tiếp thêm năng lượng và giữ lửa tình đồng hương."
+          />
+        </Reveal>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {ACTIVITIES.map((a, i) => {
+            const Icon = a.icon;
+            return (
+              <Reveal key={a.title} delay={(i % 3) * 90}>
+                <article className="group relative h-full rounded-3xl bg-white border border-slate-200 p-6 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 overflow-hidden">
+                  <div
+                    aria-hidden="true"
+                    className={`absolute -right-10 -top-10 h-32 w-32 rounded-full bg-gradient-to-br ${a.accent} opacity-15 group-hover:opacity-30 group-hover:scale-125 transition duration-500`}
+                  />
+                  <div
+                    className={`relative inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${a.accent} text-white shadow-lg group-hover:rotate-6 transition`}
+                  >
+                    <Icon className="h-7 w-7" />
+                  </div>
+                  <h3 className="relative mt-4 font-display font-extrabold text-2xl uppercase text-[#0b1a33] leading-tight">
+                    {a.title}
+                  </h3>
+                  <p className="relative mt-2 text-sm text-slate-600 leading-relaxed">
+                    {a.text}
+                  </p>
+                </article>
+              </Reveal>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ============================ CẦU THỦ ============================ */}
       <section
-        id="about-club"
-        className="bg-white rounded-3xl p-6 sm:p-12 border border-slate-200 shadow-sm space-y-8"
+        id="squad-section"
+        className="relative rounded-[2rem] overflow-hidden bg-[#06122a] text-white px-5 sm:px-10 py-12 sm:py-16 space-y-10 shadow-2xl"
+        style={{
+          backgroundImage:
+            "radial-gradient(ellipse at 50% 0%, rgba(13,94,244,.45) 0%, transparent 60%), repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 80px, transparent 80px 160px)",
+        }}
       >
-        {/* Section Heading matching theme: uppercase 30px bold centered */}
-        <div className="text-center space-y-2 max-w-2xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-black uppercase text-slate-900 tracking-tight">
-            ABOUT CLUB • VỀ CÂU LẠC BỘ
-          </h2>
-          <div className="h-1 w-20 bg-[#0D5EF4] mx-auto rounded-full" />
-          <p className="text-xs sm:text-sm text-slate-500 uppercase tracking-wider font-semibold">
-            Hội Đồng Hương Gò Nổi (Điện Quang - Điện Trung - Điện Phong) Tại TP. Hồ Chí Minh
-          </p>
+        <Reveal>
+          <SectionTitle
+            light
+            kicker="Những chiến binh sân cỏ"
+            title="Gặp gỡ anh em"
+            desc="Mỗi người một số áo, một phong cách, chung một tinh thần: vui là chính, thắng là phụ gia."
+          />
+        </Reveal>
+
+        <div className="flex flex-wrap justify-center gap-2">
+          {(
+            [
+              ["all", "Tất cả"],
+              ["manager", "Ban điều hành"],
+              ["player", "Cầu thủ"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                setSquadFilter(key);
+                setShowAllSquad(false);
+              }}
+              aria-pressed={squadFilter === key}
+              className={`px-5 py-2 rounded-full text-xs font-black uppercase tracking-wider cursor-pointer ${
+                squadFilter === key
+                  ? "bg-[#ffc933] text-slate-950 shadow-[0_0_20px_rgba(255,201,51,0.45)]"
+                  : "bg-white/10 text-slate-200 hover:bg-white/20"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
-        {/* 2 Columns Layout matching about-section.php */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Left Column: Ảnh đại diện tập thể FC HĐH Gò Nổi */}
-          <div className="lg:col-span-5 flex justify-center">
-            <div className="relative rounded-2xl overflow-hidden border-2 border-[#0D5EF4] shadow-xl group max-w-md w-full bg-slate-900">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={OFFICIAL_COVER_URL}
-                alt="FC HĐH Gò Nổi"
-                className="w-full h-[260px] sm:h-[300px] object-cover group-hover:scale-105 transition duration-500"
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          {visibleSquad.map((p, i) => (
+            <Reveal key={p.id} delay={(i % 4) * 70}>
+              <article className="group relative rounded-3xl overflow-hidden bg-gradient-to-b from-[#0d2a5c] to-[#081a3a] border border-white/10 hover:border-[#ffc933] hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)] transition-all duration-300">
+                <div className="relative h-52 sm:h-60 overflow-hidden">
+                  {p.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.avatar_url}
+                      alt={p.full_name}
+                      className="w-full h-full object-cover object-top group-hover:scale-110 transition duration-700"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#0D5EF4] to-[#06122a]" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#081a3a] via-[#081a3a]/20 to-transparent" />
+                  {/* Số áo khổng lồ */}
+                  <span
+                    aria-hidden="true"
+                    className="absolute -bottom-3 right-2 font-display font-extrabold text-8xl leading-none text-transparent [-webkit-text-stroke:2px_rgba(255,201,51,0.85)] group-hover:text-[#ffc933]/30 transition"
+                  >
+                    {p.jersey_number ?? ""}
+                  </span>
+                  <span
+                    className={`absolute top-3 left-3 text-[10px] font-black uppercase px-2.5 py-1 rounded-full shadow ${
+                      p.access_role === "manager"
+                        ? "bg-[#ffc933] text-slate-950"
+                        : "bg-white/90 text-slate-900"
+                    }`}
+                  >
+                    {p.access_role === "manager"
+                      ? "Ban điều hành"
+                      : p.position || "Cầu thủ"}
+                  </span>
+                </div>
+                <div className="p-4">
+                  <h3 className="font-display font-extrabold text-2xl uppercase leading-none truncate">
+                    {p.short_name || p.full_name}
+                  </h3>
+                  <p className="text-xs text-slate-400 truncate mt-1">
+                    {p.full_name}
+                  </p>
+                  {p.jersey_number !== null && (
+                    <div className="mt-3 inline-flex items-center gap-1 text-[11px] font-bold text-[#ffc933]">
+                      <Star className="h-3 w-3 fill-current" />
+                      <span>Áo số {p.jersey_number}</span>
+                    </div>
+                  )}
+                </div>
+              </article>
+            </Reveal>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {filteredSquad.length > 8 && (
+            <button
+              type="button"
+              onClick={() => setShowAllSquad((v) => !v)}
+              className="inline-flex items-center gap-2 border-2 border-[#ffc933] text-[#ffc933] hover:bg-[#ffc933] hover:text-slate-950 font-black px-6 py-3 rounded-xl text-sm uppercase tracking-wider cursor-pointer"
+            >
+              <span>
+                {showAllSquad
+                  ? "Thu gọn"
+                  : `Xem cả đội (${filteredSquad.length})`}
+              </span>
+              <ArrowRight
+                className={`h-4 w-4 transition ${showAllSquad ? "-rotate-90" : "rotate-90"}`}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0f2239]/90 via-transparent to-transparent flex items-end p-4">
-                <span className="text-white font-black uppercase text-xs tracking-wider bg-[#0D5EF4] px-3 py-1.5 rounded-lg shadow">
-                  FC HĐH Gò Nổi • Thành Lập 2024
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: about-text-box with 4 structured points */}
-          <div className="lg:col-span-7 space-y-4 text-slate-700 text-sm sm:text-base leading-relaxed">
-            <div className="space-y-1">
-              <h4 className="font-bold text-[#0D5EF4] text-base uppercase">
-                1. Mái Nhà Chung Gắn Kết Tình Đồng Hương
-              </h4>
-              <p className="text-slate-600 text-sm">
-                CLB FC Hội Đồng Hương Gò Nổi là nơi gắn kết những người con xa xứ đến từ ba xã Điện Quang, Điện Trung, Điện Phong (thị xã Điện Bàn, tỉnh Quảng Nam). Qua niềm đam mê trái bóng tròn, anh em có cơ hội sẻ chia, tương trợ và đồng hành cùng nhau trong cuộc sống nơi đất khách.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="font-bold text-[#0D5EF4] text-base uppercase">
-                2. Lịch Sinh Hoạt & Giao Hữu Hằng Tuần Đều Đặn
-              </h4>
-              <p className="text-slate-600 text-sm">
-                Đội bóng duy trì sinh hoạt thể thao định kỳ vào các tối cuối tuần tại các cụm sân chất lượng cao tại TP. Hồ Chí Minh, thường xuyên giao lưu cùng các câu lạc bộ đồng hương bạn để nâng cao thể lực và phong cách thi đấu.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="font-bold text-[#0D5EF4] text-base uppercase">
-                3. Quản Trị Số Hóa & Minh Bạch Tài Chính 100%
-              </h4>
-              <p className="text-slate-600 text-sm">
-                Hệ thống số hóa giúp đội bóng theo dõi điểm danh trước trận, thu tiền sân, tính toán chi phí và công khai quỹ đội minh bạch từng ngày. Mỗi cầu thủ đều có tài khoản tra cứu riêng biệt.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <h4 className="font-bold text-[#0D5EF4] text-base uppercase">
-                4. Tinh Thần Thể Thao Cao Thượng & Trách Nhiệm Xã Hội
-              </h4>
-              <p className="text-slate-600 text-sm">
-                Luôn đề cao tinh thần thi đấu fair-play, tôn trọng trọng tài và đội bạn. Đội bóng cũng là lực lượng nòng cốt tham gia các hoạt động xã hội, khuyến học và hướng về quê hương Gò Nổi thân yêu.
-              </p>
-            </div>
-
-            {/* Quick 4 Stats Grid */}
-            <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-slate-100">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
-                <div className="text-2xl font-black text-[#0D5EF4]">{players.length}+</div>
-                <div className="text-[11px] font-bold text-slate-500 uppercase">Cầu Thủ</div>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
-                <div className="text-2xl font-black text-[#0D5EF4]">52+</div>
-                <div className="text-[11px] font-bold text-slate-500 uppercase">Trận / Năm</div>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
-                <div className="text-2xl font-black text-[#0D5EF4]">100%</div>
-                <div className="text-[11px] font-bold text-slate-500 uppercase">Minh Bạch Quỹ</div>
-              </div>
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
-                <div className="text-2xl font-black text-[#0D5EF4]">2024</div>
-                <div className="text-[11px] font-bold text-slate-500 uppercase">Năm Thành Lập</div>
-              </div>
-            </div>
-          </div>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onOpenLogin}
+            className="inline-flex items-center gap-2 bg-[#0D5EF4] hover:bg-[#2f7bff] text-white font-black px-6 py-3.5 rounded-xl text-sm uppercase tracking-wider shadow-lg cursor-pointer"
+          >
+            <LogIn className="h-4 w-4" />
+            <span>Đăng nhập thành viên</span>
+          </button>
         </div>
       </section>
 
-      {/* =========================================================================
-          4. RECENT CLUB NEWS (Tham khảo latest-news.php: 3-column card grid)
-          ========================================================================= */}
-      <section id="club-news" className="space-y-6">
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl sm:text-3xl font-black uppercase text-slate-900 tracking-tight">
-            RECENT CLUB NEWS • HOẠT ĐỘNG & BẢN TIN CLB
-          </h2>
-          <div className="h-1 w-20 bg-[#0D5EF4] mx-auto rounded-full" />
-          <p className="text-xs sm:text-sm text-slate-500">
-            Tin tức hoạt động, kế hoạch thi đấu và thông báo chính thức từ Ban Điều Hành
-          </p>
-        </div>
+      {/* ============================ LỊCH & KẾT QUẢ ============================ */}
+      <section className="space-y-6">
+        <Reveal>
+          <SectionTitle
+            kicker="Bóng lăn mỗi tuần"
+            title="Lịch đấu & kết quả"
+          />
+        </Reveal>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1: Match Schedule & Attendance */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:border-[#0D5EF4] transition flex flex-col justify-between group">
-            <div className="space-y-4">
-              <div className="relative rounded-xl overflow-hidden h-44 bg-slate-900">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={OFFICIAL_COVER_URL}
-                  alt="Lịch thi đấu tuần"
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500 filter brightness-90"
-                />
-                <span className="absolute top-3 left-3 bg-[#0D5EF4] text-white text-[10px] font-black uppercase px-2.5 py-1 rounded">
-                  LỊCH THI ĐẤU
-                </span>
-              </div>
-              <div className="text-xs font-bold text-slate-400 uppercase">
-                Cập nhật hằng tuần
-              </div>
-              <h3 className="font-black text-lg text-slate-900 group-hover:text-[#0D5EF4] transition">
-                Lịch Thi Đấu & Điểm Danh Ra Sân Tuần Mới
-              </h3>
-              <p className="text-xs text-slate-600 line-clamp-3">
-                Ban quản lý đã công bố lịch bóng lăn cuối tuần. Cầu thủ vui lòng đăng nhập vào hệ thống để bấm xác nhận CÓ MẶT hoặc VẮNG MẶT để ban huấn luyện chốt danh sách đội hình.
-              </p>
-            </div>
-            <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
+        <div className="flex justify-center">
+          <div className="flex rounded-2xl bg-slate-100 p-1.5 border border-slate-200">
+            {(
+              [
+                ["fixtures", `Sắp tới (${upcomingMatches.length})`],
+                ["results", `Đã đấu (${pastMatches.length})`],
+              ] as const
+            ).map(([key, label]) => (
               <button
-                onClick={onOpenLogin}
-                className="text-xs font-bold text-[#0D5EF4] hover:underline flex items-center gap-1 cursor-pointer"
+                key={key}
+                type="button"
+                onClick={() => setMatchTab(key)}
+                aria-pressed={matchTab === key}
+                className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer ${
+                  matchTab === key
+                    ? "bg-[#0D5EF4] text-white shadow-md"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
               >
-                <span>Đăng nhập điểm danh</span>
-                <ArrowRight className="h-3 w-3" />
+                {label}
               </button>
-            </div>
-          </div>
-
-          {/* Card 2: Financial Transparency */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:border-[#0D5EF4] transition flex flex-col justify-between group">
-            <div className="space-y-4">
-              <div className="relative rounded-xl overflow-hidden h-44 bg-slate-900">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/uploads/avatars/member-10.jpg"
-                  alt="Minh bạch tài chính"
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500 filter brightness-90"
-                />
-                <span className="absolute top-3 left-3 bg-[#ffc933] text-slate-950 text-[10px] font-black uppercase px-2.5 py-1 rounded">
-                  TÀI CHÍNH CLB
-                </span>
-              </div>
-              <div className="text-xs font-bold text-slate-400 uppercase">
-                Sổ quỹ công khai
-              </div>
-              <h3 className="font-black text-lg text-slate-900 group-hover:text-[#0D5EF4] transition">
-                Minh Bạch Quỹ Đội & Báo Cáo Thu Chi Từng Trận
-              </h3>
-              <p className="text-xs text-slate-600 line-clamp-3">
-                Toàn bộ tiền quỹ đóng theo tháng, tiền thu sân từng trận đấu và các khoản chi tiền sân, tiền nước đều được thủ quỹ cập nhật công khai rõ ràng, giúp anh em luôn an tâm.
-              </p>
-            </div>
-            <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
-              <button
-                onClick={onOpenLogin}
-                className="text-xs font-bold text-[#0D5EF4] hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <span>Đăng nhập xem quỹ</span>
-                <ArrowRight className="h-3 w-3" />
-              </button>
-            </div>
-          </div>
-
-          {/* Card 3: Community & Fanpage */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:border-[#0D5EF4] transition flex flex-col justify-between group">
-            <div className="space-y-4">
-              <div className="relative rounded-xl overflow-hidden h-44 bg-slate-900">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/uploads/avatars/member-5.jpg"
-                  alt="Giao lưu đồng hương"
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500 filter brightness-90"
-                />
-                <span className="absolute top-3 left-3 bg-[#10b981] text-white text-[10px] font-black uppercase px-2.5 py-1 rounded">
-                  ĐỒNG HƯƠNG
-                </span>
-              </div>
-              <div className="text-xs font-bold text-slate-400 uppercase">
-                Kết nối xứ Quảng
-              </div>
-              <h3 className="font-black text-lg text-slate-900 group-hover:text-[#0D5EF4] transition">
-                Giao Lưu Bóng Đá Đồng Hương Điện Bàn - Quảng Nam
-              </h3>
-              <p className="text-xs text-slate-600 line-clamp-3">
-                Hình ảnh những pha bóng đẹp mắt, những khoảnh khắc gắn kết tình anh em Gò Nổi tại Sài Gòn được cập nhật liên tục trên trang Fanpage chính thức của câu lạc bộ.
-              </p>
-            </div>
-            <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
-              <a
-                href={fanpageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-bold text-[#0D5EF4] hover:underline flex items-center gap-1"
-              >
-                <span>Xem trên Fanpage</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          5. FIXTURES & RESULTS TABS (Bảng thi đấu công khai)
-          ========================================================================= */}
-      <section className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 uppercase flex items-center gap-2">
-              <Trophy className="h-6 w-6 text-[#ffc933]" />
-              <span>Lịch Thi Đấu & Kết Quả Trận Đấu</span>
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Theo dõi lịch bóng lăn và tỉ số các trận đấu của FC HĐH Gò Nổi
-            </p>
-          </div>
-
-          <div className="flex rounded-xl bg-slate-100 p-1 border border-slate-200 self-start sm:self-auto">
-            <button
-              onClick={() => setMatchTab("fixtures")}
-              className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
-                matchTab === "fixtures"
-                  ? "bg-[#0D5EF4] text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Lịch Sắp Tới ({upcomingMatches.length})
-            </button>
-            <button
-              onClick={() => setMatchTab("results")}
-              className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition cursor-pointer ${
-                matchTab === "results"
-                  ? "bg-[#0D5EF4] text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Kết Quả Đã Đấu ({pastMatches.length})
-            </button>
+            ))}
           </div>
         </div>
 
-        {/* Fixtures Tab */}
-        {matchTab === "fixtures" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {upcomingMatches.length === 0 ? (
-              <div className="col-span-2 py-10 text-center text-slate-500 text-sm italic">
-                Hiện tại chưa có lịch thi đấu mới. Ban quản lý đang chuẩn bị trận tiếp theo!
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {matchTab === "fixtures" &&
+            (upcomingMatches.length === 0 ? (
+              <div className="md:col-span-2 py-12 text-center text-slate-500 text-sm italic rounded-3xl bg-white border border-dashed border-slate-300">
+                Chưa có lịch mới. Ban điều hành đang chốt kèo trận tiếp theo!
               </div>
             ) : (
               upcomingMatches.map((m) => (
-                <div
+                <article
                   key={m.id}
-                  className="bg-slate-50 rounded-2xl border border-slate-200 p-5 hover:border-[#0D5EF4] transition flex flex-col justify-between"
+                  className="rounded-3xl bg-white border border-slate-200 p-5 hover:border-[#0D5EF4] hover:shadow-lg transition"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-xs font-bold">
-                      <span className="bg-[#0D5EF4]/10 text-[#0D5EF4] px-2.5 py-0.5 rounded-full">
-                        {m.label}
-                      </span>
-                      <span className="text-slate-500 inline-flex items-center gap-1 font-semibold">
-                        <Clock className="h-3.5 w-3.5" />
-                        {m.kickoff_time} • {formatDateVN(m.match_date)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between py-2 border-y border-slate-200">
-                      <div className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={OFFICIAL_LOGO_URL}
-                          alt="GN"
-                          className="h-6 w-6 object-contain rounded-full bg-white p-0.5 border"
-                        />
-                        <span>FC Gò Nổi</span>
-                      </div>
-                      <span className="text-xs font-black text-slate-400 bg-white px-2 py-0.5 rounded border">
-                        VS
-                      </span>
-                      <div className="font-bold text-sm text-slate-800 text-right truncate max-w-[140px]">
-                        {m.opponent}
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="bg-[#0D5EF4]/10 text-[#0D5EF4] px-3 py-1 rounded-full">
+                      {m.label}
+                    </span>
+                    <span className="text-slate-500 inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {m.kickoff_time} • {formatDateVN(m.match_date)}
+                    </span>
                   </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+                  <div className="flex items-center justify-between gap-3 py-4 my-3 border-y border-slate-100">
+                    <span className="font-display font-extrabold text-xl uppercase text-[#0b1a33]">
+                      FC Gò Nổi
+                    </span>
+                    <span className="text-xs font-black text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+                      VS
+                    </span>
+                    <span className="font-display font-extrabold text-xl uppercase text-slate-700 text-right truncate max-w-[150px]">
+                      {m.opponent}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
                     <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
                       <MapPin className="h-3.5 w-3.5 text-rose-500" />
                       {m.venue}
                     </span>
                     <button
+                      type="button"
                       onClick={onOpenLogin}
                       className="font-bold text-[#0D5EF4] hover:underline cursor-pointer"
                     >
                       Điểm danh →
                     </button>
                   </div>
-                </div>
+                </article>
               ))
-            )}
-          </div>
-        )}
+            ))}
 
-        {/* Results Tab */}
-        {matchTab === "results" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {pastMatches.slice(0, 6).map((m) => (
-              <div
+          {matchTab === "results" &&
+            pastMatches.slice(0, 6).map((m) => (
+              <article
                 key={m.id}
-                className="bg-slate-50 rounded-2xl border border-slate-200 p-5 hover:border-[#0D5EF4] transition flex flex-col justify-between"
+                className="rounded-3xl bg-white border border-slate-200 p-5 hover:border-[#0D5EF4] hover:shadow-lg transition"
               >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="bg-slate-200 text-slate-700 px-2.5 py-0.5 rounded-full">
-                      {m.label} • Đã kết thúc
-                    </span>
-                    <span className="text-slate-500">
-                      {formatDateVN(m.match_date)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between py-2 border-y border-slate-200">
-                    <div className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={OFFICIAL_LOGO_URL}
-                        alt="GN"
-                        className="h-6 w-6 object-contain rounded-full bg-white p-0.5 border"
-                      />
-                      <span>FC Gò Nổi</span>
-                    </div>
-
-                    <div className="bg-[#0f2239] text-[#ffc933] font-black px-3 py-1 rounded-lg text-sm tracking-widest">
-                      {m.team_score ?? 0} - {m.opponent_score ?? 0}
-                    </div>
-
-                    <div className="font-bold text-sm text-slate-800 text-right truncate max-w-[140px]">
-                      {m.opponent}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-                  <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                    <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                    {m.venue}
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full">
+                    {m.label}
                   </span>
-                  <span className="text-[11px] text-slate-400">
-                    Giao hữu rèn luyện thể thao
+                  <span className="text-slate-500">
+                    {formatDateVN(m.match_date)}
                   </span>
                 </div>
-              </div>
+                <div className="flex items-center justify-between gap-3 py-4 my-3 border-y border-slate-100">
+                  <span className="font-display font-extrabold text-xl uppercase text-[#0b1a33]">
+                    FC Gò Nổi
+                  </span>
+                  <span className="bg-[#06122a] text-[#ffc933] font-display font-extrabold text-2xl px-4 py-1 rounded-xl tracking-widest">
+                    {m.team_score ?? 0} - {m.opponent_score ?? 0}
+                  </span>
+                  <span className="font-display font-extrabold text-xl uppercase text-slate-700 text-right truncate max-w-[150px]">
+                    {m.opponent}
+                  </span>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
+                  <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                  {m.venue}
+                </span>
+              </article>
             ))}
-          </div>
-        )}
-      </section>
-
-      {/* =========================================================================
-          6. FEATURED SQUAD (Tham khảo top-products.php / Đội hình tiêu biểu)
-          ========================================================================= */}
-      <section id="squad-section" className="space-y-6">
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl sm:text-3xl font-black uppercase text-slate-900 tracking-tight">
-            FEATURED SQUAD • ĐỘI HÌNH & THÀNH VIÊN
-          </h2>
-          <div className="h-1 w-20 bg-[#0D5EF4] mx-auto rounded-full" />
-          <p className="text-xs sm:text-sm text-slate-500">
-            Những gương mặt đồng hương nhiệt huyết cống hiến cho màu cờ sắc áo FC HĐH Gò Nổi
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-          {featuredSquad.map((player) => (
-            <div
-              key={player.id}
-              className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:border-[#0D5EF4] transition group flex flex-col"
-            >
-              <div className="relative h-44 sm:h-52 bg-slate-900 overflow-hidden">
-                {player.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={player.avatar_url}
-                    alt={player.full_name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900 to-slate-950 text-white font-black text-3xl">
-                    #{player.jersey_number ?? "-"}
-                  </div>
-                )}
-                {/* Jersey number badge */}
-                <div className="absolute top-2.5 right-2.5 bg-[#0D5EF4] text-white text-xs font-black px-2 py-0.5 rounded shadow">
-                  #{player.jersey_number ?? "-"}
-                </div>
-                {/* Role badge */}
-                <div className="absolute bottom-2.5 left-2.5">
-                  <span
-                    className={`text-[10px] font-black uppercase px-2 py-0.5 rounded shadow ${
-                      player.access_role === "manager"
-                        ? "bg-[#ffc933] text-slate-950"
-                        : "bg-white/90 text-slate-900"
-                    }`}
-                  >
-                    {player.access_role === "manager"
-                      ? "Ban Quản Lý"
-                      : player.position || "Cầu thủ"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-4 flex-1 flex flex-col justify-between space-y-2">
-                <div>
-                  <h4 className="font-bold text-sm sm:text-base text-slate-900 truncate">
-                    {player.full_name}
-                  </h4>
-                  <p className="text-xs text-slate-500 truncate">
-                    {player.short_name || player.full_name}
-                  </p>
-                </div>
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-semibold">
-                  <span>Trạng thái:</span>
-                  <span className="text-emerald-600 font-bold">Sẵn sàng ra sân</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="text-center pt-2">
-          <button
-            onClick={onOpenLogin}
-            className="inline-flex items-center gap-2 bg-[#0f2239] hover:bg-slate-900 text-[#ffc933] font-bold px-6 py-3 rounded-xl text-xs sm:text-sm uppercase tracking-wide transition shadow cursor-pointer"
-          >
-            <Users className="h-4 w-4" />
-            <span>Xem Đầy Đủ Danh Sách & Đăng Nhập Thành Viên</span>
-          </button>
         </div>
       </section>
 
-      {/* =========================================================================
-          7. FANPAGE & PHOTO COMMUNITY
-          ========================================================================= */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Gallery */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="font-extrabold text-base sm:text-lg text-slate-900 uppercase flex items-center gap-2">
-              <Star className="h-5 w-5 text-[#ffc933] fill-current" />
-              <span>Khoảnh Khắc Sân Cỏ FC HĐH Gò Nổi</span>
-            </h3>
-            <a
-              href={fanpageUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-bold text-[#0D5EF4] hover:underline inline-flex items-center gap-1"
-            >
-              <span>Xem album</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </a>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {ACTION_GALLERY.map((img, i) => (
-              <div
-                key={i}
-                className="relative rounded-xl overflow-hidden group h-36 sm:h-44 bg-slate-900 border border-slate-200"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={img.src}
-                  alt={img.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500 filter brightness-95"
-                />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/50 to-transparent p-2.5 text-white">
-                  <span className="text-[10px] font-black text-[#ffc933] uppercase block">
-                    {img.tag}
-                  </span>
-                  <p className="text-[11px] font-medium truncate text-slate-200">
-                    {img.title}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Fanpage Facebook Plugin */}
-        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 className="font-extrabold text-base sm:text-lg text-slate-900 uppercase">
-              Fanpage Facebook CLB
-            </h3>
-            <a
-              href={fanpageUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-bold text-[#0D5EF4] hover:underline"
-            >
-              Truy cập Fanpage →
-            </a>
-          </div>
-
-          <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 flex justify-center p-1">
-            <iframe
-              title="Fanpage FC HĐH Gò Nổi"
-              src={`https://www.facebook.com/plugins/page.php?href=${encodedFanpage}&tabs=timeline&width=360&height=360&small_header=true&adapt_container_width=true&hide_cover=false&show_facepile=true`}
-              width="360"
-              height="360"
-              style={{ border: "none", overflow: "hidden", maxWidth: "100%" }}
-              scrolling="no"
-              frameBorder="0"
-              allowFullScreen={true}
-              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-            />
-          </div>
-
-          <div className="rounded-2xl bg-[#0f2239] text-white p-4 text-xs flex items-center justify-between gap-3">
-            <span className="font-semibold text-slate-200">
-              Giao lưu & tham gia cùng đội bóng
-            </span>
-            <a
-              href={fanpageUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-[#0D5EF4] hover:bg-blue-600 text-white px-3.5 py-1.5 rounded-lg font-bold transition shrink-0"
-            >
-              Nhắn Tin Fanpage
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          8. THEME FOOTER (Tham khảo footer.php & footer.png: dark stadium background)
-          ========================================================================= */}
-      <footer
-        className="relative rounded-3xl overflow-hidden bg-[#0a101d] text-slate-300 shadow-2xl border border-slate-800"
-        style={{
-          backgroundImage: "radial-gradient(circle at 50% 0%, #172554 0%, #0a101d 85%)",
-        }}
-      >
-        {/* Theme Footer Image Overlay */}
-        <div className="absolute inset-0 z-0 opacity-30 mix-blend-screen pointer-events-none">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/theme/footer.png"
-            alt=""
-            className="w-full h-full object-cover object-top"
+      {/* ============================ KHOẢNH KHẮC & FANPAGE ============================ */}
+      <section id="gallery" className="space-y-10">
+        <Reveal>
+          <SectionTitle
+            kicker="Sân cỏ kể chuyện"
+            title="Khoảnh khắc của đội"
           />
-        </div>
+        </Reveal>
 
-        <div className="relative z-10 p-8 sm:p-14 space-y-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* Column 1: About Club */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={OFFICIAL_LOGO_URL}
-                  alt="Logo FC HĐH Gò Nổi"
-                  className="h-10 w-10 rounded-full object-contain bg-white p-0.5 border border-[#ffc933]"
-                />
-                <h3 className="font-black text-white uppercase text-base tracking-wider">
-                  FC HĐH GÒ NỔI
-                </h3>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Câu lạc bộ bóng đá của những người con Gò Nổi (Điện Quang, Điện Trung, Điện Phong) đang học tập, làm việc và sinh sống tại TP. Hồ Chí Minh.
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 grid grid-cols-2 gap-3 sm:gap-4">
+            {ACTION_GALLERY.map((img, i) => (
+              <Reveal key={i} delay={i * 80}>
+                <figure
+                  className={`relative rounded-2xl overflow-hidden group bg-slate-900 ${
+                    i === 0 ? "h-56 sm:h-72" : "h-56 sm:h-72"
+                  } ${i % 2 === 1 ? "sm:translate-y-6" : ""}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={img.src}
+                    alt={img.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
+                  />
+                  <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/95 via-slate-950/50 to-transparent p-3 text-white">
+                    <span className="inline-block bg-[#ffc933] text-slate-950 text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
+                      {img.tag}
+                    </span>
+                    <p className="text-xs font-semibold mt-1 leading-snug">
+                      {img.title}
+                    </p>
+                  </figcaption>
+                </figure>
+              </Reveal>
+            ))}
+          </div>
+
+          <div className="lg:col-span-5 rounded-3xl bg-white border border-slate-200 p-5 space-y-4 shadow-lg">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-display font-extrabold text-2xl uppercase text-[#0b1a33]">
+                Fanpage CLB
+              </h3>
+              <a
+                href={fanpageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-bold text-[#0D5EF4] hover:underline"
+              >
+                Mở Facebook →
+              </a>
+            </div>
+            <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 flex justify-center p-1">
+              <iframe
+                title="Fanpage FC HĐH Gò Nổi"
+                src={`https://www.facebook.com/plugins/page.php?href=${encodedFanpage}&tabs=timeline&width=360&height=360&small_header=true&adapt_container_width=true&hide_cover=false&show_facepile=true`}
+                width="360"
+                height="360"
+                style={{ border: "none", overflow: "hidden", maxWidth: "100%" }}
+                scrolling="no"
+                loading="lazy"
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================ CTA ============================ */}
+      <Reveal>
+        <section className="relative rounded-[2rem] overflow-hidden bg-gradient-to-r from-[#0D5EF4] via-[#1b6dff] to-[#0a3fb0] text-white px-6 sm:px-14 py-12 shadow-2xl">
+          <div
+            aria-hidden="true"
+            className="absolute -right-10 -bottom-16 font-display font-extrabold text-[14rem] leading-none text-white/10 select-none"
+          >
+            ⚽
+          </div>
+          <div className="relative flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+            <div>
+              <h2 className="font-display font-extrabold uppercase text-4xl sm:text-5xl leading-none">
+                Ra sân cùng <span className="text-[#ffc933]">anh em Gò Nổi</span>
+              </h2>
+              <p className="mt-3 text-blue-100 max-w-xl">
+                Cầu thủ và ban điều hành đăng nhập để điểm danh, xem lịch đấu và
+                theo dõi quỹ đội. Muốn gia nhập? Nhắn Fanpage cho anh em nhé!
               </p>
-              <div className="flex items-center gap-3 pt-2">
+            </div>
+            <div className="flex flex-wrap justify-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={onOpenLogin}
+                className="inline-flex items-center gap-2 bg-[#ffc933] hover:bg-[#ffd95e] text-slate-950 font-black px-7 py-4 rounded-xl text-sm uppercase tracking-wider shadow-xl cursor-pointer"
+              >
+                <LogIn className="h-5 w-5" />
+                <span>Đăng nhập</span>
+              </button>
+              <a
+                href={fanpageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/40 text-white font-black px-6 py-4 rounded-xl text-sm uppercase tracking-wider"
+              >
+                <span>Nhắn Fanpage</span>
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* ============================ FOOTER ============================ */}
+      <footer className="rounded-[2rem] overflow-hidden bg-[#050e20] text-slate-300 border border-white/5">
+        <div className="px-6 sm:px-12 py-10 grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={OFFICIAL_LOGO_URL}
+                alt="Logo FC HĐH Gò Nổi"
+                className="h-12 w-12 rounded-full object-contain bg-white p-0.5 ring-2 ring-[#ffc933]"
+              />
+              <span className="font-display font-extrabold text-2xl uppercase text-white leading-none">
+                FC HĐH Gò Nổi
+              </span>
+            </div>
+            <p className="text-xs leading-relaxed text-slate-400">
+              Câu lạc bộ bóng đá của những người con Gò Nổi (Điện Quang, Điện
+              Trung, Điện Phong, Điện Bàn, Quảng Nam) đang sinh sống và làm việc
+              tại TP. Hồ Chí Minh.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="font-display font-extrabold text-xl uppercase text-[#ffc933]">
+              Điều hướng
+            </h3>
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              {navLinks.map((l) => (
+                <li key={l.id}>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection(l.id)}
+                    className="hover:text-[#ffc933] transition cursor-pointer"
+                  >
+                    {l.label}
+                  </button>
+                </li>
+              ))}
+              <li>
                 <a
                   href={fanpageUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-8 w-8 rounded-full bg-white/10 hover:bg-[#0D5EF4] flex items-center justify-center text-white transition"
-                  title="Facebook Fanpage"
+                  className="hover:text-[#ffc933] transition"
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  Fanpage
                 </a>
-                <button
-                  onClick={onOpenLogin}
-                  className="h-8 w-8 rounded-full bg-white/10 hover:bg-[#ffc933] hover:text-slate-950 flex items-center justify-center text-white transition cursor-pointer"
-                  title="Đăng nhập"
-                >
-                  <LogIn className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Column 2: Latest Match Preview (Footer post style with blue date box) */}
-            <div className="space-y-4">
-              <h3 className="font-black text-white uppercase text-base tracking-wider">
-                LATEST MATCH
-              </h3>
-              {nextMatch ? (
-                <div className="flex items-start gap-3 bg-white/5 p-3 rounded-xl border border-white/10">
-                  {/* Primary Blue Date Box matching theme footer */}
-                  <div className="bg-[#0D5EF4] text-white rounded-lg p-2 text-center shrink-0 w-12">
-                    <div className="text-xs font-black">
-                      {nextMatch.match_date ? nextMatch.match_date.slice(8, 10) : "25"}
-                    </div>
-                    <div className="text-[9px] font-bold uppercase">THÁNG</div>
-                  </div>
-                  <div className="space-y-1 min-w-0">
-                    <h5 className="font-bold text-xs text-white truncate">
-                      {nextMatch.opponent}
-                    </h5>
-                    <p className="text-[11px] text-slate-400 truncate">
-                      {nextMatch.kickoff_time} • {nextMatch.venue}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400">Đang cập nhật trận tiếp theo.</p>
-              )}
-            </div>
-
-            {/* Column 3: Quick Links */}
-            <div className="space-y-3">
-              <h3 className="font-black text-white uppercase text-base tracking-wider">
-                QUICK LINKS
-              </h3>
-              <ul className="space-y-2 text-xs">
-                <li>
-                  <button
-                    onClick={() => scrollToSection("banner-hero")}
-                    className="hover:text-[#ffc933] transition cursor-pointer"
-                  >
-                    Trang Chủ
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => scrollToSection("match-center")}
-                    className="hover:text-[#ffc933] transition cursor-pointer"
-                  >
-                    Lịch Thi Đấu & Kết Quả
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => scrollToSection("about-club")}
-                    className="hover:text-[#ffc933] transition cursor-pointer"
-                  >
-                    Về CLB FC HĐH Gò Nổi
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={onOpenLogin}
-                    className="hover:text-[#ffc933] transition cursor-pointer font-bold text-[#ffc933]"
-                  >
-                    Đăng Nhập Cầu Thủ & Quản Lý →
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 4: Contact & Hotline */}
-            <div className="space-y-3">
-              <h3 className="font-black text-white uppercase text-base tracking-wider">
-                LIÊN HỆ
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Mọi thông tin giao lưu, tài trợ hoặc đăng ký tham gia câu lạc bộ, xin vui lòng liên hệ Ban Điều Hành qua Fanpage hoặc đăng nhập hệ thống.
-              </p>
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={onOpenLogin}
-                  className="w-full bg-[#0D5EF4] hover:bg-blue-600 text-white font-black py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition shadow cursor-pointer"
-                >
-                  Đăng Nhập Thành Viên
-                </button>
-              </div>
-            </div>
+              </li>
+            </ul>
           </div>
 
-          {/* Bottom Copyright bar */}
-          <div className="pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-3">
-            <span>
-              © 2025 FC HĐH GÒ NỔI (ĐIỆN BÀN - QUẢNG NAM). THEME STYLED AFTER FOOTBALL COACH CLUB.
-            </span>
-            <div className="flex items-center gap-4">
-              <span className="text-slate-400">Thiết kế phong cách Football Club Theme</span>
-            </div>
+          <div className="space-y-3">
+            <h3 className="font-display font-extrabold text-xl uppercase text-[#ffc933]">
+              Khu thành viên
+            </h3>
+            <p className="text-xs text-slate-400">
+              Dành cho cầu thủ và Ban điều hành CLB.
+            </p>
+            <button
+              type="button"
+              onClick={onOpenLogin}
+              className="inline-flex items-center gap-2 bg-[#0D5EF4] hover:bg-[#2f7bff] text-white font-black px-5 py-3 rounded-xl text-xs uppercase tracking-wider cursor-pointer"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Đăng nhập</span>
+            </button>
           </div>
+        </div>
+        <div className="border-t border-white/10 px-6 sm:px-12 py-4 text-[11px] text-slate-500 text-center sm:text-left">
+          © {new Date().getFullYear()} FC HĐH Gò Nổi • Đoàn kết • Bản lĩnh •
+          Nghĩa tình
         </div>
       </footer>
     </div>
