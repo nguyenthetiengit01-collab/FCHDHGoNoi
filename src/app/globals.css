@@ -263,3 +263,12 @@ dialog::backdrop {
 @media (prefers-reduced-motion: reduce) {
   .gn-marquee, .gn-float, .gn-float-slow { animation: none; }
 }
+
+@keyframes gn-kenburns {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+.gn-kenburns { animation: gn-kenburns 18s ease-out forwards; }
+.gn-hide-scroll { scrollbar-width: none; }
+.gn-hide-scroll::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) { .gn-kenburns { animation: none; } }

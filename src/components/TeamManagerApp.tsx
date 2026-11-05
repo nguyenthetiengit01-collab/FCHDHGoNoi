@@ -301,7 +301,11 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const currentPlayerObj = data.players.find((p) => p.id === session.playerId);
 
   return (
-    <div className="min-h-dvh flex flex-col pb-20 md:pb-8">
+    <div
+      className={`min-h-dvh flex flex-col ${
+        session.role === "guest" ? "bg-[#050e20]" : "pb-20 md:pb-8"
+      }`}
+    >
       <a href="#main-content" className="skip-link">Bỏ qua điều hướng, tới nội dung chính</a>
       {/* Top Navigation Bar — Khi đã đăng nhập (Cầu thủ / Quản lý) hiển thị App Header; khi là Khách hiển thị thanh công khai */}
       {session.role !== "guest" ? (
@@ -457,7 +461,11 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       )}
 
       {/* Main Content Area */}
-      <main id="main-content" key={`${session.role}-${activeTab}`} className="tab-enter mx-auto w-full max-w-7xl flex-1 px-3 sm:px-6 py-4 sm:py-5">
+      <main id="main-content" key={`${session.role}-${activeTab}`} className={
+          session.role === "guest"
+            ? "tab-enter w-full flex-1"
+            : "tab-enter mx-auto w-full max-w-7xl flex-1 px-3 sm:px-6 py-4 sm:py-5"
+        }>
         {session.role === "guest" && (
           <PublicGuestPortal
             data={data}
