@@ -54,6 +54,7 @@ export interface Player {
   pin_code: string;
   status: string;
   notes: string;
+  bio?: string;
 }
 
 export interface MatchRecord {
@@ -71,6 +72,7 @@ export interface MatchRecord {
   opponent_score: number | null;
   status: string;
   notes: string;
+  bio?: string;
 }
 
 export type RsvpStatus = "registered" | "absent_notice" | "none";

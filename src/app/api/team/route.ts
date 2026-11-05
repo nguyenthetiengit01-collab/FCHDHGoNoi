@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
           db.prepare(`
             UPDATE players
             SET code_order = ?, full_name = ?, short_name = ?, jersey_number = ?,
-                position = ?, phone = ?, birth_year = ?, avatar_url = ?,
+                position = ?, phone = ?, birth_year = ?, avatar_url = ?, bio = ?,
                 role = ?, access_role = ?, pin_code = ?, status = ?, notes = ?
             WHERE id = ?
           `).run(
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
             phone || "",
             birth_year || "",
             avatar_url || "/uploads/avatars/member-1.jpg",
+            typeof payload.bio === "string" ? payload.bio : "",
             role || "Thành viên",
             access_role === "manager" ? "manager" : "player",
             String(pin_code || "1234").trim(),
@@ -89,9 +90,9 @@ export async function POST(req: NextRequest) {
             .prepare(`
             INSERT INTO players (
               code_order, full_name, short_name, jersey_number,
-              position, phone, birth_year, avatar_url, role, access_role, pin_code, status, notes
+              position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `)
             .run(
               nextOrder,
@@ -106,6 +107,7 @@ export async function POST(req: NextRequest) {
               phone || "",
               birth_year || "",
               avatar_url || "/uploads/avatars/member-1.jpg",
+              typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
               access_role === "manager" ? "manager" : "player",
               String(pin_code || "1234").trim(),
@@ -140,6 +142,7 @@ export async function POST(req: NextRequest) {
           phone,
           birth_year,
           avatar_url,
+          bio,
           notes,
         } = payload;
 
@@ -172,7 +175,7 @@ export async function POST(req: NextRequest) {
         db.prepare(`
           UPDATE players
           SET full_name = ?, short_name = ?, jersey_number = ?,
-              position = ?, phone = ?, birth_year = ?, avatar_url = ?, notes = ?
+              position = ?, phone = ?, birth_year = ?, avatar_url = ?, bio = ?, notes = ?
           WHERE id = ?
         `).run(
           cleanName,
@@ -188,6 +191,7 @@ export async function POST(req: NextRequest) {
             ? String(birth_year)
             : "",
           avatar_url || "/uploads/avatars/member-1.jpg",
+          typeof bio === "string" ? bio : "",
           notes || "",
           Number(player_id)
         );

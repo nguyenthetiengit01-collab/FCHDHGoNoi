@@ -89,6 +89,7 @@ function initSchema(db: DatabaseSyncType) {
       phone TEXT NOT NULL DEFAULT '',
       birth_year TEXT NOT NULL DEFAULT '',
       avatar_url TEXT NOT NULL DEFAULT '',
+      bio TEXT NOT NULL DEFAULT '',
       role TEXT NOT NULL DEFAULT 'Thành viên',
       access_role TEXT NOT NULL DEFAULT 'player',
       pin_code TEXT NOT NULL DEFAULT '1234',
@@ -204,6 +205,16 @@ function runMigrations(db: DatabaseSyncType) {
       const picIdx = (idx % 14) + 1;
       updAvatar.run(`/uploads/avatars/member-${picIdx}.jpg`, p.id);
     });
+  }
+  if (!hasColumn(db, "players", "bio")) {
+    db.exec(
+      `ALTER TABLE players ADD COLUMN bio TEXT NOT NULL DEFAULT '';`
+    );
+    db.exec(`
+      UPDATE players
+      SET bio = 'Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt.'
+      WHERE bio IS NULL OR bio = '';
+    `);
   }
   if (!hasColumn(db, "match_attendances", "rsvp_status")) {
     db.exec(

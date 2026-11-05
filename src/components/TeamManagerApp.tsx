@@ -15,7 +15,8 @@ import {
   Globe,
   LogOut,
   ExternalLink,
-  KeyRound,
+  User,
+  Lock,
 } from "lucide-react";
 import type { FullAppData, AuthSession, Player } from "@/types/app";
 import { FANPAGE_URL, OFFICIAL_LOGO_URL } from "@/types/app";
@@ -75,15 +76,9 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const defaultCaptain =
-    initialData.players.find((p) => p.full_name === "Nguyễn Thế Tiếng") ||
-    initialData.players[0];
-
   // Login modal states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [selectedLoginPlayerId, setSelectedLoginPlayerId] = useState<string>(
-    String(defaultCaptain?.id || "")
-  );
+  const [usernameInput, setUsernameInput] = useState<string>("");
   const [pinInput, setPinInput] = useState<string>("");
   const [loginError, setLoginError] = useState<string>("");
 
@@ -158,25 +153,58 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const p = data.players.find(
-      (pl) => String(pl.id) === selectedLoginPlayerId
-    );
-    if (!p) {
-      setLoginError("Vui lòng chọn tên cầu thủ");
+    const cleanUsername = usernameInput.trim();
+    const cleanPin = pinInput.trim();
+
+    if (!cleanUsername) {
+      setLoginError("Vui lòng nhập Tên đăng nhập");
       return;
     }
+    if (!cleanPin) {
+      setLoginError("Vui lòng nhập Mật khẩu");
+      return;
+    }
+
+    const removeAccents = (str: string) =>
+      str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "d")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+    const uNorm = removeAccents(cleanUsername);
+
+    // Tìm cầu thủ theo tên tài khoản riêng: short_name, full_name, số điện thoại, hoặc số áo
+    const p = data.players.find((pl) => {
+      if (removeAccents(pl.short_name) === uNorm) return true;
+      if (removeAccents(pl.full_name) === uNorm) return true;
+      if (pl.phone && pl.phone.replace(/\D/g, "") === cleanUsername.replace(/\D/g, "")) return true;
+      const jerseyStr = pl.jersey_number !== null ? String(pl.jersey_number) : "";
+      if (jerseyStr && (jerseyStr === cleanUsername.replace("#", "").trim())) return true;
+      return false;
+    });
+
+    if (!p) {
+      setLoginError("Tên đăng nhập không chính xác hoặc không thuộc danh sách CLB.");
+      return;
+    }
+
     const expectedPin = p.pin_code || "1234";
-    if (pinInput.trim() !== expectedPin) {
+    if (cleanPin !== expectedPin) {
       setLoginError(
-        "Mã PIN không chính xác. Vui lòng kiểm tra lại hoặc liên hệ Ban Quản Lý để được hỗ trợ."
+        "Mật khẩu không chính xác. Vui lòng kiểm tra lại hoặc liên hệ Ban Quản Lý."
       );
       return;
     }
+
     const newSession = buildSessionFromPlayer(p);
     setSession(newSession);
     setLoginModalOpen(false);
+    setUsernameInput("");
+    setPinInput("");
     setLoginError("");
-    // Ưu tiên mở tab Lịch, thông báo và điểm danh ngay khi cầu thủ đăng nhập
     setActiveTab("schedule");
     showToast(`Xin chào ${p.full_name} (#${p.jersey_number ?? "-"})!`);
   };
@@ -580,47 +608,48 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       >
         <div className="space-y-5">
           {/* Logo & Tiêu đề CLB */}
-          <div className="flex items-center gap-3.5 rounded-xl bg-[#0f2239] text-white p-3.5 border border-blue-900/50">
+          <div className="flex items-center gap-3.5 rounded-2xl bg-gradient-to-r from-[#092244] to-[#0d2e5b] text-white p-3.5 border border-[#d4af37]/40 shadow-md">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={OFFICIAL_LOGO_URL}
               alt="Logo FC HĐH Gò Nổi"
-              className="h-12 w-12 rounded-xl object-contain bg-white p-0.5 border border-[#ffc933] shrink-0"
+              className="h-12 w-12 rounded-xl object-contain bg-white p-0.5 border border-[#d4af37] shrink-0"
             />
             <div className="text-xs">
-              <div className="font-extrabold text-sm text-[#ffc933] uppercase">
+              <div className="font-bold text-sm text-[#d4af37] uppercase">
                 CLB BÓNG ĐÁ HĐH GÒ NỔI (TP.HCM)
               </div>
-              <p className="text-slate-300 mt-0.5">
-                Vui lòng chọn tài khoản thành viên và nhập mã PIN cá nhân để truy cập hệ thống.
+              <p className="text-sky-100 mt-0.5">
+                Mỗi cầu thủ đăng nhập bằng tài khoản và mật khẩu được cấp riêng.
               </p>
             </div>
           </div>
 
-          {/* Form đăng nhập dành cho mọi cầu thủ và quản lý */}
+          {/* Form đăng nhập dạng chuẩn: Tên đăng nhập + Mật khẩu */}
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div>
               <label
-                htmlFor="login-player-select"
+                htmlFor="login-username-input"
                 className="block text-sm font-bold text-slate-700 mb-1"
               >
-                Tài khoản Thành viên / Cầu thủ
+                Tên đăng nhập
               </label>
-              <select
-                id="login-player-select"
-                value={selectedLoginPlayerId}
-                onChange={(e) => {
-                  setSelectedLoginPlayerId(e.target.value);
-                  setLoginError("");
-                }}
-                className="form-select font-semibold"
-              >
-                {data.players.map((p) => (
-                  <option key={p.id} value={String(p.id)}>
-                    #{p.jersey_number ?? "-"} - {p.full_name} ({p.access_role === "manager" ? "Ban Quản Lý" : "Cầu thủ"})
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <User className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  id="login-username-input"
+                  type="text"
+                  value={usernameInput}
+                  placeholder="Nhập tên đăng nhập hoặc số áo"
+                  onChange={(e) => {
+                    setUsernameInput(e.target.value);
+                    setLoginError("");
+                  }}
+                  className="form-input !pl-9 font-medium"
+                  autoFocus
+                  required
+                />
+              </div>
             </div>
 
             <div>
@@ -628,26 +657,27 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 htmlFor="login-pin-input"
                 className="block text-sm font-bold text-slate-700 mb-1"
               >
-                Mật khẩu / Mã PIN cá nhân
+                Mật khẩu
               </label>
               <div className="relative">
-                <KeyRound className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Lock className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   id="login-pin-input"
                   type="password"
                   value={pinInput}
-                  placeholder="Nhập mã PIN cá nhân"
+                  placeholder="Nhập mật khẩu"
                   onChange={(e) => {
                     setPinInput(e.target.value);
                     setLoginError("");
                   }}
                   className="form-input !pl-9 font-bold tracking-widest"
-                  autoFocus
+                  required
                 />
               </div>
               {loginError && (
-                <p className="mt-1.5 text-xs font-bold text-rose-600">
-                  {loginError}
+                <p className="mt-1.5 text-xs font-bold text-rose-600 flex items-center gap-1.5">
+                  <span>⚽</span>
+                  <span>{loginError}</span>
                 </p>
               )}
             </div>
@@ -657,6 +687,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 type="button"
                 onClick={() => {
                   setLoginModalOpen(false);
+                  setUsernameInput("");
+                  setPinInput("");
                   setLoginError("");
                 }}
                 className="rounded-lg border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
@@ -666,9 +698,10 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
               <button
                 type="submit"
-                className="rounded-lg bg-[#0D5EF4] hover:bg-blue-600 px-6 py-2.5 text-sm font-extrabold text-white transition shadow-sm cursor-pointer"
+                className="rounded-xl bg-gradient-to-r from-[#17488c] to-[#1e5eb8] hover:from-[#1e5eb8] hover:to-[#2563eb] px-6 py-2.5 text-sm font-bold text-white transition shadow-md cursor-pointer inline-flex items-center gap-2 border border-sky-300/30"
               >
-                Đăng Nhập Hệ Thống
+                <span>⚽</span>
+                <span>Đăng Nhập</span>
               </button>
             </div>
           </form>

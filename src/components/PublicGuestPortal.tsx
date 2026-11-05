@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   MapPin,
-  ExternalLink,
   LogIn,
   ArrowRight,
   ArrowUpRight,
@@ -14,12 +13,25 @@ import {
   Wallet,
   Camera,
   HeartHandshake,
+  RotateCw,
+  Play,
+  Pause,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Quote,
+  X,
+  User,
+  Shield,
+  Activity,
+  Calendar,
+  Users,
+  CheckCircle2,
 } from "lucide-react";
 import type { FullAppData, Player } from "@/types/app";
 import {
   FANPAGE_URL,
   OFFICIAL_LOGO_URL,
-  OFFICIAL_COVER_URL,
 } from "@/types/app";
 import { formatDateVN } from "@/lib/format";
 
@@ -30,32 +42,155 @@ interface PublicGuestPortalProps {
 
 const WRAP = "mx-auto w-full max-w-[1600px] px-5 sm:px-10 lg:px-16";
 
+/* Danh sách ảnh WebP chất lượng cao từ folder hinhanh đã tự động xử lý */
+const HERO_PHOTOS = [
+  "/images/hinhanh-webp/DSC06734.webp",
+  "/images/hinhanh-webp/DSC06730.webp",
+  "/images/hinhanh-webp/DSC06290.webp",
+  "/images/hinhanh-webp/DSC06530.webp",
+];
+
 const MOSAIC = [
   {
-    src: OFFICIAL_COVER_URL,
-    title: "Anh em Gò Nổi ra sân cuối tuần",
-    tag: "Tập thể",
+    src: "/images/hinhanh-webp/DSC06734.webp",
+    title: "Tập thể anh em Gò Nổi ra sân",
+    tag: "Tập thể FC Gò Nổi",
     span: "sm:col-span-2 sm:row-span-2",
   },
   {
-    src: "/uploads/avatars/member-10.jpg",
-    title: "Đá hết mình, cười hết cỡ",
-    tag: "Ra sân",
+    src: "/images/hinhanh-webp/DSC06290.webp",
+    title: "Cháy hết mình trên sân 7",
+    tag: "Trận đấu nảy lửa",
     span: "",
   },
   {
-    src: "/uploads/avatars/member-5.jpg",
-    title: "Giao lưu đồng hương Điện Bàn",
-    tag: "Giao hữu",
+    src: "/images/hinhanh-webp/DSC06522.webp",
+    title: "Những pha tranh chấp kịch tính",
+    tag: "Hành động sân cỏ",
     span: "",
   },
   {
-    src: "/uploads/avatars/member-13.jpg",
-    title: "Mồ hôi trên sân, tình nghĩa ngoài sân",
-    tag: "Tình anh em",
+    src: "/images/hinhanh-webp/DSC06751.webp",
+    title: "Nụ cười & tình anh em đồng hương",
+    tag: "Nghĩa tình quê hương",
     span: "sm:col-span-2",
   },
+  {
+    src: "/images/hinhanh-webp/DSC06530.webp",
+    title: "Ăn mừng bàn thắng đẹp mắt",
+    tag: "Khoảnh khắc thăng hoa",
+    span: "",
+  },
+  {
+    src: "/images/hinhanh-webp/05f39aceaf732e2d776225.webp",
+    title: "Năng lượng trẻ trung, vui vẻ",
+    tag: "Nụ cười phủi",
+    span: "",
+  },
 ];
+
+/* Football-stylized SVG Icons */
+function SoccerBallIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polygon
+        points="12 7 15.5 9.5 14 13.5 10 13.5 8.5 9.5"
+        fill="currentColor"
+        fillOpacity="0.25"
+      />
+      <line x1="12" y1="2" x2="12" y2="7" />
+      <line x1="21.5" y1="9" x2="15.5" y2="9.5" />
+      <line x1="18" y1="20" x2="14" y2="13.5" />
+      <line x1="6" y1="20" x2="10" y2="13.5" />
+      <line x1="2.5" y1="9" x2="8.5" y2="9.5" />
+    </svg>
+  );
+}
+
+function WhistleIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path
+        d="M11 5H6a4 4 0 0 0-4 4v3a4 4 0 0 0 4 4h2l3 3v-3h7a4 4 0 0 0 4-4V9a4 4 0 0 0-4-4h-7z"
+        fill="currentColor"
+        fillOpacity="0.2"
+      />
+      <circle cx="17" cy="10" r="2" fill="currentColor" />
+      <path d="M6 5V2" />
+    </svg>
+  );
+}
+
+function CleatsIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path
+        d="M2 17c1.5-2 3.5-3 6-3h4c3 0 6 2 9 4v2H2v-3z"
+        fill="currentColor"
+        fillOpacity="0.25"
+      />
+      <path d="M12 14V8l4 2v4" />
+      <line x1="5" y1="20" x2="5" y2="23" />
+      <line x1="9" y1="20" x2="9" y2="23" />
+      <line x1="15" y1="20" x2="15" y2="23" />
+      <line x1="19" y1="20" x2="19" y2="23" />
+    </svg>
+  );
+}
+
+function GoalNetIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect
+        x="3"
+        y="4"
+        width="18"
+        height="15"
+        rx="1"
+        fill="currentColor"
+        fillOpacity="0.15"
+      />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="3" y1="14" x2="21" y2="14" />
+      <line x1="8" y1="4" x2="8" y2="19" />
+      <line x1="13" y1="4" x2="13" y2="19" />
+      <line x1="18" y1="4" x2="18" y2="19" />
+    </svg>
+  );
+}
 
 const ACTIVITIES = [
   {
@@ -71,22 +206,22 @@ const ACTIVITIES = [
   {
     icon: Beer,
     title: "Sau trận là nghĩa tình",
-    text: "Ly nước, tô hủ tiếu, vài câu chuyện quê nhà. Đá xong mới thấy nhà gần ngay đây.",
+    text: "Ly nước mía, tô mỳ Quảng, vài câu chuyện quê nhà. Đá xong mới thấy quê hương gần ngay bên.",
   },
   {
     icon: Wallet,
     title: "Quỹ đội minh bạch",
-    text: "Thu chi sân bãi, tiền nước ghi rõ từng trận. Cầu thủ đăng nhập là xem được.",
+    text: "Thu chi tiền sân, tiền nước, tiền bóng công khai từng đồng. Cầu thủ đăng nhập là xem rõ.",
   },
   {
     icon: Camera,
     title: "Khoảnh khắc & kỷ niệm",
-    text: "Ảnh tập thể, pha bóng đẹp, cú sút lệch cột dọc. Tất cả lên Fanpage cho cả xóm cười.",
+    text: "Ảnh tập thể, bàn thắng đẹp, cú sút lệch cột dọc. Tất cả được lưu giữ trọn vẹn.",
   },
   {
     icon: HeartHandshake,
     title: "Hướng về quê hương",
-    text: "Gắn kết đồng hương Điện Quang, Điện Trung, Điện Phong, sẻ chia khi anh em cần.",
+    text: "Gắn kết đồng hương Điện Quang, Điện Trung, Điện Phong, tương trợ nhau giữa đất Sài Gòn.",
   },
 ];
 
@@ -137,6 +272,450 @@ function Reveal({
   );
 }
 
+/* =========================================================================
+   THẺ CẦU THỦ 3D PROFILE SANG TRỌNG (TƯƠNG TÁC TILT, LẬT 3D & XEM TIỂU SỬ)
+   ========================================================================= */
+interface PlayerCard3DProps {
+  player: Player;
+  onOpenProfile: (player: Player) => void;
+}
+
+function PlayerCard3D({ player, onOpenProfile }: PlayerCard3DProps) {
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [tilt, setTilt] = useState({ x: 0, y: 0, glareX: 50, glareY: 50 });
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const rotateX = ((y - centerY) / centerY) * -12;
+    const rotateY = ((x - centerX) / centerX) * 12;
+
+    const glareX = (x / rect.width) * 100;
+    const glareY = (y / rect.height) * 100;
+
+    setTilt({ x: rotateX, y: rotateY, glareX, glareY });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setTilt({ x: 0, y: 0, glareX: 50, glareY: 50 });
+  }, []);
+
+  const positionBadge =
+    player.access_role === "manager"
+      ? { label: "Ban Điều Hành", icon: "👑", code: "BQL", color: "from-[#d4af37] to-[#e6c466]" }
+      : /thủ môn|gk/i.test(player.position || "")
+      ? { label: "Thủ Môn", icon: "🧤", code: "GK", color: "from-[#38bdf8] to-[#0284c7]" }
+      : /hậu vệ|cb|lb|rb/i.test(player.position || "")
+      ? { label: "Hậu Vệ", icon: "🛡️", code: "DF", color: "from-[#60a5fa] to-[#2563eb]" }
+      : /tiền vệ|cm|cdm|cam/i.test(player.position || "")
+      ? { label: "Tiền Vệ", icon: "🎯", code: "MF", color: "from-[#818cf8] to-[#4f46e5]" }
+      : { label: player.position || "Tiền Đạo", icon: "⚡", code: "FW", color: "from-[#f59e0b] to-[#d97706]" };
+
+  const playerBio =
+    player.bio?.trim() ||
+    "Chiến binh nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần fair-play và tình anh em quê hương bền chặt.";
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="perspective-1200 shrink-0 w-[82vw] sm:w-[340px] lg:w-[370px] h-[550px] sm:h-[610px] select-none"
+    >
+      <div
+        className="relative w-full h-full preserve-3d transition-transform duration-500 ease-out"
+        style={{
+          transform: `rotateX(${tilt.x}deg) rotateY(${
+            tilt.y + (isFlipped ? 180 : 0)
+          }deg) scale3d(1.02, 1.02, 1.02)`,
+        }}
+      >
+        {/* ==================== MẶT TRƯỚC (FRONT 3D PROFILE CARD - XANH LAM SANG TRỌNG) ==================== */}
+        <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden bg-gradient-to-b from-[#133b73] via-[#0d2a54] to-[#081b38] border-2 border-[#d4af37]/80 shadow-[0_20px_60px_rgba(10,35,75,0.7)] flex flex-col justify-between p-4 sm:p-5">
+          {/* Holographic Diamond Glare */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none opacity-45 mix-blend-overlay transition-opacity duration-300"
+            style={{
+              background: `radial-gradient(circle at ${tilt.glareX}% ${tilt.glareY}%, rgba(255,255,255,0.85) 0%, rgba(212,175,55,0.4) 30%, transparent 68%)`,
+            }}
+          />
+
+          {/* Sân bóng hoàng gia trang trí chìm */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none opacity-15"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 50% 35%, #38bdf8 0, transparent 48%), linear-gradient(0deg, transparent 49%, rgba(212,175,55,0.4) 50%, transparent 51%)",
+            }}
+          />
+
+          {/* Top Card Badge: Chỉ số & Huy hiệu */}
+          <div className="relative z-10 flex items-start justify-between">
+            <div className="flex flex-col items-center bg-[#071933]/70 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-[#d4af37]/40 shadow-sm">
+              <span className="font-display font-extrabold text-3xl sm:text-4xl text-[#d4af37] leading-none drop-shadow">
+                {player.jersey_number ?? 99}
+              </span>
+              <span className="font-display font-bold text-[10px] uppercase text-sky-200 tracking-widest mt-0.5">
+                {positionBadge.code}
+              </span>
+              <span className="text-sm mt-0.5" title={positionBadge.label}>
+                {positionBadge.icon}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 bg-[#071933]/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-[#d4af37]/50 shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={OFFICIAL_LOGO_URL}
+                alt="FC HĐH Gò Nổi"
+                className="h-6 w-6 rounded-full object-contain bg-white p-0.5 ring-1 ring-[#d4af37]"
+              />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#d4af37]">
+                FC GÒ NỔI
+              </span>
+            </div>
+          </div>
+
+          {/* Player Visual Portrait / Action Stance */}
+          <div className="relative z-10 flex-1 flex items-center justify-center my-2">
+            <div className="relative w-48 h-60 sm:w-56 sm:h-72 flex items-center justify-center group">
+              {/* Hào quang xanh lam sapphire & vàng hoàng gia */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-t from-[#1d5ab9]/60 via-[#0284c7]/30 to-[#d4af37]/30 blur-2xl scale-95" />
+
+              {player.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={player.avatar_url}
+                  alt={player.full_name}
+                  className="relative z-10 w-full h-full object-cover object-top rounded-2xl shadow-2xl border-2 border-[#d4af37]/50 filter brightness-105 contrast-105"
+                />
+              ) : (
+                <div className="relative z-10 w-full h-full rounded-2xl bg-gradient-to-b from-[#17488c] to-[#0a1e3d] flex flex-col items-center justify-center text-center p-4 border border-[#d4af37]/40 shadow-inner">
+                  <SoccerBallIcon className="h-16 w-16 text-[#d4af37] mb-2 animate-pulse" />
+                  <span className="font-display font-extrabold text-6xl text-[#d4af37]">
+                    #{player.jersey_number ?? "-"}
+                  </span>
+                  <span className="text-xs uppercase text-sky-200 tracking-widest mt-1">
+                    Cầu thủ Gò Nổi
+                  </span>
+                </div>
+              )}
+
+              {/* Số áo 3D in chìm vàng kim loại */}
+              <span
+                aria-hidden="true"
+                className="absolute -right-3 -bottom-3 font-display font-black text-8xl sm:text-9xl text-transparent [-webkit-text-stroke:2px_rgba(212,175,55,0.6)] pointer-events-none z-20 select-none leading-none"
+              >
+                {player.jersey_number ?? ""}
+              </span>
+            </div>
+          </div>
+
+          {/* Bottom Card Plate: Thông tin, Chỉ số phủi & 2 Nút hành động */}
+          <div className="relative z-10 bg-[#071933]/90 backdrop-blur-md rounded-2xl p-3.5 border border-[#d4af37]/40 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h4 className="font-display font-extrabold uppercase text-xl sm:text-2xl text-white leading-tight truncate">
+                  {player.short_name || player.full_name}
+                </h4>
+                <p className="text-[12px] text-[#d4af37] truncate font-semibold">
+                  {player.full_name}
+                </p>
+              </div>
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-gradient-to-r from-[#17488c] to-[#1e5eb8] text-[#fde047] border border-[#d4af37]/50 shadow-xs">
+                {positionBadge.label}
+              </span>
+            </div>
+
+            {/* Chỉ số đá phủi vui vẻ & nhiệt huyết */}
+            <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-white/10 text-center text-[10px] font-bold">
+              <div className="bg-white/10 py-1 rounded-lg border border-white/5">
+                <span className="text-[#fde047] block text-xs">98</span>
+                <span className="text-sky-200 text-[9px] uppercase">Nhiệt Huyết</span>
+              </div>
+              <div className="bg-white/10 py-1 rounded-lg border border-white/5">
+                <span className="text-[#fde047] block text-xs">95</span>
+                <span className="text-sky-200 text-[9px] uppercase">Đá Phủi</span>
+              </div>
+              <div className="bg-white/10 py-1 rounded-lg border border-white/5">
+                <span className="text-[#fde047] block text-xs">100</span>
+                <span className="text-sky-200 text-[9px] uppercase">Đồng Hương</span>
+              </div>
+            </div>
+
+            {/* 2 Nút: Lật thẻ 3D + Xem Profile & Tiểu sử */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsFlipped(true)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold py-2 px-2 transition border border-white/15 cursor-pointer"
+                title="Lật thẻ xem số áo 3D"
+              >
+                <RotateCw className="h-3.5 w-3.5 text-[#d4af37]" />
+                <span>Lật áo đấu</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenProfile(player)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 text-[11px] font-extrabold py-2 px-2 transition shadow-md cursor-pointer"
+                title="Xem bài viết & hồ sơ giới thiệu cầu thủ"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Xem Profile</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ==================== MẶT SAU (BACK 3D CARD - ÁO ĐẤU HOÀNG GIA & BÀI VIẾT GIỚI THIỆU) ==================== */}
+        <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-3xl overflow-hidden bg-gradient-to-b from-[#133b73] via-[#0d2a54] to-[#071933] border-2 border-[#d4af37] shadow-[0_20px_60px_rgba(10,35,75,0.7)] flex flex-col justify-between p-5 text-white">
+          {/* Cổ áo đấu vàng viền kim loại */}
+          <div className="relative z-10 flex items-center justify-between border-b border-[#d4af37]/40 pb-3">
+            <div className="flex items-center gap-2">
+              <CleatsIcon className="h-5 w-5 text-[#d4af37]" />
+              <span className="font-display font-bold uppercase tracking-wider text-sm text-[#d4af37]">
+                Áo đấu FC HĐH Gò Nổi
+              </span>
+            </div>
+            <span className="text-[11px] bg-gradient-to-r from-[#d4af37] to-[#e6c466] text-slate-950 px-2.5 py-0.5 rounded-full font-black tracking-wide shadow-xs">
+              MÙA GIẢI 2026
+            </span>
+          </div>
+
+          {/* Lưng áo 3D với tên và số áo khổng lồ */}
+          <div className="relative z-10 text-center my-auto py-1">
+            <p className="font-display font-extrabold uppercase text-2xl tracking-[0.25em] text-[#d4af37] drop-shadow">
+              {player.short_name || player.full_name}
+            </p>
+            <div className="font-display font-black text-8xl sm:text-9xl text-white leading-none my-1 tracking-tighter drop-shadow-[0_10px_25px_rgba(0,0,0,0.8)]">
+              {player.jersey_number ?? "-"}
+            </div>
+            <p className="text-xs uppercase tracking-widest text-sky-200">
+              GÒ NỔI • ĐIỆN BÀN • QUẢNG NAM
+            </p>
+          </div>
+
+          {/* Lời tự giới thiệu / Bio của cầu thủ */}
+          <div className="relative z-10 bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/15 space-y-2">
+            <div className="flex items-center gap-1.5 text-xs text-[#d4af37] font-bold">
+              <Quote className="h-3.5 w-3.5" />
+              <span>Lời ngỏ sân cỏ của cầu thủ:</span>
+            </div>
+            <p className="text-xs text-sky-100 italic line-clamp-3 leading-relaxed">
+              &ldquo;{playerBio}&rdquo;
+            </p>
+          </div>
+
+          {/* Nút lật lại & Nút mở Profile modal */}
+          <div className="relative z-10 grid grid-cols-2 gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsFlipped(false)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2 border border-white/20 transition cursor-pointer"
+            >
+              <RotateCw className="h-3.5 w-3.5 text-[#d4af37]" />
+              <span>Mặt trước thẻ</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenProfile(player)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#d4af37] hover:bg-[#e6c466] text-slate-950 text-xs font-extrabold py-2 transition shadow-sm cursor-pointer"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Đọc bài viết</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   MODAL PROFILE GIỚI THIỆU CHI TIẾT CẦU THỦ (CÓ BÀI VIẾT TỰ SỬA CỦA CẦU THỦ)
+   ========================================================================= */
+interface PlayerProfileModalProps {
+  player: Player | null;
+  onClose: () => void;
+  onOpenLogin: () => void;
+}
+
+function PlayerProfileModal({
+  player,
+  onClose,
+  onOpenLogin,
+}: PlayerProfileModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (player) {
+      document.body.style.overflow = "hidden";
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [player, onClose]);
+
+  if (!player) return null;
+
+  const defaultBio =
+    "Chiến binh nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt.";
+  const displayBio = player.bio?.trim() || defaultBio;
+
+  const positionBadge =
+    player.access_role === "manager"
+      ? { label: "Ban Điều Hành / Thu Quỹ", icon: "👑", code: "BQL" }
+      : /thủ môn|gk/i.test(player.position || "")
+      ? { label: "Thủ Môn", icon: "🧤", code: "GK" }
+      : /hậu vệ|cb|lb|rb/i.test(player.position || "")
+      ? { label: "Hậu Vệ", icon: "🛡️", code: "DF" }
+      : /tiền vệ|cm|cdm|cam/i.test(player.position || "")
+      ? { label: "Tiền Vệ", icon: "🎯", code: "MF" }
+      : { label: player.position || "Tiền Đạo", icon: "⚡", code: "FW" };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#041022]/80 backdrop-blur-md animate-in fade-in duration-300"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-gradient-to-b from-[#103567] via-[#0d2a54] to-[#071a36] border-2 border-[#d4af37] text-white shadow-[0_25px_80px_rgba(0,0,0,0.85)] p-6 sm:p-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Nút đóng */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-5 right-5 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition border border-white/20 cursor-pointer"
+          aria-label="Đóng cửa sổ hồ sơ"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        {/* Header Profile */}
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 border-b border-white/15 pb-6">
+          <div className="relative shrink-0">
+            {player.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={player.avatar_url}
+                alt={player.full_name}
+                className="h-28 w-28 sm:h-32 sm:w-32 rounded-2xl object-cover object-top border-2 border-[#d4af37] shadow-xl"
+              />
+            ) : (
+              <div className="h-28 w-28 sm:h-32 sm:w-32 rounded-2xl bg-[#1d5ab9] flex flex-col items-center justify-center border-2 border-[#d4af37]">
+                <User className="h-12 w-12 text-[#d4af37]" />
+              </div>
+            )}
+            <span className="absolute -bottom-2 -right-2 font-display font-black text-xl bg-[#d4af37] text-slate-950 px-2.5 py-0.5 rounded-lg shadow-md">
+              #{player.jersey_number ?? "?"}
+            </span>
+          </div>
+
+          <div className="text-center sm:text-left flex-1 min-w-0">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              <span className="text-xs uppercase font-extrabold tracking-wider px-3 py-1 rounded-full bg-white/15 text-[#fde047] border border-[#d4af37]/40">
+                {positionBadge.icon} {positionBadge.label}
+              </span>
+              {player.access_role === "manager" && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 inline-flex items-center gap-1">
+                  <Shield className="h-3 w-3" /> Ban Quản Lý
+                </span>
+              )}
+            </div>
+
+            <h3 className="mt-2 font-display font-extrabold uppercase text-3xl sm:text-4xl text-white leading-tight">
+              {player.full_name}
+            </h3>
+            <p className="text-sm font-semibold text-[#d4af37]">
+              Biệt danh sân cỏ: &ldquo;{player.short_name || player.full_name}&rdquo;
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-sky-100">
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5 text-[#d4af37]" />
+                Năm sinh: <strong>{player.birth_year || "---"}</strong>
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5 text-[#d4af37]" />
+                Quê quán: <strong>Điện Bàn, Quảng Nam</strong>
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Activity className="h-3.5 w-3.5 text-emerald-400" />
+                Trạng thái:{" "}
+                <strong className="text-emerald-300">
+                  {player.status || "Đang sinh hoạt"}
+                </strong>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bài viết / Lời tự giới thiệu của cầu thủ */}
+        <div className="mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="font-display font-bold uppercase tracking-wider text-lg text-[#d4af37] flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              <span>Bài viết giới thiệu bản thân & Lời ngỏ sân cỏ</span>
+            </h4>
+            <span className="text-[11px] text-sky-200/80 italic hidden sm:inline">
+              Cầu thủ tự cập nhật
+            </span>
+          </div>
+
+          <div className="relative rounded-2xl bg-white/10 p-5 sm:p-6 border border-white/15">
+            <Quote className="h-8 w-8 text-[#d4af37]/40 mb-2" />
+            <p className="text-sm sm:text-base text-slate-100 leading-relaxed whitespace-pre-line italic font-serif">
+              {displayBio}
+            </p>
+          </div>
+
+          {/* Ghi chú cá nhân nếu có */}
+          {player.notes && (
+            <div className="rounded-xl bg-[#092244]/80 p-3.5 border border-white/10 text-xs text-sky-200">
+              <strong className="text-[#d4af37]">Ghi chú:</strong> {player.notes}
+            </div>
+          )}
+
+          {/* Chân trang modal: Hướng dẫn cầu thủ tự sửa bio */}
+          <div className="pt-4 border-t border-white/15 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-sky-200">
+            <p>
+              💡 Cầu thủ có thể đăng nhập để chỉnh sửa lời giới thiệu, ảnh đại diện và thông tin của mình.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenLogin();
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#d4af37] hover:bg-[#e6c466] text-slate-950 font-bold px-4 py-2 transition shrink-0 cursor-pointer"
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              <span>Đăng nhập chỉnh sửa</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   TRANG GIAO DIỆN KHÁCH TOÀN DIỆN - XANH LAM HOÀNG GIA SANG TRỌNG
+   ========================================================================= */
 export function PublicGuestPortal({
   data,
   onOpenLogin,
@@ -147,15 +726,30 @@ export function PublicGuestPortal({
 
   const [scrolled, setScrolled] = useState(false);
   const [matchTab, setMatchTab] = useState<"fixtures" | "results">("fixtures");
-  const [squadFilter, setSquadFilter] = useState<"all" | "manager" | "player">(
-    "all"
-  );
+  const [squadFilter, setSquadFilter] = useState<"all" | "manager" | "player">("all");
+  const [heroIdx, setHeroIdx] = useState(0);
+
+  /* Profile Modal Dialog State */
+  const [selectedProfilePlayer, setSelectedProfilePlayer] = useState<Player | null>(null);
+
+  /* Auto-scroll Carousel State for Squad */
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [isAutoPlay, setIsAutoPlay] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Luân chuyển ảnh nền Hero nhẹ nhàng
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHeroIdx((prev) => (prev + 1) % HERO_PHOTOS.length);
+    }, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   const upcomingMatches = matches.filter((m) => m.status === "Sắp diễn ra");
@@ -180,6 +774,37 @@ export function PublicGuestPortal({
     .slice()
     .sort((a, b) => (a.jersey_number ?? 999) - (b.jersey_number ?? 999));
 
+  /* Tự động chạy ngang mượt mà cho danh sách cầu thủ */
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el || !isAutoPlay || isHovered) return;
+
+    let animId: number;
+    let lastTime = performance.now();
+
+    const step = (time: number) => {
+      const delta = (time - lastTime) / 1000;
+      lastTime = time;
+
+      if (!isHovered && el) {
+        el.scrollLeft += delta * 45;
+        if (el.scrollLeft >= el.scrollWidth - el.clientWidth - 5) {
+          el.scrollLeft = 0;
+        }
+      }
+      animId = requestAnimationFrame(step);
+    };
+
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [isAutoPlay, isHovered, squad]);
+
+  const scrollCarousel = (direction: "left" | "right") => {
+    if (!carouselRef.current) return;
+    const offset = direction === "left" ? -370 : 370;
+    carouselRef.current.scrollBy({ left: offset, behavior: "smooth" });
+  };
+
   const go = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
@@ -187,66 +812,73 @@ export function PublicGuestPortal({
     { id: "banner-hero", label: "Trang chủ" },
     { id: "match-center", label: "Lịch đấu" },
     { id: "activities", label: "Hoạt động" },
-    { id: "squad-section", label: "Cầu thủ" },
+    { id: "squad-section", label: "Cầu thủ 23+" },
+    { id: "join-us", label: "Gia nhập đội" },
     { id: "gallery", label: "Khoảnh khắc" },
   ];
 
   const ticker = [
-    "Đá phủi hết mình",
-    "Đoàn kết • Bản lĩnh • Nghĩa tình",
-    "Gò Nổi tại Sài Gòn",
-    "Đá xong là anh em",
+    "23+ Cầu thủ nòng cốt • Mở rộng chào đón tất cả anh em Gò Nổi",
+    "Điện Quang • Điện Trung • Điện Phong chung một mái nhà",
+    "Đá phủi hết mình • Đoàn kết • Nghĩa tình",
+    "Hướng đến toàn bộ con em quê hương Gò Nổi tại Sài Gòn",
   ];
 
-  const matchRows = matchTab === "fixtures" ? upcomingMatches : pastMatches.slice(0, 8);
+  const matchRows =
+    matchTab === "fixtures" ? upcomingMatches : pastMatches.slice(0, 8);
 
   return (
-    <div className="w-full font-sans text-white overflow-x-clip">
-      {/* ===================== HEADER (toàn chiều rộng) ===================== */}
+    <div className="w-full font-sans text-white overflow-x-clip bg-[#092244]">
+      {/* ===================== HEADER XANH LAM HOÀNG GIA ===================== */}
       <header
         className={`fixed inset-x-0 top-0 z-40 transition-all duration-500 ${
           scrolled
-            ? "bg-[#050e20]/90 backdrop-blur-md py-2.5 border-b border-white/10"
-            : "bg-transparent py-5"
+            ? "bg-[#0a274e]/90 backdrop-blur-lg py-3 border-b border-[#d4af37]/30 shadow-lg"
+            : "bg-gradient-to-b from-[#061730]/80 via-[#061730]/40 to-transparent py-5"
         }`}
       >
         <div className={`${WRAP} flex items-center justify-between gap-4`}>
           <button
             type="button"
             onClick={() => go("banner-hero")}
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-3 cursor-pointer group"
             aria-label="Về đầu trang"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={OFFICIAL_LOGO_URL}
               alt="Logo FC HĐH Gò Nổi"
-              className="h-11 w-11 rounded-full object-contain bg-white p-0.5 ring-2 ring-[#ffc933]"
+              className="h-11 w-11 rounded-full object-contain bg-white p-0.5 ring-2 ring-[#d4af37] group-hover:scale-105 transition shadow-md"
             />
-            <span className="font-display font-extrabold uppercase text-2xl tracking-wide leading-none hidden sm:block">
-              FC HĐH Gò Nổi
-            </span>
+            <div className="text-left hidden sm:block">
+              <span className="font-display font-extrabold uppercase text-xl sm:text-2xl tracking-wide leading-none text-white block">
+                FC HĐH Gò Nổi
+              </span>
+              <span className="text-[10px] uppercase tracking-widest text-[#d4af37] font-bold block mt-0.5">
+                Điện Bàn • Quảng Nam
+              </span>
+            </div>
           </button>
 
           <nav
             aria-label="Điều hướng trang khách"
-            className="hidden lg:flex items-center gap-8 text-[13px] uppercase font-bold tracking-[0.18em] text-white/80"
+            className="hidden lg:flex items-center gap-8 text-[13px] uppercase font-bold tracking-[0.18em] text-sky-100"
           >
             {navLinks.map((l) => (
               <button
                 key={l.id}
                 type="button"
                 onClick={() => go(l.id)}
-                className="hover:text-[#ffc933] cursor-pointer"
+                className="hover:text-[#d4af37] cursor-pointer inline-flex items-center gap-1.5 transition"
               >
-                {l.label}
+                <span>{l.label}</span>
               </button>
             ))}
             <a
               href={fanpageUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-[#ffc933] inline-flex items-center gap-1"
+              className="hover:text-[#d4af37] inline-flex items-center gap-1 text-sky-200 transition"
             >
               Fanpage <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
@@ -255,67 +887,83 @@ export function PublicGuestPortal({
           <button
             type="button"
             onClick={onOpenLogin}
-            className="inline-flex items-center gap-2 bg-[#ffc933] hover:bg-white text-slate-950 font-black px-5 sm:px-6 py-3 text-xs sm:text-sm uppercase tracking-widest cursor-pointer"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-5 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition"
           >
             <LogIn className="h-4 w-4" />
-            Đăng nhập
+            <span>Đăng nhập</span>
           </button>
         </div>
       </header>
 
-      {/* ===================== HERO TOÀN MÀN HÌNH ===================== */}
+      {/* ===================== HERO BANNER TOÀN MÀN HÌNH (ẢNH WEBP THẬT) ===================== */}
       <section
         id="banner-hero"
         className="relative min-h-[100svh] flex flex-col justify-end overflow-hidden"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={OFFICIAL_COVER_URL}
-          alt="Tập thể FC HĐH Gò Nổi tại TP.HCM"
-          className="absolute inset-0 h-full w-full object-cover object-center gn-kenburns"
+        {/* Nền ảnh WebP từ folder hinhanh tự động xử lý */}
+        {HERO_PHOTOS.map((src, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={src}
+            src={src}
+            alt="FC HĐH Gò Nổi"
+            className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 ${
+              heroIdx === i ? "opacity-100 scale-100" : "opacity-0 scale-105"
+            }`}
+          />
+        ))}
+
+        {/* Lớp phủ chuyển sắc xanh lam sapphire sang trọng */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-t from-[#092244] via-[#0b2952]/70 to-[#071933]/40"
         />
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-t from-[#050e20] via-[#050e20]/55 to-[#050e20]/30"
-        />
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-r from-[#0a2d7a]/70 via-transparent to-transparent"
+          className="absolute inset-0 bg-gradient-to-r from-[#0c2850]/80 via-transparent to-transparent"
         />
 
         <div className={`${WRAP} relative z-10 pt-40 pb-14 sm:pb-20`}>
-          <p className="font-bold uppercase tracking-[0.35em] text-xs sm:text-sm text-[#ffc933] mb-4">
-            Bóng đá phủi • Đồng hương Gò Nổi • TP.HCM
-          </p>
-          <h1 className="font-display font-extrabold uppercase leading-[0.82] tracking-tight">
-            <span className="block text-[22vw] sm:text-[17vw] lg:text-[13.5rem]">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className="font-bold uppercase tracking-[0.35em] text-xs sm:text-sm text-[#d4af37] flex items-center gap-2">
+              <SoccerBallIcon className="h-4 w-4 text-[#d4af37] gn-spin-slow" />
+              <span>Bóng đá phủi • Đồng hương Gò Nổi • TP.HCM</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 px-3 py-0.5 text-[11px] font-extrabold text-[#fde047] backdrop-blur-md">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>23+ Cầu thủ • Mở rộng đón anh em Gò Nổi</span>
+            </span>
+          </div>
+
+          <h1 className="font-display font-bold uppercase leading-[0.82] tracking-tight">
+            <span className="block text-[22vw] sm:text-[17vw] lg:text-[13rem] drop-shadow-lg">
               Đá phủi
             </span>
-            <span className="block text-[22vw] sm:text-[17vw] lg:text-[13.5rem] text-transparent [-webkit-text-stroke:3px_#ffc933]">
+            <span className="block text-[22vw] sm:text-[17vw] lg:text-[13rem] text-transparent [-webkit-text-stroke:2px_#d4af37] drop-shadow-md">
               Hết mình
             </span>
           </h1>
 
           <div className="mt-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
-            <p className="max-w-xl text-lg sm:text-xl text-white/85 leading-relaxed">
-              Những người con Điện Quang, Điện Trung, Điện Phong xa quê cùng
-              chung một niềm vui: ra sân, đá cho đã, cười cho thoả và về nhà
-              đầy năng lượng.
+            <p className="max-w-xl text-lg sm:text-xl text-sky-100 leading-relaxed font-light">
+              Ngôi nhà chung của <strong className="text-[#fde047] font-bold">23+ anh em chiến binh</strong> và không ngừng mở rộng, hướng đến việc quy tụ toàn bộ anh em con em Điện Quang, Điện Trung, Điện Phong tại TP.HCM. Bất kể bạn đá ở vị trí nào, chỉ cần mang trong mình tinh thần Gò Nổi — sân bóng luôn sẵn sàng đón bạn!
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <button
                 type="button"
                 onClick={onOpenLogin}
-                className="inline-flex items-center gap-3 bg-[#0D5EF4] hover:bg-[#2f7bff] text-white font-black px-8 py-5 text-sm uppercase tracking-widest cursor-pointer"
+                className="inline-flex items-center gap-3 bg-gradient-to-r from-[#17488c] to-[#1e5eb8] hover:from-[#1e5eb8] hover:to-[#2563eb] text-white font-bold px-8 py-4 sm:py-5 text-sm uppercase tracking-widest rounded-xl cursor-pointer shadow-xl border border-sky-300/30 transition"
               >
-                Vào khu thành viên <ArrowRight className="h-5 w-5" />
+                <span>Vào khu thành viên</span>
+                <ArrowRight className="h-5 w-5" />
               </button>
               <button
                 type="button"
-                onClick={() => go("squad-section")}
-                className="inline-flex items-center gap-3 border-2 border-white/70 hover:bg-white hover:text-slate-950 font-black px-8 py-[18px] text-sm uppercase tracking-widest cursor-pointer"
+                onClick={() => go("join-us")}
+                className="inline-flex items-center gap-3 border-2 border-[#d4af37] hover:bg-[#d4af37] hover:text-slate-950 text-[#d4af37] font-bold px-8 py-[14px] sm:py-[18px] text-sm uppercase tracking-widest rounded-xl cursor-pointer transition shadow-md"
               >
-                Gặp anh em
+                <HeartHandshake className="h-5 w-5" />
+                <span>Gia nhập đội bóng</span>
               </button>
             </div>
           </div>
@@ -323,15 +971,15 @@ export function PublicGuestPortal({
           {/* Số liệu thật */}
           <dl className="mt-14 flex flex-wrap gap-x-14 gap-y-6 border-t border-white/20 pt-8">
             {[
-              { n: activePlayers.length, l: "Cầu thủ" },
+              { n: `${Math.max(23, activePlayers.length)}+`, l: "Cầu thủ tham gia" },
               { n: matches.length, l: "Trận đã lên lịch" },
               { n: wins, l: "Trận thắng" },
             ].map((s) => (
               <div key={s.l}>
-                <dd className="font-display text-6xl sm:text-7xl font-extrabold text-[#ffc933] leading-none">
+                <dd className="font-display text-6xl sm:text-7xl font-bold text-[#d4af37] leading-none">
                   {s.n}
                 </dd>
-                <dt className="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-white/70">
+                <dt className="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-200">
                   {s.l}
                 </dt>
               </div>
@@ -343,81 +991,86 @@ export function PublicGuestPortal({
           type="button"
           onClick={() => go("match-center")}
           aria-label="Cuộn xuống"
-          className="absolute right-6 sm:right-12 bottom-36 hidden sm:flex flex-col items-center gap-2 text-white/70 hover:text-[#ffc933] text-[11px] uppercase tracking-[0.3em] cursor-pointer [writing-mode:vertical-rl]"
+          className="absolute right-6 sm:right-12 bottom-36 hidden sm:flex flex-col items-center gap-2 text-sky-200/80 hover:text-[#d4af37] text-[11px] uppercase tracking-[0.3em] cursor-pointer [writing-mode:vertical-rl]"
         >
-          Cuộn
-          <ChevronDown className="h-4 w-4 gn-float" />
+          <span>Cuộn</span>
+          <ChevronDown className="h-4 w-4 gn-float text-[#d4af37]" />
         </button>
 
-        {/* Dải chữ chạy */}
-        <div className="relative z-10 bg-[#ffc933] text-slate-950 overflow-hidden">
-          <div className="gn-marquee flex w-max gap-12 py-3 font-display font-extrabold uppercase text-lg tracking-[0.2em]">
+        {/* Dải chữ chạy vàng kim loại */}
+        <div className="relative z-10 bg-gradient-to-r from-[#d4af37] via-[#f5d97f] to-[#d4af37] text-slate-950 overflow-hidden shadow-inner">
+          <div className="gn-marquee flex w-max gap-12 py-3 font-display font-bold uppercase text-lg tracking-[0.2em]">
             {[...ticker, ...ticker, ...ticker, ...ticker].map((t, i) => (
               <span key={i} className="inline-flex items-center gap-12">
-                {t}
-                <span aria-hidden="true">⚽</span>
+                <span>{t}</span>
+                <SoccerBallIcon className="h-5 w-5 inline text-slate-950" />
               </span>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ===================== TRẬN TÂM ĐIỂM (band tràn lề) ===================== */}
+      {/* ===================== TRẬN CẦU TÂM ĐIỂM (XANH LAM SAPPHIRE) ===================== */}
       {nextMatch && (
         <section
           id="match-center"
-          className="relative bg-gradient-to-br from-[#0a2d7a] via-[#0D5EF4] to-[#0a2d7a] py-20 sm:py-28 overflow-hidden"
+          className="relative bg-gradient-to-br from-[#0c2850] via-[#123e7a] to-[#092244] py-20 sm:py-28 overflow-hidden border-y border-[#d4af37]/20"
         >
           <span
             aria-hidden="true"
-            className="absolute -left-4 top-1/2 -translate-y-1/2 font-display font-extrabold text-[28vw] leading-none text-white/[0.06] select-none whitespace-nowrap"
+            className="absolute -left-4 top-1/2 -translate-y-1/2 font-display font-bold text-[28vw] leading-none text-white/[0.03] select-none whitespace-nowrap pointer-events-none"
           >
             MATCH DAY
           </span>
           <div className={`${WRAP} relative`}>
             <Reveal>
-              <p className="text-[#ffc933] font-bold uppercase tracking-[0.35em] text-xs sm:text-sm">
-                Trận cầu tâm điểm • {nextMatch.label} • {nextMatch.status}
-              </p>
+              <div className="flex items-center gap-2 text-[#d4af37] font-bold uppercase tracking-[0.35em] text-xs sm:text-sm">
+                <WhistleIcon className="h-4 w-4 text-[#d4af37]" />
+                <span>Trận cầu tâm điểm • {nextMatch.label} • {nextMatch.status}</span>
+              </div>
+
               <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] items-center gap-6 lg:gap-14">
-                <h2 className="font-display font-extrabold uppercase leading-[0.85] text-6xl sm:text-8xl lg:text-9xl lg:text-right">
+                <h2 className="font-display font-bold uppercase leading-[0.85] text-6xl sm:text-8xl lg:text-9xl lg:text-right text-white drop-shadow">
                   FC Gò Nổi
                 </h2>
 
                 {nextMatch.team_score !== null &&
                 nextMatch.opponent_score !== null ? (
-                  <div className="font-display font-extrabold text-7xl sm:text-9xl text-[#ffc933] leading-none text-center">
+                  <div className="font-display font-bold text-7xl sm:text-9xl text-[#d4af37] leading-none text-center drop-shadow-md">
                     {nextMatch.team_score}
                     <span className="mx-3 text-white/40">:</span>
                     {nextMatch.opponent_score}
                   </div>
                 ) : (
-                  <div className="font-display font-extrabold text-7xl sm:text-9xl text-[#ffc933] leading-none text-center">
+                  <div className="font-display font-bold text-7xl sm:text-9xl text-[#d4af37] leading-none text-center drop-shadow-md">
                     VS
                   </div>
                 )}
 
-                <h2 className="font-display font-extrabold uppercase leading-[0.85] text-6xl sm:text-8xl lg:text-9xl text-white/90">
+                <h2 className="font-display font-bold uppercase leading-[0.85] text-6xl sm:text-8xl lg:text-9xl text-sky-100">
                   {nextMatch.opponent}
                 </h2>
               </div>
 
-              <div className="mt-12 flex flex-wrap items-center justify-between gap-6 border-t border-white/25 pt-6">
-                <div className="flex flex-wrap items-center gap-x-10 gap-y-2 text-lg font-semibold">
-                  <span>
+              <div className="mt-12 flex flex-wrap items-center justify-between gap-6 border-t border-white/20 pt-6">
+                <div className="flex flex-wrap items-center gap-x-10 gap-y-2 text-lg font-semibold text-white">
+                  <span className="inline-flex items-center gap-2">
+                    <WhistleIcon className="h-5 w-5 text-[#d4af37]" />
                     {nextMatch.kickoff_time} • {formatDateVN(nextMatch.match_date)}
                   </span>
-                  <span className="inline-flex items-center gap-2 text-white/85">
-                    <MapPin className="h-5 w-5 text-[#ffc933]" />
+                  <span className="inline-flex items-center gap-2 text-sky-100">
+                    <MapPin className="h-5 w-5 text-[#d4af37]" />
                     {nextMatch.venue}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={onOpenLogin}
-                  className="inline-flex items-center gap-3 bg-[#ffc933] hover:bg-white text-slate-950 font-black px-7 py-4 text-sm uppercase tracking-widest cursor-pointer"
+                  className="inline-flex items-center gap-3 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-bold px-7 py-4 text-sm uppercase tracking-widest rounded-xl cursor-pointer transition shadow-xl"
                 >
-                  Đăng nhập để điểm danh <ArrowRight className="h-5 w-5" />
+                  <SoccerBallIcon className="h-5 w-5" />
+                  <span>Đăng nhập để điểm danh</span>
+                  <ArrowRight className="h-5 w-5" />
                 </button>
               </div>
             </Reveal>
@@ -425,49 +1078,51 @@ export function PublicGuestPortal({
         </section>
       )}
 
-      {/* ===================== HOẠT ĐỘNG (danh sách mở, không khung) ===================== */}
+      {/* ===================== HOẠT ĐỘNG ANH EM ===================== */}
       <section
         id="activities"
-        className="bg-[#f6f1e4] text-[#0b1a33] py-24 sm:py-32"
+        className="bg-[#f8fafc] text-slate-900 py-24 sm:py-32"
       >
         <div className={`${WRAP} grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20`}>
           <div className="lg:col-span-5">
             <div className="lg:sticky lg:top-32">
               <Reveal>
-                <p className="text-[#0D5EF4] font-bold uppercase tracking-[0.35em] text-xs sm:text-sm">
-                  Sống trọn niềm vui
+                <p className="text-[#17488c] font-bold uppercase tracking-[0.35em] text-xs sm:text-sm flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[#d4af37]" />
+                  <span>Sống trọn niềm vui</span>
                 </p>
-                <h2 className="mt-4 font-display font-extrabold uppercase leading-[0.85] text-7xl sm:text-8xl lg:text-9xl">
+                <h2 className="mt-4 font-display font-bold uppercase leading-[0.85] text-7xl sm:text-8xl lg:text-9xl text-slate-900">
                   Hoạt động
-                  <span className="block text-[#0D5EF4]">anh em</span>
+                  <span className="block text-[#17488c]">anh em</span>
                 </h2>
-                <p className="mt-6 max-w-md text-lg text-slate-600 leading-relaxed">
-                  Không chỉ là đá bóng. Đây là nơi gặp gỡ, tiếp thêm năng lượng
-                  và giữ lửa tình đồng hương.
+                <p className="mt-6 max-w-md text-lg text-slate-600 leading-relaxed font-light">
+                  Không chỉ là đá bóng. Đây là nơi hội ngộ của những người con xa
+                  xứ, tiếp thêm năng lượng và vun đắp tình đồng hương ấm áp giữa
+                  lòng thành phố.
                 </p>
               </Reveal>
             </div>
           </div>
 
-          <ol className="lg:col-span-7 divide-y divide-[#0b1a33]/15 border-y border-[#0b1a33]/15">
+          <ol className="lg:col-span-7 divide-y divide-slate-200 border-y border-slate-200">
             {ACTIVITIES.map((a, i) => {
               const Icon = a.icon;
               return (
                 <li key={a.title}>
                   <Reveal delay={(i % 3) * 60}>
                     <div className="group flex items-start gap-5 sm:gap-8 py-8 sm:py-10 hover:pl-3 transition-all duration-300">
-                      <span className="font-display font-extrabold text-5xl sm:text-6xl text-transparent [-webkit-text-stroke:1.5px_#0b1a33] group-hover:text-[#ffc933] group-hover:[-webkit-text-stroke:1.5px_#ffc933] transition w-16 sm:w-24 shrink-0 leading-none">
+                      <span className="font-display font-bold text-5xl sm:text-6xl text-transparent [-webkit-text-stroke:1.5px_#17488c] group-hover:text-[#d4af37] group-hover:[-webkit-text-stroke:1.5px_#d4af37] transition w-16 sm:w-24 shrink-0 leading-none">
                         {String(i + 1).padStart(2, "0")}
                       </span>
                       <div className="flex-1">
-                        <h3 className="font-display font-extrabold uppercase text-3xl sm:text-5xl leading-none group-hover:text-[#0D5EF4] transition">
+                        <h3 className="font-display font-bold uppercase text-3xl sm:text-5xl leading-none group-hover:text-[#17488c] transition text-slate-900">
                           {a.title}
                         </h3>
                         <p className="mt-3 text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl">
                           {a.text}
                         </p>
                       </div>
-                      <Icon className="h-9 w-9 text-[#0D5EF4] opacity-30 group-hover:opacity-100 group-hover:rotate-12 transition shrink-0 hidden sm:block" />
+                      <Icon className="h-9 w-9 text-[#17488c] opacity-30 group-hover:opacity-100 group-hover:rotate-12 transition shrink-0 hidden sm:block" />
                     </div>
                   </Reveal>
                 </li>
@@ -477,114 +1132,279 @@ export function PublicGuestPortal({
         </div>
       </section>
 
-      {/* ===================== CẦU THỦ (cuộn ngang tràn lề) ===================== */}
+      {/* ===================== CẦU THỦ 3D PROFILE (AUTO CHẠY NGANG & XEM BÀI VIẾT) ===================== */}
       <section
         id="squad-section"
-        className="relative bg-[#050e20] py-24 sm:py-32 overflow-hidden"
+        className="relative bg-gradient-to-b from-[#092244] via-[#0d2e5b] to-[#092244] py-24 sm:py-32 overflow-hidden border-y border-[#d4af37]/20"
       >
+        {/* Subtle Luxury Pitch Watermark */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none opacity-10"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 50% 50%, #38bdf8 0, transparent 40%), linear-gradient(90deg, transparent 49%, rgba(212,175,55,0.3) 50%, transparent 51%)",
+          }}
+        />
+
         <div className={WRAP}>
           <Reveal>
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
               <div>
-                <p className="text-[#ffc933] font-bold uppercase tracking-[0.35em] text-xs sm:text-sm">
-                  Những chiến binh sân cỏ
+                <p className="text-[#d4af37] font-bold uppercase tracking-[0.35em] text-xs sm:text-sm flex items-center gap-2">
+                  <CleatsIcon className="h-4 w-4" />
+                  <span>Profile 23+ Chiến Binh Sân Cỏ 3D</span>
                 </p>
-                <h2 className="mt-4 font-display font-extrabold uppercase leading-[0.85] text-7xl sm:text-8xl lg:text-9xl">
-                  Gặp gỡ <span className="text-[#ffc933]">anh em</span>
+                <h2 className="mt-4 font-display font-bold uppercase leading-[0.85] text-7xl sm:text-8xl lg:text-9xl text-white">
+                  Gặp gỡ <span className="text-[#d4af37]">23+ anh em</span>
                 </h2>
+                <p className="text-sm text-sky-200 mt-3 max-w-xl leading-relaxed font-light">
+                  Đội hình 23+ cầu thủ nòng cốt và luôn hướng đến việc quy tụ toàn bộ anh em con em Gò Nổi tại Sài Gòn. Mỗi thẻ là một hồ sơ Profile 3D tương tác: tự động chạy ngang, nghiêng 3D, lật xem số áo, và bấm để đọc trọn vẹn bài viết tự giới thiệu do chính cầu thủ viết!
+                </p>
               </div>
-              <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm font-bold uppercase tracking-[0.2em]">
-                {(
-                  [
-                    ["all", "Tất cả"],
-                    ["manager", "Ban điều hành"],
-                    ["player", "Cầu thủ"],
-                  ] as const
-                ).map(([key, label]) => (
+
+              {/* Bộ lọc + Điều khiển chạy tự động */}
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm font-bold uppercase tracking-[0.2em]">
+                  {(
+                    [
+                      ["all", "Tất cả"],
+                      ["manager", "Ban điều hành"],
+                      ["player", "Cầu thủ"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSquadFilter(key)}
+                      aria-pressed={squadFilter === key}
+                      className={`pb-1 border-b-2 cursor-pointer transition ${
+                        squadFilter === key
+                          ? "text-[#d4af37] border-[#d4af37]"
+                          : "text-sky-200/70 border-transparent hover:text-white"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-3">
                   <button
-                    key={key}
                     type="button"
-                    onClick={() => setSquadFilter(key)}
-                    aria-pressed={squadFilter === key}
-                    className={`pb-1 border-b-2 cursor-pointer ${
-                      squadFilter === key
-                        ? "text-[#ffc933] border-[#ffc933]"
-                        : "text-white/60 border-transparent hover:text-white"
-                    }`}
+                    onClick={() => setIsAutoPlay((v) => !v)}
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold uppercase tracking-wider text-[#d4af37] border border-[#d4af37]/40 transition"
                   >
-                    {label}
+                    {isAutoPlay ? (
+                      <Pause className="h-3.5 w-3.5" />
+                    ) : (
+                      <Play className="h-3.5 w-3.5" />
+                    )}
+                    <span>
+                      {isAutoPlay ? "Tạm dừng chạy" : "Tự động chạy ngang"}
+                    </span>
                   </button>
-                ))}
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => scrollCarousel("left")}
+                      className="h-8 w-8 rounded-full bg-white/10 hover:bg-[#d4af37] hover:text-slate-950 flex items-center justify-center transition cursor-pointer"
+                      title="Cuộn sang trái"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollCarousel("right")}
+                      className="h-8 w-8 rounded-full bg-white/10 hover:bg-[#d4af37] hover:text-slate-950 flex items-center justify-center transition cursor-pointer"
+                      title="Cuộn sang phải"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </Reveal>
         </div>
 
-        <div className="mt-14 flex gap-1 overflow-x-auto snap-x snap-mandatory pb-6 px-5 sm:px-10 lg:px-16 gn-hide-scroll">
+        {/* Carousel container cuộn ngang tự động & Thẻ 3D */}
+        <div
+          ref={carouselRef}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onTouchStart={() => setIsHovered(true)}
+          onTouchEnd={() => setIsHovered(false)}
+          className="mt-14 flex gap-6 overflow-x-auto py-8 px-5 sm:px-10 lg:px-16 gn-hide-scroll select-none scroll-smooth"
+        >
           {squad.map((p) => (
-            <article
+            <PlayerCard3D
               key={p.id}
-              className="group relative snap-start shrink-0 w-[72vw] sm:w-[340px] lg:w-[380px] h-[520px] sm:h-[600px] overflow-hidden bg-[#0a2d7a]"
-            >
-              {p.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={p.avatar_url}
-                  alt={p.full_name}
-                  className="absolute inset-0 h-full w-full object-cover object-top grayscale-[35%] group-hover:grayscale-0 group-hover:scale-105 transition duration-700"
-                />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-[#0D5EF4] to-[#050e20]" />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#050e20] via-[#050e20]/30 to-transparent" />
-              <span
-                aria-hidden="true"
-                className="absolute -top-4 right-3 font-display font-extrabold text-[11rem] leading-none text-transparent [-webkit-text-stroke:2px_rgba(255,201,51,0.9)] group-hover:text-[#ffc933]/25 transition"
-              >
-                {p.jersey_number ?? ""}
-              </span>
-              <div className="absolute inset-x-0 bottom-0 p-6">
-                <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffc933]">
-                  {p.access_role === "manager"
-                    ? "Ban điều hành"
-                    : p.position || "Cầu thủ"}
-                </span>
-                <h3 className="font-display font-extrabold uppercase text-5xl leading-none mt-1 truncate">
-                  {p.short_name || p.full_name}
-                </h3>
-                <p className="text-sm text-white/60 truncate mt-1">
-                  {p.full_name}
-                </p>
-              </div>
-            </article>
+              player={p}
+              onOpenProfile={(player) => setSelectedProfilePlayer(player)}
+            />
           ))}
         </div>
 
-        <div className={`${WRAP} mt-8 flex items-center justify-between gap-4`}>
-          <span className="text-xs uppercase tracking-[0.3em] text-white/50">
-            Vuốt ngang để xem thêm →
+        <div className={`${WRAP} mt-8 flex flex-wrap items-center justify-between gap-4 text-xs`}>
+          <span className="uppercase tracking-[0.25em] text-[#d4af37] flex items-center gap-2">
+            <SoccerBallIcon className="h-4 w-4 gn-spin-slow" />
+            <span>Thẻ 3D Profile • Bấm &ldquo;Xem Profile&rdquo; để đọc bài viết tự giới thiệu</span>
           </span>
           <button
             type="button"
             onClick={onOpenLogin}
-            className="inline-flex items-center gap-3 text-[#ffc933] hover:text-white font-black text-sm uppercase tracking-widest cursor-pointer"
+            className="inline-flex items-center gap-2 text-white hover:text-[#d4af37] font-bold uppercase tracking-widest cursor-pointer transition"
           >
-            Đăng nhập thành viên <ArrowRight className="h-5 w-5" />
+            <span>Cầu thủ tự cập nhật Profile</span>
+            <ArrowRight className="h-4 w-4" />
           </button>
         </div>
       </section>
 
-      {/* ===================== LỊCH & KẾT QUẢ (bảng mở) ===================== */}
-      <section className="bg-white text-[#0b1a33] py-24 sm:py-32">
+      {/* ===================== HƯỚNG ĐẾN TẤT CẢ ANH EM GÒ NỔI (GIA NHẬP ĐỘI BÓNG) ===================== */}
+      <section
+        id="join-us"
+        className="relative bg-gradient-to-br from-[#0c2850] via-[#123e7a] to-[#092244] py-24 sm:py-32 text-white overflow-hidden border-y border-[#d4af37]/30"
+      >
+        <span
+          aria-hidden="true"
+          className="absolute -right-6 top-1/2 -translate-y-1/2 font-display font-black text-[24vw] leading-none text-white/[0.03] select-none whitespace-nowrap pointer-events-none"
+        >
+          GO NOI FC
+        </span>
+
+        <div className={WRAP}>
+          <Reveal>
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 px-4 py-1.5 text-xs font-bold text-[#fde047] mb-4 backdrop-blur-md">
+                <Users className="h-4 w-4" />
+                <span>Mái nhà chung của 23+ cầu thủ & Toàn thể anh em đồng hương</span>
+              </div>
+              <h2 className="font-display font-bold uppercase leading-[0.88] text-6xl sm:text-8xl lg:text-9xl text-white drop-shadow">
+                Mở rộng cửa đón
+                <br />
+                <span className="text-[#d4af37]">anh em Gò Nổi</span>
+              </h2>
+              <p className="mt-6 text-lg sm:text-xl text-sky-100 font-light leading-relaxed">
+                Mục tiêu xuyên suốt của FC HĐH Gò Nổi là <strong className="text-[#fde047] font-semibold">kết nối và hướng đến tất cả anh em, con em quê hương Gò Nổi</strong> (Điện Quang, Điện Trung, Điện Phong) đang sinh sống, học tập và làm việc tại TP.HCM cùng tề tựu trên sân cỏ.
+              </p>
+            </div>
+
+            {/* 4 Trụ cột cam kết chào đón anh em */}
+            <div className="mt-14 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="rounded-3xl bg-[#071933]/70 backdrop-blur-md p-6 sm:p-7 border border-[#d4af37]/40 shadow-xl hover:border-[#d4af37] transition group">
+                <div className="h-12 w-12 rounded-2xl bg-[#d4af37]/20 border border-[#d4af37]/50 flex items-center justify-center text-[#d4af37] mb-5 group-hover:scale-110 transition">
+                  <Users className="h-6 w-6" />
+                </div>
+                <h3 className="font-display font-bold uppercase text-2xl text-white mb-2 group-hover:text-[#d4af37] transition">
+                  23+ Cầu thủ nòng cốt
+                </h3>
+                <p className="text-sm text-sky-100 leading-relaxed font-light">
+                  Đội bóng đã quy tụ hơn 23 anh em từ các thế hệ và luôn mở rộng đón nhận thêm thành viên mới mỗi tuần mà không giới hạn số lượng.
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-[#071933]/70 backdrop-blur-md p-6 sm:p-7 border border-[#d4af37]/40 shadow-xl hover:border-[#d4af37] transition group">
+                <div className="h-12 w-12 rounded-2xl bg-emerald-400/20 border border-emerald-400/50 flex items-center justify-center text-emerald-300 mb-5 group-hover:scale-110 transition">
+                  <SoccerBallIcon className="h-6 w-6" />
+                </div>
+                <h3 className="font-display font-bold uppercase text-2xl text-white mb-2 group-hover:text-[#d4af37] transition">
+                  Ai cũng được ra sân
+                </h3>
+                <p className="text-sm text-sky-100 leading-relaxed font-light">
+                  Chỉ cần bạn yêu bóng đá và mang trong mình nhiệt huyết quê hương. Đội luôn tạo điều kiện xoay tua để mọi anh em đều được đá và toả sáng.
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-[#071933]/70 backdrop-blur-md p-6 sm:p-7 border border-[#d4af37]/40 shadow-xl hover:border-[#d4af37] transition group">
+                <div className="h-12 w-12 rounded-2xl bg-[#38bdf8]/20 border border-[#38bdf8]/50 flex items-center justify-center text-sky-300 mb-5 group-hover:scale-110 transition">
+                  <HeartHandshake className="h-6 w-6" />
+                </div>
+                <h3 className="font-display font-bold uppercase text-2xl text-white mb-2 group-hover:text-[#d4af37] transition">
+                  Gắn kết đồng hương
+                </h3>
+                <p className="text-sm text-sky-100 leading-relaxed font-light">
+                  Sau 90 phút trên sân cỏ là những câu chuyện quê nhà, hỗ trợ nhau trong công việc, nghề nghiệp và cuộc sống tại đất Sài Gòn.
+                </p>
+              </div>
+
+              <div className="rounded-3xl bg-[#071933]/70 backdrop-blur-md p-6 sm:p-7 border border-[#d4af37]/40 shadow-xl hover:border-[#d4af37] transition group">
+                <div className="h-12 w-12 rounded-2xl bg-amber-400/20 border border-amber-400/50 flex items-center justify-center text-amber-300 mb-5 group-hover:scale-110 transition">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <h3 className="font-display font-bold uppercase text-2xl text-white mb-2 group-hover:text-[#d4af37] transition">
+                  Minh bạch & Bài bản
+                </h3>
+                <p className="text-sm text-sky-100 leading-relaxed font-light">
+                  Hệ thống website quản lý hiện đại: quỹ thu chi công khai từng đồng, điểm danh trực tuyến và thông báo lịch đấu rõ ràng hàng tuần.
+                </p>
+              </div>
+            </div>
+
+            {/* Khung hành động & Ban Quản Lý */}
+            <div className="mt-12 rounded-3xl bg-[#071933]/90 backdrop-blur-md p-6 sm:p-10 border-2 border-[#d4af37]/60 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8 shadow-2xl">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-widest text-[#d4af37] block mb-1">
+                  Bạn là người con Gò Nổi tại TP.HCM?
+                </span>
+                <h3 className="font-display font-extrabold uppercase text-3xl sm:text-4xl text-white">
+                  Hãy xách giày và ra sân cùng anh em ngay tuần này!
+                </h3>
+                <p className="mt-2 text-sm text-sky-200 max-w-xl font-light">
+                  Liên hệ ngay với Ban Điều Hành đội bóng hoặc gửi tin nhắn qua Fanpage để được xếp đội và tham gia buổi tập / giao hữu gần nhất.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-sky-200">
+                  <span className="font-semibold text-white">Ban Điều Hành:</span>
+                  <span className="rounded-lg bg-white/10 px-2.5 py-1 border border-white/15">
+                    Nguyễn Thế Tiếng (Đội trưởng)
+                  </span>
+                  <span className="rounded-lg bg-white/10 px-2.5 py-1 border border-white/15">
+                    Hồ Viết Tín (Đội phó)
+                  </span>
+                  <span className="rounded-lg bg-white/10 px-2.5 py-1 border border-white/15">
+                    Dương Hiển Hoài Sơn (BQL)
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 shrink-0">
+                <a
+                  href={fanpageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-7 py-4 text-sm uppercase tracking-wider transition shadow-lg cursor-pointer"
+                >
+                  <span>Nhắn Fanpage Tham Gia</span>
+                  <ArrowUpRight className="h-4 w-4" />
+                </a>
+                <button
+                  type="button"
+                  onClick={onOpenLogin}
+                  className="inline-flex items-center gap-2.5 rounded-xl border-2 border-white/40 hover:bg-white hover:text-slate-950 text-white font-bold px-7 py-3.5 text-sm uppercase tracking-wider transition cursor-pointer"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>Đăng Nhập Thành Viên</span>
+                </button>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ===================== LỊCH ĐẤU & KẾT QUẢ ===================== */}
+      <section className="bg-white text-slate-900 py-24 sm:py-32">
         <div className={WRAP}>
           <Reveal>
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
               <div>
-                <p className="text-[#0D5EF4] font-bold uppercase tracking-[0.35em] text-xs sm:text-sm">
-                  Bóng lăn mỗi tuần
+                <p className="text-[#17488c] font-bold uppercase tracking-[0.35em] text-xs sm:text-sm flex items-center gap-2">
+                  <GoalNetIcon className="h-4 w-4 text-[#d4af37]" />
+                  <span>Bóng lăn mỗi tuần</span>
                 </p>
-                <h2 className="mt-4 font-display font-extrabold uppercase leading-[0.85] text-7xl sm:text-8xl">
-                  Lịch đấu <span className="text-[#0D5EF4]">& kết quả</span>
+                <h2 className="mt-4 font-display font-bold uppercase leading-[0.85] text-7xl sm:text-8xl">
+                  Lịch đấu <span className="text-[#17488c]">& kết quả</span>
                 </h2>
               </div>
               <div className="flex gap-8 text-sm font-bold uppercase tracking-[0.2em]">
@@ -599,9 +1419,9 @@ export function PublicGuestPortal({
                     type="button"
                     onClick={() => setMatchTab(key)}
                     aria-pressed={matchTab === key}
-                    className={`pb-1 border-b-2 cursor-pointer ${
+                    className={`pb-1 border-b-2 cursor-pointer transition ${
                       matchTab === key
-                        ? "text-[#0D5EF4] border-[#0D5EF4]"
+                        ? "text-[#17488c] border-[#17488c]"
                         : "text-slate-400 border-transparent hover:text-slate-700"
                     }`}
                   >
@@ -612,28 +1432,28 @@ export function PublicGuestPortal({
             </div>
           </Reveal>
 
-          <div className="mt-12 border-t-2 border-[#0b1a33]">
+          <div className="mt-12 border-t-2 border-[#17488c]">
             {matchRows.length === 0 && (
               <p className="py-14 text-slate-500 italic">
-                Chưa có lịch mới. Ban điều hành đang chốt kèo trận tiếp theo!
+                Chưa có lịch mới. Ban điều hành đang chốt kèo giao hữu tiếp theo!
               </p>
             )}
             {matchRows.map((m) => (
               <div
                 key={m.id}
-                className="group grid grid-cols-1 md:grid-cols-[200px_1fr_auto] items-center gap-3 md:gap-8 py-6 border-b border-slate-200 hover:bg-[#f6f1e4] hover:px-4 transition-all"
+                className="group grid grid-cols-1 md:grid-cols-[200px_1fr_auto] items-center gap-3 md:gap-8 py-6 border-b border-slate-200 hover:bg-[#f1f5f9] hover:px-4 transition-all"
               >
                 <div className="text-sm font-bold text-slate-500 uppercase tracking-wider">
-                  <div className="text-[#0D5EF4]">{m.label}</div>
+                  <div className="text-[#17488c]">{m.label}</div>
                   <div>
                     {formatDateVN(m.match_date)}
                     {m.kickoff_time ? ` • ${m.kickoff_time}` : ""}
                   </div>
                 </div>
-                <div className="font-display font-extrabold uppercase text-3xl sm:text-5xl leading-none flex flex-wrap items-center gap-x-4">
+                <div className="font-display font-bold uppercase text-3xl sm:text-5xl leading-none flex flex-wrap items-center gap-x-4">
                   <span>FC Gò Nổi</span>
                   {matchTab === "results" ? (
-                    <span className="text-[#0D5EF4]">
+                    <span className="text-[#17488c]">
                       {m.team_score ?? 0} - {m.opponent_score ?? 0}
                     </span>
                   ) : (
@@ -643,16 +1463,17 @@ export function PublicGuestPortal({
                 </div>
                 <div className="flex items-center gap-4 text-sm">
                   <span className="inline-flex items-center gap-1.5 font-semibold text-slate-600">
-                    <MapPin className="h-4 w-4 text-rose-500" />
+                    <MapPin className="h-4 w-4 text-[#d4af37]" />
                     {m.venue}
                   </span>
                   {matchTab === "fixtures" && (
                     <button
                       type="button"
                       onClick={onOpenLogin}
-                      className="font-black uppercase tracking-widest text-[#0D5EF4] hover:underline cursor-pointer"
+                      className="font-bold uppercase tracking-widest text-[#17488c] hover:underline cursor-pointer inline-flex items-center gap-1"
                     >
-                      Điểm danh
+                      <span>Điểm danh</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
@@ -662,19 +1483,21 @@ export function PublicGuestPortal({
         </div>
       </section>
 
-      {/* ===================== KHOẢNH KHẮC (mosaic sát mép) ===================== */}
-      <section id="gallery" className="bg-[#050e20]">
+      {/* ===================== KHOẢNH KHẮC & HÌNH ẢNH WEBP ===================== */}
+      <section id="gallery" className="bg-[#092244]">
         <div className={`${WRAP} pt-24 sm:pt-32 pb-12`}>
           <Reveal>
-            <p className="text-[#ffc933] font-bold uppercase tracking-[0.35em] text-xs sm:text-sm">
-              Sân cỏ kể chuyện
+            <p className="text-[#d4af37] font-bold uppercase tracking-[0.35em] text-xs sm:text-sm flex items-center gap-2">
+              <Camera className="h-4 w-4" />
+              <span>Sân cỏ ghi dấu</span>
             </p>
-            <h2 className="mt-4 font-display font-extrabold uppercase leading-[0.85] text-7xl sm:text-8xl lg:text-9xl">
-              Khoảnh khắc <span className="text-[#ffc933]">của đội</span>
+            <h2 className="mt-4 font-display font-bold uppercase leading-[0.85] text-7xl sm:text-8xl lg:text-9xl text-white">
+              Khoảnh khắc <span className="text-[#d4af37]">của đội</span>
             </h2>
           </Reveal>
         </div>
 
+        {/* Gallery WebP */}
         <div className="grid grid-cols-2 sm:grid-cols-4 auto-rows-[220px] sm:auto-rows-[300px] gap-1">
           {MOSAIC.map((img, i) => (
             <figure
@@ -687,11 +1510,11 @@ export function PublicGuestPortal({
                 alt={img.title}
                 className="absolute inset-0 h-full w-full object-cover group-hover:scale-110 transition duration-1000"
               />
-              <figcaption className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-[#050e20]/90 via-transparent to-transparent p-5 opacity-90 group-hover:opacity-100">
-                <span className="text-[#ffc933] text-[11px] font-black uppercase tracking-[0.25em]">
+              <figcaption className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-[#092244]/90 via-transparent to-transparent p-5 opacity-90 group-hover:opacity-100 transition">
+                <span className="text-[#d4af37] text-[11px] font-bold uppercase tracking-[0.25em]">
                   {img.tag}
                 </span>
-                <p className="font-display font-extrabold uppercase text-2xl sm:text-3xl leading-none mt-1">
+                <p className="font-display font-bold uppercase text-2xl sm:text-3xl leading-none mt-1 text-white">
                   {img.title}
                 </p>
               </figcaption>
@@ -699,26 +1522,25 @@ export function PublicGuestPortal({
           ))}
         </div>
 
-        {/* Fanpage */}
-        <div className="bg-[#0D5EF4]">
+        {/* Fanpage Facebook */}
+        <div className="bg-[#0c2850] border-t border-white/10">
           <div
             className={`${WRAP} py-16 sm:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center`}
           >
             <Reveal>
-              <h3 className="font-display font-extrabold uppercase leading-[0.85] text-6xl sm:text-8xl">
-                Theo dõi <span className="text-[#ffc933]">Fanpage</span>
+              <h3 className="font-display font-bold uppercase leading-[0.85] text-6xl sm:text-8xl text-white">
+                Theo dõi <span className="text-[#d4af37]">Fanpage</span>
               </h3>
-              <p className="mt-5 max-w-md text-lg text-white/85">
-                Ảnh, video và tin nóng của đội cập nhật mỗi tuần. Muốn gia nhập
-                thì nhắn thẳng cho anh em nhé!
+              <p className="mt-5 max-w-md text-lg text-sky-100 font-light leading-relaxed">
+                Ảnh, video bàn thắng và tin nóng của đội bóng được cập nhật sau mỗi trận. Anh em đồng hương muốn giao lưu hoặc gia nhập đội thì nhắn thẳng cho chúng mình nhé!
               </p>
               <a
                 href={fanpageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-8 inline-flex items-center gap-3 bg-[#ffc933] hover:bg-white text-slate-950 font-black px-7 py-4 text-sm uppercase tracking-widest"
+                className="mt-8 inline-flex items-center gap-3 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-bold px-7 py-4 text-sm uppercase tracking-widest rounded-xl transition shadow-lg"
               >
-                Mở Facebook <ExternalLink className="h-5 w-5" />
+                Mở Facebook <ArrowUpRight className="h-5 w-5" />
               </a>
             </Reveal>
             <div className="flex lg:justify-end">
@@ -737,52 +1559,62 @@ export function PublicGuestPortal({
         </div>
       </section>
 
-      {/* ===================== CTA + FOOTER ===================== */}
-      <footer className="relative bg-[#ffc933] text-slate-950 overflow-hidden">
+      {/* ===================== CTA + FOOTER SANG TRỌNG ===================== */}
+      <footer className="relative bg-gradient-to-r from-[#d4af37] via-[#f5d97f] to-[#d4af37] text-slate-950 overflow-hidden shadow-2xl">
         <div className={`${WRAP} pt-20 sm:pt-28 pb-10`}>
           <Reveal>
-            <h2 className="font-display font-extrabold uppercase leading-[0.8] text-[17vw] sm:text-[13vw] lg:text-[11rem]">
+            <h2 className="font-display font-bold uppercase leading-[0.8] text-[17vw] sm:text-[13vw] lg:text-[11rem] drop-shadow-sm">
               Ra sân cùng
               <br />
-              anh em Gò Nổi
+              23+ anh em Gò Nổi
             </h2>
-            <div className="mt-10 flex flex-wrap gap-4">
+            <p className="mt-4 text-base sm:text-xl font-bold uppercase tracking-wider text-slate-900/80 max-w-xl">
+              Cánh cửa đội bóng luôn rộng mở chào đón tất cả anh em Điện Quang, Điện Trung, Điện Phong tại Sài Gòn!
+            </p>
+            <div className="mt-8 flex flex-wrap gap-4">
               <button
                 type="button"
                 onClick={onOpenLogin}
-                className="inline-flex items-center gap-3 bg-slate-950 hover:bg-[#0D5EF4] text-white font-black px-8 py-5 text-sm uppercase tracking-widest cursor-pointer"
+                className="inline-flex items-center gap-3 bg-slate-950 hover:bg-[#0c2850] text-white font-bold px-8 py-5 text-sm uppercase tracking-widest rounded-xl cursor-pointer transition shadow-xl"
               >
                 <LogIn className="h-5 w-5" />
-                Đăng nhập thành viên
+                <span>Đăng nhập thành viên</span>
               </button>
               <a
                 href={fanpageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 border-2 border-slate-950 hover:bg-slate-950 hover:text-white font-black px-8 py-[18px] text-sm uppercase tracking-widest"
+                className="inline-flex items-center gap-3 border-2 border-slate-950 hover:bg-slate-950 hover:text-white font-bold px-8 py-[18px] text-sm uppercase tracking-widest rounded-xl transition"
               >
-                Nhắn Fanpage <ArrowUpRight className="h-5 w-5" />
+                <span>Nhắn tin Fanpage</span>
+                <ArrowUpRight className="h-5 w-5" />
               </a>
             </div>
           </Reveal>
 
-          <div className="mt-16 pt-6 border-t border-slate-950/25 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm font-semibold">
+          <div className="mt-16 pt-6 border-t border-slate-950/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm font-bold">
             <div className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={OFFICIAL_LOGO_URL}
                 alt="Logo FC HĐH Gò Nổi"
-                className="h-10 w-10 rounded-full object-contain bg-white p-0.5"
+                className="h-10 w-10 rounded-full object-contain bg-white p-0.5 ring-2 ring-slate-950"
               />
               <span>
-                CLB bóng đá đồng hương Gò Nổi (Điện Bàn, Quảng Nam) tại TP. Hồ
-                Chí Minh
+                CLB bóng đá đồng hương Gò Nổi (Điện Bàn, Quảng Nam) tại TP. Hồ Chí Minh
               </span>
             </div>
             <span>© {new Date().getFullYear()} FC HĐH Gò Nổi</span>
           </div>
         </div>
       </footer>
+
+      {/* ===================== POPUP MODAL PROFILE CẦU THỦ ===================== */}
+      <PlayerProfileModal
+        player={selectedProfilePlayer}
+        onClose={() => setSelectedProfilePlayer(null)}
+        onOpenLogin={onOpenLogin}
+      />
     </div>
   );
 }

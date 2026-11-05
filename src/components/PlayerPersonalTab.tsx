@@ -53,6 +53,7 @@ export function PlayerPersonalTab({
   const [phone, setPhone] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [bio, setBio] = useState("");
   const [notes, setNotes] = useState("");
 
   // State cho Modal đổi mật khẩu cá nhân
@@ -77,6 +78,7 @@ export function PlayerPersonalTab({
     setPhone(me.phone || "");
     setBirthYear(me.birth_year ? String(me.birth_year) : "1991");
     setAvatarUrl(me.avatar_url || "/uploads/avatars/member-1.jpg");
+    setBio(me.bio || "");
     setNotes(me.notes || "");
     setProfileModalOpen(true);
   };
@@ -116,6 +118,7 @@ export function PlayerPersonalTab({
       phone,
       birth_year: birthYear === "" ? null : Number(birthYear),
       avatar_url: avatarUrl,
+      bio,
       notes,
     });
     setProfileModalOpen(false);
@@ -206,6 +209,12 @@ export function PlayerPersonalTab({
                   <Shield className="h-3.5 w-3.5" />
                   <span>Thành viên Ban Quản Lý & Thu Quỹ</span>
                 </span>
+              )}
+
+              {me.bio && (
+                <p className="mt-2.5 text-xs text-sky-100/95 italic bg-white/10 rounded-lg p-2.5 border border-white/15 max-w-xl">
+                  &ldquo;{me.bio}&rdquo;
+                </p>
               )}
             </div>
           </div>
@@ -618,6 +627,26 @@ export function PlayerPersonalTab({
               onChange={(e) => setNotes(e.target.value)}
               className="form-input"
             />
+          </div>
+
+          <div>
+            <label
+              htmlFor="my-bio"
+              className="block text-sm font-semibold text-slate-700 mb-1"
+            >
+              Bài viết / Lời tự giới thiệu sân cỏ (Hiển thị thẻ Profile ngoài trang chủ)
+            </label>
+            <textarea
+              id="my-bio"
+              rows={3}
+              placeholder="Chia sẻ về phong cách thi đấu, sở trường, kỷ niệm hoặc lời nhắn nhủ anh em FC HĐH Gò Nổi..."
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className="form-input text-sm leading-relaxed"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Bài viết này được hiển thị nổi bật trên Thẻ Profile 3D tương tác ngoài Trang chủ để cổ động viên và người hâm mộ theo dõi.
+            </p>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">
