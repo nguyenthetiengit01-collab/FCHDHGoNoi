@@ -816,10 +816,6 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   <strong className="text-emerald-700">Cầu Thủ Thành Viên:</strong> Xem lịch tuần, điểm danh cá nhân, tra cứu quỹ đội & tự do đổi tên đăng nhập/mật khẩu cá nhân.
                 </li>
               </ul>
-              <div className="pt-1.5 text-[11px] text-slate-500 border-t border-slate-200/80 space-y-0.5">
-                <p>💡 <strong>Cách đăng nhập:</strong> Nhập Tên đăng nhập (vd: <code>tieng</code>, <code>tin</code>, <code>trung</code>...) hoặc Số áo (vd: <code>12</code>, <code>26</code>, <code>17</code>...) hoặc Số điện thoại.</p>
-                <p>🔑 Mật khẩu mặc định: <code>1234</code> (vào trang Cá Nhân để đổi tài khoản và mật khẩu theo ý muốn).</p>
-              </div>
             </div>
           </div>
         </div>
