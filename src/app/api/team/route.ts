@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, getFullAppData, seedInitialDataIfNeeded } from "@/lib/db";
+import { getAuthSession } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -19,6 +20,81 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action, payload } = body;
     const db = getDb();
+    const session = getAuthSession(req);
+
+    // Danh sách các hành động nhạy cảm yêu cầu quyền Ban Quản Lý (Manager)
+    const MANAGER_ONLY_ACTIONS = new Set([
+      "upsert_player",
+      "delete_player",
+      "reset_player_password",
+      "upsert_match",
+      "delete_match",
+      "set_match_status",
+      "quick_pitch_expense",
+      "collect_match_fee",
+      "add_walkin_player",
+      "upsert_expense",
+      "delete_expense",
+      "upsert_other_income",
+      "delete_other_income",
+      "update_settings",
+      "reset_to_excel",
+    ]);
+
+    if (MANAGER_ONLY_ACTIONS.has(action)) {
+      if (!session || session.accessRole !== "manager") {
+        return NextResponse.json(
+          {
+            error:
+              "Thao tác yêu cầu quyền Ban Quản Lý (Manager). Vui lòng đăng nhập với tài khoản Ban Quản Lý.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Các hành động yêu cầu cầu thủ đã đăng nhập vào hệ thống
+    if (action === "update_own_profile" || action === "change_own_password") {
+      if (!session) {
+        return NextResponse.json(
+          { error: "Vui lòng đăng nhập để cập nhật hồ sơ cá nhân" },
+          { status: 401 }
+        );
+      }
+      if (
+        session.accessRole !== "manager" &&
+        Number(payload?.id) !== session.playerId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Bảo mật: Bạn chỉ có thể cập nhật tài khoản cá nhân của chính mình",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    if (action === "set_rsvp") {
+      if (!session) {
+        return NextResponse.json(
+          { error: "Vui lòng đăng nhập để điểm danh" },
+          { status: 401 }
+        );
+      }
+      if (
+        session.accessRole !== "manager" &&
+        Number(payload?.player_id) !== session.playerId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Bảo mật: Bạn chỉ có thể thực hiện điểm danh cho tài khoản của chính mình",
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     switch (action) {
       case "upsert_player": {
@@ -52,6 +128,12 @@ export async function POST(req: NextRequest) {
           cleanName;
 
         if (id) {
+          const existing = db
+            .prepare("SELECT pin_code FROM players WHERE id = ?")
+            .get(Number(id)) as { pin_code: string } | undefined;
+          const finalPin =
+            String(pin_code || "").trim() || existing?.pin_code || "1234";
+
           db.prepare(`
             UPDATE players
             SET code_order = ?, full_name = ?, short_name = ?, jersey_number = ?,
@@ -74,7 +156,7 @@ export async function POST(req: NextRequest) {
             typeof payload.bio === "string" ? payload.bio : "",
             role || "Thành viên",
             access_role === "manager" ? "manager" : "player",
-            String(pin_code || "1234").trim(),
+            finalPin,
             status || "Đang sinh hoạt",
             notes || "",
             Number(id)

@@ -3,6 +3,7 @@ import fs from "fs";
 import os from "os";
 import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
 import { EXPENSE_CATEGORIES, FANPAGE_URL } from "@/types/app";
+import { calculateFinancialSummary } from "./financialCalculations";
 import type {
   TeamSettings,
   Player,
@@ -491,9 +492,15 @@ export function getFullAppData(): FullAppData {
     .prepare("SELECT * FROM team_settings WHERE id = 1")
     .get() as unknown as TeamSettings;
 
-  const players = db
+  const rawPlayers = db
     .prepare("SELECT * FROM players ORDER BY code_order ASC, id ASC")
     .all() as unknown as Player[];
+
+  // Bảo mật: Xóa mã PIN cá nhân trong dữ liệu trả về cho client/khách truy cập
+  const players = rawPlayers.map((p) => ({
+    ...p,
+    pin_code: "",
+  }));
 
   const matches = db
     .prepare("SELECT * FROM matches ORDER BY match_number ASC, match_date ASC")
@@ -511,31 +518,10 @@ export function getFullAppData(): FullAppData {
     .prepare("SELECT * FROM expenses ORDER BY expense_date ASC, id ASC")
     .all() as unknown as ExpenseRecord[];
 
-  const totalMatchIncome = attendances.reduce(
-    (sum, a) => sum + (a.paid ? a.amount : 0),
-    0
-  );
-  const totalUnpaidAmount = attendances.reduce(
-    (sum, a) => sum + (a.attended && !a.paid ? a.amount : 0),
-    0
-  );
-  const totalOtherIncome = otherIncomes.reduce((sum, o) => sum + o.amount, 0);
-  const totalIncome = totalMatchIncome + totalOtherIncome;
-  const totalExpense = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const currentBalance = totalIncome - totalExpense;
-
-  const categoryBreakdown = EXPENSE_CATEGORIES.map((category) => {
-    const amount = expenses
-      .filter((e) => e.category === category)
-      .reduce((s, e) => s + e.amount, 0);
-    return {
-      category,
-      amount,
-      percentage:
-        totalExpense > 0
-          ? Math.round((amount / totalExpense) * 1000) / 10
-          : 0,
-    };
+  const summary = calculateFinancialSummary({
+    attendances,
+    otherIncomes,
+    expenses,
   });
 
   return JSON.parse(
@@ -546,15 +532,7 @@ export function getFullAppData(): FullAppData {
       attendances,
       otherIncomes,
       expenses,
-      summary: {
-        totalMatchIncome,
-        totalOtherIncome,
-        totalIncome,
-        totalExpense,
-        currentBalance,
-        totalUnpaidAmount,
-        categoryBreakdown,
-      },
+      summary,
     })
   );
 }

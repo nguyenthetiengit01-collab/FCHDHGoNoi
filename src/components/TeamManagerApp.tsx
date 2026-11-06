@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -82,6 +82,24 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const [pinInput, setPinInput] = useState<string>("");
   const [loginError, setLoginError] = useState<string>("");
 
+  // Tự động khôi phục phiên làm việc an toàn từ Server Cookie khi khởi tạo
+  useEffect(() => {
+    let mounted = true;
+    fetch("/api/auth")
+      .then((res) => res.json())
+      .then((res) => {
+        if (!mounted) return;
+        if (res.authenticated && res.player) {
+          const restoredSession = buildSessionFromPlayer(res.player);
+          setSession(restoredSession);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     window.setTimeout(() => {
@@ -151,7 +169,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
     }
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUsername = usernameInput.trim();
     const cleanPin = pinInput.trim();
@@ -165,52 +183,50 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       return;
     }
 
-    const removeAccents = (str: string) =>
-      str
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/đ/g, "d")
-        .replace(/Đ/g, "d")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "login",
+          username: cleanUsername,
+          pin: cleanPin,
+        }),
+      });
 
-    const uNorm = removeAccents(cleanUsername);
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setLoginError(
+          json.error || "Tên đăng nhập hoặc mật khẩu không chính xác."
+        );
+        return;
+      }
 
-    // Tìm cầu thủ theo tên tài khoản riêng: short_name, full_name, số điện thoại, hoặc số áo
-    const p = data.players.find((pl) => {
-      if (removeAccents(pl.short_name) === uNorm) return true;
-      if (removeAccents(pl.full_name) === uNorm) return true;
-      if (pl.phone && pl.phone.replace(/\D/g, "") === cleanUsername.replace(/\D/g, "")) return true;
-      const jerseyStr = pl.jersey_number !== null ? String(pl.jersey_number) : "";
-      if (jerseyStr && (jerseyStr === cleanUsername.replace("#", "").trim())) return true;
-      return false;
-    });
-
-    if (!p) {
-      setLoginError("Tên đăng nhập không chính xác hoặc không thuộc danh sách CLB.");
-      return;
+      const p: Player = json.player;
+      const newSession = buildSessionFromPlayer(p);
+      setSession(newSession);
+      setLoginModalOpen(false);
+      setUsernameInput("");
+      setPinInput("");
+      setLoginError("");
+      setActiveTab("schedule");
+      showToast(`Xin chào ${p.full_name} (#${p.jersey_number ?? "-"})!`);
+    } catch {
+      setLoginError("Không thể kết nối đến máy chủ xác thực.");
     }
-
-    const expectedPin = p.pin_code || "1234";
-    if (cleanPin !== expectedPin) {
-      setLoginError(
-        "Mật khẩu không chính xác. Vui lòng kiểm tra lại hoặc liên hệ Ban Quản Lý."
-      );
-      return;
-    }
-
-    const newSession = buildSessionFromPlayer(p);
-    setSession(newSession);
-    setLoginModalOpen(false);
-    setUsernameInput("");
-    setPinInput("");
-    setLoginError("");
-    setActiveTab("schedule");
-    showToast(`Xin chào ${p.full_name} (#${p.jersey_number ?? "-"})!`);
   };
 
-  const handleQuickSwitchRole = (targetPlayer: Player | null) => {
+  const handleQuickSwitchRole = async (targetPlayer: Player | null) => {
     if (!targetPlayer) {
+      try {
+        await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "logout" }),
+        });
+      } catch {
+        // ignore
+      }
       setSession(GUEST_SESSION);
       setActiveTab("public");
       showToast("Đã đăng xuất về Trang Khách");
