@@ -5,7 +5,7 @@ import {
   getAuthSession,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth";
-import { getDb } from "@/lib/db";
+import { getAsyncDb } from "@/lib/db";
 import type { Player } from "@/types/app";
 
 /**
@@ -18,10 +18,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ authenticated: false, player: null });
     }
 
-    const db = getDb();
-    const playerRow = db
-      .prepare("SELECT * FROM players WHERE id = ?")
-      .get(session.playerId) as unknown as Player | undefined;
+    const db = getAsyncDb();
+    const playerRow = (await db.queryOne<Player>(
+      "SELECT * FROM players WHERE id = ?",
+      [session.playerId]
+    )) || undefined;
 
     if (!playerRow) {
       const res = NextResponse.json({ authenticated: false, player: null });
@@ -88,10 +89,11 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const db = getDb();
-      const playerRow = db
-        .prepare("SELECT * FROM players WHERE id = ?")
-        .get(playerId) as unknown as Player | undefined;
+      const db = getAsyncDb();
+      const playerRow = (await db.queryOne<Player>(
+        "SELECT * FROM players WHERE id = ?",
+        [playerId]
+      )) || undefined;
 
       if (!playerRow) {
         return NextResponse.json(
@@ -127,7 +129,7 @@ export async function POST(req: NextRequest) {
 
     if (action === "login") {
       const { username, pin } = body;
-      const verifyRes = verifyCredentials(username, pin);
+      const verifyRes = await verifyCredentials(username, pin);
 
       if (!verifyRes.success || !verifyRes.player) {
         return NextResponse.json(

@@ -4,7 +4,7 @@ import { getFullAppData } from "@/lib/db";
 
 export async function GET() {
   try {
-    const data = getFullAppData();
+    const data = await getFullAppData();
     const wb = XLSX.utils.book_new();
 
     // 1. Sheet Dashboard

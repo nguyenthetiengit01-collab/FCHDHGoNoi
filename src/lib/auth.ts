@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
-import { getDb } from "./db";
+import { getAsyncDb } from "./db";
 import type { Player } from "@/types/app";
 
 // Khóa bí mật ký session token - ưu tiên lấy từ biến môi trường
@@ -107,10 +107,10 @@ export function normalizeLoginString(str: string): string {
 /**
  * Xác thực thông tin đăng nhập từ Server Database
  */
-export function verifyCredentials(
+export async function verifyCredentials(
   username: string,
   pin: string
-): { success: boolean; player?: Player; error?: string } {
+): Promise<{ success: boolean; player?: Player; error?: string }> {
   const cleanUsername = String(username || "").trim();
   const cleanPin = String(pin || "").trim();
 
@@ -121,10 +121,10 @@ export function verifyCredentials(
     return { success: false, error: "Vui lòng nhập Mật khẩu / Mã PIN" };
   }
 
-  const db = getDb();
-  const allPlayers = db
-    .prepare("SELECT * FROM players ORDER BY id ASC")
-    .all() as unknown as Player[];
+  const db = getAsyncDb();
+  const allPlayers = await db.query<Player>(
+    "SELECT * FROM players ORDER BY id ASC"
+  );
 
   const uNorm = normalizeLoginString(cleanUsername);
 

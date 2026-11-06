@@ -2,6 +2,7 @@ import path from "path";
 import fs from "fs";
 import os from "os";
 import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
+import { createClient, type Client, type InArgs } from "@libsql/client";
 import { EXPENSE_CATEGORIES, FANPAGE_URL } from "@/types/app";
 import { calculateFinancialSummary } from "./financialCalculations";
 import type {
@@ -14,6 +15,134 @@ import type {
   RsvpStatus,
   FullAppData,
 } from "@/types/app";
+
+const TURSO_URL =
+  process.env.TURSO_DATABASE_URL ||
+  "libsql://fchdhgonoi-nguyenthetiengit01-collab.aws-ap-northeast-1.turso.io";
+
+const TURSO_AUTH_TOKEN =
+  process.env.TURSO_AUTH_TOKEN ||
+  "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTM5NTUxNDUsImlkIjoiMDFhMWIwMGUtYjEwMS03YjJmLTlmZmItZmUwN2QwODQ1MDIzIiwia2lkIjoiTlpPbE1LZzNCOUZ5X3MtRGZDbmVJc185bHhKdzZtTFM3MUF2VFpmZ21uUSIsInJpZCI6IjJmMzA4NTY5LTgxNjctNGNjOS04ZGUxLWI0MmMzNzBiNmMyNSJ9.pgEePsNzElhgndZQ_DiPY-kjeraabSnnJPpuRq41c5Fnvu-ELF76FUs30wbSL1bXC8O4R5pn-GIGDTsWYX2CAA";
+
+export interface AsyncDb {
+  query<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[]
+  ): Promise<T[]>;
+  queryOne<T = Record<string, unknown>>(
+    sql: string,
+    params?: unknown[]
+  ): Promise<T | null>;
+  run(
+    sql: string,
+    params?: unknown[]
+  ): Promise<{ lastInsertRowid: number; changes: number }>;
+  exec(sql: string): Promise<void>;
+}
+
+export class TursoDbAdapter implements AsyncDb {
+  private client: Client;
+
+  constructor(client: Client) {
+    this.client = client;
+  }
+
+  async query<T = Record<string, unknown>>(
+    sql: string,
+    params: unknown[] = []
+  ): Promise<T[]> {
+    const res = await this.client.execute({ sql, args: params as InArgs });
+    return res.rows as unknown as T[];
+  }
+
+  async queryOne<T = Record<string, unknown>>(
+    sql: string,
+    params: unknown[] = []
+  ): Promise<T | null> {
+    const rows = await this.query<T>(sql, params);
+    return rows[0] || null;
+  }
+
+  async run(
+    sql: string,
+    params: unknown[] = []
+  ): Promise<{ lastInsertRowid: number; changes: number }> {
+    const res = await this.client.execute({ sql, args: params as InArgs });
+    return {
+      lastInsertRowid: Number(res.lastInsertRowid || 0),
+      changes: Number(res.rowsAffected || 0),
+    };
+  }
+
+  async exec(sql: string): Promise<void> {
+    await this.client.executeMultiple(sql);
+  }
+}
+
+export class LocalSqliteAdapter implements AsyncDb {
+  private db: DatabaseSyncType;
+
+  constructor(db: DatabaseSyncType) {
+    this.db = db;
+  }
+
+  async query<T = Record<string, unknown>>(
+    sql: string,
+    params: unknown[] = []
+  ): Promise<T[]> {
+    type QueryFn = (...args: unknown[]) => unknown[];
+    return (this.db.prepare(sql).all as QueryFn)(...params) as T[];
+  }
+
+  async queryOne<T = Record<string, unknown>>(
+    sql: string,
+    params: unknown[] = []
+  ): Promise<T | null> {
+    type QueryOneFn = (...args: unknown[]) => unknown;
+    return ((this.db.prepare(sql).get as QueryOneFn)(...params) as T) || null;
+  }
+
+  async run(
+    sql: string,
+    params: unknown[] = []
+  ): Promise<{ lastInsertRowid: number; changes: number }> {
+    type RunFn = (...args: unknown[]) => {
+      lastInsertRowid?: number | bigint;
+      changes?: number;
+    };
+    const res = (this.db.prepare(sql).run as RunFn)(...params);
+    return {
+      lastInsertRowid: Number(res?.lastInsertRowid || 0),
+      changes: Number(res?.changes || 0),
+    };
+  }
+
+  async exec(sql: string): Promise<void> {
+    this.db.exec(sql);
+  }
+}
+
+let asyncDbInstance: AsyncDb | null = null;
+let tursoClientInstance: Client | null = null;
+
+export function getAsyncDb(): AsyncDb {
+  if (asyncDbInstance) return asyncDbInstance;
+
+  if (TURSO_URL && TURSO_AUTH_TOKEN) {
+    if (!tursoClientInstance) {
+      tursoClientInstance = createClient({
+        url: TURSO_URL,
+        authToken: TURSO_AUTH_TOKEN,
+      });
+    }
+    asyncDbInstance = new TursoDbAdapter(tursoClientInstance);
+    return asyncDbInstance;
+  }
+
+  const local = getDb();
+  asyncDbInstance = new LocalSqliteAdapter(local);
+  return asyncDbInstance;
+}
 
 const BUNDLED_DATA_DIR = path.join(process.cwd(), "data");
 const BUNDLED_DB_PATH = path.join(BUNDLED_DATA_DIR, "gonoifc.sqlite");
@@ -267,6 +396,245 @@ function runMigrations(db: DatabaseSyncType) {
   }
 }
 
+const INITIAL_PLAYERS: Array<{
+  code_order: number;
+  full_name: string;
+  short_name: string;
+  jersey_number: number;
+  position: string;
+  role: string;
+  access_role: "manager" | "player";
+  birth_year: string;
+  bio: string;
+}> = [
+  { code_order: 1, full_name: "Lê Anh Trung", short_name: "Trung", jersey_number: 17, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 2, full_name: "Nguyễn Thế Tiếng", short_name: "Tiếng", jersey_number: 12, position: "Đa năng", role: "Đội trưởng / Thủ quỹ", access_role: "manager", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 3, full_name: "Hồ Viết Tín", short_name: "Tín", jersey_number: 26, position: "Đa năng", role: "Đội phó / Quản lý thu", access_role: "manager", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 4, full_name: "Nguyễn Văn Dũng", short_name: "Dũng", jersey_number: 21, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 5, full_name: "Nguyễn Văn Thịnh", short_name: "Thịnh", jersey_number: 22, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 6, full_name: "Lại Văn Toàn", short_name: "Toàn", jersey_number: 5, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 7, full_name: "Ngô Công Phát", short_name: "Phát", jersey_number: 4, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 8, full_name: "Nguyễn Đăng Xuân", short_name: "Xuân", jersey_number: 45, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 9, full_name: "Vũ Hùng Khương", short_name: "Vương Lâm", jersey_number: 18, position: "Đa năng", role: "Ban quản lý / Thủ quỹ phụ", access_role: "manager", birth_year: "1994", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 10, full_name: "Nguyễn Thanh Vĩnh", short_name: "Vĩnh", jersey_number: 9, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1991", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 11, full_name: "Nguyễn Tấn Thiện", short_name: "Thiện", jersey_number: 14, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1997", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 12, full_name: "Trần Xuân Minh", short_name: "Minh", jersey_number: 3, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1980", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 13, full_name: "Nguyễn Văn Hải", short_name: "Hải", jersey_number: 6, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 14, full_name: "Ngô Vũ", short_name: "Vũ", jersey_number: 19, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 15, full_name: "Nguyễn Tấn Tuấn", short_name: "Tuấn", jersey_number: 8, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 16, full_name: "Nguyễn Văn Thành", short_name: "Thành", jersey_number: 92, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 17, full_name: "Dương Hiển Hoài Sơn", short_name: "Hoài Sơn", jersey_number: 24, position: "Đa năng", role: "Ban quản lý / Thủ quỹ phụ", access_role: "manager", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 18, full_name: "Nguyễn Tấn Nghĩa", short_name: "Nghĩa", jersey_number: 25, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 19, full_name: "Nguyễn Bồng", short_name: "Bồng", jersey_number: 11, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 20, full_name: "Nguyễn Phi Vương", short_name: "Vương", jersey_number: 13, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 21, full_name: "Đỗ Thiều Duy Vương", short_name: "D. Vương", jersey_number: 15, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 22, full_name: "Phan Phước Trường", short_name: "Trường", jersey_number: 7, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  { code_order: 23, full_name: "Võ Quang Quốc", short_name: "Quốc", jersey_number: 99, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1983", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+];
+
+const INITIAL_MATCHES = [
+  { match_number: 1, label: "Trận 1 - 18/6", match_date: "2026-06-18", venue: "Sân Vĩnh Lộc", pitch_cost: 410000, payer_name: "Tiếng", desc: "Tiền sân trận mở màn tuần 1 - 18/6" },
+  { match_number: 2, label: "Trận 2 - 25/6", match_date: "2026-06-25", venue: "Sân Vĩnh Lộc", pitch_cost: 930000, payer_name: "Tín", desc: "Tiền sân trận tuần 2 - 25/6" },
+  { match_number: 3, label: "Trận 3 - 02/7", match_date: "2026-07-02", venue: "Sân Vĩnh Lộc", pitch_cost: 1365000, payer_name: "Tiếng", desc: "Tiền sân trận tuần 3 - 02/7" },
+  { match_number: 4, label: "Trận 4 - 08/7", match_date: "2026-07-08", venue: "Sân Vĩnh Lộc", pitch_cost: 1020000, payer_name: "Tiếng", desc: "Tiền sân trận tuần 4 - 08/7" },
+  { match_number: 5, label: "Trận 5 - 15/7", match_date: "2026-07-15", venue: "Sân Vĩnh Lộc", pitch_cost: 840000, payer_name: "Tiếng", desc: "Tiền sân trận tuần 5 - 15/7" },
+  { match_number: 6, label: "Trận 6 - 22/7", match_date: "2026-07-22", venue: "Sân Vĩnh Lộc", pitch_cost: 1270000, payer_name: "Tiếng", desc: "Tiền sân trận tuần 6 - 22/7" },
+  { match_number: 7, label: "Trận 7 - 05/8", match_date: "2026-08-05", venue: "Sân Vĩnh Lộc", pitch_cost: 1330000, payer_name: "Tiếng", desc: "Tiền sân trận tuần 7 - 05/8" },
+  { match_number: 8, label: "Trận 8 - 12/8", match_date: "2026-08-12", venue: "Sân Vĩnh Lộc", pitch_cost: 710000, payer_name: "Tiếng - Vĩnh Lộc", desc: "Tiền sân trận tuần 8 - 12/8" },
+  { match_number: 9, label: "Trận 9 - 26/8", match_date: "2026-08-26", venue: "Sân Vũ Khánh", pitch_cost: 1080000, payer_name: "Tiếng - Vũ Khánh", desc: "Tiền sân trận tuần 9 - 17/8" },
+  { match_number: 10, label: "Trận 10 - 09/9", match_date: "2026-09-09", venue: "Sân Gò Mây", pitch_cost: 1008000, payer_name: "Tiếng - Gò Mây", desc: "Tiền sân trận tuần 10 - 09/9" },
+  { match_number: 11, label: "Trận 11 - 23/9", match_date: "2026-09-23", venue: "Sân DEMI", pitch_cost: 780000, payer_name: "Tiếng- DEMI", desc: "Tiền sân trận tuần 11 - 23/9" },
+  { match_number: 12, label: "Trận 12 - 30/9", match_date: "2026-09-30", venue: "Sân Vũ Khánh", pitch_cost: 800000, payer_name: "Tiếng - Vũ Khánh", desc: "Tiền sân trận tuần 12 - 30/9" },
+  { match_number: 13, label: "Trận 13 - 14/10", match_date: "2026-10-14", venue: "Sân Vĩnh Lộc", pitch_cost: 890000, payer_name: "Tiếng - Vĩnh Lộc", desc: "Tiền sân trận tuần 13 - 14/10" },
+  { match_number: 14, label: "Trận 14 - 21/10", match_date: "2026-10-21", venue: "Sân Vĩnh Lộc", pitch_cost: 860000, payer_name: "Tiếng - Vĩnh Lộc", desc: "Tiền sân trận tuần 14 - 21/10" },
+  { match_number: 15, label: "Trận 15 - 28/10", match_date: "2026-10-28", venue: "Sân Vũ Khánh", pitch_cost: 1227000, payer_name: "Tiếng - Vũ Khánh", desc: "Tiền sân trận tuần 15 - 28/10" },
+];
+
+const ATTENDANCE_MATRIX: Record<string, number[]> = {
+  "Nguyễn Phi Vương":    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  "Phan Phước Trường":   [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  "Nguyễn Văn Hải":      [1,1,1,1,1,1,1,1,1,0,0,0,1,1,1],
+  "Dương Hiển Hoài Sơn": [1,1,0,1,1,0,1,1,1,1,1,0,1,1,0],
+  "Ngô Công Phát":       [1,0,1,1,0,1,1,0,1,1,1,0,1,1,0],
+  "Hồ Viết Tín":         [0,1,0,1,1,1,1,1,1,0,1,1,1,0,1],
+  "Đỗ Thiều Duy Vương":  [1,1,0,0,1,1,1,0,1,1,1,0,0,1,0],
+  "Vũ Hùng Khương":      [1,0,0,1,0,1,1,1,1,1,1,0,0,1,0],
+  "Nguyễn Tấn Nghĩa":    [1,0,1,0,1,0,1,1,1,1,0,1,1,0,1],
+  "Nguyễn Văn Thành":    [0,0,0,1,0,1,1,1,1,1,1,0,0,1,1],
+  "Nguyễn Thế Tiếng":    [1,0,1,1,1,0,1,0,1,0,1,1,0,0,1],
+  "Ngô Vũ":              [1,1,1,1,0,1,0,1,0,1,0,0,0,1,0],
+  "Nguyễn Đăng Xuân":    [0,1,1,0,1,1,0,0,0,1,0,0,0,1,0],
+  "Nguyễn Bồng":         [0,1,1,1,0,0,0,0,1,1,0,0,0,0,0],
+  "Nguyễn Tấn Thiện":    [1,0,0,0,0,1,1,1,0,0,1,0,0,0,0],
+  "Lê Anh Trung":        [0,0,0,1,0,1,0,1,0,0,0,0,1,0,1],
+  "Trần Xuân Minh":      [0,1,0,0,0,1,0,0,0,0,0,0,0,1,1],
+  "Lại Văn Toàn":        [0,0,0,0,0,0,1,0,0,0,0,0,1,1,1],
+  "Võ Quang Quốc":       [0,0,0,0,0,0,0,0,1,0,1,0,0,0,0],
+  "Nguyễn Thanh Vĩnh":   [0,1,0,0,0,0,0,1,0,0,0,0,0,0,0],
+  "Nguyễn Văn Thịnh":    [0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
+  "Nguyễn Văn Dũng":     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  "Nguyễn Tấn Tuấn":     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+};
+
+export async function seedAsyncInitialDataIfNeeded(
+  db: AsyncDb,
+  forceReset = false
+) {
+  if (forceReset) {
+    await db.exec(`
+      DELETE FROM match_attendances;
+      DELETE FROM expenses;
+      DELETE FROM other_incomes;
+      DELETE FROM matches;
+      DELETE FROM players;
+      DELETE FROM team_settings;
+    `);
+  } else {
+    const countRow = await db.queryOne<{ cnt: number }>(
+      "SELECT COUNT(*) as cnt FROM players"
+    );
+    if (countRow && countRow.cnt > 0) {
+      return;
+    }
+  }
+
+  await db.run(
+    `INSERT INTO team_settings (
+      id, team_name, short_name, default_match_fee,
+      bank_bin, bank_name, bank_account_no, bank_account_name,
+      tournament_fund_reserve, tournament_fund_note, fanpage_url
+    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      "Đội Bóng HĐH Gò Nổi",
+      "FC HĐH GÒ NỔI",
+      100000,
+      "970422",
+      "MB Bank",
+      "0905123456",
+      "NGUYEN THE TIENG",
+      2301700,
+      "Còn giải trước: 2,876,700đ | Trừ 2 áo TM, 1 balo (575,000đ) còn: 2,301,700đ",
+      FANPAGE_URL,
+    ]
+  );
+
+  const playerIdByName = new Map<string, number>();
+  for (let idx = 0; idx < INITIAL_PLAYERS.length; idx++) {
+    const p = INITIAL_PLAYERS[idx];
+    const picIdx = (idx % 14) + 1;
+    const res = await db.run(
+      `INSERT INTO players (code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes)
+       VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', '')`,
+      [
+        p.code_order,
+        p.full_name,
+        p.short_name,
+        p.jersey_number,
+        p.position,
+        p.birth_year,
+        `/uploads/avatars/member-${picIdx}.jpg`,
+        p.bio,
+        p.role,
+        p.access_role,
+      ]
+    );
+    playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
+  }
+
+  const matchIds: number[] = [];
+  for (const m of INITIAL_MATCHES) {
+    const res = await db.run(
+      `INSERT INTO matches (
+        match_number, label, match_date, kickoff_time, venue,
+        opponent, fee_per_player, pitch_cost, payer_name, status, notes
+      ) VALUES (?, ?, ?, '19:00', ?, 'Sinh hoạt / Giao hữu tuần', 100000, ?, ?, 'Đã kết thúc', '')`,
+      [
+        m.match_number,
+        m.label,
+        m.match_date,
+        m.venue,
+        m.pitch_cost,
+        m.payer_name,
+      ]
+    );
+    matchIds.push(Number(res.lastInsertRowid));
+  }
+
+  for (const [fullName, flags] of Object.entries(ATTENDANCE_MATRIX)) {
+    const playerId = playerIdByName.get(fullName);
+    if (!playerId) continue;
+    for (let i = 0; i < matchIds.length; i++) {
+      const isPaid = flags[i] === 1 ? 1 : 0;
+      const rsvp: RsvpStatus = isPaid ? "registered" : "none";
+      await db.run(
+        `INSERT INTO match_attendances (match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note)
+         VALUES (?, ?, ?, 0, ?, ?, ?, 'Tiếng', '')`,
+        [
+          matchIds[i],
+          playerId,
+          rsvp,
+          isPaid,
+          isPaid,
+          isPaid ? 100000 : 0,
+        ]
+      );
+    }
+  }
+
+  await db.run(
+    `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      "2026-06-15",
+      "Nguyễn Thế Tiếng",
+      0,
+      "Ghi chú Quỹ giải",
+      "Còn giải trước: 2,876,700đ",
+    ]
+  );
+  await db.run(
+    `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      "2026-10-16",
+      "Quỹ giải đội bóng",
+      0,
+      "Ghi chú Quỹ giải",
+      "Trừ 2 áo TM, 1 balo còn: 2,301,700đ",
+    ]
+  );
+
+  for (let i = 0; i < INITIAL_MATCHES.length; i++) {
+    const m = INITIAL_MATCHES[i];
+    await db.run(
+      `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        m.match_date,
+        "Tiền sân",
+        m.desc,
+        m.pitch_cost,
+        m.payer_name,
+        matchIds[i],
+      ]
+    );
+    if (m.match_number === 11) {
+      await db.run(
+        `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          "2026-09-23",
+          "Áo đấu/Phụ kiện",
+          "giặt đồ",
+          110000,
+          "anh Sơn 1 lần + Vương lâm 3 lần; 160k - 50k dư trận trước",
+          matchIds[i],
+        ]
+      );
+    }
+  }
+}
+
 export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false) {
   if (forceReset) {
     db.exec(`
@@ -308,50 +676,14 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
       FANPAGE_URL
     );
 
-    const initialPlayers: Array<{
-      code_order: number;
-      full_name: string;
-      short_name: string;
-      jersey_number: number;
-      position: string;
-      role: string;
-      access_role: "manager" | "player";
-      birth_year: string;
-      bio: string;
-    }> = [
-      { code_order: 1, full_name: "Lê Anh Trung", short_name: "Trung", jersey_number: 17, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 2, full_name: "Nguyễn Thế Tiếng", short_name: "Tiếng", jersey_number: 12, position: "Đa năng", role: "Đội trưởng / Thủ quỹ", access_role: "manager", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 3, full_name: "Hồ Viết Tín", short_name: "Tín", jersey_number: 26, position: "Đa năng", role: "Đội phó / Quản lý thu", access_role: "manager", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 4, full_name: "Nguyễn Văn Dũng", short_name: "Dũng", jersey_number: 21, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 5, full_name: "Nguyễn Văn Thịnh", short_name: "Thịnh", jersey_number: 22, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 6, full_name: "Lại Văn Toàn", short_name: "Toàn", jersey_number: 5, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 7, full_name: "Ngô Công Phát", short_name: "Phát", jersey_number: 4, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 8, full_name: "Nguyễn Đăng Xuân", short_name: "Xuân", jersey_number: 45, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 9, full_name: "Vũ Hùng Khương", short_name: "Vương Lâm", jersey_number: 18, position: "Đa năng", role: "Ban quản lý / Thủ quỹ phụ", access_role: "manager", birth_year: "1994", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 10, full_name: "Nguyễn Thanh Vĩnh", short_name: "Vĩnh", jersey_number: 9, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1991", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 11, full_name: "Nguyễn Tấn Thiện", short_name: "Thiện", jersey_number: 14, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1997", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 12, full_name: "Trần Xuân Minh", short_name: "Minh", jersey_number: 3, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1980", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 13, full_name: "Nguyễn Văn Hải", short_name: "Hải", jersey_number: 6, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 14, full_name: "Ngô Vũ", short_name: "Vũ", jersey_number: 19, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 15, full_name: "Nguyễn Tấn Tuấn", short_name: "Tuấn", jersey_number: 8, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 16, full_name: "Nguyễn Văn Thành", short_name: "Thành", jersey_number: 92, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 17, full_name: "Dương Hiển Hoài Sơn", short_name: "Hoài Sơn", jersey_number: 24, position: "Đa năng", role: "Ban quản lý / Thủ quỹ phụ", access_role: "manager", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 18, full_name: "Nguyễn Tấn Nghĩa", short_name: "Nghĩa", jersey_number: 25, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 19, full_name: "Nguyễn Bồng", short_name: "Bồng", jersey_number: 11, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 20, full_name: "Nguyễn Phi Vương", short_name: "Vương", jersey_number: 13, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 21, full_name: "Đỗ Thiều Duy Vương", short_name: "D. Vương", jersey_number: 15, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 22, full_name: "Phan Phước Trường", short_name: "Trường", jersey_number: 7, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-      { code_order: 23, full_name: "Võ Quang Quốc", short_name: "Quốc", jersey_number: 99, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1983", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-    ];
-
     const insertPlayer = db.prepare(`
       INSERT INTO players (code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes)
       VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', '')
     `);
 
     const playerIdByName = new Map<string, number>();
-    for (let idx = 0; idx < initialPlayers.length; idx++) {
-      const p = initialPlayers[idx];
+    for (let idx = 0; idx < INITIAL_PLAYERS.length; idx++) {
+      const p = INITIAL_PLAYERS[idx];
       const picIdx = (idx % 14) + 1;
       const res = insertPlayer.run(
         p.code_order,
@@ -368,24 +700,6 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
       playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
     }
 
-    const initialMatches = [
-      { match_number: 1, label: "Trận 1 - 18/6", match_date: "2026-06-18", venue: "Sân Vĩnh Lộc", pitch_cost: 410000, payer_name: "Tiếng", desc: "Tiền sân trận mở màn tuần 1 - 18/6" },
-      { match_number: 2, label: "Trận 2 - 25/6", match_date: "2026-06-25", venue: "Sân Vĩnh Lộc", pitch_cost: 930000, payer_name: "Tín", desc: "Tiền sân trận tuần 2 - 25/6" },
-      { match_number: 3, label: "Trận 3 - 02/7", match_date: "2026-07-02", venue: "Sân Vĩnh Lộc", pitch_cost: 1365000, payer_name: "Tiếng", desc: "Tiền sân trận tuần 3 - 02/7" },
-      { match_number: 4, label: "Trận 4 - 08/7", match_date: "2026-07-08", venue: "Sân Vĩnh Lộc", pitch_cost: 1020000, payer_name: "Tiếng", desc: "Tiền sân trận tuần 4 - 08/7" },
-      { match_number: 5, label: "Trận 5 - 15/7", match_date: "2026-07-15", venue: "Sân Vĩnh Lộc", pitch_cost: 840000, payer_name: "Tiếng", desc: "Tiền sân trận tuần 5 - 15/7" },
-      { match_number: 6, label: "Trận 6 - 22/7", match_date: "2026-07-22", venue: "Sân Vĩnh Lộc", pitch_cost: 1270000, payer_name: "Tiếng", desc: "Tiền sân trận tuần 6 - 22/7" },
-      { match_number: 7, label: "Trận 7 - 05/8", match_date: "2026-08-05", venue: "Sân Vĩnh Lộc", pitch_cost: 1330000, payer_name: "Tiếng", desc: "Tiền sân trận tuần 7 - 05/8" },
-      { match_number: 8, label: "Trận 8 - 12/8", match_date: "2026-08-12", venue: "Sân Vĩnh Lộc", pitch_cost: 710000, payer_name: "Tiếng - Vĩnh Lộc", desc: "Tiền sân trận tuần 8 - 12/8" },
-      { match_number: 9, label: "Trận 9 - 26/8", match_date: "2026-08-26", venue: "Sân Vũ Khánh", pitch_cost: 1080000, payer_name: "Tiếng - Vũ Khánh", desc: "Tiền sân trận tuần 9 - 17/8" },
-      { match_number: 10, label: "Trận 10 - 09/9", match_date: "2026-09-09", venue: "Sân Gò Mây", pitch_cost: 1008000, payer_name: "Tiếng - Gò Mây", desc: "Tiền sân trận tuần 10 - 09/9" },
-      { match_number: 11, label: "Trận 11 - 23/9", match_date: "2026-09-23", venue: "Sân DEMI", pitch_cost: 780000, payer_name: "Tiếng- DEMI", desc: "Tiền sân trận tuần 11 - 23/9" },
-      { match_number: 12, label: "Trận 12 - 30/9", match_date: "2026-09-30", venue: "Sân Vũ Khánh", pitch_cost: 800000, payer_name: "Tiếng - Vũ Khánh", desc: "Tiền sân trận tuần 12 - 30/9" },
-      { match_number: 13, label: "Trận 13 - 14/10", match_date: "2026-10-14", venue: "Sân Vĩnh Lộc", pitch_cost: 890000, payer_name: "Tiếng - Vĩnh Lộc", desc: "Tiền sân trận tuần 13 - 14/10" },
-      { match_number: 14, label: "Trận 14 - 21/10", match_date: "2026-10-21", venue: "Sân Vĩnh Lộc", pitch_cost: 860000, payer_name: "Tiếng - Vĩnh Lộc", desc: "Tiền sân trận tuần 14 - 21/10" },
-      { match_number: 15, label: "Trận 15 - 28/10", match_date: "2026-10-28", venue: "Sân Vũ Khánh", pitch_cost: 1227000, payer_name: "Tiếng - Vũ Khánh", desc: "Tiền sân trận tuần 15 - 28/10" },
-    ];
-
     const insertMatch = db.prepare(`
       INSERT INTO matches (
         match_number, label, match_date, kickoff_time, venue,
@@ -394,7 +708,7 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
     `);
 
     const matchIds: number[] = [];
-    for (const m of initialMatches) {
+    for (const m of INITIAL_MATCHES) {
       const res = insertMatch.run(
         m.match_number,
         m.label,
@@ -406,38 +720,12 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
       matchIds.push(Number(res.lastInsertRowid));
     }
 
-    const attendanceMatrix: Record<string, number[]> = {
-      "Nguyễn Phi Vương":    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-      "Phan Phước Trường":   [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-      "Nguyễn Văn Hải":      [1,1,1,1,1,1,1,1,1,0,0,0,1,1,1],
-      "Dương Hiển Hoài Sơn": [1,1,0,1,1,0,1,1,1,1,1,0,1,1,0],
-      "Ngô Công Phát":       [1,0,1,1,0,1,1,0,1,1,1,0,1,1,0],
-      "Hồ Viết Tín":         [0,1,0,1,1,1,1,1,1,0,1,1,1,0,1],
-      "Đỗ Thiều Duy Vương":  [1,1,0,0,1,1,1,0,1,1,1,0,0,1,0],
-      "Vũ Hùng Khương":      [1,0,0,1,0,1,1,1,1,1,1,0,0,1,0],
-      "Nguyễn Tấn Nghĩa":    [1,0,1,0,1,0,1,1,1,1,0,1,1,0,1],
-      "Nguyễn Văn Thành":    [0,0,0,1,0,1,1,1,1,1,1,0,0,1,1],
-      "Nguyễn Thế Tiếng":    [1,0,1,1,1,0,1,0,1,0,1,1,0,0,1],
-      "Ngô Vũ":              [1,1,1,1,0,1,0,1,0,1,0,0,0,1,0],
-      "Nguyễn Đăng Xuân":    [0,1,1,0,1,1,0,0,0,1,0,0,0,1,0],
-      "Nguyễn Bồng":         [0,1,1,1,0,0,0,0,1,1,0,0,0,0,0],
-      "Nguyễn Tấn Thiện":    [1,0,0,0,0,1,1,1,0,0,1,0,0,0,0],
-      "Lê Anh Trung":        [0,0,0,1,0,1,0,1,0,0,0,0,1,0,1],
-      "Trần Xuân Minh":      [0,1,0,0,0,1,0,0,0,0,0,0,0,1,1],
-      "Lại Văn Toàn":        [0,0,0,0,0,0,1,0,0,0,0,0,1,1,1],
-      "Võ Quang Quốc":       [0,0,0,0,0,0,0,0,1,0,1,0,0,0,0],
-      "Nguyễn Thanh Vĩnh":   [0,1,0,0,0,0,0,1,0,0,0,0,0,0,0],
-      "Nguyễn Văn Thịnh":    [0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
-      "Nguyễn Văn Dũng":     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-      "Nguyễn Tấn Tuấn":     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    };
-
     const insertAttendance = db.prepare(`
       INSERT INTO match_attendances (match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note)
       VALUES (?, ?, ?, 0, ?, ?, ?, 'Tiếng', '')
     `);
 
-    for (const [fullName, flags] of Object.entries(attendanceMatrix)) {
+    for (const [fullName, flags] of Object.entries(ATTENDANCE_MATRIX)) {
       const playerId = playerIdByName.get(fullName);
       if (!playerId) continue;
       for (let i = 0; i < matchIds.length; i++) {
@@ -478,8 +766,8 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    for (let i = 0; i < initialMatches.length; i++) {
-      const m = initialMatches[i];
+    for (let i = 0; i < INITIAL_MATCHES.length; i++) {
+      const m = INITIAL_MATCHES[i];
       insertExpense.run(
         m.match_date,
         "Tiền sân",
@@ -507,16 +795,28 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
   }
 }
 
-export function getFullAppData(): FullAppData {
-  const db = getDb();
+export async function getFullAppData(): Promise<FullAppData> {
+  const db = getAsyncDb();
 
-  const settings = db
-    .prepare("SELECT * FROM team_settings WHERE id = 1")
-    .get() as unknown as TeamSettings;
+  const settings = (await db.queryOne<TeamSettings>(
+    "SELECT * FROM team_settings WHERE id = 1"
+  )) || {
+    id: 1,
+    team_name: "Đội Bóng HĐH Gò Nổi",
+    short_name: "FC HĐH GÒ NỔI",
+    default_match_fee: 100000,
+    bank_bin: "970422",
+    bank_name: "MB Bank",
+    bank_account_no: "",
+    bank_account_name: "NGUYEN THE TIENG",
+    tournament_fund_reserve: 2301700,
+    tournament_fund_note: "",
+    fanpage_url: FANPAGE_URL,
+  };
 
-  const rawPlayers = db
-    .prepare("SELECT * FROM players ORDER BY code_order ASC, id ASC")
-    .all() as unknown as Player[];
+  const rawPlayers = await db.query<Player>(
+    "SELECT * FROM players ORDER BY code_order ASC, id ASC"
+  );
 
   // Bảo mật: Xóa mã PIN cá nhân trong dữ liệu trả về cho client/khách truy cập
   const players = rawPlayers.map((p) => ({
@@ -524,21 +824,21 @@ export function getFullAppData(): FullAppData {
     pin_code: "",
   }));
 
-  const matches = db
-    .prepare("SELECT * FROM matches ORDER BY match_number ASC, match_date ASC")
-    .all() as unknown as MatchRecord[];
+  const matches = await db.query<MatchRecord>(
+    "SELECT * FROM matches ORDER BY match_number ASC, match_date ASC"
+  );
 
-  const attendances = db
-    .prepare("SELECT * FROM match_attendances")
-    .all() as unknown as MatchAttendance[];
+  const attendances = await db.query<MatchAttendance>(
+    "SELECT * FROM match_attendances"
+  );
 
-  const otherIncomes = db
-    .prepare("SELECT * FROM other_incomes ORDER BY income_date DESC, id DESC")
-    .all() as unknown as OtherIncome[];
+  const otherIncomes = await db.query<OtherIncome>(
+    "SELECT * FROM other_incomes ORDER BY income_date DESC, id DESC"
+  );
 
-  const expenses = db
-    .prepare("SELECT * FROM expenses ORDER BY expense_date ASC, id ASC")
-    .all() as unknown as ExpenseRecord[];
+  const expenses = await db.query<ExpenseRecord>(
+    "SELECT * FROM expenses ORDER BY expense_date ASC, id ASC"
+  );
 
   const summary = calculateFinancialSummary({
     attendances,

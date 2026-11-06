@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb, getFullAppData, seedInitialDataIfNeeded } from "@/lib/db";
+import { getAsyncDb, getFullAppData, seedAsyncInitialDataIfNeeded } from "@/lib/db";
 import { getAuthSession } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const data = getFullAppData();
+    const data = await getFullAppData();
     return NextResponse.json(data);
   } catch (error) {
     console.error("GET /api/team error:", error);
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { action, payload } = body;
-    const db = getDb();
+    const db = getAsyncDb();
     const session = getAuthSession(req);
 
     // Danh sách các hành động nhạy cảm yêu cầu quyền Ban Quản Lý (Manager)
@@ -128,55 +128,53 @@ export async function POST(req: NextRequest) {
           cleanName;
 
         if (id) {
-          const existing = db
-            .prepare("SELECT pin_code FROM players WHERE id = ?")
-            .get(Number(id)) as { pin_code: string } | undefined;
+          const existing = await db.queryOne<{ pin_code: string }>(
+            "SELECT pin_code FROM players WHERE id = ?",
+            [Number(id)]
+          );
           const finalPin =
             String(pin_code || "").trim() || existing?.pin_code || "1234";
 
-          db.prepare(`
-            UPDATE players
+          await db.run(
+            `UPDATE players
             SET code_order = ?, full_name = ?, short_name = ?, jersey_number = ?,
                 position = ?, phone = ?, birth_year = ?, avatar_url = ?, bio = ?,
                 role = ?, access_role = ?, pin_code = ?, status = ?, notes = ?
-            WHERE id = ?
-          `).run(
-            Number(code_order) || 1,
-            cleanName,
-            derivedShort,
-            jersey_number !== "" &&
-              jersey_number !== null &&
-              jersey_number !== undefined
-              ? Number(jersey_number)
-              : null,
-            position || "Đa năng",
-            phone || "",
-            birth_year || "",
-            avatar_url || "/uploads/avatars/member-1.jpg",
-            typeof payload.bio === "string" ? payload.bio : "",
-            role || "Thành viên",
-            access_role === "manager" ? "manager" : "player",
-            finalPin,
-            status || "Đang sinh hoạt",
-            notes || "",
-            Number(id)
+            WHERE id = ?`,
+            [
+              Number(code_order) || 1,
+              cleanName,
+              derivedShort,
+              jersey_number !== "" &&
+                jersey_number !== null &&
+                jersey_number !== undefined
+                ? Number(jersey_number)
+                : null,
+              position || "Đa năng",
+              phone || "",
+              birth_year || "",
+              avatar_url || "/uploads/avatars/member-1.jpg",
+              typeof payload.bio === "string" ? payload.bio : "",
+              role || "Thành viên",
+              access_role === "manager" ? "manager" : "player",
+              finalPin,
+              status || "Đang sinh hoạt",
+              notes || "",
+              Number(id),
+            ]
           );
         } else {
-          const maxRow = db
-            .prepare(
-              "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
-            )
-            .get() as { maxOrder: number };
-          const nextOrder = Number(code_order) || maxRow.maxOrder + 1;
-          const res = db
-            .prepare(`
-            INSERT INTO players (
+          const maxRow = await db.queryOne<{ maxOrder: number }>(
+            "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
+          );
+          const nextOrder = Number(code_order) || ((maxRow?.maxOrder ?? 0) + 1);
+          const res = await db.run(
+            `INSERT INTO players (
               code_order, full_name, short_name, jersey_number,
               position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `)
-            .run(
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
               nextOrder,
               cleanName,
               derivedShort,
@@ -194,20 +192,21 @@ export async function POST(req: NextRequest) {
               access_role === "manager" ? "manager" : "player",
               String(pin_code || "1234").trim(),
               status || "Đang sinh hoạt",
-              notes || ""
-            );
+              notes || "",
+            ]
+          );
           const newPlayerId = Number(res.lastInsertRowid);
-          const existingMatches = db
-            .prepare("SELECT id FROM matches")
-            .all() as Array<{ id: number }>;
-          const insAtt = db.prepare(`
-            INSERT OR IGNORE INTO match_attendances (
-              match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
-            )
-            VALUES (?, ?, 'none', 0, 0, 0, 0, '', '')
-          `);
+          const existingMatches = await db.query<{ id: number }>(
+            "SELECT id FROM matches"
+          );
           for (const m of existingMatches) {
-            insAtt.run(m.id, newPlayerId);
+            await db.run(
+              `INSERT OR IGNORE INTO match_attendances (
+                match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
+              )
+              VALUES (?, ?, 'none', 0, 0, 0, 0, '', '')`,
+              [m.id, newPlayerId]
+            );
           }
         }
         break;
@@ -234,11 +233,10 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
         }
-        const existingPlayer = db
-          .prepare("SELECT full_name, short_name FROM players WHERE id = ?")
-          .get(Number(player_id)) as
-          | { full_name: string; short_name: string }
-          | undefined;
+        const existingPlayer = await db.queryOne<{ full_name: string; short_name: string }>(
+          "SELECT full_name, short_name FROM players WHERE id = ?",
+          [Number(player_id)]
+        );
         if (!existingPlayer) {
           return NextResponse.json(
             { error: "Không tìm thấy cầu thủ" },
@@ -254,28 +252,29 @@ export async function POST(req: NextRequest) {
           cleanName.split(/\s+/).slice(-1)[0] ||
           cleanName;
 
-        db.prepare(`
-          UPDATE players
+        await db.run(
+          `UPDATE players
           SET full_name = ?, short_name = ?, jersey_number = ?,
               position = ?, phone = ?, birth_year = ?, avatar_url = ?, bio = ?, notes = ?
-          WHERE id = ?
-        `).run(
-          cleanName,
-          derivedShort,
-          jersey_number !== "" &&
-            jersey_number !== null &&
-            jersey_number !== undefined
-            ? Number(jersey_number)
-            : null,
-          position || "Đa năng",
-          phone || "",
-          birth_year !== null && birth_year !== undefined
-            ? String(birth_year)
-            : "",
-          avatar_url || "/uploads/avatars/member-1.jpg",
-          typeof bio === "string" ? bio : "",
-          notes || "",
-          Number(player_id)
+          WHERE id = ?`,
+          [
+            cleanName,
+            derivedShort,
+            jersey_number !== "" &&
+              jersey_number !== null &&
+              jersey_number !== undefined
+              ? Number(jersey_number)
+              : null,
+            position || "Đa năng",
+            phone || "",
+            birth_year !== null && birth_year !== undefined
+              ? String(birth_year)
+              : "",
+            avatar_url || "/uploads/avatars/member-1.jpg",
+            typeof bio === "string" ? bio : "",
+            notes || "",
+            Number(player_id),
+          ]
         );
         break;
       }
@@ -294,9 +293,10 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        const row = db
-          .prepare("SELECT pin_code, username FROM players WHERE id = ?")
-          .get(Number(player_id)) as { pin_code: string; username: string } | undefined;
+        const row = await db.queryOne<{ pin_code: string; username: string }>(
+          "SELECT pin_code, username FROM players WHERE id = ?",
+          [Number(player_id)]
+        );
         if (!row) {
           return NextResponse.json(
             { error: "Không tìm thấy hồ sơ cầu thủ" },
@@ -317,18 +317,19 @@ export async function POST(req: NextRequest) {
               { status: 400 }
             );
           }
-          const existOther = db
-            .prepare("SELECT id FROM players WHERE LOWER(username) = ? AND id != ?")
-            .get(cleanNewUser.toLowerCase(), Number(player_id));
+          const existOther = await db.queryOne(
+            "SELECT id FROM players WHERE LOWER(username) = ? AND id != ?",
+            [cleanNewUser.toLowerCase(), Number(player_id)]
+          );
           if (existOther) {
             return NextResponse.json(
               { error: "Tên đăng nhập này đã có người sử dụng. Vui lòng chọn tên khác." },
               { status: 400 }
             );
           }
-          db.prepare("UPDATE players SET username = ? WHERE id = ?").run(
-            cleanNewUser,
-            Number(player_id)
+          await db.run(
+            "UPDATE players SET username = ? WHERE id = ?",
+            [cleanNewUser, Number(player_id)]
           );
         }
 
@@ -339,9 +340,9 @@ export async function POST(req: NextRequest) {
               { status: 400 }
             );
           }
-          db.prepare("UPDATE players SET pin_code = ? WHERE id = ?").run(
-            cleanNewPin,
-            Number(player_id)
+          await db.run(
+            "UPDATE players SET pin_code = ? WHERE id = ?",
+            [cleanNewPin, Number(player_id)]
           );
         }
         break;
@@ -351,16 +352,16 @@ export async function POST(req: NextRequest) {
       case "reset_player_password": {
         const { player_id, new_pin } = payload;
         const cleanPin = String(new_pin || "1234").trim() || "1234";
-        db.prepare("UPDATE players SET pin_code = ? WHERE id = ?").run(
-          cleanPin,
-          Number(player_id)
+        await db.run(
+          "UPDATE players SET pin_code = ? WHERE id = ?",
+          [cleanPin, Number(player_id)]
         );
         break;
       }
 
       case "delete_player": {
         const { id } = payload;
-        db.prepare("DELETE FROM players WHERE id = ?").run(Number(id));
+        await db.run("DELETE FROM players WHERE id = ?", [Number(id)]);
         break;
       }
 
@@ -387,90 +388,88 @@ export async function POST(req: NextRequest) {
         const pitchCostNum = Number(pitch_cost) || 0;
 
         if (id) {
-          db.prepare(`
-            UPDATE matches
+          await db.run(
+            `UPDATE matches
             SET match_number = ?, label = ?, match_date = ?, kickoff_time = ?,
                 venue = ?, opponent = ?, fee_per_player = ?, pitch_cost = ?,
                 payer_name = ?, team_score = ?, opponent_score = ?, status = ?, notes = ?
-            WHERE id = ?
-          `).run(
-            Number(match_number) || 1,
-            label || `Trận ${match_number}`,
-            match_date || "2026-11-03",
-            kickoff_time || "19:00",
-            venue || "Sân Vĩnh Lộc",
-            opponent || "Giao hữu / Nội bộ",
-            fee,
-            pitchCostNum,
-            payer_name || "Tiếng",
-            team_score !== "" &&
-              team_score !== null &&
-              team_score !== undefined
-              ? Number(team_score)
-              : null,
-            opponent_score !== "" &&
-              opponent_score !== null &&
-              opponent_score !== undefined
-              ? Number(opponent_score)
-              : null,
-            status || "Đã kết thúc",
-            notes || "",
-            Number(id)
+            WHERE id = ?`,
+            [
+              Number(match_number) || 1,
+              label || `Trận ${match_number}`,
+              match_date || "2026-11-03",
+              kickoff_time || "19:00",
+              venue || "Sân Vĩnh Lộc",
+              opponent || "Giao hữu / Nội bộ",
+              fee,
+              pitchCostNum,
+              payer_name || "Tiếng",
+              team_score !== "" &&
+                team_score !== null &&
+                team_score !== undefined
+                ? Number(team_score)
+                : null,
+              opponent_score !== "" &&
+                opponent_score !== null &&
+                opponent_score !== undefined
+                ? Number(opponent_score)
+                : null,
+              status || "Đã kết thúc",
+              notes || "",
+              Number(id),
+            ]
           );
 
           if (sync_pitch_expense && pitchCostNum > 0) {
-            const existingExp = db
-              .prepare(
-                "SELECT id FROM expenses WHERE match_id = ? AND category = 'Tiền sân'"
-              )
-              .get(Number(id)) as { id: number } | undefined;
+            const existingExp = await db.queryOne<{ id: number }>(
+              "SELECT id FROM expenses WHERE match_id = ? AND category = 'Tiền sân'",
+              [Number(id)]
+            );
             if (existingExp) {
-              db.prepare(`
-                UPDATE expenses
+              await db.run(
+                `UPDATE expenses
                 SET expense_date = ?, description = ?, amount = ?, payer = ?
-                WHERE id = ?
-              `).run(
-                match_date,
-                `Tiền sân ${label}`,
-                pitchCostNum,
-                payer_name || "Tiếng",
-                existingExp.id
+                WHERE id = ?`,
+                [
+                  match_date,
+                  `Tiền sân ${label}`,
+                  pitchCostNum,
+                  payer_name || "Tiếng",
+                  existingExp.id,
+                ]
               );
             } else {
-              db.prepare(`
-                INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
-                VALUES (?, 'Tiền sân', ?, ?, ?, ?)
-              `).run(
-                match_date,
-                `Tiền sân ${label}`,
-                pitchCostNum,
-                payer_name || "Tiếng",
-                Number(id)
+              await db.run(
+                `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+                VALUES (?, 'Tiền sân', ?, ?, ?, ?)`,
+                [
+                  match_date,
+                  `Tiền sân ${label}`,
+                  pitchCostNum,
+                  payer_name || "Tiếng",
+                  Number(id),
+                ]
               );
             }
           }
         } else {
-          const maxMatch = db
-            .prepare(
-              "SELECT COALESCE(MAX(match_number), 0) as maxNum FROM matches"
-            )
-            .get() as { maxNum: number };
-          const nextNum = Number(match_number) || maxMatch.maxNum + 1;
+          const maxMatch = await db.queryOne<{ maxNum: number }>(
+            "SELECT COALESCE(MAX(match_number), 0) as maxNum FROM matches"
+          );
+          const nextNum = Number(match_number) || ((maxMatch?.maxNum ?? 0) + 1);
           const dateStr = match_date || new Date().toISOString().slice(0, 10);
           const [, monthStr, dayStr] = dateStr.split("-");
           const computedLabel =
             String(label || "").trim() ||
             `Trận ${nextNum} - ${dayStr}/${Number(monthStr)}`;
 
-          const res = db
-            .prepare(`
-            INSERT INTO matches (
+          const res = await db.run(
+            `INSERT INTO matches (
               match_number, label, match_date, kickoff_time, venue,
               opponent, fee_per_player, pitch_cost, payer_name,
               team_score, opponent_score, status, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `)
-            .run(
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
               nextNum,
               computedLabel,
               dateStr,
@@ -491,33 +490,35 @@ export async function POST(req: NextRequest) {
                 ? Number(opponent_score)
                 : null,
               status || "Sắp diễn ra",
-              notes || ""
-            );
+              notes || "",
+            ]
+          );
 
           const newMatchId = Number(res.lastInsertRowid);
-          const allPlayers = db
-            .prepare("SELECT id FROM players")
-            .all() as Array<{ id: number }>;
-          const insAtt = db.prepare(`
-            INSERT OR IGNORE INTO match_attendances (
-              match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
-            )
-            VALUES (?, ?, 'none', 0, 0, 0, 0, '', '')
-          `);
+          const allPlayers = await db.query<{ id: number }>(
+            "SELECT id FROM players"
+          );
           for (const p of allPlayers) {
-            insAtt.run(newMatchId, p.id);
+            await db.run(
+              `INSERT OR IGNORE INTO match_attendances (
+                match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
+              )
+              VALUES (?, ?, 'none', 0, 0, 0, 0, '', '')`,
+              [newMatchId, p.id]
+            );
           }
 
           if (sync_pitch_expense && pitchCostNum > 0) {
-            db.prepare(`
-              INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
-              VALUES (?, 'Tiền sân', ?, ?, ?, ?)
-            `).run(
-              dateStr,
-              `Tiền sân trận tuần ${nextNum} (${computedLabel})`,
-              pitchCostNum,
-              payer_name || "Tiếng",
-              newMatchId
+            await db.run(
+              `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+              VALUES (?, 'Tiền sân', ?, ?, ?, ?)`,
+              [
+                dateStr,
+                `Tiền sân trận tuần ${nextNum} (${computedLabel})`,
+                pitchCostNum,
+                payer_name || "Tiếng",
+                newMatchId,
+              ]
             );
           }
         }
@@ -526,8 +527,8 @@ export async function POST(req: NextRequest) {
 
       case "delete_match": {
         const { id } = payload;
-        db.prepare("DELETE FROM expenses WHERE match_id = ?").run(Number(id));
-        db.prepare("DELETE FROM matches WHERE id = ?").run(Number(id));
+        await db.run("DELETE FROM expenses WHERE match_id = ?", [Number(id)]);
+        await db.run("DELETE FROM matches WHERE id = ?", [Number(id)]);
         break;
       }
 
@@ -543,29 +544,30 @@ export async function POST(req: NextRequest) {
         const newStatus =
           status === "Sắp diễn ra" ? "Sắp diễn ra" : "Đã kết thúc";
         if (team_score !== undefined || opponent_score !== undefined) {
-          db.prepare(`
-            UPDATE matches
+          await db.run(
+            `UPDATE matches
             SET status = ?,
                 team_score = ?,
                 opponent_score = ?
-            WHERE id = ?
-          `).run(
-            newStatus,
-            team_score !== "" && team_score !== null && team_score !== undefined
-              ? Number(team_score)
-              : null,
-            opponent_score !== "" &&
-              opponent_score !== null &&
-              opponent_score !== undefined
-              ? Number(opponent_score)
-              : null,
-            Number(match_id)
+            WHERE id = ?`,
+            [
+              newStatus,
+              team_score !== "" && team_score !== null && team_score !== undefined
+                ? Number(team_score)
+                : null,
+              opponent_score !== "" &&
+                opponent_score !== null &&
+                opponent_score !== undefined
+                ? Number(opponent_score)
+                : null,
+              Number(match_id),
+            ]
           );
         } else {
-          db.prepare("UPDATE matches SET status = ? WHERE id = ?").run(
+          await db.run("UPDATE matches SET status = ? WHERE id = ?", [
             newStatus,
-            Number(match_id)
-          );
+            Number(match_id),
+          ]);
         }
         break;
       }
@@ -583,61 +585,57 @@ export async function POST(req: NextRequest) {
           : `${rawPayer} - ${shortVenue}`;
 
         if (match_id) {
-          const mRow = db
-            .prepare(
-              "SELECT id, match_number, label, match_date FROM matches WHERE id = ?"
-            )
-            .get(Number(match_id)) as
-            | {
-                id: number;
-                match_number: number;
-                label: string;
-                match_date: string;
-              }
-            | undefined;
+          const mRow = await db.queryOne<{
+            id: number;
+            match_number: number;
+            label: string;
+            match_date: string;
+          }>(
+            "SELECT id, match_number, label, match_date FROM matches WHERE id = ?",
+            [Number(match_id)]
+          );
 
           if (mRow) {
-            db.prepare(`
-              UPDATE matches
+            await db.run(
+              `UPDATE matches
               SET venue = ?, pitch_cost = ?, payer_name = ?
-              WHERE id = ?
-            `).run(cleanVenue, costNum, formattedPayer, mRow.id);
+              WHERE id = ?`,
+              [cleanVenue, costNum, formattedPayer, mRow.id]
+            );
 
-            const existingExp = db
-              .prepare(
-                `SELECT id FROM expenses
-                 WHERE category = 'Tiền sân'
-                   AND (match_id = ? OR description LIKE ?)`
-              )
-              .get(
-                mRow.id,
-                `%tuần ${mRow.match_number} %`
-              ) as { id: number } | undefined;
+            const existingExp = await db.queryOne<{ id: number }>(
+              `SELECT id FROM expenses
+               WHERE category = 'Tiền sân'
+                 AND (match_id = ? OR description LIKE ?)`,
+              [mRow.id, `%tuần ${mRow.match_number} %`]
+            );
 
             const desc = `Tiền sân trận tuần ${mRow.match_number} - ${mRow.label.replace(/^Trận\s+\d+\s*-\s*/i, "")}`;
             if (existingExp) {
-              db.prepare(`
-                UPDATE expenses
+              await db.run(
+                `UPDATE expenses
                 SET expense_date = ?, description = ?, amount = ?, payer = ?, match_id = ?
-                WHERE id = ?
-              `).run(
-                mRow.match_date,
-                desc,
-                costNum,
-                formattedPayer,
-                mRow.id,
-                existingExp.id
+                WHERE id = ?`,
+                [
+                  mRow.match_date,
+                  desc,
+                  costNum,
+                  formattedPayer,
+                  mRow.id,
+                  existingExp.id,
+                ]
               );
             } else if (costNum > 0) {
-              db.prepare(`
-                INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
-                VALUES (?, 'Tiền sân', ?, ?, ?, ?)
-              `).run(
-                mRow.match_date,
-                desc,
-                costNum,
-                formattedPayer,
-                mRow.id
+              await db.run(
+                `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+                VALUES (?, 'Tiền sân', ?, ?, ?, ?)`,
+                [
+                  mRow.match_date,
+                  desc,
+                  costNum,
+                  formattedPayer,
+                  mRow.id,
+                ]
               );
             }
           }
@@ -646,14 +644,15 @@ export async function POST(req: NextRequest) {
             String(expense_date || "").trim() ||
             new Date().toISOString().slice(0, 10);
           const [, mm, dd] = dStr.split("-");
-          db.prepare(`
-            INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
-            VALUES (?, 'Tiền sân', ?, ?, ?, NULL)
-          `).run(
-            dStr,
-            `Tiền sân ${cleanVenue} ngày ${dd}/${Number(mm)}`,
-            costNum,
-            formattedPayer
+          await db.run(
+            `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+            VALUES (?, 'Tiền sân', ?, ?, ?, NULL)`,
+            [
+              dStr,
+              `Tiền sân ${cleanVenue} ngày ${dd}/${Number(mm)}`,
+              costNum,
+              formattedPayer,
+            ]
           );
         }
         break;
@@ -667,20 +666,21 @@ export async function POST(req: NextRequest) {
             ? rsvp_status
             : "none";
 
-        db.prepare(`
-          INSERT INTO match_attendances (
+        await db.run(
+          `INSERT INTO match_attendances (
             match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
           )
           VALUES (?, ?, ?, 0, 0, 0, 0, '', ?)
           ON CONFLICT(match_id, player_id)
           DO UPDATE SET
             rsvp_status = excluded.rsvp_status,
-            note = COALESCE(NULLIF(excluded.note, ''), match_attendances.note)
-        `).run(
-          Number(match_id),
-          Number(player_id),
-          validRsvp,
-          String(note || "")
+            note = COALESCE(NULLIF(excluded.note, ''), match_attendances.note)`,
+          [
+            Number(match_id),
+            Number(player_id),
+            validRsvp,
+            String(note || ""),
+          ]
         );
         break;
       }
@@ -698,9 +698,10 @@ export async function POST(req: NextRequest) {
           note,
         } = payload;
 
-        const matchRow = db
-          .prepare("SELECT fee_per_player FROM matches WHERE id = ?")
-          .get(Number(match_id)) as { fee_per_player: number } | undefined;
+        const matchRow = await db.queryOne<{ fee_per_player: number }>(
+          "SELECT fee_per_player FROM matches WHERE id = ?",
+          [Number(match_id)]
+        );
         const defaultFee = matchRow?.fee_per_player ?? 100000;
 
         const isPaid = Number(paid) === 1 ? 1 : 0;
@@ -714,8 +715,8 @@ export async function POST(req: NextRequest) {
             : 0;
         const isWalkIn = Number(walk_in) === 1 ? 1 : 0;
 
-        db.prepare(`
-          INSERT INTO match_attendances (
+        await db.run(
+          `INSERT INTO match_attendances (
             match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
           )
           VALUES (?, ?, 'none', ?, ?, ?, ?, ?, ?)
@@ -726,16 +727,17 @@ export async function POST(req: NextRequest) {
             paid = excluded.paid,
             amount = excluded.amount,
             collected_by = CASE WHEN excluded.collected_by != '' THEN excluded.collected_by ELSE match_attendances.collected_by END,
-            note = CASE WHEN excluded.note != '' THEN excluded.note ELSE match_attendances.note END
-        `).run(
-          Number(match_id),
-          Number(player_id),
-          isWalkIn,
-          isAttended,
-          isPaid,
-          finalAmount,
-          String(collected_by || "Tiếng"),
-          String(note || "")
+            note = CASE WHEN excluded.note != '' THEN excluded.note ELSE match_attendances.note END`,
+          [
+            Number(match_id),
+            Number(player_id),
+            isWalkIn,
+            isAttended,
+            isPaid,
+            finalAmount,
+            String(collected_by || "Tiếng"),
+            String(note || ""),
+          ]
         );
         break;
       }
@@ -751,9 +753,10 @@ export async function POST(req: NextRequest) {
           collected_by,
         } = payload;
 
-        const matchRow = db
-          .prepare("SELECT fee_per_player FROM matches WHERE id = ?")
-          .get(Number(match_id)) as { fee_per_player: number } | undefined;
+        const matchRow = await db.queryOne<{ fee_per_player: number }>(
+          "SELECT fee_per_player FROM matches WHERE id = ?",
+          [Number(match_id)]
+        );
         const defaultFee = matchRow?.fee_per_player ?? 100000;
         const feeAmount =
           amount !== undefined && amount !== null && amount !== ""
@@ -767,20 +770,21 @@ export async function POST(req: NextRequest) {
           const cleanName = String(new_player_name).trim();
           const derivedShort =
             cleanName.split(/\s+/).slice(-1)[0] || cleanName;
-          const maxRow = db
-            .prepare(
-              "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
-            )
-            .get() as { maxOrder: number };
-          const res = db
-            .prepare(`
-            INSERT INTO players (
+          const maxRow = await db.queryOne<{ maxOrder: number }>(
+            "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
+          );
+          const res = await db.run(
+            `INSERT INTO players (
               code_order, full_name, short_name, jersey_number,
               position, phone, role, access_role, pin_code, status, notes
             )
-            VALUES (?, ?, ?, NULL, 'Đa năng', '', 'Thành viên', 'player', '1234', 'Đang sinh hoạt', 'Bổ sung trực tiếp tại sân')
-          `)
-            .run(maxRow.maxOrder + 1, cleanName, derivedShort);
+            VALUES (?, ?, ?, NULL, 'Đa năng', '', 'Thành viên', 'player', '1234', 'Đang sinh hoạt', 'Bổ sung trực tiếp tại sân')`,
+            [
+              ((maxRow?.maxOrder ?? 0) + 1),
+              cleanName,
+              derivedShort,
+            ]
+          );
           targetPlayerId = Number(res.lastInsertRowid);
         }
 
@@ -791,8 +795,8 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        db.prepare(`
-          INSERT INTO match_attendances (
+        await db.run(
+          `INSERT INTO match_attendances (
             match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
           )
           VALUES (?, ?, 'none', 1, 1, ?, ?, ?, 'Tham gia không đăng ký trước')
@@ -803,13 +807,14 @@ export async function POST(req: NextRequest) {
             paid = excluded.paid,
             amount = excluded.amount,
             collected_by = excluded.collected_by,
-            note = 'Tham gia không đăng ký trước'
-        `).run(
-          Number(match_id),
-          targetPlayerId,
-          isPaid,
-          feeAmount,
-          String(collected_by || "Tiếng")
+            note = 'Tham gia không đăng ký trước'`,
+          [
+            Number(match_id),
+            targetPlayerId,
+            isPaid,
+            feeAmount,
+            String(collected_by || "Tiếng"),
+          ]
         );
         break;
       }
@@ -825,30 +830,32 @@ export async function POST(req: NextRequest) {
           match_id,
         } = payload;
         if (id) {
-          db.prepare(`
-            UPDATE expenses
+          await db.run(
+            `UPDATE expenses
             SET expense_date = ?, category = ?, description = ?, amount = ?, payer = ?, match_id = ?
-            WHERE id = ?
-          `).run(
-            expense_date || "2026-11-03",
-            category || "Tiền sân",
-            description || "",
-            Number(amount) || 0,
-            payer || "",
-            match_id ? Number(match_id) : null,
-            Number(id)
+            WHERE id = ?`,
+            [
+              expense_date || "2026-11-03",
+              category || "Tiền sân",
+              description || "",
+              Number(amount) || 0,
+              payer || "",
+              match_id ? Number(match_id) : null,
+              Number(id),
+            ]
           );
         } else {
-          db.prepare(`
-            INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
-            VALUES (?, ?, ?, ?, ?, ?)
-          `).run(
-            expense_date || new Date().toISOString().slice(0, 10),
-            category || "Tiền sân",
-            description || "",
-            Number(amount) || 0,
-            payer || "",
-            match_id ? Number(match_id) : null
+          await db.run(
+            `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              expense_date || new Date().toISOString().slice(0, 10),
+              category || "Tiền sân",
+              description || "",
+              Number(amount) || 0,
+              payer || "",
+              match_id ? Number(match_id) : null,
+            ]
           );
         }
         break;
@@ -856,7 +863,7 @@ export async function POST(req: NextRequest) {
 
       case "delete_expense": {
         const { id } = payload;
-        db.prepare("DELETE FROM expenses WHERE id = ?").run(Number(id));
+        await db.run("DELETE FROM expenses WHERE id = ?", [Number(id)]);
         break;
       }
 
@@ -864,28 +871,30 @@ export async function POST(req: NextRequest) {
         const { id, income_date, contributor, amount, fund_type, note } =
           payload;
         if (id) {
-          db.prepare(`
-            UPDATE other_incomes
+          await db.run(
+            `UPDATE other_incomes
             SET income_date = ?, contributor = ?, amount = ?, fund_type = ?, note = ?
-            WHERE id = ?
-          `).run(
-            income_date || "2026-11-03",
-            contributor || "",
-            Number(amount) || 0,
-            fund_type || "Quỹ sinh hoạt",
-            note || "",
-            Number(id)
+            WHERE id = ?`,
+            [
+              income_date || "2026-11-03",
+              contributor || "",
+              Number(amount) || 0,
+              fund_type || "Quỹ sinh hoạt",
+              note || "",
+              Number(id),
+            ]
           );
         } else {
-          db.prepare(`
-            INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
-            VALUES (?, ?, ?, ?, ?)
-          `).run(
-            income_date || new Date().toISOString().slice(0, 10),
-            contributor || "",
-            Number(amount) || 0,
-            fund_type || "Quỹ sinh hoạt",
-            note || ""
+          await db.run(
+            `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
+            VALUES (?, ?, ?, ?, ?)`,
+            [
+              income_date || new Date().toISOString().slice(0, 10),
+              contributor || "",
+              Number(amount) || 0,
+              fund_type || "Quỹ sinh hoạt",
+              note || "",
+            ]
           );
         }
         break;
@@ -893,7 +902,7 @@ export async function POST(req: NextRequest) {
 
       case "delete_other_income": {
         const { id } = payload;
-        db.prepare("DELETE FROM other_incomes WHERE id = ?").run(Number(id));
+        await db.run("DELETE FROM other_incomes WHERE id = ?", [Number(id)]);
         break;
       }
 
@@ -910,29 +919,30 @@ export async function POST(req: NextRequest) {
           tournament_fund_note,
           fanpage_url,
         } = payload;
-        db.prepare(`
-          UPDATE team_settings
+        await db.run(
+          `UPDATE team_settings
           SET team_name = ?, short_name = ?, default_match_fee = ?,
               bank_bin = ?, bank_name = ?, bank_account_no = ?, bank_account_name = ?,
               tournament_fund_reserve = ?, tournament_fund_note = ?, fanpage_url = ?
-          WHERE id = 1
-        `).run(
-          team_name || "Đội Bóng HĐH Gò Nổi",
-          short_name || "FC HĐH GÒ NỔI",
-          Number(default_match_fee) || 100000,
-          bank_bin || "970422",
-          bank_name || "MB Bank",
-          bank_account_no || "",
-          bank_account_name || "NGUYEN THE TIENG",
-          Number(tournament_fund_reserve) || 0,
-          tournament_fund_note || "",
-          fanpage_url || "https://www.facebook.com/FCHDHGoNoi/"
+          WHERE id = 1`,
+          [
+            team_name || "Đội Bóng HĐH Gò Nổi",
+            short_name || "FC HĐH GÒ NỔI",
+            Number(default_match_fee) || 100000,
+            bank_bin || "970422",
+            bank_name || "MB Bank",
+            bank_account_no || "",
+            bank_account_name || "NGUYEN THE TIENG",
+            Number(tournament_fund_reserve) || 0,
+            tournament_fund_note || "",
+            fanpage_url || "https://www.facebook.com/FCHDHGoNoi/",
+          ]
         );
         break;
       }
 
       case "reset_to_excel": {
-        seedInitialDataIfNeeded(db, true);
+        await seedAsyncInitialDataIfNeeded(db, true);
         break;
       }
 
@@ -943,7 +953,7 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const updated = getFullAppData();
+    const updated = await getFullAppData();
     return NextResponse.json(updated);
   } catch (error) {
     console.error("POST /api/team error:", error);
