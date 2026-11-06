@@ -41,16 +41,11 @@ export function getDb(): DatabaseSyncType {
   }
 
   // Trên môi trường Serverless (Vercel), thư mục gốc là chỉ-đọc nên ta sao chép DB mẫu sang /tmp để đọc/ghi
-  if (IS_VERCEL && fs.existsSync(BUNDLED_DB_PATH)) {
+  // LƯU Ý QUAN TRỌNG: Chỉ copy một lần khi DB chưa tồn tại ở /tmp. Tuyệt đối không kiểm tra kích thước file
+  // vì khi người dùng cập nhật dữ liệu (ghi thêm trận, điểm danh, thu tiền), kích thước file sẽ thay đổi!
+  if (IS_VERCEL && !fs.existsSync(DB_PATH) && fs.existsSync(BUNDLED_DB_PATH)) {
     try {
-      const bundledStat = fs.statSync(BUNDLED_DB_PATH);
-      const shouldCopy =
-        !fs.existsSync(DB_PATH) ||
-        fs.statSync(DB_PATH).size !== bundledStat.size ||
-        fs.statSync(DB_PATH).mtimeMs < bundledStat.mtimeMs;
-      if (shouldCopy) {
-        fs.copyFileSync(BUNDLED_DB_PATH, DB_PATH);
-      }
+      fs.copyFileSync(BUNDLED_DB_PATH, DB_PATH);
     } catch (err) {
       console.warn("Không thể sao chép DB từ bundled data:", err);
     }

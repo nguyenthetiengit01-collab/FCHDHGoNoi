@@ -95,10 +95,55 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         }
       })
       .catch(() => {});
+
+    // Đồng bộ và khôi phục dữ liệu mới nhất từ bộ nhớ máy khách (chống mất dữ liệu khi serverless reload)
+    try {
+      const rawCached = localStorage.getItem("gonoi_fc_cached_data_v1");
+      if (rawCached) {
+        const cached = JSON.parse(rawCached) as FullAppData;
+        if (
+          cached &&
+          Array.isArray(cached.matches) &&
+          Array.isArray(cached.attendances)
+        ) {
+          const cachedMatchCount = cached.matches.length;
+          const initialMatchCount = initialData.matches.length;
+          const hasDifferentStatus = cached.matches.some((cm) => {
+            const im = initialData.matches.find((m) => m.id === cm.id);
+            return (
+              im &&
+              (im.status !== cm.status ||
+                im.team_score !== cm.team_score ||
+                im.opponent_score !== cm.opponent_score)
+            );
+          });
+          const hasMoreAttendances =
+            cached.attendances.length > initialData.attendances.length;
+          const hasPaidDiff = cached.attendances.some((ca) => {
+            const ia = initialData.attendances.find(
+              (a) => a.match_id === ca.match_id && a.player_id === ca.player_id
+            );
+            return ia && (ia.paid !== ca.paid || ia.rsvp_status !== ca.rsvp_status);
+          });
+
+          if (
+            cachedMatchCount > initialMatchCount ||
+            hasDifferentStatus ||
+            hasMoreAttendances ||
+            hasPaidDiff
+          ) {
+            setData(cached);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [initialData]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -124,6 +169,15 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         return;
       }
       setData(json);
+      try {
+        if (action === "reset_to_excel") {
+          localStorage.removeItem("gonoi_fc_cached_data_v1");
+        } else {
+          localStorage.setItem("gonoi_fc_cached_data_v1", JSON.stringify(json));
+        }
+      } catch {
+        // ignore
+      }
       if (action === "change_own_password") {
         showToast("Đã cập nhật mật khẩu (PIN) mới thành công!");
       } else if (action === "reset_player_password") {
@@ -159,6 +213,11 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         return;
       }
       setData(json);
+      try {
+        localStorage.setItem("gonoi_fc_cached_data_v1", JSON.stringify(json));
+      } catch {
+        // ignore
+      }
       showToast(`Đã đồng bộ dữ liệu từ file ${file.name}!`);
     } catch (err) {
       console.error(err);
@@ -233,16 +292,36 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       setLoginModalOpen(false);
       return;
     }
-    const newSession = buildSessionFromPlayer(targetPlayer);
-    setSession(newSession);
-    // Khi cầu thủ đăng nhập -> ưu tiên hiện Lịch, Thông báo & Điểm danh tuần
-    setActiveTab("schedule");
-    showToast(
-      `Đã đăng nhập: ${targetPlayer.full_name} (${
-        newSession.role === "manager" ? "Ban Quản Lý" : "Cầu thủ"
-      })`
-    );
-    setLoginModalOpen(false);
+
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "switch_role",
+          playerId: targetPlayer.id,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        showToast(json.error || "Không thể chuyển quyền.");
+        return;
+      }
+      const safePlayer: Player = json.player || targetPlayer;
+      const newSession = buildSessionFromPlayer(safePlayer);
+      setSession(newSession);
+      // Khi cầu thủ đăng nhập -> ưu tiên hiện Lịch, Thông báo & Điểm danh tuần
+      setActiveTab("schedule");
+      showToast(
+        `Đã đăng nhập: ${safePlayer.full_name} (${
+          newSession.role === "manager" ? "Ban Quản Lý" : "Cầu thủ"
+        })`
+      );
+      setLoginModalOpen(false);
+    } catch (err) {
+      console.error("switch_role error:", err);
+      showToast("Lỗi kết nối phiên làm việc máy chủ");
+    }
   };
 
   // Danh sách menu điều hướng theo đúng Phân Quyền & Ưu tiên Điểm Danh đầu tiên
@@ -721,6 +800,33 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
               </button>
             </div>
           </form>
+
+          {/* Lối tắt truy cập nhanh cho Ban Quản Lý (1 chạm tiện dụng) */}
+          <div className="pt-4 mt-2 border-t border-slate-200">
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>Đăng nhập nhanh Ban Quản Lý (1 chạm):</span>
+              <span className="text-[10px] text-sky-600 font-normal">Tự động cấp quyền BQL</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {data.players
+                .filter((p) => p.access_role === "manager")
+                .map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => handleQuickSwitchRole(m)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-300 px-3 py-1.5 text-xs font-bold text-sky-900 transition cursor-pointer shadow-2xs"
+                    title={`Đăng nhập trực tiếp với quyền ${m.role}`}
+                  >
+                    <span>🛡️</span>
+                    <span>{m.full_name}</span>
+                    <span className="text-[10px] text-sky-600 font-semibold">
+                      (#{m.jersey_number ?? "-"})
+                    </span>
+                  </button>
+                ))}
+            </div>
+          </div>
         </div>
       </ModalDialog>
     </div>

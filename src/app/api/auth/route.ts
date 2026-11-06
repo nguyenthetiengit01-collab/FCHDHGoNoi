@@ -71,6 +71,52 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
+    if (action === "switch_role" || action === "quick_login") {
+      const playerId = Number(body.playerId);
+      if (!playerId) {
+        return NextResponse.json(
+          { success: false, error: "Mã cầu thủ không hợp lệ" },
+          { status: 400 }
+        );
+      }
+
+      const db = getDb();
+      const playerRow = db
+        .prepare("SELECT * FROM players WHERE id = ?")
+        .get(playerId) as unknown as Player | undefined;
+
+      if (!playerRow) {
+        return NextResponse.json(
+          { success: false, error: "Không tìm thấy hồ sơ cầu thủ" },
+          { status: 404 }
+        );
+      }
+
+      const token = createSessionToken(playerRow, 24 * 7);
+      const safePlayer: Player = {
+        ...playerRow,
+        pin_code: "",
+      };
+
+      const res = NextResponse.json({
+        success: true,
+        player: safePlayer,
+        message: `Đã kết nối phiên làm việc: ${playerRow.full_name}`,
+      });
+
+      res.cookies.set({
+        name: SESSION_COOKIE_NAME,
+        value: token,
+        maxAge: 7 * 24 * 3600,
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+
+      return res;
+    }
+
     if (action === "login") {
       const { username, pin } = body;
       const verifyRes = verifyCredentials(username, pin);
@@ -123,3 +169,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
