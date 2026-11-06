@@ -801,30 +801,25 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
             </div>
           </form>
 
-          {/* Lối tắt truy cập nhanh cho Ban Quản Lý (1 chạm tiện dụng) */}
-          <div className="pt-4 mt-2 border-t border-slate-200">
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Đăng nhập nhanh Ban Quản Lý (1 chạm):</span>
-              <span className="text-[10px] text-sky-600 font-normal">Tự động cấp quyền BQL</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {data.players
-                .filter((p) => p.access_role === "manager")
-                .map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => handleQuickSwitchRole(m)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-300 px-3 py-1.5 text-xs font-bold text-sky-900 transition cursor-pointer shadow-2xs"
-                    title={`Đăng nhập trực tiếp với quyền ${m.role}`}
-                  >
-                    <span>🛡️</span>
-                    <span>{m.full_name}</span>
-                    <span className="text-[10px] text-sky-600 font-semibold">
-                      (#{m.jersey_number ?? "-"})
-                    </span>
-                  </button>
-                ))}
+          {/* Hướng dẫn đăng nhập & phân quyền rõ ràng */}
+          <div className="pt-4 mt-2 border-t border-slate-200 space-y-2 text-xs">
+            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1.5">
+              <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                <span>🛡️</span>
+                <span>Phân quyền tài khoản khi đăng nhập:</span>
+              </div>
+              <ul className="list-disc list-inside space-y-0.5 text-slate-600 pl-1">
+                <li>
+                  <strong className="text-[#17488c]">Ban Quản Lý:</strong> Toàn quyền quản trị lịch, thu chi tiền sân, chốt trận đấu & quản lý quỹ đội.
+                </li>
+                <li>
+                  <strong className="text-emerald-700">Cầu Thủ Thành Viên:</strong> Xem lịch tuần, điểm danh cá nhân, tra cứu quỹ đội & tự do đổi tên đăng nhập/mật khẩu cá nhân.
+                </li>
+              </ul>
+              <div className="pt-1.5 text-[11px] text-slate-500 border-t border-slate-200/80 space-y-0.5">
+                <p>💡 <strong>Cách đăng nhập:</strong> Nhập Tên đăng nhập (vd: <code>tieng</code>, <code>tin</code>, <code>trung</code>...) hoặc Số áo (vd: <code>12</code>, <code>26</code>, <code>17</code>...) hoặc Số điện thoại.</p>
+                <p>🔑 Mật khẩu mặc định: <code>1234</code> (vào trang Cá Nhân để đổi tài khoản và mật khẩu theo ý muốn).</p>
+              </div>
             </div>
           </div>
         </div>

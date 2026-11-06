@@ -95,6 +95,7 @@ function initSchema(db: DatabaseSyncType) {
       bio TEXT NOT NULL DEFAULT '',
       role TEXT NOT NULL DEFAULT 'Thành viên',
       access_role TEXT NOT NULL DEFAULT 'player',
+      username TEXT NOT NULL DEFAULT '',
       pin_code TEXT NOT NULL DEFAULT '1234',
       status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
       notes TEXT NOT NULL DEFAULT ''
@@ -237,6 +238,32 @@ function runMigrations(db: DatabaseSyncType) {
     db.exec(
       `ALTER TABLE match_attendances ADD COLUMN collected_by TEXT NOT NULL DEFAULT 'Tiếng';`
     );
+  }
+  if (!hasColumn(db, "players", "username")) {
+    db.exec(
+      `ALTER TABLE players ADD COLUMN username TEXT NOT NULL DEFAULT '';`
+    );
+    const allPlayers = db
+      .prepare("SELECT id, short_name, full_name, jersey_number FROM players")
+      .all() as Array<{
+      id: number;
+      short_name: string;
+      full_name: string;
+      jersey_number: number | null;
+    }>;
+    const updUser = db.prepare(
+      "UPDATE players SET username = ? WHERE id = ? AND (username = '' OR username IS NULL)"
+    );
+    allPlayers.forEach((p) => {
+      const defaultUser = (p.short_name || p.full_name || `player${p.id}`)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "d")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+      updUser.run(defaultUser, p.id);
+    });
   }
 }
 

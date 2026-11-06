@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import {
@@ -397,62 +397,83 @@ export function ScheduleTab({
             </div>
           )}
 
-          {/* HỘP ƯU TIÊN SỐ 1: THÔNG BÁO LỊCH TUẦN & ĐIỂM DANH 1-CHẠM (KHÔNG ĐỂ QUỸ) */}
+          {/* HỘP ƯU TIÊN SỐ 1: THÔNG BÁO LỊCH TUẦN & ĐIỂM DANH 1-CHẠM (CỰC KỲ NỔI BẬT & DỄ THẤY) */}
           {session.playerId && (
-            <section className="rounded-xl bg-brand-navy text-white p-4 sm:p-6 border-2 border-[#ffc933]/70 shadow-sm">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-[#ffc933]/20 border border-[#ffc933]/50 px-3 py-1 text-xs font-extrabold text-[#ffc933]">
-                    <BellRing className="h-3.5 w-3.5" />
-                    <span>
-                      ĐIỂM DANH LỊCH TUẦN • #{session.jerseyNumber ?? "-"}{" "}
-                      {session.fullName}
+            <section className="rounded-2xl bg-gradient-to-br from-[#061530] via-[#0d2e5b] to-[#124285] text-white p-5 sm:p-7 border-2 border-[#ffc933] shadow-[0_12px_40px_rgba(13,46,91,0.5)] ring-2 ring-[#ffc933]/30 relative overflow-hidden">
+              {/* Vệt sáng trang trí hoàng gia */}
+              <div className="absolute top-0 right-0 w-80 h-80 bg-[#ffc933]/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+              <div className="absolute bottom-0 left-0 w-60 h-60 bg-[#38bdf8]/10 rounded-full blur-2xl pointer-events-none -ml-20 -mb-20" />
+
+              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                <div className="space-y-3 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ffc933] text-slate-950 px-3.5 py-1 text-xs font-black uppercase tracking-wider shadow-sm">
+                      <BellRing className="h-4 w-4" />
+                      <span>ĐIỂM DANH LỊCH TUẦN</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-extrabold text-[#ffc933] border border-white/20">
+                      <span>Cầu thủ:</span>
+                      <strong className="text-white">
+                        #{session.jerseyNumber ?? "-"} {session.fullName}
+                      </strong>
                     </span>
                   </div>
 
-                  <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+                  <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm">
                     {activeMatch.label} — {activeMatch.venue}
                   </h2>
 
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-sky-100">
-                    <span className="inline-flex items-center gap-1.5 font-semibold">
-                      <Clock className="h-4 w-4 text-[#ffc933]" />
-                      {activeMatch.kickoff_time} • Ngày{" "}
-                      {formatDateVN(activeMatch.match_date)}
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-sky-100">
+                    <span className="inline-flex items-center gap-1.5 font-bold bg-[#ffc933]/15 text-[#ffc933] px-3 py-1 rounded-lg border border-[#ffc933]/30">
+                      <Clock className="h-4 w-4 shrink-0" />
+                      <span>
+                        {activeMatch.kickoff_time} • Ngày {formatDateVN(activeMatch.match_date)}
+                      </span>
                     </span>
-                    <span className="inline-flex items-center gap-1.5 font-semibold">
-                      <MapPin className="h-4 w-4 text-[#5cc8ff]" />
-                      {activeMatch.venue} ({activeMatch.opponent})
+                    <span className="inline-flex items-center gap-1.5 font-bold bg-sky-500/15 text-sky-200 px-3 py-1 rounded-lg border border-sky-400/30">
+                      <MapPin className="h-4 w-4 shrink-0 text-[#5cc8ff]" />
+                      <span>
+                        {activeMatch.venue} ({activeMatch.opponent})
+                      </span>
                     </span>
                   </div>
 
-                  <p className="text-xs text-sky-200/90 pt-0.5">
-                    Trạng thái điểm danh của bạn:{" "}
-                    <strong className="text-[#ffc933]">
-                      {myAttendance?.rsvp_status === "registered"
-                        ? "✅ ĐÃ ĐĂNG KÝ CÓ MẶT RA SÂN"
-                        : myAttendance?.rsvp_status === "absent_notice"
-                        ? "❌ ĐÃ BÁO VẮNG TRẬN NÀY"
-                        : "⏳ CHƯA PHẢN HỒI — Bấm nút bên dưới để điểm danh"}
-                    </strong>
-                  </p>
+                  {/* Banner trạng thái phản hồi của cầu thủ */}
+                  <div className="pt-1">
+                    {myAttendance?.rsvp_status === "registered" ? (
+                      <div className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 text-white font-black text-sm sm:text-base px-4 py-2 border-2 border-emerald-300 shadow-md">
+                        <CheckCircle2 className="h-5 w-5 shrink-0 text-white" />
+                        <span>✅ BẠN ĐÃ ĐĂNG KÝ CÓ MẶT RA SÂN • CHÚC THI ĐẤU THĂNG HOA!</span>
+                      </div>
+                    ) : myAttendance?.rsvp_status === "absent_notice" ? (
+                      <div className="inline-flex items-center gap-2 rounded-xl bg-rose-600 text-white font-black text-sm sm:text-base px-4 py-2 border-2 border-rose-300 shadow-md">
+                        <XCircle className="h-5 w-5 shrink-0 text-white" />
+                        <span>❌ BẠN ĐÃ BÁO VẮNG TRẬN NÀY (Hẹn gặp bạn trận kế tiếp)</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-2 rounded-xl bg-[#ffc933] text-slate-950 font-black text-sm sm:text-base px-4 py-2 border-2 border-white shadow-lg animate-pulse">
+                        <span className="text-lg">⚡</span>
+                        <span>BẠN CHƯA ĐIỂM DANH! Vui lòng chọn Có Mặt hoặc Báo Vắng bên cạnh:</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* 2 Nút Điểm Danh cực lớn trên điện thoại */}
-                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2.5 shrink-0">
+                {/* 2 Nút Điểm Danh cực lớn, tương phản cao, nổi bật */}
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 shrink-0 pt-2 lg:pt-0">
                   <button
                     type="button"
                     disabled={isSaving}
                     onClick={() =>
                       handleSetRsvp(session.playerId!, "registered")
                     }
-                    className={`min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-extrabold transition cursor-pointer shadow-sm ${
+                    className={`min-h-[54px] inline-flex items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 text-base font-black transition cursor-pointer shadow-lg ${
                       myAttendance?.rsvp_status === "registered"
-                        ? "bg-[#ffc933] text-slate-950 ring-2 ring-white"
-                        : "bg-emerald-600 text-white hover:bg-emerald-500"
+                        ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white ring-4 ring-emerald-300 scale-105"
+                        : "bg-emerald-600 hover:bg-emerald-500 text-white hover:scale-102 border-2 border-emerald-400"
                     }`}
                   >
-                    <CheckCircle2 className="h-5 w-5 shrink-0" />
+                    <CheckCircle2 className="h-6 w-6 shrink-0" />
                     <span>Có Mặt Ra Sân</span>
                   </button>
 
@@ -462,13 +483,13 @@ export function ScheduleTab({
                     onClick={() =>
                       handleSetRsvp(session.playerId!, "absent_notice")
                     }
-                    className={`min-h-[48px] inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition cursor-pointer ${
+                    className={`min-h-[54px] inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-base font-black transition cursor-pointer shadow-md ${
                       myAttendance?.rsvp_status === "absent_notice"
-                        ? "bg-rose-600 text-white ring-2 ring-white"
-                        : "bg-white/10 text-white border border-white/25 hover:bg-rose-600 hover:border-rose-500"
+                        ? "bg-gradient-to-r from-rose-600 to-red-700 text-white ring-4 ring-rose-300 scale-105"
+                        : "bg-slate-800/90 hover:bg-rose-600 text-white border-2 border-slate-600 hover:border-rose-400"
                     }`}
                   >
-                    <XCircle className="h-5 w-5 shrink-0" />
+                    <XCircle className="h-6 w-6 shrink-0" />
                     <span>Báo Vắng</span>
                   </button>
                 </div>
@@ -745,11 +766,11 @@ export function ScheduleTab({
                       key={p.id}
                       className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition ${
                         isMe
-                          ? "ring-2 ring-[#ffc933] border-[#1e4fc2] bg-amber-50/30"
+                          ? "ring-2 ring-[#ffc933] border-[#1e4fc2] bg-amber-50 shadow-xs"
                           : rsvp === "registered"
-                          ? "bg-emerald-50/70 border-emerald-300"
+                          ? "bg-emerald-50/80 border-emerald-300"
                           : rsvp === "absent_notice"
-                          ? "bg-rose-50/50 border-rose-200"
+                          ? "bg-rose-50/80 border-rose-300"
                           : "bg-white border-slate-200"
                       }`}
                     >
@@ -768,10 +789,17 @@ export function ScheduleTab({
                           </span>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                            {p.full_name}
-                          </p>
-                          <p className="text-[11px] text-slate-500">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                              {p.full_name}
+                            </p>
+                            {isMe && (
+                              <span className="text-[10px] font-black uppercase text-[#17488c] bg-[#ffc933] px-1.5 py-0.2 rounded">
+                                BẠN
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 font-medium">
                             {p.short_name} • {p.position}
                           </p>
                         </div>

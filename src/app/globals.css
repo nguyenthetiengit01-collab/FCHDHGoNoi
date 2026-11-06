@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+@theme {
+  --color-brand-navy: #0d2e5b;
+  --color-brand-navy-mid: #17488c;
+  --color-brand-gold: #d4af37;
+  --color-brand-gold-dark: #b89635;
+  --color-brand-sky: #0284c7;
+}
+
+.bg-brand-navy {
+  background-color: #0d2e5b !important;
+  color: #ffffff !important;
+}
+
+.bg-brand-navy-mid {
+  background-color: #17488c !important;
+  color: #ffffff !important;
+}
+
 :root {
   --bg-page: #f1f5f9;
   --bg-surface: #ffffff;

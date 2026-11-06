@@ -69,5 +69,6 @@ describe("Security & Auth Token Verification", () => {
     expect(normalizeLoginString("Hồ Viết Tín")).toBe("hoviettin");
     expect(normalizeLoginString("Đỗ Thiều Duy Vương")).toBe("dothieuduyvuong");
     expect(normalizeLoginString(" #12 ")).toBe("12");
+    expect(normalizeLoginString("tieng_gonoi")).toBe("tienggonoi");
   });
 });

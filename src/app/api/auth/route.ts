@@ -72,6 +72,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "switch_role" || action === "quick_login") {
+      const currentSession = getAuthSession(req);
+      if (!currentSession || currentSession.accessRole !== "manager") {
+        return NextResponse.json(
+          { success: false, error: "Thao tác yêu cầu đăng nhập bằng tài khoản Ban Quản Lý" },
+          { status: 401 }
+        );
+      }
+
       const playerId = Number(body.playerId);
       if (!playerId) {
         return NextResponse.json(

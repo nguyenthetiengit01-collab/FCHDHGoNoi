@@ -51,6 +51,7 @@ export interface Player {
   avatar_url: string;
   role: string;
   access_role: "manager" | "player";
+  username?: string;
   pin_code: string;
   status: string;
   notes: string;

@@ -280,20 +280,23 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // Cầu thủ tự đổi mật khẩu (PIN) của chính mình
+      // Cầu thủ tự đổi tên đăng nhập (username) và mật khẩu (PIN) của chính mình
       case "change_own_password": {
-        const { player_id, current_pin, old_pin, new_pin } = payload;
+        const { player_id, current_pin, old_pin, new_pin, new_username } = payload;
         const providedOldPin = String(old_pin ?? current_pin ?? "").trim();
-        const cleanNew = String(new_pin || "").trim();
-        if (!cleanNew || cleanNew.length < 4) {
+        const cleanNewPin = String(new_pin || "").trim();
+        const cleanNewUser = String(new_username || "").trim();
+
+        if (!providedOldPin) {
           return NextResponse.json(
-            { error: "Mật khẩu mới cần có ít nhất 4 ký tự" },
+            { error: "Vui lòng nhập mật khẩu hiện tại để xác thực" },
             { status: 400 }
           );
         }
+
         const row = db
-          .prepare("SELECT pin_code FROM players WHERE id = ?")
-          .get(Number(player_id)) as { pin_code: string } | undefined;
+          .prepare("SELECT pin_code, username FROM players WHERE id = ?")
+          .get(Number(player_id)) as { pin_code: string; username: string } | undefined;
         if (!row) {
           return NextResponse.json(
             { error: "Không tìm thấy hồ sơ cầu thủ" },
@@ -302,14 +305,45 @@ export async function POST(req: NextRequest) {
         }
         if ((row.pin_code || "1234") !== providedOldPin) {
           return NextResponse.json(
-            { error: "Mật khẩu hiện tại không đúng" },
+            { error: "Mật khẩu hiện tại không đúng. Vui lòng thử lại hoặc liên hệ Ban Quản Lý." },
             { status: 400 }
           );
         }
-        db.prepare("UPDATE players SET pin_code = ? WHERE id = ?").run(
-          cleanNew,
-          Number(player_id)
-        );
+
+        if (cleanNewUser) {
+          if (cleanNewUser.length < 3) {
+            return NextResponse.json(
+              { error: "Tên đăng nhập mới cần có ít nhất 3 ký tự" },
+              { status: 400 }
+            );
+          }
+          const existOther = db
+            .prepare("SELECT id FROM players WHERE LOWER(username) = ? AND id != ?")
+            .get(cleanNewUser.toLowerCase(), Number(player_id));
+          if (existOther) {
+            return NextResponse.json(
+              { error: "Tên đăng nhập này đã có người sử dụng. Vui lòng chọn tên khác." },
+              { status: 400 }
+            );
+          }
+          db.prepare("UPDATE players SET username = ? WHERE id = ?").run(
+            cleanNewUser,
+            Number(player_id)
+          );
+        }
+
+        if (cleanNewPin) {
+          if (cleanNewPin.length < 4) {
+            return NextResponse.json(
+              { error: "Mật khẩu mới cần có ít nhất 4 ký tự" },
+              { status: 400 }
+            );
+          }
+          db.prepare("UPDATE players SET pin_code = ? WHERE id = ?").run(
+            cleanNewPin,
+            Number(player_id)
+          );
+        }
         break;
       }
 

@@ -56,8 +56,9 @@ export function PlayerPersonalTab({
   const [bio, setBio] = useState("");
   const [notes, setNotes] = useState("");
 
-  // State cho Modal đổi mật khẩu cá nhân
+  // State cho Modal đổi tên đăng nhập & mật khẩu cá nhân
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
   const [oldPin, setOldPin] = useState("");
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -127,18 +128,33 @@ export function PlayerPersonalTab({
   const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPwdError("");
-    if (newPin.trim().length < 4) {
-      setPwdError("Mật khẩu / Mã PIN mới cần ít nhất 4 ký tự");
+    if (!oldPin.trim()) {
+      setPwdError("Vui lòng nhập Mật khẩu hiện tại để xác thực");
       return;
     }
-    if (newPin.trim() !== confirmPin.trim()) {
-      setPwdError("Xác nhận mật khẩu mới chưa khớp");
+    if (!newUsername.trim() && !newPin.trim()) {
+      setPwdError("Vui lòng nhập Tên đăng nhập mới hoặc Mật khẩu mới cần thay đổi");
       return;
+    }
+    if (newUsername.trim() && newUsername.trim().length < 3) {
+      setPwdError("Tên đăng nhập mới cần ít nhất 3 ký tự");
+      return;
+    }
+    if (newPin.trim()) {
+      if (newPin.trim().length < 4) {
+        setPwdError("Mật khẩu mới cần ít nhất 4 ký tự");
+        return;
+      }
+      if (newPin.trim() !== confirmPin.trim()) {
+        setPwdError("Xác nhận mật khẩu mới chưa khớp");
+        return;
+      }
     }
     await onMutate("change_own_password", {
       player_id: me.id,
       old_pin: oldPin.trim(),
-      new_pin: newPin.trim(),
+      new_pin: newPin.trim() || undefined,
+      new_username: newUsername.trim() || undefined,
     });
     setPwdModalOpen(false);
     setOldPin("");
@@ -174,7 +190,7 @@ export function PlayerPersonalTab({
   return (
     <div className="space-y-6">
       {/* Thẻ Hồ Sơ Cá Nhân Cầu Thủ (Đồng bộ màu Xanh Navy & Vàng Hoàng Kim của Logo) */}
-      <section className="rounded-xl bg-brand-navy text-white p-5 sm:p-6 border border-[#4a7fe8] shadow-sm">
+      <section className="rounded-2xl bg-gradient-to-br from-[#061530] via-[#0d2e5b] to-[#124285] text-white p-5 sm:p-6 border-2 border-[#ffc933]/70 shadow-md">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
@@ -196,6 +212,20 @@ export function PlayerPersonalTab({
                 </h2>
                 <span className="rounded-full bg-[#2f66dd] px-2.5 py-0.5 text-xs font-bold text-[#ffc933] border border-[#ffc933]/40">
                   Tên sân: {me.short_name}
+                </span>
+                <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-sky-200 border border-white/25">
+                  Tài khoản: @{me.username || me.short_name.toLowerCase()}
+                </span>
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-extrabold border ${
+                    me.access_role === "manager"
+                      ? "bg-[#ffc933] text-slate-950 border-[#ffc933]"
+                      : "bg-emerald-600 text-white border-emerald-400"
+                  }`}
+                >
+                  {me.access_role === "manager"
+                    ? "🛡️ Ban Quản Lý"
+                    : "⚽ Cầu Thủ Thành Viên"}
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-sky-100/90 mt-1">
@@ -233,12 +263,16 @@ export function PlayerPersonalTab({
               type="button"
               onClick={() => {
                 setPwdError("");
+                setNewUsername(me.username || "");
+                setOldPin("");
+                setNewPin("");
+                setConfirmPin("");
                 setPwdModalOpen(true);
               }}
               className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/25 px-3.5 py-2.5 text-xs font-bold text-white transition cursor-pointer"
             >
               <KeyRound className="h-4 w-4 text-[#ffc933]" />
-              <span>Đổi Mật Khẩu (PIN)</span>
+              <span>Đổi Tài Khoản & Mật Khẩu</span>
             </button>
           </div>
         </div>
@@ -672,26 +706,42 @@ export function PlayerPersonalTab({
       <ModalDialog
         isOpen={pwdModalOpen}
         onClose={() => setPwdModalOpen(false)}
-        title="Đổi Mật Khẩu (Mã PIN) Đăng Nhập"
-        subtitle={`Tài khoản cầu thủ: ${me.full_name} (#${me.jersey_number ?? "-"})`}
+        title="Quản Lý Tài Khoản & Mật Khẩu Đăng Nhập"
+        subtitle={`Cầu thủ: ${me.full_name} (#${me.jersey_number ?? "-"}) • Vai trò: ${
+          me.access_role === "manager" ? "Ban Quản Lý" : "Cầu thủ thành viên"
+        }`}
       >
         <form onSubmit={handleSavePassword} className="space-y-4">
+          <div className="rounded-xl bg-sky-50 border border-sky-200 p-3 text-xs text-sky-900 space-y-1">
+            <p className="font-bold">
+              Tên đăng nhập hiện tại:{" "}
+              <span className="text-[#17488c] font-black">
+                {me.username || me.short_name.toLowerCase()}
+              </span>
+            </p>
+            <p className="text-slate-600">
+              Bạn có thể tự đổi Tên tài khoản và Mật khẩu theo ý muốn bất cứ lúc nào.
+            </p>
+          </div>
+
           <div>
             <label
-              htmlFor="old-pin"
+              htmlFor="new-username"
               className="block text-sm font-semibold text-slate-700 mb-1"
             >
-              Mật khẩu (PIN) hiện tại
+              Tên đăng nhập mới (tùy chọn)
             </label>
             <input
-              id="old-pin"
-              type="password"
-              required
-              placeholder="Nhập mật khẩu hiện tại"
-              value={oldPin}
-              onChange={(e) => setOldPin(e.target.value)}
-              className="form-input"
+              id="new-username"
+              type="text"
+              placeholder="Nhập tên đăng nhập mới (vd: tiengfc, tin_gonoi, ...)"
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              className="form-input font-medium"
             />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Có thể để trống nếu chỉ muốn đổi mật khẩu.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -700,12 +750,11 @@ export function PlayerPersonalTab({
                 htmlFor="new-pin"
                 className="block text-sm font-semibold text-slate-700 mb-1"
               >
-                Mật khẩu (PIN) mới
+                Mật khẩu mới (tùy chọn)
               </label>
               <input
                 id="new-pin"
                 type="password"
-                required
                 placeholder="Ít nhất 4 ký tự"
                 value={newPin}
                 onChange={(e) => setNewPin(e.target.value)}
@@ -717,12 +766,11 @@ export function PlayerPersonalTab({
                 htmlFor="confirm-pin"
                 className="block text-sm font-semibold text-slate-700 mb-1"
               >
-                Nhập lại mật khẩu mới
+                Xác nhận mật khẩu mới
               </label>
               <input
                 id="confirm-pin"
                 type="password"
-                required
                 placeholder="Nhập lại mật khẩu mới"
                 value={confirmPin}
                 onChange={(e) => setConfirmPin(e.target.value)}
@@ -731,8 +779,29 @@ export function PlayerPersonalTab({
             </div>
           </div>
 
+          <div className="pt-2 border-t border-slate-200">
+            <label
+              htmlFor="old-pin"
+              className="block text-sm font-bold text-slate-800 mb-1"
+            >
+              Mật khẩu hiện tại (bắt buộc để xác thực)
+            </label>
+            <input
+              id="old-pin"
+              type="password"
+              required
+              placeholder="Nhập mật khẩu hiện tại của bạn"
+              value={oldPin}
+              onChange={(e) => setOldPin(e.target.value)}
+              className="form-input font-bold"
+            />
+          </div>
+
           {pwdError && (
-            <p className="text-xs font-bold text-rose-600">{pwdError}</p>
+            <p className="text-xs font-bold text-rose-600 flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>{pwdError}</span>
+            </p>
           )}
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">
@@ -748,7 +817,7 @@ export function PlayerPersonalTab({
               disabled={isSaving}
               className="rounded-lg bg-[#1e4fc2] px-5 py-2 text-sm font-bold text-[#ffc933] hover:bg-[#2f66dd] cursor-pointer"
             >
-              Cập Nhật Mật Khẩu
+              Lưu Thay Đổi Tài Khoản
             </button>
           </div>
         </form>

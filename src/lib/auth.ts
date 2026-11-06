@@ -128,8 +128,10 @@ export function verifyCredentials(
 
   const uNorm = normalizeLoginString(cleanUsername);
 
-  // Tìm cầu thủ theo: tên riêng, họ và tên, số điện thoại, hoặc số áo
+  // Tìm cầu thủ theo: tên tài khoản riêng (username), tên thường gọi, họ và tên, số điện thoại, hoặc số áo
   const matched = allPlayers.find((p) => {
+    if (p.username && p.username.toLowerCase() === cleanUsername.toLowerCase()) return true;
+    if (p.username && normalizeLoginString(p.username) === uNorm) return true;
     if (normalizeLoginString(p.short_name) === uNorm) return true;
     if (normalizeLoginString(p.full_name) === uNorm) return true;
     if (p.phone && p.phone.replace(/\D/g, "") === cleanUsername.replace(/\D/g, "")) return true;
