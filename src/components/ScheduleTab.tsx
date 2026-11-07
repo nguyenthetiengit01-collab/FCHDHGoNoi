@@ -19,6 +19,11 @@ import {
   Trophy,
   Zap,
   RotateCcw,
+  UserCircle2,
+  KeyRound,
+  Quote,
+  Upload,
+  Shield,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -29,6 +34,7 @@ import type {
 } from "@/types/app";
 import { FANPAGE_URL, OFFICIAL_LOGO_URL } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
+import { convertFileToWebp } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
 
 interface ScheduleTabProps {
@@ -38,6 +44,12 @@ interface ScheduleTabProps {
   isSaving: boolean;
   onGoToCollection?: () => void;
 }
+
+const POSITIONS = ["Thủ môn", "Hậu vệ", "Tiền vệ", "Tiền đạo", "Đa năng"];
+const PRESET_AVATARS = Array.from(
+  { length: 14 },
+  (_, i) => `/uploads/avatars/member-${i + 1}.jpg`
+);
 
 const VENUE_PRESETS = [
   { venue: "Sân Vĩnh Lộc", cost: 900000, shortLabel: "Vĩnh Lộc (900k)" },
@@ -306,6 +318,133 @@ export function ScheduleTab({
   const myAttendance = activeAttendances.find(
     (a) => a.player_id === session.playerId
   );
+
+  const me = players.find((p) => p.id === session.playerId);
+  const myAtts = me ? attendances.filter((a) => a.player_id === me.id) : [];
+  const myMatchesPlayed = myAtts.filter(
+    (a) => a.attended === 1 || a.paid === 1
+  ).length;
+  const myTotalPaid = myAtts
+    .filter((a) => a.paid === 1)
+    .reduce((s, a) => s + a.amount, 0);
+  const myTotalUnpaid = myAtts
+    .filter((a) => a.attended === 1 && a.paid === 0)
+    .reduce((s, a) => s + a.amount, 0);
+  const myRate =
+    matches.length > 0
+      ? Math.round((myMatchesPlayed / matches.length) * 100)
+      : 0;
+
+  // Chế độ xem: "my_profile" (Mặc định: thông tin đầy đủ & bài viết của bạn) hoặc "team_roster" (Danh sách điểm danh cả đội)
+  const [rosterViewMode, setRosterViewMode] = useState<"my_profile" | "team_roster">("my_profile");
+
+  // State cho Modal Sửa Thông Tin & Bài Viết Cá Nhân (Bio)
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profileShortName, setProfileShortName] = useState("");
+  const [profileJerseyNumber, setProfileJerseyNumber] = useState("");
+  const [profilePosition, setProfilePosition] = useState("Tiền vệ");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [profileBirthYear, setProfileBirthYear] = useState("");
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState("");
+  const [profileWebpInfo, setProfileWebpInfo] = useState("");
+  const [isConvertingProfileWebp, setIsConvertingProfileWebp] = useState(false);
+  const [profileBio, setProfileBio] = useState("");
+  const [profileNotes, setProfileNotes] = useState("");
+
+  // State cho Modal Đổi Tên Đăng Nhập & Mật Khẩu Cá Nhân
+  const [pwdModalOpen, setPwdModalOpen] = useState(false);
+  const [pwdNewUsername, setPwdNewUsername] = useState("");
+  const [pwdOldPin, setPwdOldPin] = useState("");
+  const [pwdNewPin, setPwdNewPin] = useState("");
+  const [pwdConfirmPin, setPwdConfirmPin] = useState("");
+  const [pwdError, setPwdError] = useState("");
+
+  const openEditMyProfile = () => {
+    if (!me) return;
+    setProfileShortName(me.short_name);
+    setProfileJerseyNumber(
+      me.jersey_number !== null ? String(me.jersey_number) : ""
+    );
+    setProfilePosition(me.position || "Tiền vệ");
+    setProfilePhone(me.phone || "");
+    setProfileBirthYear(me.birth_year ? String(me.birth_year) : "1991");
+    setProfileAvatarUrl(me.avatar_url || "/uploads/avatars/member-1.jpg");
+    setProfileWebpInfo("");
+    setProfileBio(me.bio || "");
+    setProfileNotes(me.notes || "");
+    setProfileModalOpen(true);
+  };
+
+  const handleProfileImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsConvertingProfileWebp(true);
+    setProfileWebpInfo("Đang tự động chuyển ảnh chân dung sang định dạng WebP...");
+    try {
+      const converted = await convertFileToWebp(file, {
+        mode: "portrait",
+        maxWidth: 600,
+        maxHeight: 800,
+        quality: 0.86,
+      });
+      setProfileAvatarUrl(converted.dataUrl);
+      setProfileWebpInfo(
+        `✅ Đã tự động chuyển sang chuẩn WebP (${converted.originalSizeKB}KB → ${converted.webpSizeKB}KB${
+          converted.savedPercent > 0 ? `, nhẹ hơn ${converted.savedPercent}%` : ""
+        })`
+      );
+    } catch {
+      setProfileWebpInfo("❌ Không thể xử lý ảnh. Vui lòng chọn file ảnh khác.");
+    } finally {
+      setIsConvertingProfileWebp(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleSaveMyProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!me) return;
+    await onMutate("update_own_profile", {
+      player_id: me.id,
+      short_name: profileShortName.trim(),
+      jersey_number:
+        profileJerseyNumber === "" ? null : Number(profileJerseyNumber),
+      position: profilePosition,
+      phone: profilePhone.trim(),
+      birth_year:
+        profileBirthYear === "" ? null : Number(profileBirthYear),
+      avatar_url: profileAvatarUrl,
+      bio: profileBio.trim(),
+      notes: profileNotes.trim(),
+    });
+    setProfileModalOpen(false);
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!me) return;
+    if (pwdNewPin.trim().length < 4) {
+      setPwdError("Mật khẩu mới phải có ít nhất 4 ký tự.");
+      return;
+    }
+    if (pwdNewPin !== pwdConfirmPin) {
+      setPwdError("Xác nhận mật khẩu mới không trùng khớp.");
+      return;
+    }
+    setPwdError("");
+    await onMutate("change_own_password", {
+      player_id: me.id,
+      new_username: pwdNewUsername.trim(),
+      old_pin: pwdOldPin.trim(),
+      new_pin: pwdNewPin.trim(),
+    });
+    setPwdModalOpen(false);
+    setPwdOldPin("");
+    setPwdNewPin("");
+    setPwdConfirmPin("");
+  };
 
   return (
     <div className="space-y-5">
@@ -724,140 +863,400 @@ export function ScheduleTab({
               </div>
             </section>
 
-            {/* Cột phải (7 cols): Bảng Điểm Danh Thành Viên Tuần Này */}
+            {/* Cột phải (7 cols): THAY THẾ BẰNG THÔNG TIN ĐẦY ĐỦ & BÀI VIẾT (BIO) CỦA CẦU THỦ ĐĂNG NHẬP */}
             <section className="lg:col-span-7 rounded-xl bg-white border border-slate-200 p-4 sm:p-5 space-y-4 shadow-2xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-base sm:text-lg font-extrabold text-[#1e4fc2]">
-                    Danh Sách Điểm Danh Ra Sân ({activeMatch.label})
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    {isManager
-                      ? "Ban Quản Lý có thể tích điểm danh hộ bất kỳ cầu thủ nào"
-                      : "Cầu thủ bấm Có mặt / Báo vắng tại dòng tên của mình"}
-                  </p>
-                </div>
-
-                {/* 3 Huy hiệu quân số */}
-                <div className="flex items-center gap-2 text-xs font-bold">
-                  <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-emerald-800">
-                    Có mặt: <strong>{registeredPlayers.length}</strong>
-                  </span>
-                  <span className="rounded-lg bg-rose-50 border border-rose-200 px-2.5 py-1 text-rose-700">
-                    Vắng: <strong>{absentNoticePlayers.length}</strong>
-                  </span>
-                  <span className="rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1 text-slate-700">
-                    Chờ: <strong>{pendingPlayers.length}</strong>
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[480px] overflow-y-auto pr-1">
-                {players.map((p) => {
-                  const att = activeAttendances.find(
-                    (a) => a.player_id === p.id
-                  );
-                  const rsvp = att?.rsvp_status || "none";
-                  const isMe = session.playerId === p.id;
-                  const canToggle = isManager || isMe;
-
-                  return (
-                    <div
-                      key={p.id}
-                      className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition ${
-                        isMe
-                          ? "ring-2 ring-[#ffc933] border-[#1e4fc2] bg-amber-50 shadow-xs"
-                          : rsvp === "registered"
-                          ? "bg-emerald-50/80 border-emerald-300"
-                          : rsvp === "absent_notice"
-                          ? "bg-rose-50/80 border-rose-300"
-                          : "bg-white border-slate-200"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="relative shrink-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={
-                              p.avatar_url || "/uploads/avatars/member-1.jpg"
-                            }
-                            alt={p.full_name}
-                            className="h-10 w-10 rounded-lg object-cover border border-[#1e4fc2]"
-                          />
-                          <span className="absolute -bottom-1 -right-1 rounded bg-[#1e4fc2] text-[#ffc933] px-1 text-[9px] font-extrabold">
-                            #{p.jersey_number ?? "-"}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                              {p.full_name}
-                            </p>
-                            {isMe && (
-                              <span className="text-[10px] font-black uppercase text-[#17488c] bg-[#ffc933] px-1.5 py-0.2 rounded">
-                                BẠN
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-slate-500 font-medium">
-                            {p.short_name} • {p.position}
-                          </p>
-                        </div>
+              {rosterViewMode === "my_profile" && me ? (
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-10 w-10 rounded-xl bg-[#1e4fc2] text-[#ffc933] flex items-center justify-center shrink-0 shadow-xs">
+                        <UserCircle2 className="h-6 w-6" />
                       </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          disabled={!canToggle || isSaving}
-                          onClick={() =>
-                            handleSetRsvp(
-                              p.id,
-                              rsvp === "registered" ? "none" : "registered"
-                            )
-                          }
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition ${
-                            !canToggle
-                              ? "opacity-75 cursor-default"
-                              : "cursor-pointer"
-                          } ${
-                            rsvp === "registered"
-                              ? "bg-emerald-600 text-white"
-                              : "bg-slate-100 text-slate-700 hover:bg-emerald-100 hover:text-emerald-800"
-                          }`}
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>Có mặt</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={!canToggle || isSaving}
-                          onClick={() =>
-                            handleSetRsvp(
-                              p.id,
-                              rsvp === "absent_notice"
-                                ? "none"
-                                : "absent_notice"
-                            )
-                          }
-                          title="Báo vắng trận này"
-                          className={`px-2 py-1.5 rounded-lg text-xs font-bold transition ${
-                            !canToggle
-                              ? "opacity-75 cursor-default"
-                              : "cursor-pointer"
-                          } ${
-                            rsvp === "absent_notice"
-                              ? "bg-rose-600 text-white"
-                              : "bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700"
-                          }`}
-                        >
-                          <XCircle className="h-3.5 w-3.5" />
-                        </button>
+                      <div>
+                        <h3 className="text-base sm:text-lg font-extrabold text-[#1e4fc2]">
+                          Hồ Sơ & Bài Viết Của Bạn
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Dễ dàng cập nhật ảnh chân dung WebP, thông tin và lời ngỏ giới thiệu bản thân
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setRosterViewMode("team_roster")}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition cursor-pointer"
+                        title="Xem danh sách điểm danh cả đội tuần này"
+                      >
+                        <Users className="h-3.5 w-3.5 text-[#1e4fc2]" />
+                        <span>Xem DS Đội ({registeredPlayers.length} ra sân)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={openEditMyProfile}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#ffc933] hover:bg-[#ffd95e] px-3.5 py-1.5 text-xs font-extrabold text-slate-950 transition cursor-pointer shadow-xs"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                        <span>Sửa Hồ Sơ & Bài Viết</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Thẻ định danh cầu thủ Hoàng Gia Sapphire & Vàng Gold */}
+                  <div className="rounded-2xl bg-gradient-to-br from-[#071933] via-[#0d2e5b] to-[#124285] text-white p-4 sm:p-5 border-2 border-[#ffc933]/60 shadow-sm space-y-4">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                      {/* Avatar Chân Dung Nửa Thân Trên */}
+                      <div className="relative shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={me.avatar_url || "/uploads/avatars/member-1.jpg"}
+                          alt={me.full_name}
+                          className="h-24 w-20 sm:h-28 sm:w-24 rounded-xl object-cover object-top border-2 border-[#ffc933] bg-slate-900 shadow-md"
+                        />
+                        <span className="absolute -bottom-2 -right-2 rounded-lg bg-[#ffc933] text-slate-950 px-2 py-0.5 text-xs font-black border border-[#1e4fc2] shadow-xs">
+                          #{me.jersey_number ?? "-"}
+                        </span>
+                      </div>
+
+                      {/* Thông tin chính */}
+                      <div className="flex-1 text-center sm:text-left space-y-1.5 min-w-0">
+                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                          <h4 className="text-lg sm:text-xl font-extrabold text-white">
+                            {me.full_name}
+                          </h4>
+                          <span className="rounded-full bg-[#1e4fc2] px-2.5 py-0.5 text-xs font-bold text-[#ffc933] border border-[#ffc933]/40">
+                            Tên sân: {me.short_name}
+                          </span>
+                          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200">
+                            @{me.username || me.short_name.toLowerCase()}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold border inline-flex items-center gap-1 ${
+                              me.access_role === "manager"
+                                ? "bg-[#ffc933] text-slate-950 border-[#ffc933]"
+                                : "bg-emerald-600 text-white border-emerald-400"
+                            }`}
+                          >
+                            {me.access_role === "manager" ? (
+                              <>
+                                <Shield className="h-3 w-3" />
+                                <span>Ban Quản Lý</span>
+                              </>
+                            ) : (
+                              <span>⚽ Cầu Thủ Thành Viên</span>
+                            )}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-sky-100">
+                          Vị trí: <strong className="text-[#ffc933]">{me.position}</strong> •{" "}
+                          Năm sinh: <strong>{me.birth_year || "—"}</strong>
+                          {me.phone ? ` • SĐT: ${me.phone}` : ""}
+                        </p>
+
+                        {/* Điểm danh tuần này của chính cầu thủ */}
+                        <div className="pt-2 flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                          <span className="text-xs text-sky-200 font-medium">
+                            Điểm danh {activeMatch.label}:
+                          </span>
+                          {myAttendance?.rsvp_status === "registered" ? (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 text-white font-extrabold text-xs px-2.5 py-1 shadow-xs">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>Đã đăng ký Có Mặt Ra Sân</span>
+                            </span>
+                          ) : myAttendance?.rsvp_status === "absent_notice" ? (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-rose-600 text-white font-extrabold text-xs px-2.5 py-1 shadow-xs">
+                              <XCircle className="h-3.5 w-3.5" />
+                              <span>Đã báo Vắng Trận Này</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-amber-400 text-slate-950 font-extrabold text-xs px-2.5 py-1">
+                              <span>Chưa điểm danh</span>
+                            </span>
+                          )}
+
+                          <div className="inline-flex items-center gap-1 ml-1">
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => handleSetRsvp(session.playerId!, "registered")}
+                              className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
+                                myAttendance?.rsvp_status === "registered"
+                                  ? "bg-white text-emerald-800 font-black"
+                                  : "bg-emerald-700/80 hover:bg-emerald-600 text-white"
+                              }`}
+                            >
+                              Có mặt
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => handleSetRsvp(session.playerId!, "absent_notice")}
+                              className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
+                                myAttendance?.rsvp_status === "absent_notice"
+                                  ? "bg-white text-rose-800 font-black"
+                                  : "bg-rose-700/80 hover:bg-rose-600 text-white"
+                              }`}
+                            >
+                              Báo vắng
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4 Chỉ số thi đấu & chuyên cần cá nhân */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-white/15 text-center sm:text-left">
+                      <div className="rounded-xl bg-white/10 p-2.5 border border-white/10">
+                        <span className="text-[11px] text-sky-200 block">Số trận đã tham gia</span>
+                        <span className="text-base font-extrabold text-white">
+                          {myMatchesPlayed}/{matches.length} trận
+                        </span>
+                      </div>
+                      <div className="rounded-xl bg-white/10 p-2.5 border border-white/10">
+                        <span className="text-[11px] text-sky-200 block">Tỷ lệ chuyên cần</span>
+                        <span className="text-base font-extrabold text-[#ffc933]">
+                          {myRate}%
+                        </span>
+                      </div>
+                      <div className="rounded-xl bg-white/10 p-2.5 border border-white/10">
+                        <span className="text-[11px] text-sky-200 block">Tiền quỹ đã nộp</span>
+                        <span className="text-base font-extrabold text-emerald-300">
+                          {formatVND(myTotalPaid)}
+                        </span>
+                      </div>
+                      <div className="rounded-xl bg-white/10 p-2.5 border border-white/10">
+                        <span className="text-[11px] text-sky-200 block">Tiền sân còn nợ</span>
+                        <span className={`text-base font-extrabold ${myTotalUnpaid > 0 ? "text-rose-300" : "text-white"}`}>
+                          {formatVND(myTotalUnpaid)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mục Bài Viết / Lời Ngỏ Giới Thiệu Bản Thân (Bio) */}
+                  <div className="rounded-2xl bg-amber-50/70 border border-[#ffc933]/50 p-4 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-[#1e4fc2]">
+                        <Quote className="h-4 w-4 text-[#ffc933]" />
+                        <span>Bài Viết / Lời Ngỏ Của Cầu Thủ (Bio)</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openEditMyProfile}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-[#1e4fc2] hover:text-[#2f66dd] cursor-pointer"
+                      >
+                        <Edit3 className="h-3 w-3" />
+                        <span>{me.bio ? "Chỉnh sửa bài viết" : "Viết bài ngỏ"}</span>
+                      </button>
+                    </div>
+
+                    {me.bio ? (
+                      <p className="text-xs sm:text-sm text-slate-800 leading-relaxed italic bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+                        &ldquo;{me.bio}&rdquo;
+                      </p>
+                    ) : (
+                      <div className="rounded-xl bg-white p-3.5 border border-dashed border-amber-300 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="leading-relaxed">
+                          Bạn chưa viết bài giới thiệu về bản thân. Hãy chia sẻ đôi dòng về niềm đam mê bóng đá, phong cách thi đấu và tình cảm với FC Gò Nổi để hiển thị nổi bật trên website!
+                        </p>
+                        <button
+                          type="button"
+                          onClick={openEditMyProfile}
+                          className="shrink-0 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] text-[#ffc933] px-3.5 py-1.5 font-extrabold text-xs transition cursor-pointer shadow-xs"
+                        >
+                          ✍️ Viết Bài Ngay
+                        </button>
+                      </div>
+                    )}
+
+                    {me.notes && (
+                      <div className="text-xs text-slate-500 bg-white/70 p-2.5 rounded-lg border border-slate-200">
+                        <strong className="text-slate-700">Ghi chú cá nhân:</strong> {me.notes}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Nút hành động nhanh: Sửa hồ sơ & Đổi tài khoản / mật khẩu */}
+                  <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={openEditMyProfile}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#1e4fc2] hover:bg-[#2f66dd] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-[#ffc933] transition cursor-pointer shadow-xs"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                      <span>Cập Nhật Hồ Sơ, Ảnh (WebP) & Bài Viết</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPwdError("");
+                        setPwdNewUsername(me.username || "");
+                        setPwdOldPin("");
+                        setPwdNewPin("");
+                        setPwdConfirmPin("");
+                        setPwdModalOpen(true);
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 transition cursor-pointer"
+                    >
+                      <KeyRound className="h-4 w-4 text-[#1e4fc2]" />
+                      <span>Đổi Mật Khẩu</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                /* Chế độ xem Danh Sách Cả Đội (Khi người dùng bấm xem DS Đội) */
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div>
+                      <h3 className="text-base sm:text-lg font-extrabold text-[#1e4fc2]">
+                        Danh Sách Điểm Danh Ra Sân ({activeMatch.label})
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {isManager
+                          ? "Ban Quản Lý có thể tích điểm danh hộ bất kỳ cầu thủ nào"
+                          : "Cầu thủ bấm Có mặt / Báo vắng tại dòng tên của mình"}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {me && (
+                        <button
+                          type="button"
+                          onClick={() => setRosterViewMode("my_profile")}
+                          className="inline-flex items-center gap-1 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] text-[#ffc933] px-3 py-1.5 text-xs font-bold transition cursor-pointer shadow-xs"
+                        >
+                          <UserCircle2 className="h-3.5 w-3.5" />
+                          <span>← Xem Hồ Sơ & Bài Viết Của Bạn</span>
+                        </button>
+                      )}
+
+                      {/* 3 Huy hiệu quân số */}
+                      <div className="flex items-center gap-1.5 text-xs font-bold">
+                        <span className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-emerald-800">
+                          Có mặt: <strong>{registeredPlayers.length}</strong>
+                        </span>
+                        <span className="rounded-lg bg-rose-50 border border-rose-200 px-2.5 py-1 text-rose-700">
+                          Vắng: <strong>{absentNoticePlayers.length}</strong>
+                        </span>
+                        <span className="rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1 text-slate-700">
+                          Chờ: <strong>{pendingPlayers.length}</strong>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[480px] overflow-y-auto pr-1">
+                    {players.map((p) => {
+                      const att = activeAttendances.find(
+                        (a) => a.player_id === p.id
+                      );
+                      const rsvp = att?.rsvp_status || "none";
+                      const isMe = session.playerId === p.id;
+                      const canToggle = isManager || isMe;
+
+                      return (
+                        <div
+                          key={p.id}
+                          className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition ${
+                            isMe
+                              ? "ring-2 ring-[#ffc933] border-[#1e4fc2] bg-amber-50 shadow-xs"
+                              : rsvp === "registered"
+                              ? "bg-emerald-50/80 border-emerald-300"
+                              : rsvp === "absent_notice"
+                              ? "bg-rose-50/80 border-rose-300"
+                              : "bg-white border-slate-200"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="relative shrink-0">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={
+                                  p.avatar_url || "/uploads/avatars/member-1.jpg"
+                                }
+                                alt={p.full_name}
+                                className="h-10 w-10 rounded-lg object-cover border border-[#1e4fc2]"
+                              />
+                              <span className="absolute -bottom-1 -right-1 rounded bg-[#1e4fc2] text-[#ffc933] px-1 text-[9px] font-extrabold">
+                                #{p.jersey_number ?? "-"}
+                              </span>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                                  {p.full_name}
+                                </p>
+                                {isMe && (
+                                  <span className="text-[10px] font-black uppercase text-[#17488c] bg-[#ffc933] px-1.5 py-0.2 rounded">
+                                    BẠN
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 font-medium">
+                                {p.short_name} • {p.position}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              disabled={!canToggle || isSaving}
+                              onClick={() =>
+                                handleSetRsvp(
+                                  p.id,
+                                  rsvp === "registered" ? "none" : "registered"
+                                )
+                              }
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition ${
+                                !canToggle
+                                  ? "opacity-75 cursor-default"
+                                  : "cursor-pointer"
+                              } ${
+                                rsvp === "registered"
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-slate-100 text-slate-700 hover:bg-emerald-100 hover:text-emerald-800"
+                              }`}
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>Có mặt</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={!canToggle || isSaving}
+                              onClick={() =>
+                                handleSetRsvp(
+                                  p.id,
+                                  rsvp === "absent_notice"
+                                    ? "none"
+                                    : "absent_notice"
+                                )
+                              }
+                              title="Báo vắng trận này"
+                              className={`px-2 py-1.5 rounded-lg text-xs font-bold transition ${
+                                !canToggle
+                                  ? "opacity-75 cursor-default"
+                                  : "cursor-pointer"
+                              } ${
+                                rsvp === "absent_notice"
+                                  ? "bg-rose-600 text-white"
+                                  : "bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700"
+                              }`}
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </section>
           </div>
         </div>
@@ -1318,6 +1717,285 @@ export function ScheduleTab({
           </div>
         </form>
       </ModalDialog>
+
+      {/* Modal Cập Nhật Thông Tin, Ảnh Chân Dung (WebP) & Bài Viết Cá Nhân */}
+      {me && (
+        <ModalDialog
+          isOpen={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          title={`Cập Nhật Hồ Sơ & Bài Viết: ${me.full_name}`}
+          subtitle="Tự do cập nhật ảnh chân dung, thông tin thi đấu và viết bài ngỏ / bio giới thiệu bản thân."
+        >
+          <form onSubmit={handleSaveMyProfile} className="space-y-4">
+            {/* Tải ảnh chân dung thật - Tự động nén WebP */}
+            <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl bg-slate-50 p-3.5 border border-slate-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={profileAvatarUrl || "/uploads/avatars/member-1.jpg"}
+                alt="Ảnh chân dung"
+                className="h-24 w-20 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shrink-0 bg-slate-900"
+              />
+              <div className="space-y-2 flex-1 text-center sm:text-left">
+                <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition">
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>
+                    {isConvertingProfileWebp
+                      ? "Đang chuyển sang WebP..."
+                      : "Tải Ảnh Chân Dung (Tự Động Chuyển WebP)"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isConvertingProfileWebp}
+                    onChange={handleProfileImageUpload}
+                    className="sr-only"
+                  />
+                </label>
+                {profileWebpInfo && (
+                  <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 inline-block">
+                    {profileWebpInfo}
+                  </p>
+                )}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {PRESET_AVATARS.map((url, idx) => (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => {
+                        setProfileAvatarUrl(url);
+                        setProfileWebpInfo("");
+                      }}
+                      className={`h-9 w-9 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${
+                        profileAvatarUrl === url
+                          ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
+                          : "border-transparent opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`Avatar ${idx + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tên thường gọi / Tên sân *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={profileShortName}
+                  onChange={(e) => setProfileShortName(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Số áo thi đấu
+                </label>
+                <input
+                  type="number"
+                  value={profileJerseyNumber}
+                  onChange={(e) => setProfileJerseyNumber(e.target.value)}
+                  placeholder="VD: 12, 26, 9..."
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Vị trí sở trường
+                </label>
+                <select
+                  value={profilePosition}
+                  onChange={(e) => setProfilePosition(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                >
+                  {POSITIONS.map((pos) => (
+                    <option key={pos} value={pos}>
+                      {pos}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Năm sinh
+                </label>
+                <input
+                  type="number"
+                  value={profileBirthYear}
+                  onChange={(e) => setProfileBirthYear(e.target.value)}
+                  placeholder="VD: 1991, 1996..."
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Số điện thoại liên hệ
+                </label>
+                <input
+                  type="tel"
+                  value={profilePhone}
+                  onChange={(e) => setProfilePhone(e.target.value)}
+                  placeholder="VD: 0905123456"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Bài viết / Lời ngỏ về bản thân (Bio) */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Bài viết / Lời ngỏ giới thiệu về bản thân (Bio)
+                </label>
+                <span className="text-[11px] text-[#1e4fc2] font-semibold">
+                  Hiển thị trên Trang chủ & Thẻ Cầu Thủ
+                </span>
+              </div>
+              <textarea
+                rows={4}
+                value={profileBio}
+                onChange={(e) => setProfileBio(e.target.value)}
+                placeholder="Viết đôi nét về phong cách đá bóng của bạn, niềm đam mê hoặc những lời chúc gửi đến anh em FC HĐH Gò Nổi..."
+                className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none leading-relaxed"
+              />
+            </div>
+
+            {/* Ghi chú cá nhân */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Ghi chú cá nhân (tuỳ chọn)
+              </label>
+              <input
+                type="text"
+                value={profileNotes}
+                onChange={(e) => setProfileNotes(e.target.value)}
+                placeholder="VD: Quê quán xã Điện Trung, thường đá cánh phải..."
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setProfileModalOpen(false)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                Huỷ
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving || isConvertingProfileWebp}
+                className="rounded-xl bg-[#1e4fc2] hover:bg-[#2f66dd] disabled:opacity-50 px-5 py-2 text-xs font-black text-[#ffc933] shadow-md cursor-pointer"
+              >
+                {isSaving ? "Đang lưu..." : "Lưu Hồ Sơ & Bài Viết"}
+              </button>
+            </div>
+          </form>
+        </ModalDialog>
+      )}
+
+      {/* Modal Đổi Tên Đăng Nhập & Mật Khẩu Cá Nhân */}
+      {me && (
+        <ModalDialog
+          isOpen={pwdModalOpen}
+          onClose={() => setPwdModalOpen(false)}
+          title="Đổi Tên Đăng Nhập & Mật Khẩu (PIN)"
+          subtitle={`Thay đổi thông tin đăng nhập cho tài khoản của cầu thủ ${me.full_name}.`}
+        >
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Tên đăng nhập mới (hoặc giữ nguyên)
+              </label>
+              <input
+                type="text"
+                value={pwdNewUsername}
+                onChange={(e) => setPwdNewUsername(e.target.value)}
+                placeholder="VD: tieng, tin, trung..."
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Mật khẩu hiện tại
+              </label>
+              <input
+                type="password"
+                required
+                value={pwdOldPin}
+                onChange={(e) => setPwdOldPin(e.target.value)}
+                placeholder="Nhập mật khẩu hiện tại (mặc định 1234)"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Mật khẩu mới * (ít nhất 4 ký tự)
+              </label>
+              <input
+                type="password"
+                required
+                value={pwdNewPin}
+                onChange={(e) => setPwdNewPin(e.target.value)}
+                placeholder="Nhập mật khẩu mới"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Xác nhận lại mật khẩu mới *
+              </label>
+              <input
+                type="password"
+                required
+                value={pwdConfirmPin}
+                onChange={(e) => setPwdConfirmPin(e.target.value)}
+                placeholder="Nhập lại mật khẩu mới"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+              />
+            </div>
+
+            {pwdError && (
+              <p className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2.5">
+                {pwdError}
+              </p>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setPwdModalOpen(false)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                Huỷ
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="rounded-xl bg-[#1e4fc2] hover:bg-[#2f66dd] px-5 py-2 text-xs font-black text-[#ffc933] shadow-md cursor-pointer"
+              >
+                {isSaving ? "Đang lưu..." : "Cập Nhật Mật Khẩu"}
+              </button>
+            </div>
+          </form>
+        </ModalDialog>
+      )}
     </div>
   );
 }
