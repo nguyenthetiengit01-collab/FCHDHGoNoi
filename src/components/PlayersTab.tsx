@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import {
@@ -27,6 +27,7 @@ import type {
 } from "@/types/app";
 import { OFFICIAL_LOGO_URL } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
+import { convertFileToWebp } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
 
 interface PlayersTabProps {
@@ -86,6 +87,8 @@ export function PlayersTab({
   const [phone, setPhone] = useState("");
   const [birthYear, setBirthYear] = useState("1991");
   const [avatarUrl, setAvatarUrl] = useState("/uploads/avatars/member-1.jpg");
+  const [webpInfo, setWebpInfo] = useState("");
+  const [isConvertingWebp, setIsConvertingWebp] = useState(false);
   const [role, setRole] = useState("Thành viên");
   const [accessRole, setAccessRole] = useState<"manager" | "player">("player");
   const [pinCode, setPinCode] = useState("1234");
@@ -114,6 +117,7 @@ export function PlayersTab({
     setPhone("");
     setBirthYear("1992");
     setAvatarUrl("/uploads/avatars/member-1.jpg");
+    setWebpInfo("");
     setRole("Thành viên");
     setAccessRole("player");
     setPinCode("1234");
@@ -133,6 +137,7 @@ export function PlayersTab({
     setPhone(p.phone || "");
     setBirthYear(p.birth_year ? String(p.birth_year) : "1991");
     setAvatarUrl(p.avatar_url || "/uploads/avatars/member-1.jpg");
+    setWebpInfo("");
     setRole(p.role);
     setAccessRole(p.access_role || "player");
     setPinCode(p.pin_code || "1234");
@@ -141,29 +146,32 @@ export function PlayersTab({
     setFormOpen(true);
   }
 
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const size = 360;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const minDim = Math.min(img.width, img.height);
-          const sx = (img.width - minDim) / 2;
-          const sy = (img.height - minDim) / 2;
-          ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
-          setAvatarUrl(canvas.toDataURL("image/jpeg", 0.85));
-        }
-      };
-      img.src = String(reader.result);
-    };
-    reader.readAsDataURL(file);
+    setIsConvertingWebp(true);
+    setWebpInfo("Đang tự động chuyển ảnh sang định dạng WebP...");
+    try {
+      const converted = await convertFileToWebp(file, {
+        mode: "portrait",
+        maxWidth: 600,
+        maxHeight: 800,
+        quality: 0.86,
+      });
+      setAvatarUrl(converted.dataUrl);
+      setWebpInfo(
+        `✅ Đã tự động chuyển sang chuẩn WebP (${converted.webpFileName} • ${converted.originalSizeKB}KB → ${converted.webpSizeKB}KB${
+          converted.savedPercent > 0 ? `, nhẹ hơn ${converted.savedPercent}%` : ""
+        })`
+      );
+    } catch {
+      setWebpInfo("❌ Không thể xử lý ảnh. Vui lòng chọn file ảnh khác.");
+    } finally {
+      setIsConvertingWebp(false);
+      e.target.value = "";
+    }
   };
 
   async function handleSavePlayer(e: React.FormEvent) {
@@ -842,31 +850,44 @@ export function PlayersTab({
         }
       >
         <form onSubmit={handleSavePlayer} className="space-y-4">
-          {/* Chọn hoặc tải ảnh chân dung thật */}
+          {/* Chọn hoặc tải ảnh chân dung thật (Tự động chuyển sang WebP) */}
           <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl bg-slate-50 p-3.5 border border-slate-200">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={avatarUrl || "/uploads/avatars/member-1.jpg"}
               alt="Ảnh hồ sơ"
-              className="h-20 w-20 rounded-xl object-cover border-2 border-[#1e4fc2] shrink-0"
+              className="h-24 w-20 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shrink-0"
             />
             <div className="space-y-2 flex-1 text-center sm:text-left">
               <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition">
                 <Upload className="h-3.5 w-3.5" />
-                <span>Tải Ảnh Hồ Sơ Thật Từ Điện Thoại / Máy Tính</span>
+                <span>
+                  {isConvertingWebp
+                    ? "Đang chuyển đổi ảnh sang WebP..."
+                    : "Tải Ảnh Hồ Sơ (Tự Động Chuyển Sang WebP)"}
+                </span>
                 <input
                   type="file"
                   accept="image/*"
+                  disabled={isConvertingWebp}
                   onChange={handleImageFileUpload}
                   className="sr-only"
                 />
               </label>
+              {webpInfo && (
+                <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 inline-block">
+                  {webpInfo}
+                </p>
+              )}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                 {PRESET_AVATARS.map((url, idx) => (
                   <button
                     key={url}
                     type="button"
-                    onClick={() => setAvatarUrl(url)}
+                    onClick={() => {
+                      setAvatarUrl(url);
+                      setWebpInfo("");
+                    }}
                     className={`h-9 w-9 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${
                       avatarUrl === url
                         ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"

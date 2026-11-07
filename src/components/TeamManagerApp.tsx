@@ -17,6 +17,7 @@ import {
   ExternalLink,
   User,
   Lock,
+  Newspaper,
 } from "lucide-react";
 import type { FullAppData, AuthSession, Player } from "@/types/app";
 import { FANPAGE_URL, OFFICIAL_LOGO_URL } from "@/types/app";
@@ -29,6 +30,7 @@ import { PlayersTab } from "./PlayersTab";
 import { FinanceTab } from "./FinanceTab";
 import { PlayerPersonalTab } from "./PlayerPersonalTab";
 import { PublicGuestPortal } from "./PublicGuestPortal";
+import ClubPostsTab from "./ClubPostsTab";
 import { ModalDialog } from "./ModalDialog";
 
 type ActiveTab =
@@ -39,7 +41,8 @@ type ActiveTab =
   | "collection"
   | "matrix"
   | "players"
-  | "finance";
+  | "finance"
+  | "posts";
 
 interface TeamManagerAppProps {
   initialData: FullAppData;
@@ -96,46 +99,9 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       })
       .catch(() => {});
 
-    // Đồng bộ và khôi phục dữ liệu mới nhất từ bộ nhớ máy khách (chống mất dữ liệu khi serverless reload)
+    // Xoá cache localStorage cũ để luôn lấy dữ liệu chuẩn mới nhất từ Turso Cloud Database
     try {
-      const rawCached = localStorage.getItem("gonoi_fc_cached_data_v1");
-      if (rawCached) {
-        const cached = JSON.parse(rawCached) as FullAppData;
-        if (
-          cached &&
-          Array.isArray(cached.matches) &&
-          Array.isArray(cached.attendances)
-        ) {
-          const cachedMatchCount = cached.matches.length;
-          const initialMatchCount = initialData.matches.length;
-          const hasDifferentStatus = cached.matches.some((cm) => {
-            const im = initialData.matches.find((m) => m.id === cm.id);
-            return (
-              im &&
-              (im.status !== cm.status ||
-                im.team_score !== cm.team_score ||
-                im.opponent_score !== cm.opponent_score)
-            );
-          });
-          const hasMoreAttendances =
-            cached.attendances.length > initialData.attendances.length;
-          const hasPaidDiff = cached.attendances.some((ca) => {
-            const ia = initialData.attendances.find(
-              (a) => a.match_id === ca.match_id && a.player_id === ca.player_id
-            );
-            return ia && (ia.paid !== ca.paid || ia.rsvp_status !== ca.rsvp_status);
-          });
-
-          if (
-            cachedMatchCount > initialMatchCount ||
-            hasDifferentStatus ||
-            hasMoreAttendances ||
-            hasPaidDiff
-          ) {
-            setData(cached);
-          }
-        }
-      }
+      localStorage.removeItem("gonoi_fc_cached_data_v1");
     } catch {
       // ignore
     }
@@ -154,14 +120,14 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
   const handleMutate = async (
     action: string,
-    payload: Record<string, unknown>
+    payload?: unknown
   ) => {
     setIsSaving(true);
     try {
       const res = await fetch("/api/team", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, payload }),
+        body: JSON.stringify({ action, payload: payload ?? {} }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -169,24 +135,19 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         return;
       }
       setData(json);
-      try {
-        if (action === "reset_to_excel") {
-          localStorage.removeItem("gonoi_fc_cached_data_v1");
-        } else {
-          localStorage.setItem("gonoi_fc_cached_data_v1", JSON.stringify(json));
-        }
-      } catch {
-        // ignore
-      }
       if (action === "change_own_password") {
         showToast("Đã cập nhật mật khẩu (PIN) mới thành công!");
       } else if (action === "reset_player_password") {
         showToast("Đã reset mật khẩu cầu thủ về mặc định (1234)!");
+      } else if (action === "upsert_club_post") {
+        showToast("Đã đăng / cập nhật bài viết CLB (Ảnh chuẩn WebP)!");
+      } else if (action === "delete_club_post") {
+        showToast("Đã xoá bài viết khỏi trang Hoạt Động CLB!");
       } else if (
         action !== "collect_match_fee" &&
         action !== "set_rsvp"
       ) {
-        showToast("Đã lưu thay đổi vào Cơ sở dữ liệu!");
+        showToast("Đã lưu thay đổi vào Cơ sở dữ liệu Cloud!");
       }
     } catch (err) {
       console.error(err);
@@ -369,6 +330,12 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
           shortLabel: "Bảng thu",
           icon: Grid,
         },
+        {
+          id: "posts" as ActiveTab,
+          label: "Bài Viết & Hoạt Động CLB",
+          shortLabel: "Bài viết",
+          icon: Newspaper,
+        },
       ];
     }
 
@@ -391,6 +358,12 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         label: `Đội Hình & DS Thi Đấu (${data.players.length})`,
         shortLabel: "Đội hình",
         icon: Users,
+      },
+      {
+        id: "posts" as ActiveTab,
+        label: "Đăng Bài Viết CLB (WebP)",
+        shortLabel: "Bài viết",
+        icon: Newspaper,
       },
       {
         id: "dashboard" as ActiveTab,
@@ -659,6 +632,15 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         {session.role === "manager" && activeTab === "finance" && (
           <FinanceTab
             data={data}
+            onMutate={handleMutate}
+            isSaving={isSaving}
+          />
+        )}
+
+        {session.role !== "guest" && activeTab === "posts" && (
+          <ClubPostsTab
+            data={data}
+            session={session}
             onMutate={handleMutate}
             isSaving={isSaving}
           />

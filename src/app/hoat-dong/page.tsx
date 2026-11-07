@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   CLUB_ACTIVITIES_POSTS,
@@ -27,9 +27,21 @@ import {
 export default function HoatDongPage() {
   const [selectedCategory, setSelectedCategory] = useState<ActivityCategory>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [posts, setPosts] = useState<ClubActivityPost[]>(CLUB_ACTIVITIES_POSTS);
+
+  useEffect(() => {
+    fetch("/api/team")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json && Array.isArray(json.posts) && json.posts.length > 0) {
+          setPosts(json.posts);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const filteredPosts = useMemo(() => {
-    return CLUB_ACTIVITIES_POSTS.filter((post) => {
+    return posts.filter((post) => {
       const matchCat =
         selectedCategory === "all" || post.category === selectedCategory;
       const matchQuery =
@@ -39,7 +51,7 @@ export default function HoatDongPage() {
         post.author.toLowerCase().includes(searchQuery.toLowerCase());
       return matchCat && matchQuery;
     });
-  }, [selectedCategory, searchQuery]);
+  }, [posts, selectedCategory, searchQuery]);
 
   const getCategoryIcon = (id: ActivityCategory) => {
     switch (id) {

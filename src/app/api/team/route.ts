@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAsyncDb, getFullAppData, seedAsyncInitialDataIfNeeded } from "@/lib/db";
+import {
+  getAsyncDb,
+  getFullAppData,
+  seedAsyncInitialDataIfNeeded,
+  ensureClubPostsReady,
+} from "@/lib/db";
 import { getAuthSession } from "@/lib/auth";
+import { ensureWebpDataUrlServer } from "@/lib/serverWebp";
 
 export async function GET() {
   try {
@@ -38,6 +44,8 @@ export async function POST(req: NextRequest) {
       "upsert_other_income",
       "delete_other_income",
       "update_settings",
+      "upsert_club_post",
+      "delete_club_post",
       "reset_to_excel",
     ]);
 
@@ -61,9 +69,10 @@ export async function POST(req: NextRequest) {
           { status: 401 }
         );
       }
+      const targetPlayerId = Number(payload?.player_id ?? payload?.id);
       if (
         session.accessRole !== "manager" &&
-        Number(payload?.id) !== session.playerId
+        targetPlayerId !== session.playerId
       ) {
         return NextResponse.json(
           {
@@ -127,6 +136,11 @@ export async function POST(req: NextRequest) {
           cleanName.split(/\s+/).slice(-1)[0] ||
           cleanName;
 
+        const webpAvatar = await ensureWebpDataUrlServer(
+          avatar_url || "/uploads/avatars/member-1.jpg",
+          { maxWidth: 600, maxHeight: 800, quality: 85 }
+        );
+
         if (id) {
           const existing = await db.queryOne<{ pin_code: string }>(
             "SELECT pin_code FROM players WHERE id = ?",
@@ -153,7 +167,7 @@ export async function POST(req: NextRequest) {
               position || "Đa năng",
               phone || "",
               birth_year || "",
-              avatar_url || "/uploads/avatars/member-1.jpg",
+              webpAvatar,
               typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
               access_role === "manager" ? "manager" : "player",
@@ -186,7 +200,7 @@ export async function POST(req: NextRequest) {
               position || "Đa năng",
               phone || "",
               birth_year || "",
-              avatar_url || "/uploads/avatars/member-1.jpg",
+              webpAvatar,
               typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
               access_role === "manager" ? "manager" : "player",
@@ -252,6 +266,11 @@ export async function POST(req: NextRequest) {
           cleanName.split(/\s+/).slice(-1)[0] ||
           cleanName;
 
+        const webpAvatar = await ensureWebpDataUrlServer(
+          avatar_url || "/uploads/avatars/member-1.jpg",
+          { maxWidth: 600, maxHeight: 800, quality: 85 }
+        );
+
         await db.run(
           `UPDATE players
           SET full_name = ?, short_name = ?, jersey_number = ?,
@@ -270,7 +289,7 @@ export async function POST(req: NextRequest) {
             birth_year !== null && birth_year !== undefined
               ? String(birth_year)
               : "",
-            avatar_url || "/uploads/avatars/member-1.jpg",
+            webpAvatar,
             typeof bio === "string" ? bio : "",
             notes || "",
             Number(player_id),
@@ -938,6 +957,171 @@ export async function POST(req: NextRequest) {
             fanpage_url || "https://www.facebook.com/FCHDHGoNoi/",
           ]
         );
+        break;
+      }
+
+      case "upsert_club_post": {
+        await ensureClubPostsReady(db);
+        const {
+          id,
+          category,
+          title,
+          summary,
+          publishedDate,
+          author,
+          featuredImage,
+          galleryImages,
+          readingTime,
+          paragraphs,
+          quote,
+          highlights,
+        } = payload;
+
+        const cleanTitle = String(title || "").trim();
+        if (!cleanTitle) {
+          return NextResponse.json(
+            { error: "Vui lòng nhập tiêu đề bài viết" },
+            { status: 400 }
+          );
+        }
+
+        const CATEGORY_META: Record<
+          string,
+          { label: string; badgeClass: string }
+        > = {
+          giaidau: {
+            label: "Giải Đấu & Phong Trào",
+            badgeClass: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+          },
+          giaoluu: {
+            label: "Giao Lưu Kết Nối",
+            badgeClass: "bg-sky-500/20 text-sky-300 border-sky-500/40",
+          },
+          cauthu: {
+            label: "Cầu Thủ Gò Nổi",
+            badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+          },
+          taitro: {
+            label: "Đồng Hành & Tài Trợ",
+            badgeClass: "bg-purple-500/20 text-purple-300 border-purple-500/40",
+          },
+          anhbia: {
+            label: "Ảnh Bìa & Khí Thế",
+            badgeClass: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40",
+          },
+        };
+
+        const catKey =
+          typeof category === "string" && CATEGORY_META[category]
+            ? category
+            : "giaidau";
+        const catMeta = CATEGORY_META[catKey];
+
+        // Tự động chuyển đổi ảnh bìa bài viết sang chuẩn WebP trước khi lưu
+        const webpFeaturedImage = await ensureWebpDataUrlServer(
+          String(
+            featuredImage || "/images/hinhanh-webp/anhbia/DSC06734.webp"
+          ),
+          { maxWidth: 1280, maxHeight: 960, quality: 84 }
+        );
+
+        // Tự động chuyển đổi toàn bộ danh sách ảnh gallery sang chuẩn WebP
+        const rawGallery = Array.isArray(galleryImages)
+          ? galleryImages.map(String).filter(Boolean)
+          : [];
+        const webpGallery: string[] = [];
+        for (const gImg of rawGallery) {
+          const converted = await ensureWebpDataUrlServer(gImg, {
+            maxWidth: 1280,
+            maxHeight: 960,
+            quality: 84,
+          });
+          if (converted) webpGallery.push(converted);
+        }
+
+        const postId =
+          String(id || "").trim() || `post-${Date.now()}`;
+        const slug =
+          cleanTitle
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/đ/g, "d")
+            .replace(/Đ/g, "d")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "") || postId;
+
+        const cleanParagraphs = Array.isArray(paragraphs)
+          ? paragraphs.map((p) => String(p).trim()).filter(Boolean)
+          : String(paragraphs || "")
+              .split(/\n+/)
+              .map((p) => p.trim())
+              .filter(Boolean);
+
+        const cleanHighlights = Array.isArray(highlights)
+          ? highlights.map((h) => String(h).trim()).filter(Boolean)
+          : String(highlights || "")
+              .split(/\n+/)
+              .map((h) => h.trim())
+              .filter(Boolean);
+
+        await db.run(
+          `INSERT INTO club_posts (
+            id, category, category_label, category_badge_class,
+            title, slug, summary, published_date, author,
+            featured_image, gallery_images_json, reading_time,
+            paragraphs_json, quote, highlights_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            category = excluded.category,
+            category_label = excluded.category_label,
+            category_badge_class = excluded.category_badge_class,
+            title = excluded.title,
+            slug = excluded.slug,
+            summary = excluded.summary,
+            published_date = excluded.published_date,
+            author = excluded.author,
+            featured_image = excluded.featured_image,
+            gallery_images_json = excluded.gallery_images_json,
+            reading_time = excluded.reading_time,
+            paragraphs_json = excluded.paragraphs_json,
+            quote = excluded.quote,
+            highlights_json = excluded.highlights_json`,
+          [
+            postId,
+            catKey,
+            catMeta.label,
+            catMeta.badgeClass,
+            cleanTitle,
+            slug,
+            String(summary || cleanParagraphs[0] || "").trim(),
+            String(publishedDate || new Date().toISOString().slice(0, 10)),
+            String(author || session?.fullName || "Ban Quản Lý FC Gò Nổi"),
+            webpFeaturedImage,
+            JSON.stringify(webpGallery),
+            String(readingTime || "3 phút đọc"),
+            JSON.stringify(
+              cleanParagraphs.length > 0
+                ? cleanParagraphs
+                : [String(summary || cleanTitle)]
+            ),
+            String(quote || "").trim(),
+            JSON.stringify(cleanHighlights),
+          ]
+        );
+        break;
+      }
+
+      case "delete_club_post": {
+        await ensureClubPostsReady(db);
+        const { id } = payload;
+        if (!id) {
+          return NextResponse.json(
+            { error: "Thiếu mã bài viết cần xóa" },
+            { status: 400 }
+          );
+        }
+        await db.run("DELETE FROM club_posts WHERE id = ?", [String(id)]);
         break;
       }
 

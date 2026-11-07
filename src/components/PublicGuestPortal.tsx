@@ -585,7 +585,9 @@ export function PublicGuestPortal({
     squad[0] ||
     null;
 
-  const filteredActivityPosts = CLUB_ACTIVITIES_POSTS.filter((p) =>
+  const allActivityPosts =
+    data.posts && data.posts.length > 0 ? data.posts : CLUB_ACTIVITIES_POSTS;
+  const filteredActivityPosts = allActivityPosts.filter((p) =>
     activeActivityCategory === "all" ? true : p.category === activeActivityCategory
   );
 

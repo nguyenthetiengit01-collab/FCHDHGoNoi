@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use } from "react";
+import React, { use, useState, useEffect } from "react";
 import Link from "next/link";
 import {
   CLUB_ACTIVITIES_POSTS,
@@ -26,10 +26,36 @@ interface PageProps {
 export default function ChiTietHoatDongPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const postId = resolvedParams.id;
+  const [posts, setPosts] = useState<ClubActivityPost[]>(CLUB_ACTIVITIES_POSTS);
+  const [loading, setLoading] = useState(
+    !CLUB_ACTIVITIES_POSTS.some((p) => p.id === postId || p.slug === postId)
+  );
 
-  const post: ClubActivityPost | undefined = CLUB_ACTIVITIES_POSTS.find(
+  useEffect(() => {
+    fetch("/api/team")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json && Array.isArray(json.posts) && json.posts.length > 0) {
+          setPosts(json.posts);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const post: ClubActivityPost | undefined = posts.find(
     (p) => p.id === postId || p.slug === postId
   );
+
+  if (loading && !post) {
+    return (
+      <div className="min-h-screen bg-[#050b17] text-white flex flex-col items-center justify-center p-6 text-center">
+        <p className="text-[#d4af37] font-bold animate-pulse">
+          Đang tải bài viết hoạt động...
+        </p>
+      </div>
+    );
+  }
 
   if (!post) {
     return (
@@ -52,7 +78,7 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
   }
 
   // Related posts
-  const relatedPosts = CLUB_ACTIVITIES_POSTS.filter((p) => p.id !== post.id).slice(0, 3);
+  const relatedPosts = posts.filter((p) => p.id !== post.id).slice(0, 3);
 
   return (
     <div className="min-h-screen bg-[#050b17] text-slate-100 flex flex-col selection:bg-[#d4af37] selection:text-slate-950">

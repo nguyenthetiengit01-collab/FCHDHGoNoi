@@ -1,3 +1,5 @@
+import type { ClubActivityPost } from "@/data/clubActivities";
+
 export const EXPENSE_CATEGORIES = [
   "Tiền sân",
   "Nước uống",
@@ -134,6 +136,7 @@ export interface FullAppData {
   otherIncomes: OtherIncome[];
   expenses: ExpenseRecord[];
   summary: FinancialSummary;
+  posts?: ClubActivityPost[];
 }
 
 export type MutateActionFn = (

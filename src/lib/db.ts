@@ -4,6 +4,7 @@ import os from "os";
 import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
 import { createClient, type Client, type InArgs } from "@libsql/client";
 import { EXPENSE_CATEGORIES, FANPAGE_URL } from "@/types/app";
+import { CLUB_ACTIVITIES_POSTS, type ClubActivityPost } from "@/data/clubActivities";
 import { calculateFinancialSummary } from "./financialCalculations";
 import type {
   TeamSettings,
@@ -278,6 +279,24 @@ function initSchema(db: DatabaseSyncType) {
       amount INTEGER NOT NULL DEFAULT 0,
       payer TEXT NOT NULL DEFAULT '',
       match_id INTEGER REFERENCES matches(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS club_posts (
+      id TEXT PRIMARY KEY,
+      category TEXT NOT NULL DEFAULT 'giaidau',
+      category_label TEXT NOT NULL DEFAULT 'Giải Đấu & Phong Trào',
+      category_badge_class TEXT NOT NULL DEFAULT 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+      title TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      published_date TEXT NOT NULL,
+      author TEXT NOT NULL DEFAULT 'Ban Quản Lý FC Gò Nổi',
+      featured_image TEXT NOT NULL,
+      gallery_images_json TEXT NOT NULL DEFAULT '[]',
+      reading_time TEXT NOT NULL DEFAULT '3 phút đọc',
+      paragraphs_json TEXT NOT NULL DEFAULT '[]',
+      quote TEXT DEFAULT '',
+      highlights_json TEXT NOT NULL DEFAULT '[]'
     );
   `);
 }
@@ -795,8 +814,99 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
   }
 }
 
+let clubPostsInitialized = false;
+
+export async function ensureClubPostsReady(db: AsyncDb): Promise<void> {
+  if (clubPostsInitialized) return;
+  try {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS club_posts (
+        id TEXT PRIMARY KEY,
+        category TEXT NOT NULL DEFAULT 'giaidau',
+        category_label TEXT NOT NULL DEFAULT 'Giải Đấu & Phong Trào',
+        category_badge_class TEXT NOT NULL DEFAULT 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+        title TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        summary TEXT NOT NULL DEFAULT '',
+        published_date TEXT NOT NULL,
+        author TEXT NOT NULL DEFAULT 'Ban Quản Lý FC Gò Nổi',
+        featured_image TEXT NOT NULL,
+        gallery_images_json TEXT NOT NULL DEFAULT '[]',
+        reading_time TEXT NOT NULL DEFAULT '3 phút đọc',
+        paragraphs_json TEXT NOT NULL DEFAULT '[]',
+        quote TEXT DEFAULT '',
+        highlights_json TEXT NOT NULL DEFAULT '[]'
+      );
+    `);
+
+    const countRow = await db.queryOne<{ cnt: number }>(
+      "SELECT COUNT(*) as cnt FROM club_posts"
+    );
+    if (!countRow || Number(countRow.cnt) === 0) {
+      for (const post of CLUB_ACTIVITIES_POSTS) {
+        await db.run(
+          `INSERT OR IGNORE INTO club_posts (
+            id, category, category_label, category_badge_class,
+            title, slug, summary, published_date, author,
+            featured_image, gallery_images_json, reading_time,
+            paragraphs_json, quote, highlights_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            post.id,
+            post.category,
+            post.categoryLabel,
+            post.categoryBadgeClass,
+            post.title,
+            post.slug,
+            post.summary,
+            post.publishedDate,
+            post.author,
+            post.featuredImage,
+            JSON.stringify(post.galleryImages || []),
+            post.readingTime,
+            JSON.stringify(post.paragraphs || []),
+            post.quote || "",
+            JSON.stringify(post.highlights || []),
+          ]
+        );
+      }
+    }
+    clubPostsInitialized = true;
+  } catch (err) {
+    console.error("ensureClubPostsReady error:", err);
+  }
+}
+
+interface RawClubPostRow {
+  id: string;
+  category: ClubActivityPost["category"];
+  category_label: string;
+  category_badge_class: string;
+  title: string;
+  slug: string;
+  summary: string;
+  published_date: string;
+  author: string;
+  featured_image: string;
+  gallery_images_json: string;
+  reading_time: string;
+  paragraphs_json: string;
+  quote: string;
+  highlights_json: string;
+}
+
+function safeJsonParseArray(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getFullAppData(): Promise<FullAppData> {
   const db = getAsyncDb();
+  await ensureClubPostsReady(db);
 
   const settings = (await db.queryOne<TeamSettings>(
     "SELECT * FROM team_settings WHERE id = 1"
@@ -840,6 +950,34 @@ export async function getFullAppData(): Promise<FullAppData> {
     "SELECT * FROM expenses ORDER BY expense_date ASC, id ASC"
   );
 
+  let posts: ClubActivityPost[] = CLUB_ACTIVITIES_POSTS;
+  try {
+    const rawPosts = await db.query<RawClubPostRow>(
+      "SELECT * FROM club_posts ORDER BY published_date DESC, rowid DESC"
+    );
+    if (rawPosts.length > 0) {
+      posts = rawPosts.map((r) => ({
+        id: r.id,
+        category: r.category,
+        categoryLabel: r.category_label,
+        categoryBadgeClass: r.category_badge_class,
+        title: r.title,
+        slug: r.slug,
+        summary: r.summary,
+        publishedDate: r.published_date,
+        author: r.author,
+        featuredImage: r.featured_image,
+        galleryImages: safeJsonParseArray(r.gallery_images_json),
+        readingTime: r.reading_time || "3 phút đọc",
+        paragraphs: safeJsonParseArray(r.paragraphs_json),
+        quote: r.quote || undefined,
+        highlights: safeJsonParseArray(r.highlights_json),
+      }));
+    }
+  } catch {
+    posts = CLUB_ACTIVITIES_POSTS;
+  }
+
   const summary = calculateFinancialSummary({
     attendances,
     otherIncomes,
@@ -855,6 +993,7 @@ export async function getFullAppData(): Promise<FullAppData> {
       otherIncomes,
       expenses,
       summary,
+      posts,
     })
   );
 }
