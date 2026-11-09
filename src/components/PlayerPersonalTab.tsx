@@ -15,13 +15,14 @@ import {
   Camera,
   Trash2,
   MapPin,
-  Sparkles,
+  Quote,
 } from "lucide-react";
 import type {
   FullAppData,
   AuthSession,
   MutateActionFn,
   RsvpStatus,
+  Player,
 } from "@/types/app";
 import { OFFICIAL_QR_URL } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
@@ -30,6 +31,10 @@ import {
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
+import {
+  ImageLightboxModal,
+  type LightboxImage,
+} from "./ImageLightboxModal";
 
 interface PlayerPersonalTabProps {
   data: FullAppData;
@@ -44,6 +49,48 @@ const PRESET_AVATARS = Array.from(
   (_, i) => `/uploads/avatars/member-${i + 1}.jpg`
 );
 
+function getPlayerPositionBadge(player: Player) {
+  if (player.access_role === "manager") {
+    return {
+      label: "Ban Quản Lý",
+      code: "BQL",
+      badgeClass: "bg-[#d4af37]/15 text-[#fde047] border-[#d4af37]/40",
+      accent: "#d4af37",
+    };
+  }
+  const pos = (player.position || "").toLowerCase();
+  if (/thủ môn|gk/i.test(pos)) {
+    return {
+      label: "Thủ Môn",
+      code: "GK",
+      badgeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
+      accent: "#10b981",
+    };
+  }
+  if (/hậu vệ|cb|lb|rb/i.test(pos)) {
+    return {
+      label: "Hậu Vệ",
+      code: "DF",
+      badgeClass: "bg-sky-500/15 text-sky-300 border-sky-500/40",
+      accent: "#38bdf8",
+    };
+  }
+  if (/tiền vệ|cm|cdm|cam/i.test(pos)) {
+    return {
+      label: "Tiền Vệ",
+      code: "MF",
+      badgeClass: "bg-indigo-500/15 text-indigo-300 border-indigo-500/40",
+      accent: "#818cf8",
+    };
+  }
+  return {
+    label: player.position || "Tiền Đạo",
+    code: "FW",
+    badgeClass: "bg-amber-500/15 text-amber-300 border-amber-500/40",
+    accent: "#f59e0b",
+  };
+}
+
 export function PlayerPersonalTab({
   data,
   session,
@@ -55,6 +102,7 @@ export function PlayerPersonalTab({
 
   // State cho Modal sửa thông tin & ảnh hồ sơ cá nhân
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [fullName, setFullName] = useState("");
   const [shortName, setShortName] = useState("");
   const [jerseyNumber, setJerseyNumber] = useState("");
   const [position, setPosition] = useState("Tiền vệ");
@@ -72,6 +120,10 @@ export function PlayerPersonalTab({
   const [isConvertingGallery, setIsConvertingGallery] = useState(false);
   const [galleryWebpInfo, setGalleryWebpInfo] = useState("");
 
+  // Lightbox xem ảnh toàn màn hình
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
   // State cho Modal đổi tên đăng nhập & mật khẩu cá nhân
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
   const [newUsername, setNewUsername] = useState("");
@@ -88,12 +140,37 @@ export function PlayerPersonalTab({
     );
   }
 
+  const myLightboxImages: LightboxImage[] = [
+    ...(me.avatar_url
+      ? [
+          {
+            src: me.avatar_url,
+            title: `${me.full_name} #${me.jersey_number ?? ""}`,
+            caption: `Ảnh chân dung chính thức • ${me.position} • Xã ${me.hometown || "Điện Quang"}`,
+            tag: "Hồ Sơ Cầu Thủ",
+          },
+        ]
+      : []),
+    ...(me.gallery_urls || []).map((url, i) => ({
+      src: url,
+      title: `${me.full_name} • Khoảnh khắc #${i + 1}`,
+      caption: `Hình ảnh thi đấu và hoạt động cùng FC HĐH Gò Nổi`,
+      tag: "Khoảnh Khắc Sân Cỏ",
+    })),
+  ];
+
+  const handleOpenLightbox = (startIndex = 0) => {
+    setLightboxIndex(startIndex);
+    setLightboxOpen(true);
+  };
+
   const openEditMyProfile = () => {
+    setFullName(me.full_name);
     setShortName(me.short_name);
     setJerseyNumber(me.jersey_number !== null ? String(me.jersey_number) : "");
     setPosition(me.position);
     setPhone(me.phone || "");
-    setBirthYear(me.birth_year ? String(me.birth_year) : "1991");
+    setBirthYear(me.birth_year ? String(me.birth_year) : "");
     setAvatarUrl(me.avatar_url || "/uploads/avatars/member-1.jpg");
     setWebpInfo("");
     setBio(me.bio || "");
@@ -164,6 +241,7 @@ export function PlayerPersonalTab({
     e.preventDefault();
     await onMutate("update_own_profile", {
       player_id: me.id,
+      full_name: fullName,
       short_name: shortName,
       jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
       position,
@@ -242,113 +320,58 @@ export function PlayerPersonalTab({
     });
   };
 
+  const posBadge = getPlayerPositionBadge(me);
+
   return (
     <div className="space-y-6">
-      {/* Thẻ Hồ Sơ Cá Nhân Cầu Thủ (Đồng bộ màu Xanh Navy & Vàng Hoàng Kim của Logo) */}
-      <section className="rounded-2xl bg-gradient-to-br from-[#061530] via-[#0d2e5b] to-[#124285] text-white p-5 sm:p-6 border-2 border-[#ffc933]/70 shadow-md">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="relative shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={me.avatar_url || "/uploads/avatars/member-1.jpg"}
-                alt={me.full_name}
-                className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl object-cover border-2 border-[#ffc933] bg-slate-800 shadow-sm"
-              />
-              <span className="absolute -bottom-2 -right-2 rounded-lg bg-[#ffc933] text-slate-950 px-2 py-0.5 text-xs font-extrabold border border-[#1e4fc2] shadow-xs">
-                #{me.jersey_number ?? "-"}
+      {/* THẺ VẬN ĐỘNG VIÊN CÁ NHÂN (BROADCAST ATHLETE CARD - ĐỒNG BỘ 100% VỚI MỤC SỐ 3 TRANG CHỦ) */}
+      <section className="rounded-xl overflow-hidden bg-gradient-to-b from-[#0b2447] via-[#081a33] to-[#040e1a] border border-[#d4af37]/60 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-white p-5 sm:p-7 space-y-5">
+        {/* Top bar: Technical badge + Số áo kỹ thuật + Nút sửa nhanh */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div className="flex items-center gap-3.5">
+            <div className="h-14 w-14 rounded-lg bg-[#040e1a] border border-[#d4af37]/60 flex items-center justify-center shrink-0 shadow-inner">
+              <span className="font-display font-black text-3xl sm:text-4xl text-[#d4af37] leading-none">
+                #{me.jersey_number ?? "--"}
               </span>
             </div>
-
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl sm:text-2xl font-extrabold text-white">
-                  {me.full_name}
-                </h2>
-                <span className="rounded-full bg-[#2f66dd] px-2.5 py-0.5 text-xs font-bold text-[#ffc933] border border-[#ffc933]/40">
-                  Tên sân: {me.short_name}
-                </span>
-                <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-bold text-sky-200 border border-white/25">
-                  Tài khoản: @{me.username || me.short_name.toLowerCase()}
-                </span>
                 <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-extrabold border ${
-                    me.access_role === "manager"
-                      ? "bg-[#ffc933] text-slate-950 border-[#ffc933]"
-                      : "bg-emerald-600 text-white border-emerald-400"
-                  }`}
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-black uppercase tracking-wider border ${posBadge.badgeClass}`}
                 >
-                  {me.access_role === "manager"
-                    ? "🛡️ Ban Quản Lý"
-                    : "⚽ Cầu Thủ Thành Viên"}
+                  {posBadge.code} • {posBadge.label}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-[#ffc933]/20 border border-[#ffc933]/50 px-2.5 py-0.5 text-xs font-bold text-[#ffc933]">
-                  <MapPin className="h-3 w-3" />
-                  <span>Xã {me.hometown || "Điện Quang"}</span>
+                <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                  OFFICIAL ATHLETE CARD
                 </span>
-                {me.nickname && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/20 border border-sky-400/40 px-2.5 py-0.5 text-xs font-extrabold text-sky-200">
-                    <Sparkles className="h-3 w-3 text-[#ffc933]" />
-                    <span>&ldquo;{me.nickname}&rdquo;</span>
+                {me.access_role === "manager" && (
+                  <span className="inline-flex items-center gap-1 rounded bg-[#d4af37]/20 border border-[#d4af37]/50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#fde047]">
+                    <Shield className="h-3 w-3" />
+                    <span>BAN ĐIỀU HÀNH &amp; THỦ QUỸ</span>
                   </span>
                 )}
               </div>
-              <p className="text-xs sm:text-sm text-sky-100/90 mt-1">
-                Vị trí: <strong className="text-white">{me.position}</strong> •{" "}
-                Năm sinh:{" "}
-                <strong className="text-white">{me.birth_year || "—"}</strong>
-                {me.phone ? ` • SĐT: ${me.phone}` : ""}
-                {me.playing_style ? ` • Sở trường: ${me.playing_style}` : ""}
-              </p>
-              {me.access_role === "manager" && (
-                <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#ffc933]/20 border border-[#ffc933]/50 px-2.5 py-1 text-xs font-extrabold text-[#ffc933]">
-                  <Shield className="h-3.5 w-3.5" />
-                  <span>Thành viên Ban Quản Lý & Thu Quỹ</span>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className="text-xs text-sky-200/80 font-medium">
+                  Tài khoản đăng nhập: <strong className="text-white">@{me.username || me.short_name.toLowerCase()}</strong>
                 </span>
-              )}
-
-              {me.bio && (
-                <p className="mt-2.5 text-xs text-sky-100/95 italic bg-white/10 rounded-lg p-2.5 border border-white/15 max-w-xl">
-                  &ldquo;{me.bio}&rdquo;
-                </p>
-              )}
-
-              {/* Album ảnh cá nhân */}
-              {me.gallery_urls && me.gallery_urls.length > 0 && (
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-[11px] uppercase tracking-wider text-sky-200/80 font-bold flex items-center gap-1">
-                    <Camera className="h-3.5 w-3.5 text-[#ffc933]" />
-                    <span>Album cá nhân ({me.gallery_urls.length} ảnh):</span>
+                {me.phone && (
+                  <span className="text-xs text-slate-400">
+                    • SĐT: {me.phone}
                   </span>
-                  <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-                    {me.gallery_urls.map((url, idx) => (
-                      <div
-                        key={idx}
-                        className="relative h-10 w-10 rounded-lg overflow-hidden border border-[#ffc933]/50 shrink-0 bg-black/40"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={url}
-                          alt={`Ảnh thi đấu ${idx + 1}`}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Nút Cầu thủ tự sửa thông tin hồ sơ & đổi mật khẩu cá nhân */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5 sm:self-start">
             <button
               type="button"
               onClick={openEditMyProfile}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#ffc933] hover:bg-[#ffd95e] px-3.5 py-2.5 text-xs font-extrabold text-slate-950 transition cursor-pointer shadow-xs"
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-lg hover:shadow-xl"
             >
               <Edit3 className="h-4 w-4" />
-              <span>Cập Nhật Hồ Sơ & Ảnh Của Tôi</span>
+              <span>Sửa Thông Tin &amp; Ảnh Thẻ Vận Động Viên</span>
             </button>
             <button
               type="button"
@@ -360,52 +383,181 @@ export function PlayerPersonalTab({
                 setConfirmPin("");
                 setPwdModalOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/25 px-3.5 py-2.5 text-xs font-bold text-white transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-2.5 text-xs font-bold text-white transition cursor-pointer"
             >
-              <KeyRound className="h-4 w-4 text-[#ffc933]" />
-              <span>Đổi Tài Khoản & Mật Khẩu</span>
+              <KeyRound className="h-4 w-4 text-[#d4af37]" />
+              <span>Đổi Mật Khẩu</span>
             </button>
           </div>
         </div>
 
-        {/* 4 Thống kê cá nhân */}
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 pt-5 border-t border-white/15">
-          <div className="rounded-xl bg-[#173f9e]/70 p-3.5 border border-white/10">
-            <span className="text-xs text-sky-200 block">
-              Số trận đã tham gia
-            </span>
-            <span className="text-xl font-extrabold text-white">
-              {matchesPlayed}/{matches.length} trận
-            </span>
-          </div>
-          <div className="rounded-xl bg-[#173f9e]/70 p-3.5 border border-white/10">
-            <span className="text-xs text-sky-200 block">
-              Tỷ lệ chuyên cần
-            </span>
-            <span className="text-xl font-extrabold text-[#ffc933]">
-              {rate}%
-            </span>
-          </div>
-          <div className="rounded-xl bg-[#173f9e]/70 p-3.5 border border-white/10">
-            <span className="text-xs text-sky-200 block">
-              Tổng tiền quỹ đã nộp
-            </span>
-            <span className="text-xl font-extrabold text-emerald-400">
-              {formatVND(totalPaid)}
-            </span>
-          </div>
-          <div className="rounded-xl bg-[#173f9e]/70 p-3.5 border border-white/10">
-            <span className="text-xs text-sky-200 block">
-              Tiền trận chưa nộp
-            </span>
+        {/* Nội dung danh tính + Ảnh chân dung + Lối chơi */}
+        <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] lg:grid-cols-[180px_1fr] gap-6 items-start">
+          {/* Ảnh chân dung lớn */}
+          <div
+            onClick={() => handleOpenLightbox(0)}
+            className="relative aspect-[3/4] rounded-lg overflow-hidden border border-white/15 bg-gradient-to-b from-[#092244] via-[#061730] to-[#040e1a] shadow-lg group cursor-pointer"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={me.avatar_url || "/uploads/avatars/member-1.jpg"}
+              alt={me.full_name}
+              className="w-full h-full object-cover object-top filter brightness-105 contrast-[1.02] group-hover:scale-105 transition duration-500"
+            />
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded border border-white/20 flex items-center gap-1">
+              <Camera className="h-3 w-3 text-[#d4af37]" />
+              <span>Phóng to</span>
+            </div>
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#040e1a] to-transparent pointer-events-none"
+            />
             <span
-              className={`text-xl font-extrabold ${
-                totalUnpaid > 0 ? "text-rose-400" : "text-white"
-              }`}
+              aria-hidden="true"
+              className="absolute right-2 bottom-0 font-display font-black text-6xl text-transparent [-webkit-text-stroke:1px_rgba(212,175,55,0.3)] pointer-events-none select-none leading-none"
             >
-              {formatVND(totalUnpaid)}
+              {me.jersey_number ?? ""}
             </span>
           </div>
+
+          {/* Chi tiết thông tin cầu thủ */}
+          <div className="space-y-4">
+            <div>
+              <div className="flex flex-wrap items-baseline gap-2">
+                <h2 className="font-display font-black uppercase text-2xl sm:text-3xl text-white">
+                  {me.full_name}
+                </h2>
+                {me.short_name && (
+                  <span className="text-lg text-[#d4af37] font-bold">
+                    ({me.short_name})
+                  </span>
+                )}
+                {me.nickname && (
+                  <span className="text-xs font-bold text-[#fde047] bg-[#d4af37]/20 border border-[#d4af37]/40 px-2.5 py-0.5 rounded">
+                    Biệt danh: &ldquo;{me.nickname}&rdquo;
+                  </span>
+                )}
+              </div>
+              <p className="text-xs sm:text-sm text-sky-200 mt-1 flex items-center gap-1 flex-wrap">
+                <span>{me.role || "Cầu thủ thi đấu"}</span>
+                <span>•</span>
+                <span>{me.birth_year ? `Sinh năm ${me.birth_year}` : "Thành viên nòng cốt"}</span>
+                <span>•</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-white">
+                  <MapPin className="h-3.5 w-3.5 text-[#d4af37]" />
+                  <span>Xã {me.hometown || "Điện Quang"} (Gò Nổi)</span>
+                </span>
+              </p>
+              {me.playing_style && (
+                <div className="mt-2.5 inline-flex items-center gap-2 bg-[#051426] border border-white/15 px-3 py-1.5 rounded-md text-xs text-sky-100">
+                  <span className="text-[#d4af37] font-bold uppercase tracking-wider text-[10px]">
+                    Lối chơi:
+                  </span>
+                  <span className="font-semibold">{me.playing_style}</span>
+                </div>
+              )}
+            </div>
+
+            {/* 4 Chỉ số thực tế của cầu thủ (Đồng bộ chuẩn Real Stat Grid của trang chủ) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
+              <div className="bg-[#051426] p-2.5 rounded-lg border border-white/10">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                  Ra Sân Mùa Này
+                </span>
+                <span className="text-lg font-display font-black text-[#d4af37] block mt-0.5">
+                  {matchesPlayed}/{matches.length} trận
+                </span>
+                <span className="text-[9px] text-sky-300/70 block mt-0.5">Chuyên cần {rate}%</span>
+              </div>
+              <div className="bg-[#051426] p-2.5 rounded-lg border border-white/10">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                  Độ Tuổi
+                </span>
+                <span className="text-lg font-display font-black text-white block mt-0.5">
+                  {me.birth_year ? `${new Date().getFullYear() - Number(me.birth_year)} tuổi` : "Nòng cốt"}
+                </span>
+                <span className="text-[9px] text-sky-300/70 block mt-0.5">
+                  {me.birth_year ? `Sinh ${me.birth_year}` : "Đội 23+"}
+                </span>
+              </div>
+              <div className="bg-[#051426] p-2.5 rounded-lg border border-white/10">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                  Quê Quán
+                </span>
+                <span className="text-sm font-display font-black text-sky-200 block mt-0.5 truncate">
+                  Xã {me.hometown || "Điện Quang"}
+                </span>
+                <span className="text-[9px] text-sky-300/70 block mt-0.5">Điện Bàn, Q.Nam</span>
+              </div>
+              <div className="bg-[#051426] p-2.5 rounded-lg border border-white/10">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                  Vị Trí Kỹ Thuật
+                </span>
+                <span className="text-lg font-display font-black text-[#fde047] block mt-0.5">
+                  {posBadge.code}
+                </span>
+                <span className="text-[9px] text-sky-300/70 block mt-0.5 truncate">
+                  {posBadge.label}
+                </span>
+              </div>
+            </div>
+
+            {/* Lời ngỏ của cầu thủ / Bio */}
+            <div className="p-3.5 rounded-lg bg-[#051426] border-l-4 border-[#d4af37] border-y border-r border-white/10 space-y-1">
+              <div className="flex items-center gap-2 text-[11px] font-bold text-[#d4af37] uppercase tracking-wider">
+                <Quote className="h-3 w-3" />
+                <span>Lời ngỏ của bạn trên thẻ vận động viên trang chủ</span>
+              </div>
+              <p className="text-xs sm:text-sm text-sky-100 font-light leading-relaxed italic">
+                &ldquo;{me.bio || "Chưa cập nhật bài viết tự giới thiệu. Hãy bấm nút 'Sửa Thông Tin & Ảnh Thẻ Vận Động Viên' bên trên để chia sẻ đôi dòng về bản thân nhé!"}&rdquo;
+              </p>
+            </div>
+
+            {/* Album ảnh khoảnh khắc thi đấu cá nhân */}
+            <div className="pt-2 border-t border-white/10 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold uppercase tracking-wider text-[#d4af37] flex items-center gap-1.5">
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>Album ảnh khoảnh khắc của bạn ({(me.gallery_urls || []).length} ảnh)</span>
+                </span>
+                <span className="text-[11px] text-slate-400">Nhấp để xem ảnh đầy đủ</span>
+              </div>
+              {(me.gallery_urls || []).length > 0 ? (
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  {me.gallery_urls?.map((url, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => handleOpenLightbox(idx + 1)}
+                      className="relative aspect-square rounded-md overflow-hidden border border-white/15 hover:border-[#d4af37] cursor-pointer group bg-black/40"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`${me.full_name} ảnh ${idx + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic">
+                  Chưa có ảnh thi đấu nào trong album cá nhân. Bạn có thể tải lên ảnh chụp trận đấu của mình khi bấm &ldquo;Sửa Thông Tin &amp; Ảnh Thẻ Vận Động Viên&rdquo;.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Thông báo đồng bộ trực tiếp */}
+        <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-sky-200/90">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            <span>Mọi thay đổi thông tin hoặc hình ảnh tại đây sẽ được tự động đồng bộ ngay lập tức lên thẻ vận động viên tại Trang chủ.</span>
+          </span>
+          <span className="font-semibold text-emerald-400">
+            Quỹ đã đóng: {formatVND(totalPaid)} • Còn thiếu: {formatVND(totalUnpaid)}
+          </span>
         </div>
       </section>
 
@@ -660,13 +812,42 @@ export function PlayerPersonalTab({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Hộp thông báo đồng bộ với Thẻ vận động viên Trang Chủ */}
+          <div className="p-3 rounded-lg bg-sky-50 border border-sky-200 text-xs text-sky-900 flex items-start gap-2">
+            <span className="text-base">💡</span>
+            <div>
+              <p className="font-bold text-[#17488c]">
+                Đồng bộ Thẻ Vận Động Viên (Mục số 3 ngoài Trang Chủ):
+              </p>
+              <p className="text-slate-600 mt-0.5">
+                Mọi thông tin về họ tên, số áo, vị trí, quê quán, lối chơi, lời ngỏ và ảnh chân dung / album khoảnh khắc bạn lưu tại đây sẽ được cập nhật hiển thị chính xác ngay lập tức ra ngoài Trang chủ.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="my-fullname"
+                className="block text-sm font-semibold text-slate-700 mb-1"
+              >
+                Họ và Tên đầy đủ *
+              </label>
+              <input
+                id="my-fullname"
+                type="text"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="form-input"
+              />
+            </div>
             <div>
               <label
                 htmlFor="my-shortname"
                 className="block text-sm font-semibold text-slate-700 mb-1"
               >
-                Tên gọi trên sân
+                Tên gọi trên sân *
               </label>
               <input
                 id="my-shortname"
@@ -677,22 +858,26 @@ export function PlayerPersonalTab({
                 className="form-input"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label
                 htmlFor="my-jersey"
                 className="block text-sm font-semibold text-slate-700 mb-1"
               >
-                Số áo đăng ký
+                Số áo đăng ký thi đấu
               </label>
               <input
                 id="my-jersey"
                 type="text"
                 inputMode="numeric"
+                placeholder="VD: 10, 7, 23..."
                 value={jerseyNumber}
                 onChange={(e) =>
                   setJerseyNumber(e.target.value.replace(/[^0-9]/g, ""))
                 }
-                className="form-input"
+                className="form-input font-bold"
               />
             </div>
             <div>
@@ -1032,6 +1217,15 @@ export function PlayerPersonalTab({
           </div>
         </form>
       </ModalDialog>
+
+      {/* Lightbox phóng to ảnh cá nhân & album khoảnh khắc */}
+      <ImageLightboxModal
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        images={myLightboxImages}
+        currentIndex={lightboxIndex}
+        onNavigate={setLightboxIndex}
+      />
     </div>
   );
 }

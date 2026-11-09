@@ -122,6 +122,11 @@ export async function POST(req: NextRequest) {
           pin_code,
           status,
           notes,
+          hometown,
+          nickname,
+          playing_style,
+          bio,
+          gallery_urls,
         } = payload;
 
         const cleanName = String(full_name || "").trim();
@@ -141,19 +146,38 @@ export async function POST(req: NextRequest) {
           { maxWidth: 600, maxHeight: 800, quality: 85 }
         );
 
+        // Chuyển đổi WebP cho album ảnh cá nhân nếu có
+        const rawGal = Array.isArray(gallery_urls)
+          ? gallery_urls.map(String).filter(Boolean)
+          : [];
+        const webpGallery: string[] = [];
+        for (const gUrl of rawGal) {
+          const conv = await ensureWebpDataUrlServer(gUrl, {
+            maxWidth: 1000,
+            maxHeight: 1000,
+            quality: 85,
+          });
+          if (conv) webpGallery.push(conv);
+        }
+
         if (id) {
-          const existing = await db.queryOne<{ pin_code: string }>(
-            "SELECT pin_code FROM players WHERE id = ?",
+          const existing = await db.queryOne<{ pin_code: string; gallery_urls_json: string }>(
+            "SELECT pin_code, gallery_urls_json FROM players WHERE id = ?",
             [Number(id)]
           );
           const finalPin =
             String(pin_code || "").trim() || existing?.pin_code || "1234";
+          const finalGalleryJson =
+            gallery_urls !== undefined
+              ? JSON.stringify(webpGallery)
+              : existing?.gallery_urls_json || "[]";
 
           await db.run(
             `UPDATE players
             SET code_order = ?, full_name = ?, short_name = ?, jersey_number = ?,
                 position = ?, phone = ?, birth_year = ?, avatar_url = ?, bio = ?,
-                role = ?, access_role = ?, pin_code = ?, status = ?, notes = ?
+                role = ?, access_role = ?, pin_code = ?, status = ?, notes = ?,
+                hometown = ?, nickname = ?, playing_style = ?, gallery_urls_json = ?
             WHERE id = ?`,
             [
               Number(code_order) || 1,
@@ -166,14 +190,20 @@ export async function POST(req: NextRequest) {
                 : null,
               position || "Đa năng",
               phone || "",
-              birth_year || "",
+              birth_year !== null && birth_year !== undefined
+                ? String(birth_year)
+                : "",
               webpAvatar,
-              typeof payload.bio === "string" ? payload.bio : "",
+              typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
               access_role === "manager" ? "manager" : "player",
               finalPin,
               status || "Đang sinh hoạt",
               notes || "",
+              String(hometown || "").trim(),
+              String(nickname || "").trim(),
+              String(playing_style || "").trim(),
+              finalGalleryJson,
               Number(id),
             ]
           );
@@ -185,9 +215,10 @@ export async function POST(req: NextRequest) {
           const res = await db.run(
             `INSERT INTO players (
               code_order, full_name, short_name, jersey_number,
-              position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes
+              position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes,
+              hometown, nickname, playing_style, gallery_urls_json
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               nextOrder,
               cleanName,
@@ -199,14 +230,20 @@ export async function POST(req: NextRequest) {
                 : null,
               position || "Đa năng",
               phone || "",
-              birth_year || "",
+              birth_year !== null && birth_year !== undefined
+                ? String(birth_year)
+                : "",
               webpAvatar,
-              typeof payload.bio === "string" ? payload.bio : "",
+              typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
               access_role === "manager" ? "manager" : "player",
               String(pin_code || "1234").trim(),
               status || "Đang sinh hoạt",
               notes || "",
+              String(hometown || "").trim(),
+              String(nickname || "").trim(),
+              String(playing_style || "").trim(),
+              JSON.stringify(webpGallery),
             ]
           );
           const newPlayerId = Number(res.lastInsertRowid);
@@ -283,12 +320,15 @@ export async function POST(req: NextRequest) {
           if (conv) webpGallery.push(conv);
         }
 
+        const hasGalleryInPayload = Array.isArray(gallery_urls);
+        const finalGalleryJson = JSON.stringify(webpGallery);
+
         await db.run(
           `UPDATE players
           SET full_name = ?, short_name = ?, jersey_number = ?,
               position = ?, phone = ?, birth_year = ?, avatar_url = ?, bio = ?, notes = ?,
               hometown = ?, nickname = ?, playing_style = ?,
-              gallery_urls_json = CASE WHEN ? = '[]' THEN gallery_urls_json ELSE ? END
+              gallery_urls_json = CASE WHEN ? = 1 THEN ? ELSE gallery_urls_json END
           WHERE id = ?`,
           [
             cleanName,
@@ -309,8 +349,8 @@ export async function POST(req: NextRequest) {
             String(hometown || "").trim(),
             String(nickname || "").trim(),
             String(playing_style || "").trim(),
-            JSON.stringify(webpGallery),
-            JSON.stringify(webpGallery),
+            hasGalleryInPayload ? 1 : 0,
+            finalGalleryJson,
             Number(player_id),
           ]
         );
