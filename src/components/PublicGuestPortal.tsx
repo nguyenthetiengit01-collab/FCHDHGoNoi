@@ -10,7 +10,6 @@ import {
   ChevronDown,
   Camera,
   HeartHandshake,
-  Quote,
   Calendar,
   BookOpen,
   Clock,
@@ -32,6 +31,11 @@ import {
   ImageLightboxModal,
   type LightboxImage,
 } from "./ImageLightboxModal";
+import {
+  BroadcastAthleteCard,
+  getPlayerPositionBadge,
+  getPlayerHamlet,
+} from "./BroadcastAthleteCard";
 
 interface PublicGuestPortalProps {
   data: FullAppData;
@@ -151,68 +155,14 @@ function Reveal({
     <div
       ref={ref}
       style={{ transitionDelay: `${delay}ms` }}
-      className={`transition-all duration-1000 ease-out motion-reduce:transition-none ${
-        shown
+      className={`transition-all duration-1000 ease-out motion-reduce:transition-none ${shown
           ? "opacity-100 translate-y-0"
           : "opacity-0 translate-y-10 motion-reduce:opacity-100 motion-reduce:translate-y-0"
-      } ${className}`}
+        } ${className}`}
     >
       {children}
     </div>
   );
-}
-
-/* =========================================================================
-   BỘ TRỢ GIÚP THÔNG TIN CẦU THỦ (ATHLETIC TECHNICAL ROSTER)
-   ========================================================================= */
-function getPlayerPositionBadge(player: Player) {
-  if (player.access_role === "manager") {
-    return {
-      label: "Ban Quản Lý",
-      code: "BQL",
-      badgeClass: "bg-[#d4af37]/15 text-[#fde047] border-[#d4af37]/40",
-      accent: "#d4af37",
-    };
-  }
-  const pos = (player.position || "").toLowerCase();
-  if (/thủ môn|gk/i.test(pos)) {
-    return {
-      label: "Thủ Môn",
-      code: "GK",
-      badgeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
-      accent: "#10b981",
-    };
-  }
-  if (/hậu vệ|cb|lb|rb/i.test(pos)) {
-    return {
-      label: "Hậu Vệ",
-      code: "DF",
-      badgeClass: "bg-sky-500/15 text-sky-300 border-sky-500/40",
-      accent: "#38bdf8",
-    };
-  }
-  if (/tiền vệ|cm|cdm|cam/i.test(pos)) {
-    return {
-      label: "Tiền Vệ",
-      code: "MF",
-      badgeClass: "bg-indigo-500/15 text-indigo-300 border-indigo-500/40",
-      accent: "#818cf8",
-    };
-  }
-  return {
-    label: player.position || "Tiền Đạo",
-    code: "FW",
-    badgeClass: "bg-amber-500/15 text-amber-300 border-amber-500/40",
-    accent: "#f59e0b",
-  };
-}
-
-function getPlayerHamlet(player: Player): string {
-  const text = `${player.notes || ""} ${player.bio || ""} ${player.full_name}`;
-  if (/điện quang/i.test(text)) return "Điện Quang";
-  if (/điện trung/i.test(text)) return "Điện Trung";
-  if (/điện phong/i.test(text)) return "Điện Phong";
-  return "Gò Nổi";
 }
 
 /* =========================================================================
@@ -238,267 +188,20 @@ function ExpandedPlayerDetail({
 }: ExpandedPlayerDetailProps) {
   if (!player) return null;
 
-  const posBadge = getPlayerPositionBadge(player);
-  const hamlet = player.hometown?.trim() || getPlayerHamlet(player);
-  const displayBio =
-    player.bio?.trim() ||
-    "Chiến binh nhiệt huyết của FC HĐH Gò Nổi. Luôn thi đấu với tinh thần fair-play, kỷ luật và niềm tự hào quê hương xứ Quảng sâu nặng.";
-
-  // Tính toán số trận ra sân thực tế từ dữ liệu attendance
-  const matchAttendanceCount = attendances
-    ? attendances.filter(
-        (a) => a.player_id === player.id && a.rsvp_status === "registered"
-      ).length
-    : 0;
-
-  const currentYear = new Date().getFullYear();
-  const birthYearNum = player.birth_year ? Number(player.birth_year) : null;
-  const playerAge =
-    birthYearNum && !isNaN(birthYearNum)
-      ? `${currentYear - birthYearNum} tuổi`
-      : "Nòng cốt";
-
-  // Tổng hợp ảnh cầu thủ (ảnh đại diện + album thi đấu)
-  const playerGallery: string[] =
-    player.gallery_urls && player.gallery_urls.length > 0
-      ? player.gallery_urls
-      : FALLBACK_ACTION_PHOTOS;
-
-  const allLightboxImages: LightboxImage[] = [
-    ...(player.avatar_url
-      ? [
-          {
-            src: player.avatar_url,
-            title: `${player.full_name} #${player.jersey_number ?? ""}`,
-            caption: `Ảnh chân dung chính thức • ${posBadge.label} • Xã ${hamlet}`,
-            tag: "Hồ Sơ Cầu Thủ",
-          },
-        ]
-      : []),
-    ...playerGallery.map((url, i) => ({
-      src: url,
-      title: `${player.full_name} • Khoảnh khắc #${i + 1}`,
-      caption: `Hình ảnh thi đấu và hoạt động cùng FC HĐH Gò Nổi`,
-      tag: "Khoảnh Khắc Sân Cỏ",
-    })),
-  ];
-
   return (
-    <div className="rounded-xl overflow-hidden bg-gradient-to-b from-[#0b2447] via-[#081a33] to-[#040e1a] border border-[#d4af37]/60 shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-5 sm:p-6 space-y-5">
-      {/* Top Bar: Số áo kỹ thuật + Huy hiệu vị trí + Quê quán */}
-      <div className="flex items-center justify-between pb-4 border-b border-white/10">
-        <div className="flex items-center gap-3.5">
-          <div className="h-14 w-14 rounded-lg bg-[#040e1a] border border-[#d4af37]/60 flex items-center justify-center shrink-0 shadow-inner">
-            <span className="font-display font-black text-3xl sm:text-4xl text-[#d4af37] leading-none">
-              #{player.jersey_number ?? "--"}
-            </span>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-black uppercase tracking-wider border ${posBadge.badgeClass}`}
-              >
-                {posBadge.code} • {posBadge.label}
-              </span>
-              <span className="text-[10px] uppercase tracking-widest text-slate-400 font-bold hidden sm:inline">
-                OFFICIAL ROSTER
-              </span>
-            </div>
-            <span className="text-xs text-sky-200/80 font-medium block mt-1">
-              Chiến binh FC HĐH Gò Nổi • Mùa giải 2026
-            </span>
-          </div>
-        </div>
-
-        <div className="text-right flex flex-col items-end gap-1">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-200 bg-white/5 px-3 py-1 rounded-md border border-white/10">
-            <MapPin className="h-3.5 w-3.5 text-[#d4af37]" />
-            <span>Xã {hamlet}</span>
-          </span>
-          {player.nickname && (
-            <span className="text-[11px] font-bold text-[#fde047] tracking-wide">
-              Biệt danh: &ldquo;{player.nickname}&rdquo;
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Ảnh chân dung lớn: Nhấp để phóng to Lightbox */}
-      <div
-        onClick={() =>
-          onOpenImage &&
-          allLightboxImages.length > 0 &&
-          onOpenImage(allLightboxImages, 0)
-        }
-        className="relative w-full aspect-[3/4] max-h-[480px] rounded-lg overflow-hidden border border-white/15 shadow-[0_15px_40px_rgba(0,0,0,0.8)] bg-gradient-to-b from-[#092244] via-[#061730] to-[#040e1a] flex items-center justify-center cursor-pointer group"
-      >
-        {player.avatar_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={player.avatar_url}
-            alt={player.full_name}
-            className="w-full h-full object-cover object-top filter brightness-105 contrast-[1.02] group-hover:scale-105 transition duration-500"
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-center p-6 bg-gradient-to-b from-[#0c2850] to-[#061730]">
-            <SoccerBallIcon className="h-16 w-16 text-[#d4af37] mb-3 opacity-80" />
-            <span className="font-display font-black text-6xl text-[#d4af37]">
-              #{player.jersey_number ?? "-"}
-            </span>
-            <span className="text-xs uppercase text-sky-200 tracking-widest mt-2">
-              Hồ Sơ Cầu Thủ
-            </span>
-          </div>
-        )}
-
-        {/* Nút bấm phóng to hiển thị khi hover */}
-        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-md border border-white/20 flex items-center gap-1.5 shadow-lg">
-          <Camera className="h-3.5 w-3.5 text-[#d4af37]" />
-          <span>Phóng to ảnh</span>
-        </div>
-
-        {/* Lớp phủ chuyển sắc nhẹ đáy ảnh */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#040e1a] via-[#040e1a]/60 to-transparent pointer-events-none"
-        />
-
-        {/* Số áo in chìm kỹ thuật */}
-        <span
-          aria-hidden="true"
-          className="absolute right-3 bottom-1 font-display font-black text-7xl text-transparent [-webkit-text-stroke:1.5px_rgba(212,175,55,0.35)] pointer-events-none select-none leading-none drop-shadow-lg"
-        >
-          {player.jersey_number ?? ""}
-        </span>
-      </div>
-
-      {/* Thông tin danh tính & Lối chơi */}
-      <div>
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="font-display font-black uppercase text-2xl sm:text-3xl text-white">
-            {player.full_name}
-          </h3>
-          {player.short_name && (
-            <span className="text-lg text-[#d4af37] font-bold">
-              ({player.short_name})
-            </span>
-          )}
-        </div>
-        <p className="text-xs sm:text-sm text-sky-200 mt-1">
-          {player.role || "Cầu thủ thi đấu"} •{" "}
-          {player.birth_year
-            ? `Năm sinh ${player.birth_year}`
-            : "Thành viên nòng cốt"}
-        </p>
-
-        {player.playing_style && (
-          <div className="mt-2.5 inline-flex items-center gap-2 bg-[#051426] border border-white/15 px-3 py-1.5 rounded-md text-xs text-sky-100">
-            <span className="text-[#d4af37] font-bold uppercase tracking-wider text-[10px]">
-              Lối chơi:
-            </span>
-            <span className="font-semibold">{player.playing_style}</span>
-          </div>
-        )}
-      </div>
-
-      {/* 4 Chỉ số thực tế của cầu thủ (Real Stat Grid - chuẩn chỉnh chuyên gia, loại bỏ số liệu ảo) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/10 text-center">
-        <div className="bg-[#051426] p-2.5 sm:p-3 rounded-lg border border-white/10">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
-            Ra Sân Mùa Này
-          </span>
-          <span className="text-lg sm:text-xl font-display font-black text-[#d4af37] block mt-0.5">
-            {matchAttendanceCount > 0 ? `${matchAttendanceCount} trận` : "Sẵn sàng"}
-          </span>
-          <span className="text-[9px] text-sky-300/70 block mt-0.5">Sân 7 người</span>
-        </div>
-        <div className="bg-[#051426] p-2.5 sm:p-3 rounded-lg border border-white/10">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
-            Độ Tuổi
-          </span>
-          <span className="text-lg sm:text-xl font-display font-black text-white block mt-0.5">
-            {playerAge}
-          </span>
-          <span className="text-[9px] text-sky-300/70 block mt-0.5">
-            {player.birth_year ? `Sinh ${player.birth_year}` : "Đội 23+"}
-          </span>
-        </div>
-        <div className="bg-[#051426] p-2.5 sm:p-3 rounded-lg border border-white/10">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
-            Quê Quán
-          </span>
-          <span className="text-sm sm:text-base font-display font-black text-sky-200 block mt-0.5 truncate">
-            {hamlet}
-          </span>
-          <span className="text-[9px] text-sky-300/70 block mt-0.5">Điện Bàn, Q.Nam</span>
-        </div>
-        <div className="bg-[#051426] p-2.5 sm:p-3 rounded-lg border border-white/10">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
-            Vị Trí Kỹ Thuật
-          </span>
-          <span className="text-lg sm:text-xl font-display font-black text-[#fde047] block mt-0.5">
-            {posBadge.code}
-          </span>
-          <span className="text-[9px] text-sky-300/70 block mt-0.5 truncate">
-            {posBadge.label}
-          </span>
-        </div>
-      </div>
-
-      {/* Bài viết tự giới thiệu / Bio */}
-      <div className="p-4 rounded-lg bg-[#051426] border-l-4 border-[#d4af37] border-y border-r border-white/10 space-y-1.5">
-        <div className="flex items-center gap-2 text-xs font-bold text-[#d4af37] uppercase tracking-wider">
-          <Quote className="h-3.5 w-3.5" />
-          <span>Lời ngỏ của cầu thủ</span>
-        </div>
-        <p className="text-xs sm:text-sm text-sky-100 font-light leading-relaxed italic">
-          &ldquo;{displayBio}&rdquo;
-        </p>
-      </div>
-
-      {/* Album ảnh khoảnh khắc thi đấu cá nhân */}
-      <div className="pt-2 border-t border-white/10 space-y-2.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-bold uppercase tracking-wider text-[#d4af37] flex items-center gap-1.5">
-            <Camera className="h-3.5 w-3.5" />
-            <span>Tư liệu sân cỏ ({playerGallery.length} ảnh)</span>
-          </span>
-          <span className="text-[11px] text-slate-400">Nhấp để xem ảnh</span>
-        </div>
-        <div className="grid grid-cols-4 gap-2">
-          {playerGallery.slice(0, 4).map((url, idx) => (
-            <div
-              key={idx}
-              onClick={() =>
-                onOpenImage &&
-                onOpenImage(
-                  allLightboxImages,
-                  player.avatar_url ? idx + 1 : idx
-                )
-              }
-              className="relative aspect-square rounded-md overflow-hidden border border-white/15 hover:border-[#d4af37] cursor-pointer group bg-black/40"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={url}
-                alt={`${player.full_name} khoảnh khắc ${idx + 1}`}
-                className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-              />
-              <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Ghi chú nếu có */}
-      {player.notes && (
-        <div className="text-xs text-sky-200/80 bg-white/5 p-3 rounded-lg border border-white/5">
-          <strong className="text-[#d4af37]">Ghi chú:</strong> {player.notes}
-        </div>
-      )}
-    </div>
+    <BroadcastAthleteCard
+      player={player}
+      attendances={attendances}
+      layout="stacked"
+      fallbackPhotos={FALLBACK_ACTION_PHOTOS}
+      onOpenLightbox={(imgs, idx) => {
+        if (onOpenImage) onOpenImage(imgs, idx);
+      }}
+    />
   );
 }
+
+
 
 /* =========================================================================
    THẺ CẦU THỦ THU NHỎ XẾP GỌN (MATCHDAY TEAM SHEET ROSTER)
@@ -520,11 +223,10 @@ function CompactPlayerRow({
   return (
     <div
       onClick={onSelect}
-      className={`group flex items-center justify-between p-3 rounded-lg transition-all cursor-pointer border ${
-        isSelected
+      className={`group flex items-center justify-between p-3 rounded-lg transition-all cursor-pointer border ${isSelected
           ? "bg-[#103567] border-l-4 border-l-[#d4af37] border-y-[#d4af37]/60 border-r-[#d4af37]/60 shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
           : "bg-[#061830] border border-white/10 hover:border-white/25 hover:bg-[#092244]"
-      }`}
+        }`}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className="h-10 w-10 rounded-md bg-[#040e1a] border border-white/15 flex items-center justify-center shrink-0 font-display font-black text-base text-[#d4af37]">
@@ -715,11 +417,10 @@ export function PublicGuestPortal({
     <div className="w-full font-sans text-white overflow-x-clip bg-[#092244]">
       {/* ===================== HEADER XANH LAM HOÀNG GIA ===================== */}
       <header
-        className={`fixed inset-x-0 top-0 z-40 transition-all duration-500 ${
-          scrolled
+        className={`fixed inset-x-0 top-0 z-40 transition-all duration-500 ${scrolled
             ? "bg-[#0a274e]/90 backdrop-blur-lg py-3 border-b border-[#d4af37]/30 shadow-lg"
             : "bg-gradient-to-b from-[#061730]/80 via-[#061730]/40 to-transparent py-5"
-        }`}
+          }`}
       >
         <div className={`${WRAP} flex items-center justify-between gap-4`}>
           <button
@@ -791,9 +492,8 @@ export function PublicGuestPortal({
             key={src}
             src={src}
             alt="FC HĐH Gò Nổi"
-            className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 ${
-              heroIdx === i ? "opacity-100 scale-100" : "opacity-0 scale-105"
-            }`}
+            className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 ${heroIdx === i ? "opacity-100 scale-100" : "opacity-0 scale-105"
+              }`}
           />
         ))}
 
@@ -968,7 +668,7 @@ export function PublicGuestPortal({
                   {/* Tỷ số hoặc VS Broadcast Center */}
                   <div className="flex flex-col items-center justify-center px-6 py-4 rounded-lg bg-[#061b36] border border-white/10 shrink-0">
                     {nextMatch.team_score !== null &&
-                    nextMatch.opponent_score !== null ? (
+                      nextMatch.opponent_score !== null ? (
                       <div className="font-display font-black text-5xl sm:text-7xl text-[#fde047] leading-none tracking-tight">
                         {nextMatch.team_score}
                         <span className="mx-2 text-white/40">:</span>
@@ -1080,11 +780,10 @@ export function PublicGuestPortal({
                     key={y.id}
                     type="button"
                     onClick={() => setSelectedTimelineYear(y.id)}
-                    className={`px-3 py-1.5 rounded-md whitespace-nowrap transition cursor-pointer border text-xs flex items-center gap-1.5 ${
-                      selectedTimelineYear === y.id
+                    className={`px-3 py-1.5 rounded-md whitespace-nowrap transition cursor-pointer border text-xs flex items-center gap-1.5 ${selectedTimelineYear === y.id
                         ? "bg-[#17488c] text-white font-black border-[#17488c] shadow-sm"
                         : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900"
-                    }`}
+                      }`}
                   >
                     <span>{y.label}</span>
                     <span className="text-[10px] opacity-75 font-normal">({y.highlight})</span>
@@ -1099,11 +798,10 @@ export function PublicGuestPortal({
                     key={cat.id}
                     type="button"
                     onClick={() => setActiveActivityCategory(cat.id)}
-                    className={`px-3.5 py-2 rounded-md whitespace-nowrap transition cursor-pointer border ${
-                      activeActivityCategory === cat.id
+                    className={`px-3.5 py-2 rounded-md whitespace-nowrap transition cursor-pointer border ${activeActivityCategory === cat.id
                         ? "bg-[#092244] text-[#fde047] border-[#092244] shadow-sm"
                         : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900"
-                    }`}
+                      }`}
                   >
                     {cat.label}
                     <span className="ml-1 opacity-60 text-[11px]">
@@ -1204,7 +902,7 @@ export function PublicGuestPortal({
 
                         {filteredActivityPosts[0].taggedPlayerNames &&
                           filteredActivityPosts[0].taggedPlayerNames.length >
-                            0 && (
+                          0 && (
                             <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
                               <span className="text-[10px] uppercase font-bold text-slate-400 mr-1">
                                 Cầu thủ:
@@ -1434,11 +1132,10 @@ export function PublicGuestPortal({
                         key={key}
                         type="button"
                         onClick={() => setSquadFilter(key)}
-                        className={`px-3 py-1.5 rounded transition cursor-pointer ${
-                          squadFilter === key
+                        className={`px-3 py-1.5 rounded transition cursor-pointer ${squadFilter === key
                             ? "bg-[#d4af37] text-slate-950 font-black shadow-sm"
                             : "text-sky-200 hover:text-white"
-                        }`}
+                          }`}
                       >
                         {label}
                       </button>
@@ -1662,11 +1359,10 @@ export function PublicGuestPortal({
                     type="button"
                     onClick={() => setMatchTab(key)}
                     aria-pressed={matchTab === key}
-                    className={`px-4 py-2 rounded-md border transition cursor-pointer ${
-                      matchTab === key
+                    className={`px-4 py-2 rounded-md border transition cursor-pointer ${matchTab === key
                         ? "bg-[#17488c] text-white border-[#17488c] shadow-sm"
                         : "bg-white text-slate-600 border-slate-300 hover:text-slate-900"
-                    }`}
+                      }`}
                   >
                     {label}
                   </button>

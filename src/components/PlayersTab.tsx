@@ -18,8 +18,6 @@ import {
   Upload,
   Lock,
   LayoutGrid,
-  MapPin,
-  Quote,
   Camera,
   Sparkles,
 } from "lucide-react";
@@ -34,6 +32,7 @@ import { formatVND, formatDateVN } from "@/lib/format";
 import { convertFileToWebp, convertMultipleFilesToWebp } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
 import { ImageLightboxModal, type LightboxImage } from "./ImageLightboxModal";
+import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
 
 interface PlayersTabProps {
   data: FullAppData;
@@ -53,38 +52,6 @@ const PRESET_AVATARS = Array.from(
   { length: 14 },
   (_, i) => `/uploads/avatars/member-${i + 1}.jpg`
 );
-
-function getPositionBadge(pos: string) {
-  if (pos.includes("Thủ môn"))
-    return {
-      code: "GK",
-      label: "THỦ MÔN",
-      tone: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-    };
-  if (pos.includes("Hậu vệ"))
-    return {
-      code: "DF",
-      label: "HẬU VỆ",
-      tone: "bg-blue-500/20 text-blue-300 border-blue-500/40",
-    };
-  if (pos.includes("Tiền vệ"))
-    return {
-      code: "MF",
-      label: "TIỀN VỆ",
-      tone: "bg-amber-500/20 text-amber-300 border-amber-500/40",
-    };
-  if (pos.includes("Tiền đạo"))
-    return {
-      code: "FW",
-      label: "TIỀN ĐẠO",
-      tone: "bg-rose-500/20 text-rose-300 border-rose-500/40",
-    };
-  return {
-    code: "BQL",
-    label: "ĐA NĂNG",
-    tone: "bg-purple-500/20 text-purple-300 border-purple-500/40",
-  };
-}
 
 export function PlayersTab({
   data,
@@ -221,8 +188,7 @@ export function PlayersTab({
       });
       setAvatarUrl(converted.dataUrl);
       setWebpInfo(
-        `✅ Đã tự động chuyển sang chuẩn WebP (${converted.webpFileName} • ${converted.originalSizeKB}KB → ${converted.webpSizeKB}KB${
-          converted.savedPercent > 0 ? `, nhẹ hơn ${converted.savedPercent}%` : ""
+        `✅ Đã tự động chuyển sang chuẩn WebP (${converted.webpFileName} • ${converted.originalSizeKB}KB → ${converted.webpSizeKB}KB${converted.savedPercent > 0 ? `, nhẹ hơn ${converted.savedPercent}%` : ""
         })`
       );
     } catch {
@@ -427,11 +393,10 @@ export function PlayersTab({
             <button
               type="button"
               onClick={() => setViewMode("cards")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
-                viewMode === "cards"
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${viewMode === "cards"
                   ? "bg-[#1e4fc2] text-[#ffc933] shadow-2xs"
                   : "text-slate-700 hover:text-slate-900"
-              }`}
+                }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
               <span>Hồ Sơ Ảnh Đội Hình</span>
@@ -439,11 +404,10 @@ export function PlayersTab({
             <button
               type="button"
               onClick={() => setViewMode("roster")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
-                viewMode === "roster"
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${viewMode === "roster"
                   ? "bg-[#1e4fc2] text-[#ffc933] shadow-2xs"
                   : "text-slate-700 hover:text-slate-900"
-              }`}
+                }`}
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
               <span>Lập Danh Sách Thi Đấu ({rosterPlayers.length})</span>
@@ -476,11 +440,10 @@ export function PlayersTab({
                 key={pos}
                 type="button"
                 onClick={() => setFilterPosition(pos)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                  filterPosition === pos
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${filterPosition === pos
                     ? "bg-[#1e4fc2] text-[#ffc933] border-[#1e4fc2]"
                     : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                }`}
+                  }`}
               >
                 {pos} ({count})
               </button>
@@ -559,11 +522,10 @@ export function PlayersTab({
                   key={p.id}
                   type="button"
                   onClick={() => toggleRosterPlayer(p.id)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${
-                    checked
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${checked
                       ? "bg-[#1e4fc2] text-white border-[#1e4fc2]"
                       : "bg-white text-slate-500 border-slate-200"
-                  }`}
+                    }`}
                 >
                   #{p.jersey_number ?? "-"} {p.short_name}
                 </button>
@@ -627,11 +589,10 @@ export function PlayersTab({
             return (
               <div
                 key={p.id}
-                className={`rounded-xl bg-white border p-4 flex flex-col justify-between transition shadow-2xs ${
-                  isSelf
+                className={`rounded-xl bg-white border p-4 flex flex-col justify-between transition shadow-2xs ${isSelf
                     ? "border-2 border-[#ffc933] ring-2 ring-[#ffc933]/30"
                     : "border-slate-200 hover:border-[#1e4fc2]/50"
-                }`}
+                  }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
@@ -821,156 +782,31 @@ export function PlayersTab({
         onClose={() => setDetailPlayer(null)}
         title={
           detailPlayer
-            ? `Hồ Sơ Cầu Thủ: ${detailPlayer.full_name} (#${
-                detailPlayer.jersey_number ?? "-"
-              })`
+            ? `Hồ Sơ Cầu Thủ: ${detailPlayer.full_name} (#${detailPlayer.jersey_number ?? "-"
+            })`
             : "Chi tiết cầu thủ"
         }
         subtitle={
           detailPlayer
-            ? `${detailPlayer.position} • Năm sinh: ${
-                detailPlayer.birth_year || "1991"
-              } • Tên gọi: ${detailPlayer.short_name}`
+            ? `${detailPlayer.position} • Năm sinh: ${detailPlayer.birth_year || "1991"
+            } • Tên gọi: ${detailPlayer.short_name}`
             : ""
         }
       >
         {detailPlayer && (
           <div className="space-y-4">
-            {/* Thẻ Vận Động Viên Chuẩn Truyền Hình thu nhỏ */}
-            <div className="relative rounded-xl overflow-hidden border border-[#d4af37]/40 bg-gradient-to-br from-[#0b2447] via-[#081a33] to-[#040e1a] p-4 text-white shadow-md">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                <div className="relative shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={
-                      detailPlayer.avatar_url || "/uploads/avatars/member-1.jpg"
-                    }
-                    alt={detailPlayer.full_name}
-                    className="h-28 w-24 rounded-lg object-cover border-2 border-[#d4af37]/70 shadow-lg bg-slate-800"
-                  />
-                  <span className="absolute -bottom-2 -right-2 rounded-md bg-[#d4af37] text-slate-950 font-black text-xs px-2 py-0.5 shadow-md border border-white/50">
-                    #{detailPlayer.jersey_number ?? "--"}
-                  </span>
-                </div>
-
-                <div className="flex-1 text-center sm:text-left min-w-0">
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
-                    {(() => {
-                      const b = getPositionBadge(detailPlayer.position);
-                      return (
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase border ${b.tone}`}
-                        >
-                          <span>{b.code}</span>
-                          <span>•</span>
-                          <span>{b.label}</span>
-                        </span>
-                      );
-                    })()}
-                    <span className="inline-flex items-center gap-1 rounded bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
-                      <MapPin className="h-3 w-3 text-[#d4af37]" />
-                      <span>Xã {detailPlayer.hometown || "Điện Quang"}</span>
-                    </span>
-                    {detailPlayer.nickname && (
-                      <span className="rounded bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-200 border border-amber-400/30">
-                        Biệt danh: {detailPlayer.nickname}
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">
-                    {detailPlayer.full_name}
-                  </h3>
-                  <p className="text-xs text-slate-300 mt-0.5">
-                    Tên gọi sân:{" "}
-                    <span className="font-bold text-[#d4af37]">
-                      {detailPlayer.short_name}
-                    </span>
-                    {detailPlayer.birth_year
-                      ? ` • Sinh năm ${detailPlayer.birth_year}`
-                      : ""}
-                    {detailPlayer.role ? ` • ${detailPlayer.role}` : ""}
-                  </p>
-
-                  {detailPlayer.playing_style && (
-                    <p className="text-xs text-sky-200 mt-1 italic">
-                      Phong cách: &ldquo;{detailPlayer.playing_style}&rdquo;
-                    </p>
-                  )}
-
-                  {detailPlayer.bio && (
-                    <div className="mt-2.5 rounded-lg border-l-2 border-[#d4af37] bg-white/5 p-2.5 text-xs text-slate-200 italic">
-                      <Quote className="h-3 w-3 text-[#d4af37] inline mr-1" />
-                      {detailPlayer.bio}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Action photo gallery inside detail player */}
-              {detailPlayer.gallery_urls &&
-                detailPlayer.gallery_urls.length > 0 && (
-                  <div className="mt-4 pt-3 border-t border-white/10">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#d4af37] flex items-center gap-1 mb-2">
-                      <Camera className="h-3.5 w-3.5" />
-                      Khoảnh khắc sân cỏ ({detailPlayer.gallery_urls.length} ảnh)
-                    </span>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                      {detailPlayer.gallery_urls.map((url, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            const imgs: LightboxImage[] = [
-                              ...(detailPlayer.avatar_url
-                                ? [
-                                    {
-                                      src: detailPlayer.avatar_url,
-                                      title: `${detailPlayer.full_name} #${
-                                        detailPlayer.jersey_number ?? ""
-                                      }`,
-                                      caption: `Ảnh chân dung chính thức • ${
-                                        detailPlayer.position
-                                      } • Xã ${
-                                        detailPlayer.hometown || "Điện Quang"
-                                      }`,
-                                      tag: "Hồ Sơ Cầu Thủ",
-                                    },
-                                  ]
-                                : []),
-                              ...(detailPlayer.gallery_urls || []).map(
-                                (gUrl, i) => ({
-                                  src: gUrl,
-                                  title: `${detailPlayer.full_name} • Khoảnh khắc #${
-                                    i + 1
-                                  }`,
-                                  caption: `Hình ảnh thi đấu của cầu thủ #${
-                                    detailPlayer.jersey_number ?? ""
-                                  } - ${detailPlayer.full_name}`,
-                                  tag: "Khoảnh Khắc Sân Cỏ",
-                                })
-                              ),
-                            ];
-                            setLightboxImages(imgs);
-                            setLightboxIndex(
-                              detailPlayer.avatar_url ? idx + 1 : idx
-                            );
-                            setLightboxOpen(true);
-                          }}
-                          className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group hover:border-[#d4af37] transition cursor-pointer"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={url}
-                            alt={`Khoảnh khắc ${idx + 1}`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-            </div>
+            {/* Thẻ Vận Động Viên Chuẩn Truyền Hình (Deep Module) */}
+            <BroadcastAthleteCard
+              player={detailPlayer}
+              attendances={attendances}
+              matches={matches}
+              layout="compact"
+              onOpenLightbox={(imgs, idx) => {
+                setLightboxImages(imgs);
+                setLightboxIndex(idx);
+                setLightboxOpen(true);
+              }}
+            />
 
             <div className="grid grid-cols-3 gap-2 flex-1 text-center">
               <div className="rounded-lg bg-white p-2 border border-slate-200">
@@ -1130,11 +966,10 @@ export function PlayersTab({
                       setAvatarUrl(url);
                       setWebpInfo("");
                     }}
-                    className={`h-9 w-9 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${
-                      avatarUrl === url
+                    className={`h-9 w-9 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${avatarUrl === url
                         ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
                         : "border-transparent opacity-70 hover:opacity-100"
-                    }`}
+                      }`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
