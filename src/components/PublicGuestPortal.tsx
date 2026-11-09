@@ -36,6 +36,7 @@ import {
   getPlayerPositionBadge,
   getPlayerHamlet,
 } from "./BroadcastAthleteCard";
+import { MatchdayRosterPosterModal } from "./MatchdayRosterPoster";
 
 interface PublicGuestPortalProps {
   data: FullAppData;
@@ -316,6 +317,9 @@ export function PublicGuestPortal({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  /* Modal Xuất Ảnh Đội Hình Ra Sân Điểm Danh */
+  const [posterModalOpen, setPosterModalOpen] = useState(false);
 
   const handleOpenLightbox = (images: LightboxImage[], startIndex = 0) => {
     setLightboxImages(images);
@@ -715,15 +719,27 @@ export function PublicGuestPortal({
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={onOpenLogin}
-                    className="inline-flex items-center gap-2.5 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-black px-6 py-3.5 text-xs uppercase tracking-widest rounded-lg cursor-pointer transition shadow-lg hover:shadow-xl shrink-0"
-                  >
-                    <SoccerBallIcon className="h-4 w-4" />
-                    <span>Đăng nhập để điểm danh</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setPosterModalOpen(true)}
+                      className="inline-flex items-center gap-2 bg-[#061b36] hover:bg-[#092b57] text-[#d4af37] border border-[#d4af37]/50 font-extrabold px-5 py-3.5 text-xs uppercase tracking-wider rounded-lg cursor-pointer transition shadow-md"
+                      title="Xuất bảng điểm danh cầu thủ chất lượng cao để chia sẻ vào Zalo"
+                    >
+                      <Camera className="h-4 w-4" />
+                      <span>Xuất Ảnh Đội Hình</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onOpenLogin}
+                      className="inline-flex items-center gap-2.5 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-black px-6 py-3.5 text-xs uppercase tracking-widest rounded-lg cursor-pointer transition shadow-lg hover:shadow-xl"
+                    >
+                      <SoccerBallIcon className="h-4 w-4" />
+                      <span>Đăng nhập để điểm danh</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </Reveal>
@@ -1574,6 +1590,17 @@ export function PublicGuestPortal({
         currentIndex={lightboxIndex}
         onNavigate={setLightboxIndex}
       />
+
+      {/* Modal Xuất Bảng Điểm Danh Ra Sân Tuần Này */}
+      {nextMatch && (
+        <MatchdayRosterPosterModal
+          isOpen={posterModalOpen}
+          onClose={() => setPosterModalOpen(false)}
+          match={nextMatch}
+          attendances={data.attendances || []}
+          players={data.players || []}
+        />
+      )}
     </div>
   );
 }

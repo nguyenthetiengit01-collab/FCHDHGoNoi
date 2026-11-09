@@ -40,6 +40,7 @@ import {
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
+import { MatchdayRosterPosterModal } from "./MatchdayRosterPoster";
 
 interface ScheduleTabProps {
   data: FullAppData;
@@ -341,6 +342,9 @@ export function ScheduleTab({
 
   // Chế độ xem: "my_profile" (Mặc định: thông tin đầy đủ & bài viết của bạn) hoặc "team_roster" (Danh sách điểm danh cả đội)
   const [rosterViewMode, setRosterViewMode] = useState<"my_profile" | "team_roster">("my_profile");
+
+  // State cho Modal Xuất Ảnh Điểm Danh Gửi Zalo
+  const [posterModalOpen, setPosterModalOpen] = useState(false);
 
   // State cho Modal Sửa Thông Tin & Bài Viết Cá Nhân (Bio)
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -883,8 +887,8 @@ export function ScheduleTab({
                 {fanpagePreviewText}
               </pre>
 
-              {/* Nút Copy & Mở Fanpage */}
-              <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              {/* Nút Copy, Xuất Ảnh & Mở Fanpage */}
+              <div className="flex flex-col sm:flex-row items-stretch gap-2.5 pt-1">
                 <button
                   type="button"
                   onClick={handleCopyFanpagePost}
@@ -894,17 +898,27 @@ export function ScheduleTab({
                   <span>
                     {copiedReminder
                       ? "Đã Copy Bài Đăng!"
-                      : "Copy Bài Thông Báo Chuẩn Fanpage"}
+                      : "Copy Bài Thông Báo"}
                   </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPosterModalOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
+                  title="Xuất bảng điểm danh cầu thủ chất lượng cao để chia sẻ vào Zalo"
+                >
+                  <Camera className="h-4 w-4" />
+                  <span>📸 Xuất Ảnh Gửi Zalo</span>
                 </button>
 
                 <a
                   href={settings.fanpage_url || FANPAGE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] px-3.5 py-2.5 text-xs font-bold text-white transition"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] px-3.5 py-2.5 text-xs font-bold text-white transition"
                 >
-                  <span>Mở Fanpage</span>
+                  <span>Fanpage</span>
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               </div>
@@ -1216,6 +1230,16 @@ export function ScheduleTab({
                           <span>← Xem Hồ Sơ & Bài Viết Của Bạn</span>
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => setPosterModalOpen(true)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-xs"
+                        title="Xuất bảng điểm danh cầu thủ chất lượng cao để chia sẻ vào Zalo"
+                      >
+                        <Camera className="h-3.5 w-3.5" />
+                        <span>Xuất Ảnh Gửi Zalo</span>
+                      </button>
 
                       {/* 3 Huy hiệu quân số */}
                       <div className="flex items-center gap-1.5 text-xs font-bold">
@@ -2165,6 +2189,18 @@ export function ScheduleTab({
             </div>
           </form>
         </ModalDialog>
+      )}
+
+      {/* Modal Xem & Xuất Ảnh Bảng Điểm Danh Trận Đấu */}
+      {activeMatch && (
+        <MatchdayRosterPosterModal
+          isOpen={posterModalOpen}
+          onClose={() => setPosterModalOpen(false)}
+          match={activeMatch}
+          attendances={attendances}
+          players={players}
+          zaloCopyText={fanpagePreviewText}
+        />
       )}
     </div>
   );

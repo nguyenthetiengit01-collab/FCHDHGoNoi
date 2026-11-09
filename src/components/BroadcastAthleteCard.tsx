@@ -1,7 +1,16 @@
 "use client";
 
-import React from "react";
-import { Camera, MapPin, Quote, Shield } from "lucide-react";
+import React, { useRef, useState } from "react";
+import {
+  Camera,
+  Check,
+  Download,
+  Loader2,
+  MapPin,
+  Quote,
+  Share2,
+  Shield,
+} from "lucide-react";
 import type { Player, MatchAttendance, MatchRecord } from "@/types/app";
 import type { LightboxImage } from "./ImageLightboxModal";
 import {
@@ -10,6 +19,10 @@ import {
   buildAthleteLightboxImages,
   type PositionBadgeInfo,
 } from "@/lib/athleteProfile";
+import {
+  exportAndShareElement,
+  buildAthleteCardFilename,
+} from "@/lib/exportImage";
 
 export type Attendance = MatchAttendance;
 export type Match = MatchRecord;
@@ -30,6 +43,7 @@ export interface BroadcastAthleteCardProps {
   actions?: React.ReactNode;
   fallbackPhotos?: string[];
   onOpenLightbox?: (images: LightboxImage[], index: number) => void;
+  exportable?: boolean;
   className?: string;
 }
 
@@ -42,8 +56,35 @@ export function BroadcastAthleteCard({
   actions,
   fallbackPhotos = [],
   onOpenLightbox,
+  exportable = true,
   className = "",
 }: BroadcastAthleteCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
+
+  const handleExportCard = async () => {
+    if (!cardRef.current || isExporting) return;
+    setIsExporting(true);
+    try {
+      const filename = buildAthleteCardFilename(
+        player.full_name,
+        player.jersey_number
+      );
+      await exportAndShareElement(cardRef.current, {
+        filename,
+        shareTitle: `Thẻ VĐV #${player.jersey_number ?? ""}: ${player.full_name} - FC HĐH Gò Nổi`,
+        shareText: `Thẻ vận động viên chính thức của ${player.full_name} (${player.position}) - FC Hội Đồng Hương Gò Nổi`,
+      });
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 3000);
+    } catch (err) {
+      console.error("Export athlete card failed:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const posBadge = getPlayerPositionBadge(player);
   const hamlet = getPlayerHamlet(player);
 
@@ -78,8 +119,30 @@ export function BroadcastAthleteCard({
   if (layout === "compact") {
     return (
       <div
+        ref={cardRef}
         className={`relative rounded-xl overflow-hidden border border-[#d4af37]/40 bg-gradient-to-br from-[#0b2447] via-[#081a33] to-[#040e1a] p-4 text-white shadow-md ${className}`}
       >
+        {exportable && (
+          <div data-export-ignore="true" className="absolute top-3 right-3 flex items-center gap-1 z-10">
+            <button
+              type="button"
+              onClick={handleExportCard}
+              disabled={isExporting}
+              className="inline-flex items-center gap-1 p-1.5 px-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white transition cursor-pointer"
+              title="Xuất ảnh thẻ VĐV gửi Zalo"
+            >
+              {isExporting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" />
+              ) : exportSuccess ? (
+                <Check className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <Download className="h-3.5 w-3.5 text-[#d4af37]" />
+              )}
+              <span className="text-[10px]">Xuất ảnh</span>
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
           <div
             onClick={() => handleImageClick(0)}
@@ -96,7 +159,7 @@ export function BroadcastAthleteCard({
             </span>
           </div>
 
-          <div className="flex-1 text-center sm:text-left min-w-0">
+          <div className="flex-1 text-center sm:text-left min-w-0 pr-16 sm:pr-0">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
               <span
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black tracking-wider uppercase border ${posBadge.badgeClass}`}
@@ -171,6 +234,20 @@ export function BroadcastAthleteCard({
             </div>
           </div>
         )}
+
+        {/* Chân trang nhận diện bản quyền khi xuất ảnh */}
+        <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[9px] text-slate-400">
+          <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[#d4af37]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/logo.jpg"
+              alt="FC Gò Nổi"
+              className="h-3.5 w-3.5 rounded-full object-contain bg-white shrink-0"
+            />
+            <span>FC HỘI ĐỒNG HƯƠNG GÒ NỔI • OFFICIAL ATHLETE</span>
+          </div>
+          <span className="font-mono text-slate-400">fchdhgonoi.vercel.app</span>
+        </div>
       </div>
     );
   }
@@ -179,6 +256,7 @@ export function BroadcastAthleteCard({
   if (layout === "split") {
     return (
       <section
+        ref={cardRef}
         className={`rounded-xl overflow-hidden bg-gradient-to-b from-[#0b2447] via-[#081a33] to-[#040e1a] border border-[#d4af37]/60 shadow-[0_20px_50px_rgba(0,0,0,0.8)] text-white p-5 sm:p-7 space-y-5 ${className}`}
       >
         {/* Top bar: Technical badge + Số áo kỹ thuật + Action Buttons */}
@@ -222,11 +300,36 @@ export function BroadcastAthleteCard({
             </div>
           </div>
 
-          {actions && (
-            <div className="flex flex-wrap items-center gap-2.5 sm:self-start">
-              {actions}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2.5 sm:self-start">
+            {exportable && (
+              <button
+                type="button"
+                data-export-ignore="true"
+                onClick={handleExportCard}
+                disabled={isExporting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-600 text-white px-3.5 py-2.5 text-xs font-bold transition cursor-pointer shadow-md disabled:opacity-60"
+                title="Xuất ảnh thẻ vận động viên sắc nét để gửi Zalo"
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-[#d4af37]" />
+                    <span>Đang tạo ảnh...</span>
+                  </>
+                ) : exportSuccess ? (
+                  <>
+                    <Check className="h-4 w-4 text-[#fde047]" />
+                    <span>Đã lưu / chia sẻ!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="h-4 w-4 text-[#d4af37]" />
+                    <span>Xuất Ảnh Thẻ (Zalo)</span>
+                  </>
+                )}
+              </button>
+            )}
+            {actions}
+          </div>
         </div>
 
         {/* Nội dung danh tính + Ảnh chân dung + Lối chơi */}
@@ -385,6 +488,21 @@ export function BroadcastAthleteCard({
             </div>
           </div>
         )}
+        {/* Chân trang nhận diện bản quyền khi xuất ảnh */}
+        <div className="pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#d4af37]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/logo.jpg"
+              alt="FC Gò Nổi"
+              className="h-4 w-4 rounded-full object-contain bg-white shrink-0"
+            />
+            <span>FC HỘI ĐỒNG HƯƠNG GÒ NỔI • OFFICIAL ATHLETE</span>
+          </div>
+          <span className="text-slate-400 font-mono text-[10px] hidden sm:inline">
+            fchdhgonoi.vercel.app
+          </span>
+        </div>
       </section>
     );
   }
@@ -392,6 +510,7 @@ export function BroadcastAthleteCard({
   // LAYOUT 3: STACKED (Mặc định - Dùng cho Section 3 ngoài PublicGuestPortal)
   return (
     <div
+      ref={cardRef}
       className={`rounded-xl overflow-hidden bg-gradient-to-b from-[#0b2447] via-[#081a33] to-[#040e1a] border border-[#d4af37]/60 shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-5 sm:p-6 space-y-5 ${className}`}
     >
       {/* Top Bar: Số áo kỹ thuật + Huy hiệu vị trí + Quê quán */}
@@ -419,11 +538,42 @@ export function BroadcastAthleteCard({
           </div>
         </div>
 
-        <div className="text-right flex flex-col items-end gap-1">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-200 bg-white/5 px-3 py-1 rounded-md border border-white/10">
-            <MapPin className="h-3.5 w-3.5 text-[#d4af37]" />
-            <span>Xã {hamlet}</span>
-          </span>
+        <div className="text-right flex flex-col items-end gap-1.5">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-200 bg-white/5 px-3 py-1 rounded-md border border-white/10">
+              <MapPin className="h-3.5 w-3.5 text-[#d4af37]" />
+              <span>Xã {hamlet}</span>
+            </span>
+
+            {exportable && (
+              <button
+                type="button"
+                data-export-ignore="true"
+                onClick={handleExportCard}
+                disabled={isExporting}
+                className="inline-flex items-center gap-1.5 rounded-md bg-[#d4af37]/20 hover:bg-[#d4af37]/30 border border-[#d4af37]/50 text-[#fde047] px-2.5 py-1 text-xs font-extrabold transition cursor-pointer shadow-xs disabled:opacity-60"
+                title="Xuất ảnh thẻ cầu thủ gửi Zalo"
+              >
+                {isExporting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#d4af37]" />
+                    <span className="hidden sm:inline">Đang xuất...</span>
+                  </>
+                ) : exportSuccess ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                    <span className="hidden sm:inline">Đã tải!</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-3.5 w-3.5 text-[#d4af37]" />
+                    <span>Xuất Thẻ</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
           {player.nickname && (
             <span className="text-[11px] font-bold text-[#fde047] tracking-wide">
               Biệt danh: &ldquo;{player.nickname}&rdquo;
@@ -579,6 +729,21 @@ export function BroadcastAthleteCard({
           </div>
         </div>
       )}
+      {/* Chân trang nhận diện bản quyền khi xuất ảnh */}
+      <div className="pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
+        <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#d4af37]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/logo.jpg"
+            alt="FC Gò Nổi"
+            className="h-4 w-4 rounded-full object-contain bg-white shrink-0"
+          />
+          <span>FC HỘI ĐỒNG HƯƠNG GÒ NỔI • OFFICIAL ATHLETE</span>
+        </div>
+        <span className="text-slate-400 font-mono text-[10px] hidden sm:inline">
+          fchdhgonoi.vercel.app
+        </span>
+      </div>
     </div>
   );
 }
