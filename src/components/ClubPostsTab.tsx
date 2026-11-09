@@ -89,12 +89,101 @@ export default function ClubPostsTab({
   const [readingTime, setReadingTime] = useState("4 phút đọc");
   const [featuredImage, setFeaturedImage] = useState("");
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [eventYear, setEventYear] = useState<string>("2026");
+  const [taggedPlayerNames, setTaggedPlayerNames] = useState<string[]>([]);
 
   // WebP conversion state
   const [isConvertingFeatured, setIsConvertingFeatured] = useState(false);
   const [featuredWebpInfo, setFeaturedWebpInfo] = useState("");
   const [isConvertingGallery, setIsConvertingGallery] = useState(false);
   const [galleryWebpInfo, setGalleryWebpInfo] = useState("");
+
+  const QUICK_TEMPLATES = [
+    {
+      id: "match_report",
+      label: "⚽ Phóng Sự Trận Đấu",
+      apply: () => {
+        setCategory("giaidau");
+        setTitle("Chiến Thắng Cảm Xúc Sân 7: Tinh Thần Đồng Hương Rực Lửa");
+        setSummary(
+          "Một trận cầu kịch tính với những pha phối hợp chuẩn xác và màn thể hiện ấn tượng của các chàng trai FC HĐH Gò Nổi."
+        );
+        setContentText(
+          "Tiếng còi khai cuộc vừa vang lên, hai đội đã nhập cuộc đầy hứng khởi với tốc độ cao. Dưới sự cổ vũ nồng nhiệt của bà con đồng hương, các cầu thủ FC HĐH Gò Nổi đã thi đấu kỷ luật và gắn kết.\n\nBước ngoặt trận đấu diễn ra ở hiệp 2 khi các vị trí phối hợp ăn ý, tạo nên bàn thắng quý giá mang về trọn vẹn niềm vui sau những phút cống hiến hết mình trên sân cỏ."
+        );
+        setQuote(
+          "Trên sân cỏ chúng tôi là chiến binh, sau trận đấu chúng tôi là anh em ruột thịt một nhà."
+        );
+        setHighlightsText(
+          "Cầm bóng chủ động và ép sân liên tục\nPha phối hợp tam giác đẹp mắt dẫn đến bàn thắng\nThủ môn có những pha cứu thua xuất sắc"
+        );
+        setReadingTime("3 phút đọc");
+      },
+    },
+    {
+      id: "player_spotlight",
+      label: "🌟 Gương Mặt Cầu Thủ",
+      apply: () => {
+        setCategory("cauthu");
+        setTitle("Gương Mặt Cầu Thủ Tiêu Biểu: Trái Tim & Bầu Nhiệt Huyết");
+        setSummary(
+          "Hồ sơ nhân vật kỳ này vinh danh người con Gò Nổi luôn có mặt đúng giờ, cống hiến thầm lặng và cháy hết mình trong màu áo quê hương."
+        );
+        setContentText(
+          "Không quản ngại đường xa và công việc bộn bề nơi đất khách, anh luôn là một trong những thành viên đầu tiên có mặt tại sân bóng mỗi tuần.\n\nSở hữu lối chơi quyết liệt nhưng chuẩn mực fair-play, anh là chỗ dựa tinh thần vững chắc cho các đồng đội trẻ trên sân cỏ."
+        );
+        setQuote(
+          "Được khoác lên mình màu áo quê nhà Gò Nổi là niềm tự hào lớn nhất của tôi mỗi tuần tại Sài Gòn."
+        );
+        setHighlightsText(
+          "Tỷ lệ chuyên cần ra sân đạt trên 95%\nNgười truyền lửa tích cực trong và ngoài sân cỏ\nLuôn tiên phong hỗ trợ anh em mới gia nhập đội"
+        );
+        setReadingTime("4 phút đọc");
+      },
+    },
+    {
+      id: "sponsor_thanks",
+      label: "🤝 Tri Ân Nhà Tài Trợ",
+      apply: () => {
+        setCategory("taitro");
+        setTitle("Tri Ân Nhà Tài Trợ & Mạnh Thường Quân: Điểm Tựa Đồng Hành");
+        setSummary(
+          "FC HĐH Gò Nổi trân trọng cảm ơn các doanh nghiệp, mạnh thường quân con em quê hương đã luôn đồng hành tiếp lửa cho đội bóng."
+        );
+        setContentText(
+          "Sự phát triển bền vững của FC HĐH Gò Nổi những năm qua luôn có sự chung tay, tiếp sức quý báu từ quý nhà tài trợ và những người con thành đạt của quê nhà.\n\nToàn bộ nguồn lực tài trợ được Ban Điều Hành sử dụng minh bạch, phục vụ trang phục, nước uống, sân bãi và tổ chức các giải đấu ý nghĩa."
+        );
+        setQuote(
+          "Nghĩa tình đồng hương và sự đồng hành của quý vị là nguồn động lực vô giá giúp đội bóng vươn xa."
+        );
+        setHighlightsText(
+          "Tài trợ trang phục thi đấu chính thức mùa giải mới\nHỗ trợ quỹ hoạt động sân bãi và nước uống định kỳ\nĐồng hành cùng đội bóng trong mọi giải đấu lớn"
+        );
+        setReadingTime("3 phút đọc");
+      },
+    },
+    {
+      id: "friendly_reunion",
+      label: "🎉 Giao Lưu Kết Nối",
+      apply: () => {
+        setCategory("giaoluu");
+        setTitle("Giao Lưu Kết Nối Đồng Hương: Gắn Kết Tình Thân Đất Khách");
+        setSummary(
+          "Buổi giao lưu thể thao và liên hoan ấm cúng quy tụ đông đảo anh em Điện Quang, Điện Trung, Điện Phong tại TP.HCM."
+        );
+        setContentText(
+          "Hơn cả một trận bóng đá, buổi giao lưu là dịp để những người con xa xứ cùng ngồi lại bên nhau, thưởng thức hương vị quê nhà và sẻ chia những kinh nghiệm trong cuộc sống mưu sinh.\n\nNhững cái bắt tay siết chặt, những tiếng cười rộn rã đã xoá tan mọi mệt mỏi sau những ngày làm việc vất vả."
+        );
+        setQuote(
+          "Dù đi đâu, làm gì, khi gặp nhau nghe giọng nói Gò Nổi là thấy ấm lòng như đang ở quê nhà."
+        );
+        setHighlightsText(
+          "Hơn 30 anh em đồng hương tham dự tề tựu\nNhiều cơ hội hợp tác nghề nghiệp được kết nối\nTạo sân chơi lành mạnh và bổ ích cho thanh niên quê nhà"
+        );
+        setReadingTime("4 phút đọc");
+      },
+    },
+  ];
 
   function openNewPostModal() {
     setEditingPost(null);
@@ -109,6 +198,8 @@ export default function ClubPostsTab({
     setReadingTime("4 phút đọc");
     setFeaturedImage("/images/hinhanh-webp/giaidau/DSC06522.webp");
     setGalleryImages([]);
+    setEventYear("2026");
+    setTaggedPlayerNames([]);
     setFeaturedWebpInfo("");
     setGalleryWebpInfo("");
     setModalOpen(true);
@@ -129,6 +220,8 @@ export default function ClubPostsTab({
     setReadingTime(post.readingTime || "4 phút đọc");
     setFeaturedImage(post.featuredImage);
     setGalleryImages(post.galleryImages || []);
+    setEventYear(post.eventYear || post.publishedDate?.slice(0, 4) || "2026");
+    setTaggedPlayerNames(post.taggedPlayerNames || []);
     setFeaturedWebpInfo("");
     setGalleryWebpInfo("");
     setModalOpen(true);
@@ -234,6 +327,8 @@ export default function ClubPostsTab({
       paragraphs: paragraphs.length > 0 ? paragraphs : [summary.trim()],
       quote: quote.trim(),
       highlights,
+      event_year: eventYear,
+      tagged_players: taggedPlayerNames,
     });
 
     setModalOpen(false);
@@ -332,10 +427,15 @@ export default function ClubPostsTab({
                   alt={post.title}
                   className="h-full w-full object-cover"
                 />
-                <div className="absolute top-3 left-3">
+                <div className="absolute top-3 left-3 flex items-center gap-1.5">
                   <span className="inline-flex items-center rounded-full bg-[#091b42]/85 backdrop-blur-md border border-[#ffc933]/40 px-2.5 py-1 text-[11px] font-bold text-[#ffc933]">
                     {post.categoryLabel}
                   </span>
+                  {post.eventYear && (
+                    <span className="inline-flex items-center rounded-full bg-[#ffc933] text-slate-950 px-2 py-0.5 text-[11px] font-black shadow-xs">
+                      {post.eventYear}
+                    </span>
+                  )}
                 </div>
                 {post.featuredImage.startsWith("data:image/webp") ||
                 post.featuredImage.endsWith(".webp") ? (
@@ -364,6 +464,17 @@ export default function ClubPostsTab({
                 <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
                   {post.summary}
                 </p>
+
+                {post.taggedPlayerNames && post.taggedPlayerNames.length > 0 && (
+                  <div className="pt-1 flex flex-wrap items-center gap-1">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Cầu thủ:</span>
+                    {post.taggedPlayerNames.map((name) => (
+                      <span key={name} className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold border border-slate-200">
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {post.galleryImages && post.galleryImages.length > 0 && (
                   <div className="pt-1 flex items-center gap-1.5 text-[11px] font-semibold text-[#1e4fc2]">
@@ -422,6 +533,26 @@ export default function ClubPostsTab({
         subtitle="Mọi ảnh đại diện và ảnh album bạn chọn từ máy tính/điện thoại sẽ tự động chuyển đổi sang định dạng WebP nhẹ, sắc nét trước khi lưu lên hệ thống."
       >
         <form onSubmit={handleSavePost} className="space-y-4">
+          {/* Mẫu bài viết soạn nhanh (Quick Templates) */}
+          <div className="rounded-xl bg-gradient-to-r from-amber-50 to-sky-50 p-3.5 border border-amber-200 space-y-2">
+            <span className="text-xs font-black uppercase text-[#1e4fc2] flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-[#d99b00]" />
+              <span>Mẫu bài viết soạn nhanh (Bấm để điền sẵn bố cục chuẩn):</span>
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {QUICK_TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={tpl.apply}
+                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-[#1e4fc2] text-slate-800 hover:text-white border border-slate-300 hover:border-[#1e4fc2] text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  {tpl.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Upload Ảnh Đại Diện Bài Viết (Auto WebP) */}
           <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
@@ -473,8 +604,8 @@ export default function ClubPostsTab({
             </div>
           </div>
 
-          {/* Tiêu đề & Chuyên mục */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Tiêu đề, Chuyên mục & Năm sự kiện (Dòng thời gian) */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Tiêu đề bài viết *
@@ -506,6 +637,65 @@ export default function ClubPostsTab({
                 <option value="taitro">Đồng Hành & Tài Trợ</option>
                 <option value="anhbia">Ảnh Bìa & Khí Thế</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Năm sự kiện (Timeline)
+              </label>
+              <select
+                value={eventYear}
+                onChange={(e) => setEventYear(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+              >
+                <option value="2026">2026 (Chuyển Mình & Số Hóa)</option>
+                <option value="2025">2025 (Khẳng Định Bản Lĩnh)</option>
+                <option value="2024">2024 (Gieo Mầm Kết Nối)</option>
+                <option value="2023">2023 (Kỷ Niệm Khởi Đầu)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Gắn thẻ cầu thủ tham gia */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Gắn thẻ cầu thủ xuất hiện trong bài viết ({taggedPlayerNames.length} đã chọn)
+              </label>
+              {taggedPlayerNames.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setTaggedPlayerNames([])}
+                  className="text-[11px] text-rose-600 hover:underline cursor-pointer"
+                >
+                  Xoá chọn tất cả
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5 max-h-28 overflow-y-auto p-2.5 rounded-xl border border-slate-200 bg-slate-50">
+              {data.players.map((p) => {
+                const isTagged = taggedPlayerNames.includes(p.short_name);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      if (isTagged) {
+                        setTaggedPlayerNames((prev) => prev.filter((n) => n !== p.short_name));
+                      } else {
+                        setTaggedPlayerNames((prev) => [...prev, p.short_name]);
+                      }
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                      isTagged
+                        ? "bg-[#1e4fc2] text-white border-[#1e4fc2] shadow-xs"
+                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                    }`}
+                  >
+                    #{p.jersey_number ?? "-"} {p.short_name}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

@@ -17,7 +17,12 @@ import {
   ChevronRight,
   Flame,
   Camera,
+  Users,
 } from "lucide-react";
+import {
+  ImageLightboxModal,
+  type LightboxImage,
+} from "@/components/ImageLightboxModal";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -30,6 +35,17 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
   const [loading, setLoading] = useState(
     !CLUB_ACTIVITIES_POSTS.some((p) => p.id === postId || p.slug === postId)
   );
+
+  // Lightbox
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const openLightbox = (imgs: LightboxImage[], idx = 0) => {
+    setLightboxImages(imgs);
+    setLightboxIndex(idx);
+    setLightboxOpen(true);
+  };
 
   useEffect(() => {
     fetch("/api/team")
@@ -151,6 +167,11 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
             >
               {post.categoryLabel}
             </span>
+            {post.eventYear && (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black uppercase bg-[#d4af37] text-slate-950 border border-[#fde047] shadow-sm">
+                Năm {post.eventYear}
+              </span>
+            )}
             <span className="inline-flex items-center gap-1.5 text-xs text-sky-200 bg-white/10 px-3 py-1 rounded-full border border-white/10">
               <Clock className="h-3.5 w-3.5 text-[#d4af37]" />
               <span>{post.readingTime}</span>
@@ -189,14 +210,38 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Ảnh bìa lớn */}
-        <div className="relative aspect-video rounded-3xl overflow-hidden mb-10 border-2 border-[#d4af37]/40 shadow-2xl">
+        {/* Ảnh bìa lớn - Nhấp để xem phóng to */}
+        <div
+          onClick={() => {
+            const allImgs: LightboxImage[] = [
+              {
+                src: post.featuredImage,
+                title: post.title,
+                caption: post.summary,
+                tag: post.categoryLabel,
+              },
+              ...(post.galleryImages || []).map((img, i) => ({
+                src: img,
+                title: `${post.title} • Ảnh #${i + 1}`,
+                caption: post.title,
+                tag: post.categoryLabel,
+              })),
+            ];
+            openLightbox(allImgs, 0);
+          }}
+          className="relative aspect-video rounded-3xl overflow-hidden mb-10 border-2 border-[#d4af37]/40 shadow-2xl cursor-pointer group"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={post.featuredImage}
             alt={post.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
           />
+          <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition" />
+          <div className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-md text-white text-xs font-bold px-3.5 py-1.5 rounded-full border border-white/20 flex items-center gap-1.5 shadow-lg group-hover:bg-[#d4af37] group-hover:text-slate-950 transition">
+            <Camera className="h-3.5 w-3.5" />
+            <span>Phóng to ảnh bìa</span>
+          </div>
         </div>
 
         {/* Tóm tắt mở đầu */}
@@ -244,29 +289,76 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
           </div>
         )}
 
+        {/* Cầu thủ được gắn thẻ trong bài viết */}
+        {post.taggedPlayerNames && post.taggedPlayerNames.length > 0 && (
+          <div className="my-10 p-6 rounded-3xl bg-[#071933] border border-[#d4af37]/30">
+            <h3 className="font-display font-extrabold uppercase text-base text-[#d4af37] mb-3 flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span>Cầu thủ góp mặt trong hoạt động này</span>
+            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              {post.taggedPlayerNames.map((name) => (
+                <span
+                  key={name}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-[#d4af37]/20 border border-white/15 text-xs font-bold text-sky-100"
+                >
+                  <span className="h-2 w-2 rounded-full bg-[#d4af37]" />
+                  <span>{name}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Album ảnh hoạt động con */}
         {post.galleryImages && post.galleryImages.length > 0 && (
           <div className="my-12">
-            <div className="flex items-center gap-2 mb-6">
-              <Camera className="h-5 w-5 text-[#d4af37]" />
-              <h3 className="font-display font-extrabold uppercase text-xl sm:text-2xl text-white">
-                Bộ Sưu Tập Hình Ảnh Hoạt Động
-              </h3>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Camera className="h-5 w-5 text-[#d4af37]" />
+                <h3 className="font-display font-extrabold uppercase text-xl sm:text-2xl text-white">
+                  Bộ Sưu Tập Hình Ảnh Hoạt Động ({post.galleryImages.length} ảnh)
+                </h3>
+              </div>
+              <span className="text-xs text-sky-200/70 italic">Nhấp ảnh để phóng to</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {post.galleryImages.map((imgSrc, i) => (
-                <div
-                  key={i}
-                  className="group relative aspect-video rounded-2xl overflow-hidden border border-[#d4af37]/30 shadow-lg"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imgSrc}
-                    alt={`Hình ảnh hoạt động ${i + 1}`}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                  />
-                </div>
-              ))}
+              {post.galleryImages.map((imgSrc, i) => {
+                const allImgs: LightboxImage[] = [
+                  {
+                    src: post.featuredImage,
+                    title: post.title,
+                    caption: post.summary,
+                    tag: post.categoryLabel,
+                  },
+                  ...(post.galleryImages || []).map((img, idx) => ({
+                    src: img,
+                    title: `${post.title} • Ảnh #${idx + 1}`,
+                    caption: post.title,
+                    tag: post.categoryLabel,
+                  })),
+                ];
+
+                return (
+                  <div
+                    key={i}
+                    onClick={() => openLightbox(allImgs, i + 1)}
+                    className="group relative aspect-video rounded-2xl overflow-hidden border border-[#d4af37]/30 shadow-lg cursor-pointer"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imgSrc}
+                      alt={`Hình ảnh hoạt động ${i + 1}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition" />
+                    <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition bg-black/70 text-white text-[11px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1">
+                      <Camera className="h-3 w-3 text-[#d4af37]" />
+                      <span>Xem phóng to</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -326,6 +418,15 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
       <footer className="mt-auto border-t border-[#d4af37]/20 bg-[#040e1e] py-8 text-center text-xs text-slate-400">
         <p>FC HĐH Gò Nổi © 2026 · Hào Khí Đất Quảng Giữa Lòng Sài Gòn</p>
       </footer>
+
+      {/* Lightbox Modal */}
+      <ImageLightboxModal
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        images={lightboxImages}
+        currentIndex={lightboxIndex}
+        onNavigate={setLightboxIndex}
+      />
     </div>
   );
 }

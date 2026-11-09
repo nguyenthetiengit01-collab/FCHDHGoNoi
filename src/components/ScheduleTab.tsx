@@ -24,6 +24,7 @@ import {
   Quote,
   Upload,
   Shield,
+  Camera,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -34,7 +35,10 @@ import type {
 } from "@/types/app";
 import { FANPAGE_URL, OFFICIAL_LOGO_URL } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
-import { convertFileToWebp } from "@/lib/imageToWebp";
+import {
+  convertFileToWebp,
+  convertMultipleFilesToWebp,
+} from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
 
 interface ScheduleTabProps {
@@ -350,6 +354,12 @@ export function ScheduleTab({
   const [isConvertingProfileWebp, setIsConvertingProfileWebp] = useState(false);
   const [profileBio, setProfileBio] = useState("");
   const [profileNotes, setProfileNotes] = useState("");
+  const [profileHometown, setProfileHometown] = useState("Điện Quang");
+  const [profileNickname, setProfileNickname] = useState("");
+  const [profilePlayingStyle, setProfilePlayingStyle] = useState("");
+  const [profileGalleryUrls, setProfileGalleryUrls] = useState<string[]>([]);
+  const [isConvertingProfileGallery, setIsConvertingProfileGallery] = useState(false);
+  const [profileGalleryWebpInfo, setProfileGalleryWebpInfo] = useState("");
 
   // State cho Modal Đổi Tên Đăng Nhập & Mật Khẩu Cá Nhân
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
@@ -372,6 +382,11 @@ export function ScheduleTab({
     setProfileWebpInfo("");
     setProfileBio(me.bio || "");
     setProfileNotes(me.notes || "");
+    setProfileHometown(me.hometown || "Điện Quang");
+    setProfileNickname(me.nickname || "");
+    setProfilePlayingStyle(me.playing_style || "");
+    setProfileGalleryUrls(me.gallery_urls || []);
+    setProfileGalleryWebpInfo("");
     setProfileModalOpen(true);
   };
 
@@ -403,6 +418,34 @@ export function ScheduleTab({
     }
   };
 
+  const handleProfileGalleryUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsConvertingProfileGallery(true);
+    setProfileGalleryWebpInfo(`Đang tự động chuyển ${files.length} ảnh sang chuẩn WebP...`);
+    try {
+      const results = await convertMultipleFilesToWebp(files, {
+        maxWidth: 1200,
+        maxHeight: 900,
+        quality: 0.85,
+      });
+      const newUrls = results.map((r) => r.dataUrl);
+      setProfileGalleryUrls((prev) => [...prev, ...newUrls]);
+      setProfileGalleryWebpInfo(`✅ Đã chuyển thành công ${results.length} ảnh sang WebP.`);
+    } catch {
+      setProfileGalleryWebpInfo("❌ Có lỗi khi chuyển đổi ảnh.");
+    } finally {
+      setIsConvertingProfileGallery(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveProfileGalleryImage = (index: number) => {
+    setProfileGalleryUrls((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handleSaveMyProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!me) return;
@@ -418,6 +461,10 @@ export function ScheduleTab({
       avatar_url: profileAvatarUrl,
       bio: profileBio.trim(),
       notes: profileNotes.trim(),
+      hometown: profileHometown,
+      nickname: profileNickname.trim(),
+      playing_style: profilePlayingStyle.trim(),
+      gallery_urls: profileGalleryUrls,
     });
     setProfileModalOpen(false);
   };
@@ -948,13 +995,49 @@ export function ScheduleTab({
                               <span>⚽ Cầu Thủ Thành Viên</span>
                             )}
                           </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#ffc933]/20 border border-[#ffc933]/50 px-2.5 py-0.5 text-xs font-bold text-[#ffc933]">
+                            <MapPin className="h-3 w-3" />
+                            <span>Xã {me.hometown || "Điện Quang"}</span>
+                          </span>
+                          {me.nickname && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/20 border border-sky-400/40 px-2.5 py-0.5 text-xs font-extrabold text-sky-200">
+                              <Sparkles className="h-3 w-3 text-[#ffc933]" />
+                              <span>&ldquo;{me.nickname}&rdquo;</span>
+                            </span>
+                          )}
                         </div>
 
                         <p className="text-xs text-sky-100">
                           Vị trí: <strong className="text-[#ffc933]">{me.position}</strong> •{" "}
                           Năm sinh: <strong>{me.birth_year || "—"}</strong>
                           {me.phone ? ` • SĐT: ${me.phone}` : ""}
+                          {me.playing_style ? ` • Lối chơi: ${me.playing_style}` : ""}
                         </p>
+
+                        {/* Album ảnh cá nhân nếu có */}
+                        {me.gallery_urls && me.gallery_urls.length > 0 && (
+                          <div className="pt-1 flex items-center gap-2">
+                            <span className="text-[11px] uppercase tracking-wider text-sky-200 font-bold flex items-center gap-1">
+                              <Camera className="h-3 w-3 text-[#ffc933]" />
+                              <span>Album ({me.gallery_urls.length} ảnh):</span>
+                            </span>
+                            <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+                              {me.gallery_urls.map((url, idx) => (
+                                <div
+                                  key={idx}
+                                  className="h-8 w-8 rounded-lg overflow-hidden border border-[#ffc933]/50 shrink-0 bg-black/40"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={url}
+                                    alt={`Ảnh ${idx + 1}`}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Điểm danh tuần này của chính cầu thủ */}
                         <div className="pt-2 flex flex-wrap items-center justify-center sm:justify-start gap-2">
@@ -1840,6 +1923,48 @@ export function ScheduleTab({
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Quê quán Gò Nổi
+                </label>
+                <select
+                  value={profileHometown}
+                  onChange={(e) => setProfileHometown(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                >
+                  <option value="Điện Quang">Xã Điện Quang</option>
+                  <option value="Điện Trung">Xã Điện Trung</option>
+                  <option value="Điện Phong">Xã Điện Phong</option>
+                  <option value="Gò Nổi">Gò Nổi chung</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Biệt danh sân cỏ
+                </label>
+                <input
+                  type="text"
+                  value={profileNickname}
+                  onChange={(e) => setProfileNickname(e.target.value)}
+                  placeholder="VD: Tiếng Ronaldo, Tín Mười..."
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Phong cách thi đấu / Sở trường
+                </label>
+                <input
+                  type="text"
+                  value={profilePlayingStyle}
+                  onChange={(e) => setProfilePlayingStyle(e.target.value)}
+                  placeholder="VD: Tốc độ cao, sút xa hiểm hóc, đeo bám quyết liệt..."
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                />
+              </div>
+
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Số điện thoại liên hệ
@@ -1852,6 +1977,51 @@ export function ScheduleTab({
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
                 />
               </div>
+            </div>
+
+            {/* Album ảnh khoảnh khắc thi đấu cá nhân */}
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-700">
+                  Album ảnh thi đấu &amp; hoạt động ({profileGalleryUrls.length} ảnh)
+                </label>
+                <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] text-[#ffc933] px-3 py-1 text-xs font-bold cursor-pointer transition">
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>{isConvertingProfileGallery ? "Đang xử lý..." : "Thêm ảnh (WebP)"}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleProfileGalleryUpload}
+                    disabled={isConvertingProfileGallery}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              {profileGalleryWebpInfo && (
+                <p className="text-xs text-emerald-800 font-medium">{profileGalleryWebpInfo}</p>
+              )}
+              {profileGalleryUrls.length > 0 && (
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-1">
+                  {profileGalleryUrls.map((url, idx) => (
+                    <div
+                      key={idx}
+                      className="relative aspect-square rounded-lg overflow-hidden border border-slate-300 group bg-slate-200"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveProfileGalleryImage(idx)}
+                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm cursor-pointer"
+                        title="Xoá ảnh này"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Bài viết / Lời ngỏ về bản thân (Bio) */}

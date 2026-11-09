@@ -15,6 +15,7 @@ export interface ClubActivityPost {
   slug: string;
   summary: string;
   publishedDate: string;
+  eventYear?: string; // Mốc năm / Mùa giải lưu trữ lâu dài (2026, 2025, 2024...)
   author: string;
   featuredImage: string;
   galleryImages?: string[];
@@ -22,7 +23,40 @@ export interface ClubActivityPost {
   paragraphs: string[];
   quote?: string;
   highlights?: string[];
+  taggedPlayerNames?: string[]; // Danh sách cầu thủ gắn liền với bài viết / kỷ niệm
 }
+
+export const CLUB_TIMELINE_YEARS: Array<{
+  id: string;
+  label: string;
+  highlight: string;
+  description: string;
+}> = [
+  {
+    id: "all",
+    label: "Toàn bộ kỷ niệm",
+    highlight: "2024 - 2026+",
+    description: "Biên niên sử hoạt động, hình ảnh và câu chuyện của FC HĐH Gò Nổi",
+  },
+  {
+    id: "2026",
+    label: "Mùa Giải 2026",
+    highlight: "Chuyển Mình & Số Hóa",
+    description: "Đồng bộ website chính thức, quy chuẩn áo đấu, mở rộng đội hình 23+ chiến binh",
+  },
+  {
+    id: "2025",
+    label: "Mùa Giải 2025",
+    highlight: "Khẳng Định Bản Lĩnh",
+    description: "Tham dự các giải phủi đồng hương Điện Bàn - Quảng Nam, thắt chặt nghĩa tình",
+  },
+  {
+    id: "2024",
+    label: "Khởi Nguồn 2024",
+    highlight: "Gieo Mầm Kết Nối",
+    description: "Những buổi gặp gỡ đầu tiên quy tụ con em 3 xã Điện Quang - Điện Trung - Điện Phong",
+  },
+];
 
 export const ACTIVITY_CATEGORIES: Array<{
   id: ActivityCategory;
@@ -77,6 +111,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     title: "Rực lửa sân 7 Sài Gòn: Hành trình quả cảm của FC HĐH Gò Nổi tại giải bóng đá đồng hương",
     slug: "hanh-trinh-giai-dau-phong-trao-go-noi",
     publishedDate: "2026-10-25",
+    eventYear: "2026",
     author: "Ban Truyền Thông FC Gò Nổi",
     readingTime: "4 phút đọc",
     featuredImage: "/images/hinhanh-webp/giaidau/DSC06522.webp",
@@ -85,6 +120,8 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "/images/hinhanh-webp/giaidau/DSC06526.webp",
       "/images/hinhanh-webp/giaidau/DSC06530.webp",
       "/images/hinhanh-webp/giaidau/DSC06730.webp",
+      "/images/hinhanh-webp/giaidau/DSC06735.webp",
+      "/images/hinhanh-webp/giaidau/DSC06751.webp",
     ],
     summary:
       "Dưới ánh đèn rực rỡ của các sân cỏ nhân tạo TP.HCM, những bước chạy thanh thoát và lối đá máu lửa của anh em Gò Nổi đã tạo nên những trận cầu nghẹt thở, cống hiến trọn vẹn cho người hâm mộ quê nhà.",
@@ -99,6 +136,41 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "Sự kết hợp ăn ý giữa thế hệ dạn dày kinh nghiệm và các nhân tố trẻ",
       "Sự cổ vũ nồng nhiệt của bà con đồng hương Gò Nổi tại TP.HCM",
     ],
+    taggedPlayerNames: ["Nguyễn Thế Tiếng", "Hồ Viết Tín", "Lê Anh Trung", "Vũ Hùng Khương", "Nguyễn Văn Thịnh"],
+  },
+  {
+    id: "post-gd-3",
+    category: "giaidau",
+    categoryLabel: "Giải Đấu & Phong Trào",
+    categoryBadgeClass: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+    title: "Phóng sự ảnh: 90 phút quả cảm và những giọt mồ hôi tự hào trên thảm cỏ Sài Gòn",
+    slug: "phong-su-anh-90-phut-qua-cam",
+    publishedDate: "2026-10-21",
+    eventYear: "2026",
+    author: "Nhiếp ảnh gia CLB",
+    readingTime: "3 phút đọc",
+    featuredImage: "/images/hinhanh-webp/giaidau/DSC06361.webp",
+    galleryImages: [
+      "/images/hinhanh-webp/giaidau/DSC06297.webp",
+      "/images/hinhanh-webp/giaidau/DSC06300.webp",
+      "/images/hinhanh-webp/giaidau/DSC06524.webp",
+      "/images/hinhanh-webp/giaidau/DSC06527.webp",
+      "/images/hinhanh-webp/giaidau/DSC06534.webp",
+      "/images/hinhanh-webp/giaidau/DSC06732.webp",
+      "/images/hinhanh-webp/giaidau/DSC06750.webp",
+    ],
+    summary:
+      "Từng khoảnh khắc cản phá xuất thần, những pha bứt tốc bên đường biên và những nụ cười tỏa nắng sau tiếng còi mãn cuộc — tất cả được ghi lại trọn vẹn trong bộ phóng sự ảnh đặc biệt này.",
+    paragraphs: [
+      "Bộ ảnh được chụp trực tiếp tại các trận cầu tâm điểm của FC HĐH Gò Nổi, lưu giữ chân thực từng biểu cảm giàu cảm xúc: từ sự tập trung cao độ trước giờ bóng lăn, sự quyết liệt trong từng pha vào bóng đúng luật, đến khoảnh khắc ôm chặt lấy nhau sau khi cứu thua thành công.",
+      "Đối với anh em con em đất Quảng tại TP.HCM, những bức ảnh này là tài sản tinh thần vô giá, là nơi ghi dấu tuổi thanh xuân rực rỡ bên trái bóng tròn và những người anh em chí cốt một nhà.",
+    ],
+    quote: "Mỗi giọt mồ hôi rơi trên mặt sân cỏ hôm nay là một kỷ niệm đẹp đồng hành cùng năm tháng.",
+    highlights: [
+      "Bộ sưu tập ảnh độ phân giải cao ghi lại chân thực từng nhịp đập trận đấu",
+      "Tôn vinh tinh thần thi đấu quả cảm của toàn thể đội hình",
+    ],
+    taggedPlayerNames: ["Lại Văn Toàn", "Nguyễn Đăng Xuân", "Ngô Công Phát", "Trần Xuân Minh"],
   },
   {
     id: "post-gd-2",
@@ -108,6 +180,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     title: "Khoảnh khắc vỡ òa: Niềm vui ghi bàn và tinh thần ăn mừng bất diệt",
     slug: "khoanh-khac-vo-oa-ban-thang",
     publishedDate: "2026-10-18",
+    eventYear: "2026",
     author: "BQL Đội bóng",
     readingTime: "3 phút đọc",
     featuredImage: "/images/hinhanh-webp/giaidau/DSC06530.webp",
@@ -115,6 +188,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "/images/hinhanh-webp/giaidau/DSC06535.webp",
       "/images/hinhanh-webp/giaidau/DSC06553.webp",
       "/images/hinhanh-webp/giaidau/DSC06751.webp",
+      "/images/hinhanh-webp/giaidau/DSC06528.webp",
     ],
     summary:
       "Một cú vung chân quyết đoán đưa bóng găm thẳng vào góc lưới, và rồi tất cả ôm chầm lấy nhau trong niềm hạnh phúc tột cùng. Đó là khoảnh khắc kỳ diệu chỉ bóng đá mới có thể đem lại.",
@@ -127,6 +201,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "Những siêu phẩm sút xa và phối hợp nhóm nhuần nhuyễn",
       "Tinh thần sẻ chia niềm vui, gắn kết anh em trên sân",
     ],
+    taggedPlayerNames: ["Lê Anh Trung", "Nguyễn Thanh Vĩnh", "Phan Phước Trường"],
   },
   {
     id: "post-gl-1",
@@ -136,6 +211,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     title: "Giao lưu nghĩa tình: Kết nối bền chặt giữa FC Gò Nổi và các CLB đồng hương tại TP.HCM",
     slug: "giao-luu-ket-noi-dong-huong-tp-hcm",
     publishedDate: "2026-10-22",
+    eventYear: "2026",
     author: "Đội phó Hồ Viết Tín",
     readingTime: "3 phút đọc",
     featuredImage: "/images/hinhanh-webp/giaoluu/29c7f1c6ac0f2c51751e1.webp",
@@ -156,6 +232,37 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "Kết nối thường xuyên với các hội đồng hương bạn tại TP.HCM",
       "Mở rộng giao lưu văn hóa, thể thao và hợp tác công việc",
     ],
+    taggedPlayerNames: ["Hồ Viết Tín", "Dương Hiển Hoài Sơn", "Nguyễn Văn Dũng"],
+  },
+  {
+    id: "post-gl-2",
+    category: "giaoluu",
+    categoryLabel: "Giao Lưu Kết Nối",
+    categoryBadgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+    title: "Nhật ký sân Vĩnh Lộc: Nơi rèn thể lực, sẻ chia công việc và gắn kết tình anh em xa quê",
+    slug: "nhat-ky-san-vinh-loc-sinh-hoat-tuan",
+    publishedDate: "2025-11-15",
+    eventYear: "2025",
+    author: "Ban Quản Lý Đội",
+    readingTime: "4 phút đọc",
+    featuredImage: "/images/hinhanh-webp/giaidau/1c025d36688be9d5b09a18.webp",
+    galleryImages: [
+      "/images/hinhanh-webp/giaoluu/30a151040ccd8c93d5dc8.webp",
+      "/images/hinhanh-webp/giaidau/DSC06301.webp",
+      "/images/hinhanh-webp/giaidau/DSC06363.webp",
+    ],
+    summary:
+      "Cứ đều đặn mỗi tối thứ Bảy hoặc Chủ Nhật, Sân Vĩnh Lộc lại rộn vang tiếng cười, tiếng reo hò bằng chất giọng Quảng Nam đặc trưng không thể lẫn vào đâu được.",
+    paragraphs: [
+      "Đối với anh em FC HĐH Gò Nổi, buổi đá bóng hàng tuần không đơn thuần là 90 phút chạy theo trái bóng, mà là khoảng thời gian được 'trở về nhà'. Giữa bộn bề áp lực cơm áo gạo tiền nơi đất khách, sân bóng là nơi mọi người gác lại lo âu để thỏa sức cười đùa, giải tỏa căng thẳng.",
+      "Sau tiếng còi mãn cuộc, những ly trà đá, những cốc bia giải khát bên lề sân lại là dịp để anh em hàn huyên, giới thiệu việc làm cho các bạn sinh viên mới ra trường và cùng nhau bàn thảo kế hoạch hỗ trợ bà con quê nhà trong các dịp bão lũ hay Tết đến xuân về.",
+    ],
+    quote: "Sân bóng là mái nhà thứ hai, nơi anh em tìm thấy hơi ấm quê hương giữa lòng thành phố lớn.",
+    highlights: [
+      "Duy trì đều đặn lịch sinh hoạt tuần qua nhiều năm",
+      "Môi trường giao lưu lành mạnh, hỗ trợ nhau cả trong đời sống thực tế",
+    ],
+    taggedPlayerNames: ["Nguyễn Thế Tiếng", "Võ Quang Quốc", "Nguyễn Văn Hải"],
   },
   {
     id: "post-ct-1",
@@ -165,6 +272,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     title: "23+ Chiến binh Gò Nổi: Tinh thần nhiệt huyết, sức trẻ và bản lĩnh sân cỏ",
     slug: "23-chien-binh-go-noi-tinh-than-nhiet-huyet",
     publishedDate: "2026-10-20",
+    eventYear: "2026",
     author: "Ban Quản Lý Đội",
     readingTime: "4 phút đọc",
     featuredImage: "/images/hinhanh-webp/cauthu/05f39aceaf732e2d776225.webp",
@@ -173,6 +281,8 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "/images/hinhanh-webp/cauthu/671f762b4396c2c89b871.webp",
       "/images/hinhanh-webp/cauthu/9eb2c38ff632776c2e2322.webp",
       "/images/hinhanh-webp/cauthu/420f523b6786e6d8bf973.webp",
+      "/images/hinhanh-webp/cauthu/b963f9c808d1888fd1c0.webp",
+      "/images/hinhanh-webp/cauthu/c44a8e77bbca3a9463db32.webp",
     ],
     summary:
       "Mỗi cầu thủ là một câu chuyện riêng về tình yêu bóng đá và lòng hướng về cội nguồn. Từ anh em sinh viên cho đến các kỹ sư, nhân viên văn phòng, tất cả cùng chung nhịp đập khi xỏ giày ra sân.",
@@ -187,6 +297,37 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "Tính năng Profile cá nhân tự sửa độc đáo trên website",
       "Chào đón tất cả anh em đồng hương muốn gia nhập",
     ],
+    taggedPlayerNames: ["Lê Anh Trung", "Nguyễn Thế Tiếng", "Hồ Viết Tín", "Nguyễn Văn Dũng", "Nguyễn Văn Thịnh"],
+  },
+  {
+    id: "post-ct-2",
+    category: "cauthu",
+    categoryLabel: "Cầu Thủ Gò Nổi",
+    categoryBadgeClass: "bg-sky-500/20 text-sky-300 border-sky-500/40",
+    title: "Những người giữ lửa thầm lặng: Tôn vinh Ban Cán Sự & hậu phương vững vàng của FC Gò Nổi",
+    slug: "nhung-nguoi-giu-lua-tham-lang-bql",
+    publishedDate: "2025-12-08",
+    eventYear: "2025",
+    author: "Tập thể Cầu thủ FC Gò Nổi",
+    readingTime: "4 phút đọc",
+    featuredImage: "/images/hinhanh-webp/cauthu/edacc691f32c72722b3d19.webp",
+    galleryImages: [
+      "/images/hinhanh-webp/cauthu/ebc40a5f3fe2bebce7f36.webp",
+      "/images/hinhanh-webp/cauthu/fcbf6282573fd6618f2e28.webp",
+      "/images/hinhanh-webp/cauthu/e764ca21ff9c7ec2278d38.webp",
+    ],
+    summary:
+      "Đằng sau mỗi trận cầu suôn sẻ là sự hy sinh thầm lặng của Ban Cán Sự: từ việc đặt sân, thu chi minh bạch từng đồng quỹ đến chuẩn bị nước uống, áo đấu chu đáo cho toàn đội.",
+    paragraphs: [
+      "Để một đội bóng phong trào duy trì bền bỉ qua nhiều năm tháng, tâm huyết của những người thủ lĩnh là yếu tố sống còn. Đội trưởng Nguyễn Thế Tiếng không chỉ là trụ cột trên sân mà còn kiêm nhiệm thủ quỹ, ghi chép sổ sách thu chi rõ ràng tới từng con số.",
+      "Bên cạnh đó, Đội phó Hồ Viết Tín cùng anh Dương Hiển Hoài Sơn và Vương Lâm luôn là những người đến sân sớm nhất và ra về muộn nhất, kiểm tra trang thiết bị và lo toan mọi công việc hậu cần để anh em yên tâm cống hiến hết mình.",
+    ],
+    quote: "Sự nhiệt tâm của Ban Cán Sự chính là điểm tựa vững chãi nhất để ngọn lửa FC Gò Nổi luôn rực cháy.",
+    highlights: [
+      "Sự cống hiến thầm lặng vì tập thể không quản ngại khó khăn",
+      "Minh bạch tài chính 100% xây dựng niềm tin bền vững",
+    ],
+    taggedPlayerNames: ["Nguyễn Thế Tiếng", "Hồ Viết Tín", "Dương Hiển Hoài Sơn", "Vũ Hùng Khương"],
   },
   {
     id: "post-tt-1",
@@ -196,11 +337,13 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     title: "Tri ân những tấm lòng vàng: Tiếp sức cho ngọn lửa bóng đá FC HĐH Gò Nổi",
     slug: "tri-an-nha-tai-tro-tiep-suc-doi-bong",
     publishedDate: "2026-10-15",
+    eventYear: "2026",
     author: "Đội trưởng Nguyễn Thế Tiếng",
     readingTime: "3 phút đọc",
     featuredImage: "/images/hinhanh-webp/taitro/16a77ea82361a33ffa703.webp",
     galleryImages: [
       "/images/hinhanh-webp/taitro/d120b134ecfd6ca335ec4.webp",
+      "/images/hinhanh-webp/anhbia/IMG_5575.webp",
     ],
     summary:
       "Sự đồng hành của các doanh nghiệp, mạnh thường quân và các thế hệ anh em đi trước là nguồn động viên vô giá giúp đội bóng duy trì sân chơi thể thao chất lượng và bền vững.",
@@ -215,6 +358,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "Minh bạch tài chính 100% công khai trên cổng thông tin",
       "Mời gọi các doanh nghiệp đồng hương tiếp tục đồng hành",
     ],
+    taggedPlayerNames: ["Nguyễn Thế Tiếng", "Hồ Viết Tín"],
   },
   {
     id: "post-ab-1",
@@ -224,6 +368,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     title: "Bức ảnh đại diện: Dấu ấn tập thể kiên trung và khát vọng vươn xa",
     slug: "buc-anh-dai-dien-khi-the-fc-go-noi",
     publishedDate: "2026-10-10",
+    eventYear: "2026",
     author: "Ban Truyền Thông FC Gò Nổi",
     readingTime: "3 phút đọc",
     featuredImage: "/images/hinhanh-webp/anhbia/DSC06734.webp",
@@ -244,5 +389,37 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "Hình ảnh nhận diện chính thức trên toàn bộ cổng thông tin",
       "Biểu tượng của sự gắn kết và tinh thần bất khuất quê hương",
     ],
+    taggedPlayerNames: ["Nguyễn Thế Tiếng", "Hồ Viết Tín", "Lê Anh Trung", "Vũ Hùng Khương", "Dương Hiển Hoài Sơn"],
+  },
+  {
+    id: "post-kn-1",
+    category: "anhbia",
+    categoryLabel: "Khởi Nguồn & Kỷ Niệm",
+    categoryBadgeClass: "bg-purple-500/20 text-purple-300 border-purple-500/40",
+    title: "Khởi nguồn Gò Nổi: Ba xã Điện Quang - Điện Trung - Điện Phong chung một mái nhà nghĩa tình",
+    slug: "khoi-nguon-fc-hdh-go-noi",
+    publishedDate: "2024-06-18",
+    eventYear: "2024",
+    author: "Người sáng lập FC Gò Nổi",
+    readingTime: "5 phút đọc",
+    featuredImage: "/images/hinhanh-webp/anhbia/673ca5fcf835786b21245.webp",
+    galleryImages: [
+      "/images/hinhanh-webp/anhbia/DSC06734.webp",
+      "/images/hinhanh-webp/giaoluu/29c7f1c6ac0f2c51751e1.webp",
+      "/images/hinhanh-webp/taitro/16a77ea82361a33ffa703.webp",
+    ],
+    summary:
+      "Sinh ra từ mảnh đất bãi bồi trù phú được bao bọc bởi hai nhánh sông Thu Bồn, những người con Gò Nổi xa quê đã cùng nhau dựng xây nên một mái nhà thể thao tràn đầy nghĩa tình tại phương Nam.",
+    paragraphs: [
+      "Vùng đất Gò Nổi gồm ba xã Điện Quang, Điện Trung, Điện Phong vốn nức tiếng hiếu học, kiên cường và giàu truyền thống cách mạng. Rời quê hương vào TP.HCM lập nghiệp, mỗi người mang một số phận, một công việc khác nhau, nhưng trong tim ai cũng đau đáu nỗi nhớ quê.",
+      "Ý tưởng thành lập đội bóng nảy sinh từ một buổi gặp mặt thân mật của một nhóm anh em yêu thể thao vào giữa năm 2024. Với mong muốn tạo ra một không gian sinh hoạt văn hóa, rèn luyện sức khỏe và tương trợ lẫn nhau, FC HĐH Gò Nổi chính thức ra đời.",
+      "Từ những ngày đầu gom góp từng chiếc áo tập, tìm kiếm từng cụm sân bóng, đến nay đội đã phát triển thành một tập thể vững mạnh với hơn 23 cầu thủ nòng cốt, nhận được sự đồng hành to lớn của Hội đồng hương và các mạnh thường quân quê nhà. Đây chính là minh chứng sống động cho câu ca: 'Người Gò Nổi đi đâu cũng tìm về với nhau'.",
+    ],
+    quote: "Dù đi trăm nẻo bốn phương, hồn quê Gò Nổi vẫn vẹn nguyên trong từng bước chạy.",
+    highlights: [
+      "Mốc son thành lập kết nối cộng đồng người Gò Nổi tại TP.HCM",
+      "Lan tỏa giá trị văn hóa và nghĩa tình quê hương bền chặt",
+    ],
+    taggedPlayerNames: ["Nguyễn Thế Tiếng", "Hồ Viết Tín", "Nguyễn Văn Dũng", "Trần Xuân Minh"],
   },
 ];

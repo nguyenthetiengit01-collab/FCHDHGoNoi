@@ -58,6 +58,10 @@ export interface Player {
   status: string;
   notes: string;
   bio?: string;
+  hometown?: string;
+  nickname?: string;
+  playing_style?: string;
+  gallery_urls?: string[];
 }
 
 export interface MatchRecord {
@@ -76,6 +80,10 @@ export interface MatchRecord {
   status: string;
   notes: string;
   bio?: string;
+  hometown?: string;
+  nickname?: string;
+  playing_style?: string;
+  gallery_urls?: string[];
 }
 
 export type RsvpStatus = "registered" | "absent_notice" | "none";

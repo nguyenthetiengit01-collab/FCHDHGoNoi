@@ -239,6 +239,10 @@ export async function POST(req: NextRequest) {
           avatar_url,
           bio,
           notes,
+          hometown,
+          nickname,
+          playing_style,
+          gallery_urls,
         } = payload;
 
         if (!player_id) {
@@ -271,10 +275,20 @@ export async function POST(req: NextRequest) {
           { maxWidth: 600, maxHeight: 800, quality: 85 }
         );
 
+        // Chuyển đổi WebP cho album ảnh cá nhân nếu có
+        const rawGal = Array.isArray(gallery_urls) ? gallery_urls.map(String).filter(Boolean) : [];
+        const webpGallery: string[] = [];
+        for (const gUrl of rawGal) {
+          const conv = await ensureWebpDataUrlServer(gUrl, { maxWidth: 1000, maxHeight: 1000, quality: 85 });
+          if (conv) webpGallery.push(conv);
+        }
+
         await db.run(
           `UPDATE players
           SET full_name = ?, short_name = ?, jersey_number = ?,
-              position = ?, phone = ?, birth_year = ?, avatar_url = ?, bio = ?, notes = ?
+              position = ?, phone = ?, birth_year = ?, avatar_url = ?, bio = ?, notes = ?,
+              hometown = ?, nickname = ?, playing_style = ?,
+              gallery_urls_json = CASE WHEN ? = '[]' THEN gallery_urls_json ELSE ? END
           WHERE id = ?`,
           [
             cleanName,
@@ -292,6 +306,11 @@ export async function POST(req: NextRequest) {
             webpAvatar,
             typeof bio === "string" ? bio : "",
             notes || "",
+            String(hometown || "").trim(),
+            String(nickname || "").trim(),
+            String(playing_style || "").trim(),
+            JSON.stringify(webpGallery),
+            JSON.stringify(webpGallery),
             Number(player_id),
           ]
         );
@@ -975,6 +994,10 @@ export async function POST(req: NextRequest) {
           paragraphs,
           quote,
           highlights,
+          eventYear,
+          event_year,
+          taggedPlayerNames,
+          tagged_players,
         } = payload;
 
         const cleanTitle = String(title || "").trim();
@@ -1065,13 +1088,22 @@ export async function POST(req: NextRequest) {
               .map((h) => h.trim())
               .filter(Boolean);
 
+        const finalYear = String(eventYear || event_year || "2026").trim() || "2026";
+        const rawTagged = Array.isArray(taggedPlayerNames)
+          ? taggedPlayerNames
+          : Array.isArray(tagged_players)
+          ? tagged_players
+          : [];
+        const cleanTagged = rawTagged.map(String).map((s) => s.trim()).filter(Boolean);
+
         await db.run(
           `INSERT INTO club_posts (
             id, category, category_label, category_badge_class,
             title, slug, summary, published_date, author,
             featured_image, gallery_images_json, reading_time,
-            paragraphs_json, quote, highlights_json
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            paragraphs_json, quote, highlights_json,
+            event_year, tagged_players_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             category = excluded.category,
             category_label = excluded.category_label,
@@ -1086,7 +1118,9 @@ export async function POST(req: NextRequest) {
             reading_time = excluded.reading_time,
             paragraphs_json = excluded.paragraphs_json,
             quote = excluded.quote,
-            highlights_json = excluded.highlights_json`,
+            highlights_json = excluded.highlights_json,
+            event_year = excluded.event_year,
+            tagged_players_json = excluded.tagged_players_json`,
           [
             postId,
             catKey,
@@ -1107,6 +1141,8 @@ export async function POST(req: NextRequest) {
             ),
             String(quote || "").trim(),
             JSON.stringify(cleanHighlights),
+            finalYear,
+            JSON.stringify(cleanTagged),
           ]
         );
         break;

@@ -12,6 +12,10 @@ import {
   KeyRound,
   Edit3,
   Upload,
+  Camera,
+  Trash2,
+  MapPin,
+  Sparkles,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -21,7 +25,10 @@ import type {
 } from "@/types/app";
 import { OFFICIAL_QR_URL } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
-import { convertFileToWebp } from "@/lib/imageToWebp";
+import {
+  convertFileToWebp,
+  convertMultipleFilesToWebp,
+} from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
 
 interface PlayerPersonalTabProps {
@@ -58,6 +65,12 @@ export function PlayerPersonalTab({
   const [isConvertingWebp, setIsConvertingWebp] = useState(false);
   const [bio, setBio] = useState("");
   const [notes, setNotes] = useState("");
+  const [hometown, setHometown] = useState("Điện Quang");
+  const [nickname, setNickname] = useState("");
+  const [playingStyle, setPlayingStyle] = useState("");
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [isConvertingGallery, setIsConvertingGallery] = useState(false);
+  const [galleryWebpInfo, setGalleryWebpInfo] = useState("");
 
   // State cho Modal đổi tên đăng nhập & mật khẩu cá nhân
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
@@ -85,6 +98,11 @@ export function PlayerPersonalTab({
     setWebpInfo("");
     setBio(me.bio || "");
     setNotes(me.notes || "");
+    setHometown(me.hometown || "Điện Quang");
+    setNickname(me.nickname || "");
+    setPlayingStyle(me.playing_style || "");
+    setGalleryUrls(me.gallery_urls || []);
+    setGalleryWebpInfo("");
     setProfileModalOpen(true);
   };
 
@@ -116,6 +134,32 @@ export function PlayerPersonalTab({
     }
   };
 
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsConvertingGallery(true);
+    setGalleryWebpInfo(`Đang tự động chuyển ${files.length} ảnh sang chuẩn WebP...`);
+    try {
+      const results = await convertMultipleFilesToWebp(files, {
+        maxWidth: 1200,
+        maxHeight: 900,
+        quality: 0.85,
+      });
+      const newUrls = results.map((r) => r.dataUrl);
+      setGalleryUrls((prev) => [...prev, ...newUrls]);
+      setGalleryWebpInfo(`✅ Đã chuyển thành công ${results.length} ảnh sang WebP.`);
+    } catch {
+      setGalleryWebpInfo("❌ Có lỗi khi chuyển đổi ảnh album.");
+    } finally {
+      setIsConvertingGallery(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveGalleryImage = (index: number) => {
+    setGalleryUrls((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handleSaveMyProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     await onMutate("update_own_profile", {
@@ -128,6 +172,10 @@ export function PlayerPersonalTab({
       avatar_url: avatarUrl,
       bio,
       notes,
+      hometown,
+      nickname,
+      playing_style: playingStyle,
+      gallery_urls: galleryUrls,
     });
     setProfileModalOpen(false);
   };
@@ -234,12 +282,23 @@ export function PlayerPersonalTab({
                     ? "🛡️ Ban Quản Lý"
                     : "⚽ Cầu Thủ Thành Viên"}
                 </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#ffc933]/20 border border-[#ffc933]/50 px-2.5 py-0.5 text-xs font-bold text-[#ffc933]">
+                  <MapPin className="h-3 w-3" />
+                  <span>Xã {me.hometown || "Điện Quang"}</span>
+                </span>
+                {me.nickname && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/20 border border-sky-400/40 px-2.5 py-0.5 text-xs font-extrabold text-sky-200">
+                    <Sparkles className="h-3 w-3 text-[#ffc933]" />
+                    <span>&ldquo;{me.nickname}&rdquo;</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs sm:text-sm text-sky-100/90 mt-1">
                 Vị trí: <strong className="text-white">{me.position}</strong> •{" "}
                 Năm sinh:{" "}
                 <strong className="text-white">{me.birth_year || "—"}</strong>
                 {me.phone ? ` • SĐT: ${me.phone}` : ""}
+                {me.playing_style ? ` • Sở trường: ${me.playing_style}` : ""}
               </p>
               {me.access_role === "manager" && (
                 <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#ffc933]/20 border border-[#ffc933]/50 px-2.5 py-1 text-xs font-extrabold text-[#ffc933]">
@@ -252,6 +311,31 @@ export function PlayerPersonalTab({
                 <p className="mt-2.5 text-xs text-sky-100/95 italic bg-white/10 rounded-lg p-2.5 border border-white/15 max-w-xl">
                   &ldquo;{me.bio}&rdquo;
                 </p>
+              )}
+
+              {/* Album ảnh cá nhân */}
+              {me.gallery_urls && me.gallery_urls.length > 0 && (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-[11px] uppercase tracking-wider text-sky-200/80 font-bold flex items-center gap-1">
+                    <Camera className="h-3.5 w-3.5 text-[#ffc933]" />
+                    <span>Album cá nhân ({me.gallery_urls.length} ảnh):</span>
+                  </span>
+                  <div className="flex items-center gap-1.5 overflow-x-auto py-1">
+                    {me.gallery_urls.map((url, idx) => (
+                      <div
+                        key={idx}
+                        className="relative h-10 w-10 rounded-lg overflow-hidden border border-[#ffc933]/50 shrink-0 bg-black/40"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={url}
+                          alt={`Ảnh thi đấu ${idx + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -671,17 +755,73 @@ export function PlayerPersonalTab({
             </div>
           </div>
 
+          {/* Quê quán Gò Nổi & Biệt danh */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="my-hometown"
+                className="block text-sm font-semibold text-slate-700 mb-1"
+              >
+                Quê quán tại Gò Nổi
+              </label>
+              <select
+                id="my-hometown"
+                value={hometown}
+                onChange={(e) => setHometown(e.target.value)}
+                className="form-select"
+              >
+                <option value="Điện Quang">Xã Điện Quang</option>
+                <option value="Điện Trung">Xã Điện Trung</option>
+                <option value="Điện Phong">Xã Điện Phong</option>
+                <option value="Gò Nổi">Gò Nổi chung</option>
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="my-nickname"
+                className="block text-sm font-semibold text-slate-700 mb-1"
+              >
+                Biệt danh sân cỏ / Tên thân mật
+              </label>
+              <input
+                id="my-nickname"
+                type="text"
+                placeholder="VD: Tiếng Ronaldo, Tín Mười, Trung Thần Tốc..."
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                className="form-input"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="my-playingstyle"
+              className="block text-sm font-semibold text-slate-700 mb-1"
+            >
+              Phong cách thi đấu / Sở trường
+            </label>
+            <input
+              id="my-playingstyle"
+              type="text"
+              placeholder="VD: Càn lướt mạnh mẽ, sút xa uy lực, đeo bám lì lợm..."
+              value={playingStyle}
+              onChange={(e) => setPlayingStyle(e.target.value)}
+              className="form-input"
+            />
+          </div>
+
           <div>
             <label
               htmlFor="my-notes"
               className="block text-sm font-semibold text-slate-700 mb-1"
             >
-              Ghi chú cá nhân (Size áo, quê quán Gò Nổi...)
+              Ghi chú cá nhân (Size áo, sở thích...)
             </label>
             <input
               id="my-notes"
               type="text"
-              placeholder="VD: Size XL - Điện Trung, Gò Nổi"
+              placeholder="VD: Size XL - Thích đá sân 7 tối thứ 4"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="form-input"
@@ -706,6 +846,51 @@ export function PlayerPersonalTab({
             <p className="text-xs text-slate-500 mt-1">
               Bài viết này được hiển thị nổi bật trên Thẻ Profile 3D tương tác ngoài Trang chủ để cổ động viên và người hâm mộ theo dõi.
             </p>
+          </div>
+
+          {/* Album ảnh khoảnh khắc thi đấu cá nhân */}
+          <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-semibold text-slate-700">
+                Album ảnh thi đấu &amp; hoạt động của bạn ({galleryUrls.length} ảnh)
+              </label>
+              <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#17488c] hover:bg-[#1e5eb8] text-white px-3 py-1 text-xs font-bold cursor-pointer transition">
+                <Upload className="h-3.5 w-3.5" />
+                <span>{isConvertingGallery ? "Đang xử lý..." : "Thêm ảnh (WebP)"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleGalleryUpload}
+                  disabled={isConvertingGallery}
+                  className="hidden"
+                />
+              </label>
+            </div>
+            {galleryWebpInfo && (
+              <p className="text-xs text-sky-800 font-medium">{galleryWebpInfo}</p>
+            )}
+            {galleryUrls.length > 0 && (
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-1">
+                {galleryUrls.map((url, idx) => (
+                  <div
+                    key={idx}
+                    className="relative aspect-square rounded-lg overflow-hidden border border-slate-300 group bg-slate-200"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveGalleryImage(idx)}
+                      className="absolute top-1 right-1 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm cursor-pointer"
+                      title="Xoá ảnh này"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">

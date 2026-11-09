@@ -5,10 +5,15 @@ import Link from "next/link";
 import {
   CLUB_ACTIVITIES_POSTS,
   ACTIVITY_CATEGORIES,
+  CLUB_TIMELINE_YEARS,
   ActivityCategory,
   ClubActivityPost,
 } from "@/data/clubActivities";
 import { OFFICIAL_LOGO_URL, FANPAGE_URL } from "@/types/app";
+import {
+  ImageLightboxModal,
+  type LightboxImage,
+} from "@/components/ImageLightboxModal";
 import {
   Calendar,
   Clock,
@@ -26,8 +31,20 @@ import {
 
 export default function HoatDongPage() {
   const [selectedCategory, setSelectedCategory] = useState<ActivityCategory>("all");
+  const [selectedYear, setSelectedYear] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [posts, setPosts] = useState<ClubActivityPost[]>(CLUB_ACTIVITIES_POSTS);
+
+  // Lightbox
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const openLightbox = (imgs: LightboxImage[], idx = 0) => {
+    setLightboxImages(imgs);
+    setLightboxIndex(idx);
+    setLightboxOpen(true);
+  };
 
   useEffect(() => {
     fetch("/api/team")
@@ -44,14 +61,22 @@ export default function HoatDongPage() {
     return posts.filter((post) => {
       const matchCat =
         selectedCategory === "all" || post.category === selectedCategory;
+      const matchYear =
+        selectedYear === "all"
+          ? true
+          : (post.eventYear || post.publishedDate?.slice(0, 4)) === selectedYear;
       const matchQuery =
         !searchQuery.trim() ||
         post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         post.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.author.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchQuery;
+        post.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (post.taggedPlayerNames &&
+          post.taggedPlayerNames.some((n) =>
+            n.toLowerCase().includes(searchQuery.toLowerCase())
+          ));
+      return matchCat && matchYear && matchQuery;
     });
-  }, [posts, selectedCategory, searchQuery]);
+  }, [posts, selectedCategory, selectedYear, searchQuery]);
 
   const getCategoryIcon = (id: ActivityCategory) => {
     switch (id) {
@@ -167,9 +192,33 @@ export default function HoatDongPage() {
         </div>
       </section>
 
-      {/* ==================== BỘ LỌC CHUYÊN MỤC ==================== */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-8 py-8">
-        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+      {/* ==================== BỘ LỌC DÒNG THỜI GIAN & CHUYÊN MỤC ==================== */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-8 py-8 space-y-5">
+        {/* Dòng thời gian CLB theo năm */}
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
+          <span className="text-xs uppercase font-extrabold text-sky-300 tracking-wider mr-2 flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-[#d4af37]" />
+            <span>Dòng thời gian:</span>
+          </span>
+          {CLUB_TIMELINE_YEARS.map((y) => (
+            <button
+              key={y.id}
+              type="button"
+              onClick={() => setSelectedYear(y.id)}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition cursor-pointer border flex items-center gap-1.5 ${
+                selectedYear === y.id
+                  ? "bg-[#d4af37] text-slate-950 font-black border-[#d4af37] shadow-sm"
+                  : "bg-[#092244]/80 text-sky-200 hover:bg-[#123e7a] hover:text-white border-white/10"
+              }`}
+            >
+              <span>{y.label}</span>
+              <span className="text-[10px] opacity-75 font-normal">({y.highlight})</span>
+            </button>
+          ))}
+        </div>
+
+        {/* 5 Chuyên mục bài viết */}
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 pt-1 border-t border-white/10">
           {ACTIVITY_CATEGORIES.map((cat) => {
             const isSelected = selectedCategory === cat.id;
             return (
@@ -191,7 +240,7 @@ export default function HoatDongPage() {
         </div>
 
         {/* ==================== DANH SÁCH BÀI VIẾT ==================== */}
-        <div className="mt-10">
+        <div className="mt-8">
           {filteredPosts.length === 0 ? (
             <div className="text-center py-20 bg-[#092244]/40 rounded-3xl border border-white/10 p-8">
               <p className="text-lg text-slate-400">Không tìm thấy bài viết nào phù hợp.</p>
@@ -199,6 +248,7 @@ export default function HoatDongPage() {
                 type="button"
                 onClick={() => {
                   setSelectedCategory("all");
+                  setSelectedYear("all");
                   setSearchQuery("");
                 }}
                 className="mt-4 px-4 py-2 rounded-xl bg-[#d4af37] text-slate-950 font-bold text-xs uppercase"
@@ -208,74 +258,133 @@ export default function HoatDongPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredPosts.map((post: ClubActivityPost) => (
-                <article
-                  key={post.id}
-                  className="group flex flex-col rounded-3xl overflow-hidden bg-gradient-to-b from-[#0b2952] to-[#071933] border border-[#d4af37]/30 hover:border-[#d4af37] shadow-xl hover:shadow-[0_20px_40px_rgba(212,175,55,0.15)] transition duration-300"
-                >
-                  {/* Ảnh bài viết */}
-                  <div className="relative aspect-video overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={post.featuredImage}
-                      alt={post.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#071933] via-transparent to-transparent opacity-80" />
+              {filteredPosts.map((post: ClubActivityPost) => {
+                const postLightboxImages: LightboxImage[] = [
+                  {
+                    src: post.featuredImage,
+                    title: post.title,
+                    caption: post.summary,
+                    tag: post.categoryLabel,
+                  },
+                  ...(post.galleryImages || []).map((img, idx) => ({
+                    src: img,
+                    title: `${post.title} • Ảnh #${idx + 1}`,
+                    caption: post.title,
+                    tag: post.categoryLabel,
+                  })),
+                ];
 
-                    <div className="absolute top-3 left-3">
-                      <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider backdrop-blur-md border ${post.categoryBadgeClass}`}
-                      >
-                        {post.categoryLabel}
-                      </span>
-                    </div>
+                return (
+                  <article
+                    key={post.id}
+                    className="group flex flex-col rounded-3xl overflow-hidden bg-gradient-to-b from-[#0b2952] to-[#071933] border border-[#d4af37]/30 hover:border-[#d4af37] shadow-xl hover:shadow-[0_20px_40px_rgba(212,175,55,0.15)] transition duration-300"
+                  >
+                    {/* Ảnh bài viết */}
+                    <div className="relative aspect-video overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={post.featuredImage}
+                        alt={post.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#071933] via-transparent to-transparent opacity-80" />
 
-                    <div className="absolute bottom-3 right-3 flex items-center gap-1 text-[11px] font-medium text-white/90 bg-black/60 px-2.5 py-0.5 rounded-full backdrop-blur-md">
-                      <Clock className="h-3 w-3 text-[#d4af37]" />
-                      <span>{post.readingTime}</span>
-                    </div>
-                  </div>
-
-                  {/* Nội dung bài viết */}
-                  <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
-                    <div>
-                      <div className="flex items-center gap-2 text-xs font-semibold text-sky-200/80 mb-2">
-                        <Calendar className="h-3.5 w-3.5 text-[#d4af37]" />
-                        <span>{post.publishedDate}</span>
-                        <span>•</span>
-                        <span className="text-slate-400 truncate">{post.author}</span>
+                      {/* Badge chuyên mục & Năm */}
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider backdrop-blur-md border ${post.categoryBadgeClass}`}
+                        >
+                          {post.categoryLabel}
+                        </span>
+                        {post.eventYear && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black uppercase bg-[#d4af37] text-slate-950 shadow-sm border border-[#fde047]">
+                            {post.eventYear}
+                          </span>
+                        )}
                       </div>
 
-                      <h2 className="font-display font-extrabold uppercase text-xl text-white group-hover:text-[#fde047] transition line-clamp-2 leading-snug">
-                        {post.title}
-                      </h2>
-
-                      <p className="mt-3 text-sm text-sky-100/80 line-clamp-3 leading-relaxed font-light">
-                        {post.summary}
-                      </p>
-                    </div>
-
-                    {/* Nút đọc bài viết chi tiết - Dẫn sang trang riêng */}
-                    <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs font-bold text-[#d4af37]">
-                      <Link
-                        href={`/hoat-dong/${post.id}`}
-                        className="group-hover:translate-x-1 transition inline-flex items-center gap-1.5 cursor-pointer text-white hover:text-[#d4af37]"
+                      {/* Nút xem ảnh Lightbox */}
+                      <button
+                        type="button"
+                        onClick={() => openLightbox(postLightboxImages, 0)}
+                        className="absolute bottom-3 left-3 flex items-center gap-1 text-[11px] font-bold text-white bg-black/60 hover:bg-[#d4af37] hover:text-slate-950 px-2.5 py-0.5 rounded-full backdrop-blur-md transition border border-white/20 cursor-pointer"
                       >
-                        <span>Đọc bài viết trên trang riêng</span>
-                        <ArrowRight className="h-4 w-4 text-[#d4af37]" />
-                      </Link>
-                      <span className="text-[11px] uppercase tracking-wider text-slate-400">
-                        FC Gò Nổi
-                      </span>
+                        <Camera className="h-3 w-3" />
+                        <span>Xem ảnh ({postLightboxImages.length})</span>
+                      </button>
+
+                      <div className="absolute bottom-3 right-3 flex items-center gap-1 text-[11px] font-medium text-white/90 bg-black/60 px-2.5 py-0.5 rounded-full backdrop-blur-md">
+                        <Clock className="h-3 w-3 text-[#d4af37]" />
+                        <span>{post.readingTime}</span>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
+
+                    {/* Nội dung bài viết */}
+                    <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+                      <div>
+                        <div className="flex items-center gap-2 text-xs font-semibold text-sky-200/80 mb-2">
+                          <Calendar className="h-3.5 w-3.5 text-[#d4af37]" />
+                          <span>{post.publishedDate}</span>
+                          <span>•</span>
+                          <span className="text-slate-400 truncate">{post.author}</span>
+                        </div>
+
+                        <h2 className="font-display font-extrabold uppercase text-xl text-white group-hover:text-[#fde047] transition line-clamp-2 leading-snug">
+                          {post.title}
+                        </h2>
+
+                        <p className="mt-3 text-sm text-sky-100/80 line-clamp-3 leading-relaxed font-light">
+                          {post.summary}
+                        </p>
+
+                        {/* Cầu thủ được gắn thẻ */}
+                        {post.taggedPlayerNames && post.taggedPlayerNames.length > 0 && (
+                          <div className="mt-3 flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/10">
+                            <span className="text-[10px] text-sky-200/60 font-bold uppercase">
+                              Cầu thủ:
+                            </span>
+                            {post.taggedPlayerNames.map((name) => (
+                              <span
+                                key={name}
+                                className="px-2 py-0.5 rounded-md bg-white/10 text-sky-200 text-[10px] font-semibold border border-white/10"
+                              >
+                                {name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Nút đọc bài viết chi tiết - Dẫn sang trang riêng */}
+                      <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs font-bold text-[#d4af37]">
+                        <Link
+                          href={`/hoat-dong/${post.id}`}
+                          className="group-hover:translate-x-1 transition inline-flex items-center gap-1.5 cursor-pointer text-white hover:text-[#d4af37]"
+                        >
+                          <span>Đọc bài viết trên trang riêng</span>
+                          <ArrowRight className="h-4 w-4 text-[#d4af37]" />
+                        </Link>
+                        <span className="text-[11px] uppercase tracking-wider text-slate-400">
+                          FC Gò Nổi
+                        </span>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      <ImageLightboxModal
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        images={lightboxImages}
+        currentIndex={lightboxIndex}
+        onNavigate={setLightboxIndex}
+      />
 
       {/* ==================== FOOTER ==================== */}
       <footer className="mt-auto border-t border-[#d4af37]/20 bg-[#040e1e] py-8 text-center text-xs text-slate-400">

@@ -424,31 +424,333 @@ const INITIAL_PLAYERS: Array<{
   role: string;
   access_role: "manager" | "player";
   birth_year: string;
+  hometown: string;
+  nickname: string;
+  playing_style: string;
   bio: string;
 }> = [
-  { code_order: 1, full_name: "Lê Anh Trung", short_name: "Trung", jersey_number: 17, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 2, full_name: "Nguyễn Thế Tiếng", short_name: "Tiếng", jersey_number: 12, position: "Đa năng", role: "Đội trưởng / Thủ quỹ", access_role: "manager", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 3, full_name: "Hồ Viết Tín", short_name: "Tín", jersey_number: 26, position: "Đa năng", role: "Đội phó / Quản lý thu", access_role: "manager", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 4, full_name: "Nguyễn Văn Dũng", short_name: "Dũng", jersey_number: 21, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 5, full_name: "Nguyễn Văn Thịnh", short_name: "Thịnh", jersey_number: 22, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 6, full_name: "Lại Văn Toàn", short_name: "Toàn", jersey_number: 5, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 7, full_name: "Ngô Công Phát", short_name: "Phát", jersey_number: 4, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 8, full_name: "Nguyễn Đăng Xuân", short_name: "Xuân", jersey_number: 45, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 9, full_name: "Vũ Hùng Khương", short_name: "Vương Lâm", jersey_number: 18, position: "Đa năng", role: "Ban quản lý / Thủ quỹ phụ", access_role: "manager", birth_year: "1994", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 10, full_name: "Nguyễn Thanh Vĩnh", short_name: "Vĩnh", jersey_number: 9, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1991", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 11, full_name: "Nguyễn Tấn Thiện", short_name: "Thiện", jersey_number: 14, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1997", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 12, full_name: "Trần Xuân Minh", short_name: "Minh", jersey_number: 3, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1980", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 13, full_name: "Nguyễn Văn Hải", short_name: "Hải", jersey_number: 6, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 14, full_name: "Ngô Vũ", short_name: "Vũ", jersey_number: 19, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 15, full_name: "Nguyễn Tấn Tuấn", short_name: "Tuấn", jersey_number: 8, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 16, full_name: "Nguyễn Văn Thành", short_name: "Thành", jersey_number: 92, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 17, full_name: "Dương Hiển Hoài Sơn", short_name: "Hoài Sơn", jersey_number: 24, position: "Đa năng", role: "Ban quản lý / Thủ quỹ phụ", access_role: "manager", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 18, full_name: "Nguyễn Tấn Nghĩa", short_name: "Nghĩa", jersey_number: 25, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 19, full_name: "Nguyễn Bồng", short_name: "Bồng", jersey_number: 11, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1995", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 20, full_name: "Nguyễn Phi Vương", short_name: "Vương", jersey_number: 13, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1986", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 21, full_name: "Đỗ Thiều Duy Vương", short_name: "D. Vương", jersey_number: 15, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1989", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 22, full_name: "Phan Phước Trường", short_name: "Trường", jersey_number: 7, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1992", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
-  { code_order: 23, full_name: "Võ Quang Quốc", short_name: "Quốc", jersey_number: 99, position: "Đa năng", role: "Thành viên", access_role: "player", birth_year: "1983", bio: "Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình trên sân cỏ với tinh thần cống hiến, fair-play và gắn kết tình anh em đồng hương bền chặt." },
+  {
+    code_order: 1,
+    full_name: "Lê Anh Trung",
+    short_name: "Trung",
+    jersey_number: 17,
+    position: "Tiền vệ biên",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1989",
+    hometown: "Xã Điện Trung",
+    nickname: "Trung Cơn Lốc",
+    playing_style: "Tốc độ xé gió, bứt phá biên & dứt điểm quyết đoán",
+    bio: "Chiến binh tốc độ của FC Gò Nổi. Mỗi lần xỏ giày ra sân là một lần cháy hết mình bên hành lang cánh, cống hiến những pha dốc bóng thần tốc và những bàn thắng giàu cảm xúc cho màu cờ sắc áo quê hương.",
+  },
+  {
+    code_order: 2,
+    full_name: "Nguyễn Thế Tiếng",
+    short_name: "Tiếng",
+    jersey_number: 12,
+    position: "Trung vệ / Tiền vệ",
+    role: "Đội trưởng / Thủ quỹ",
+    access_role: "manager",
+    birth_year: "1992",
+    hometown: "Xã Điện Quang",
+    nickname: "Tiếng Thuyền Trưởng",
+    playing_style: "Thủ lĩnh chỉ huy, bao quát tuyến giữa & lăn xả phòng ngự",
+    bio: "Đội trưởng kiêm Thủ quỹ tận tụy của FC HĐH Gò Nổi. Người kết nối anh em đồng hương ba xã tại Sài Gòn, luôn giữ ngọn lửa đoàn kết, nhiệt huyết và minh bạch trong mọi hoạt động của câu lạc bộ.",
+  },
+  {
+    code_order: 3,
+    full_name: "Hồ Viết Tín",
+    short_name: "Tín",
+    jersey_number: 26,
+    position: "Trung vệ thòng",
+    role: "Đội phó / Quản lý thu",
+    access_role: "manager",
+    birth_year: "1995",
+    hometown: "Xã Điện Trung",
+    nickname: "Tín Hòn Đá Tảng",
+    playing_style: "Bức tường thép trung tâm, phán đoán sắc sảo & điềm tĩnh",
+    bio: "Đội phó bản lĩnh và đáng tin cậy. Là chốt chặn thép nơi hậu tuyến, thi đấu điềm đạm, phán đoán tình huống thông minh và luôn là chỗ dựa tinh thần vững chắc cho toàn thể đồng đội.",
+  },
+  {
+    code_order: 4,
+    full_name: "Nguyễn Văn Dũng",
+    short_name: "Dũng",
+    jersey_number: 21,
+    position: "Hậu vệ cánh",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1986",
+    hometown: "Xã Điện Phong",
+    nickname: "Dũng Thép",
+    playing_style: "Lăn xả kiên cường, sức mạnh tranh chấp & bền bỉ",
+    bio: "Chiến binh kỳ cựu mang tinh thần quả cảm của người con Gò Nổi. Không ngại va chạm, bền bỉ qua từng trận cầu và luôn truyền năng lượng tích cực cho thế hệ trẻ của đội bóng.",
+  },
+  {
+    code_order: 5,
+    full_name: "Nguyễn Văn Thịnh",
+    short_name: "Thịnh",
+    jersey_number: 22,
+    position: "Tiền vệ trung tâm",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1989",
+    hometown: "Xã Điện Quang",
+    nickname: "Thịnh Nghệ Sĩ",
+    playing_style: "Kỹ thuật điêu luyện, thoát pressing & chuyền bóng tinh tế",
+    bio: "Tiền vệ hào hoa với lối đá thông minh, xử lý bóng mềm mại và những đường chuyền 'dọn cỗ' sắc bén. Luôn cống hiến những pha xử lý bóng mãn nhãn và tinh thần fair-play mẫu mực.",
+  },
+  {
+    code_order: 6,
+    full_name: "Lại Văn Toàn",
+    short_name: "Toàn",
+    jersey_number: 5,
+    position: "Hậu vệ dập",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1992",
+    hometown: "Xã Điện Phong",
+    nickname: "Toàn Lá Chắn",
+    playing_style: "Đeo bám quyết liệt, cản phá lăn xả & kỷ luật chiến thuật",
+    bio: "Lá chắn kiên cường nơi phòng tuyến FC Gò Nổi. Thi đấu kỷ luật, lăn xả trong từng pha tranh chấp và luôn sẵn sàng bọc lót kịp thời cho đồng đội ở những điểm nóng.",
+  },
+  {
+    code_order: 7,
+    full_name: "Ngô Công Phát",
+    short_name: "Phát",
+    jersey_number: 4,
+    position: "Hậu vệ cánh",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1995",
+    hometown: "Xã Điện Trung",
+    nickname: "Phát Motor",
+    playing_style: "Thể lực sung mãn, lên công về thủ không biết mệt",
+    bio: "Cỗ máy cơ động bên hành lang, sở hữu nguồn thể lực dồi dào và lối chơi nhiệt huyết. Luôn có mặt kịp thời ở cả mặt trận phòng ngự lẫn hỗ trợ tấn công.",
+  },
+  {
+    code_order: 8,
+    full_name: "Nguyễn Đăng Xuân",
+    short_name: "Xuân",
+    jersey_number: 45,
+    position: "Tiền vệ trụ",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1986",
+    hometown: "Xã Điện Quang",
+    nickname: "Xuân Chiến Binh",
+    playing_style: "Điềm tĩnh, bao quát tốt & dứt điểm uy lực",
+    bio: "Dạn dày kinh nghiệm trận mạc, thi đấu với cái đầu lạnh và trái tim nóng. Khả năng đọc trận đấu nhạy bén và tung ra những cú sút xa bất ngờ làm nổ tung cầu trường.",
+  },
+  {
+    code_order: 9,
+    full_name: "Vũ Hùng Khương",
+    short_name: "Vương Lâm",
+    jersey_number: 18,
+    position: "Đa năng",
+    role: "Ban quản lý / Thủ quỹ phụ",
+    access_role: "manager",
+    birth_year: "1994",
+    hometown: "Xã Điện Trung",
+    nickname: "Vương Lâm Đa Năng",
+    playing_style: "Nhãn quan rộng, đa năng mọi vị trí & nhiệt huyết hậu cần",
+    bio: "Thành viên Ban Quản Lý gương mẫu, vừa là hạt nhân lối chơi trên sân vừa chu toàn công việc hậu cần cho đội. Lối đá thông minh, nhạy bén và luôn hết mình vì tập thể.",
+  },
+  {
+    code_order: 10,
+    full_name: "Nguyễn Thanh Vĩnh",
+    short_name: "Vĩnh",
+    jersey_number: 9,
+    position: "Tiền đạo cắm",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1991",
+    hometown: "Xã Điện Phong",
+    nickname: "Vĩnh Sát Thủ",
+    playing_style: "Chớp thời cơ trong vòng cấm, chọn vị trí & dứt điểm một chạm",
+    bio: "Tiền đạo mũi nhọn với bản năng săn bàn nhạy bén. Luôn có mặt đúng lúc, đúng chỗ trong vòng cấm đối phương để chuyển hóa cơ hội thành những bàn thắng quý như vàng.",
+  },
+  {
+    code_order: 11,
+    full_name: "Nguyễn Tấn Thiện",
+    short_name: "Thiện",
+    jersey_number: 14,
+    position: "Tiền vệ công",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1997",
+    hometown: "Xã Điện Quang",
+    nickname: "Thiện Mũi Tên",
+    playing_style: "Lắt léo, quấy phá hàng thủ đối phương & bùng nổ",
+    bio: "Ngòi nổ tạo đột biến với những pha đi bóng lắt léo và tự tin. Sức trẻ, lòng nhiệt tình và tinh thần cống hiến không ngừng nghỉ giúp Thiện luôn tạo nên sự khác biệt trên sân.",
+  },
+  {
+    code_order: 12,
+    full_name: "Trần Xuân Minh",
+    short_name: "Minh",
+    jersey_number: 3,
+    position: "Hậu vệ",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1980",
+    hometown: "Xã Điện Quang",
+    nickname: "Anh Minh Đại Ca",
+    playing_style: "Kinh nghiệm lão luyện, đọc tình huống & truyền lửa điềm tĩnh",
+    bio: "Cánh chim đầu đàn của FC Gò Nổi. Với kinh nghiệm trận mạc dày dặn và phong thái đĩnh đạc, anh luôn là chỗ dựa tinh thần quý báu dìu dắt các em trẻ thi đấu tự tin.",
+  },
+  {
+    code_order: 13,
+    full_name: "Nguyễn Văn Hải",
+    short_name: "Hải",
+    jersey_number: 6,
+    position: "Tiền vệ trung tâm",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1989",
+    hometown: "Xã Điện Trung",
+    nickname: "Hải Con Thoi",
+    playing_style: "Cần mẫn, tranh chấp dẻo dai & phân phối bóng",
+    bio: "Tiền vệ cần mẫn ở khu vực trung tuyến. Không hoa mỹ nhưng vô cùng hiệu quả, luôn di chuyển không bóng khôn ngoan để giải tỏa áp lực cho hàng phòng ngự.",
+  },
+  {
+    code_order: 14,
+    full_name: "Ngô Vũ",
+    short_name: "Vũ",
+    jersey_number: 19,
+    position: "Tiền đạo lùi",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1992",
+    hometown: "Xã Điện Phong",
+    nickname: "Vũ Quái Kiệt",
+    playing_style: "Thông minh, tinh quái & xử lý bóng biến hóa",
+    bio: "Cầu thủ đa năng với lối chơi tinh quái và tư duy nhạy bén. Khả năng thích ứng nhanh với mọi thế trận giúp Vũ luôn là quân bài chiến lược quan trọng của đội.",
+  },
+  {
+    code_order: 15,
+    full_name: "Nguyễn Tấn Tuấn",
+    short_name: "Tuấn",
+    jersey_number: 8,
+    position: "Tiền vệ công",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1995",
+    hometown: "Xã Điện Quang",
+    nickname: "Tuấn Đại Bác",
+    playing_style: "Phối hợp ban bật nhịp nhàng & sút xa hiểm hóc",
+    bio: "Kỹ thuật cơ bản toàn diện, nhãn quan chiến thuật sắc sảo. Sở hữu những cú nã đại bác tầm xa đầy uy lực, sẵn sàng làm rung lưới đối phương từ ngoài vòng cấm.",
+  },
+  {
+    code_order: 16,
+    full_name: "Nguyễn Văn Thành",
+    short_name: "Thành",
+    jersey_number: 92,
+    position: "Trung vệ",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1986",
+    hometown: "Xã Điện Trung",
+    nickname: "Thành Không Gian",
+    playing_style: "Không chiến dũng mãnh, thể hình lý tưởng & cản phá chắc tay",
+    bio: "Chiến binh thép nơi hàng thủ với thể hình vượt trội. Khả năng không chiến xuất sắc và những pha can thiệp dũng mãnh mang lại sự an tâm tuyệt đối cho khung thành đội nhà.",
+  },
+  {
+    code_order: 17,
+    full_name: "Dương Hiển Hoài Sơn",
+    short_name: "Hoài Sơn",
+    jersey_number: 24,
+    position: "Đa năng",
+    role: "Ban quản lý / Thủ quỹ phụ",
+    access_role: "manager",
+    birth_year: "1986",
+    hometown: "Xã Điện Quang",
+    nickname: "Sơn Nhiệt Huyết",
+    playing_style: "Máu lửa, gắn kết toàn đội & chu đáo hậu cần",
+    bio: "Thành viên Ban Quản Lý nhiệt thành và trách nhiệm. Trên sân thi đấu lăn xả, ngoài sân lo toan từng buổi tập và đồng hành sát sao cùng anh em trong mọi chuyến du đấu.",
+  },
+  {
+    code_order: 18,
+    full_name: "Nguyễn Tấn Nghĩa",
+    short_name: "Nghĩa",
+    jersey_number: 25,
+    position: "Tiền vệ cánh",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1992",
+    hometown: "Xã Điện Phong",
+    nickname: "Nghĩa Năng Lượng",
+    playing_style: "Tràn đầy năng lượng, xông xáo & dốc bóng biên",
+    bio: "Chiến binh tràn đầy năng lượng tích cực. Luôn ra sân với nụ cười sảng khoái và tinh thần chiến đấu quả cảm, sẵn sàng cống hiến trọn vẹn sức mình vì màu cờ sắc áo.",
+  },
+  {
+    code_order: 19,
+    full_name: "Nguyễn Bồng",
+    short_name: "Bồng",
+    jersey_number: 11,
+    position: "Tiền đạo cánh",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1995",
+    hometown: "Xã Điện Trung",
+    nickname: "Bồng Kèo Trái",
+    playing_style: "Kèo trái ma thuật, tạt bóng chuẩn xác & kiến tạo",
+    bio: "Sở hữu chiếc chân trái khéo léo và những đường cong hiểm hóc. Những pha kiến tạo từ cánh của Bồng luôn mở ra cơ hội ăn bàn mười mươi cho các đồng đội tuyến trên.",
+  },
+  {
+    code_order: 20,
+    full_name: "Nguyễn Phi Vương",
+    short_name: "Vương",
+    jersey_number: 13,
+    position: "Hậu vệ",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1986",
+    hometown: "Xã Điện Quang",
+    nickname: "Vương Kỷ Luật",
+    playing_style: "Kỷ luật thép, đọc trận đấu & phòng ngự chủ động",
+    bio: "Mẫu cầu thủ đề cao tính kỷ luật và tinh thần tập thể. Thi đấu bình tĩnh, tuân thủ nghiêm ngặt đấu pháp và luôn đặt lợi ích của đội bóng lên trên hết.",
+  },
+  {
+    code_order: 21,
+    full_name: "Đỗ Thiều Duy Vương",
+    short_name: "D. Vương",
+    jersey_number: 15,
+    position: "Tiền vệ trung tâm",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1989",
+    hometown: "Xã Điện Phong",
+    nickname: "Vương Nhịp Điệu",
+    playing_style: "Cầm trịch tuyến giữa, điều tiết nhịp độ & phát động tấn công",
+    bio: "Nhạc trưởng tài hoa ở giữa sân, sở hữu khả năng điều phối nhịp độ trận đấu tuyệt vời. Những đường chuyền đảo cánh của Duy Vương luôn mang lại sự đột biến cao.",
+  },
+  {
+    code_order: 22,
+    full_name: "Phan Phước Trường",
+    short_name: "Trường",
+    jersey_number: 7,
+    position: "Tiền đạo cánh",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1992",
+    hometown: "Xã Điện Quang",
+    nickname: "Trường CR7",
+    playing_style: "Bùng nổ cảm hứng, kỹ thuật qua người & tốc độ",
+    bio: "Số 7 mang phong cách thi đấu đậm chất kỹ thuật và tốc độ. Luôn ra sân với khát khao chiến thắng mãnh liệt, tạo nên những khoảnh khắc bùng nổ làm nức lòng người hâm mộ.",
+  },
+  {
+    code_order: 23,
+    full_name: "Võ Quang Quốc",
+    short_name: "Quốc",
+    jersey_number: 99,
+    position: "Đa năng",
+    role: "Thành viên",
+    access_role: "player",
+    birth_year: "1983",
+    hometown: "Xã Điện Trung",
+    nickname: "Quốc Vui Vẻ",
+    playing_style: "Nhiệt tình cống hiến, tinh thần bất khuất & gắn kết",
+    bio: "Chiến binh mang số áo đặc biệt 99 với tinh thần thể thao bất diệt. Nụ cười rạng rỡ và sự gắn kết của anh luôn tiếp thêm niềm vui và sự tự tin cho toàn thể anh em.",
+  },
 ];
 
 const INITIAL_MATCHES = [
@@ -835,41 +1137,93 @@ export async function ensureClubPostsReady(db: AsyncDb): Promise<void> {
         reading_time TEXT NOT NULL DEFAULT '3 phút đọc',
         paragraphs_json TEXT NOT NULL DEFAULT '[]',
         quote TEXT DEFAULT '',
-        highlights_json TEXT NOT NULL DEFAULT '[]'
+        highlights_json TEXT NOT NULL DEFAULT '[]',
+        event_year TEXT NOT NULL DEFAULT '2026',
+        tagged_players_json TEXT NOT NULL DEFAULT '[]'
       );
     `);
 
-    const countRow = await db.queryOne<{ cnt: number }>(
-      "SELECT COUNT(*) as cnt FROM club_posts"
-    );
-    if (!countRow || Number(countRow.cnt) === 0) {
-      for (const post of CLUB_ACTIVITIES_POSTS) {
-        await db.run(
-          `INSERT OR IGNORE INTO club_posts (
-            id, category, category_label, category_badge_class,
-            title, slug, summary, published_date, author,
-            featured_image, gallery_images_json, reading_time,
-            paragraphs_json, quote, highlights_json
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            post.id,
-            post.category,
-            post.categoryLabel,
-            post.categoryBadgeClass,
-            post.title,
-            post.slug,
-            post.summary,
-            post.publishedDate,
-            post.author,
-            post.featuredImage,
-            JSON.stringify(post.galleryImages || []),
-            post.readingTime,
-            JSON.stringify(post.paragraphs || []),
-            post.quote || "",
-            JSON.stringify(post.highlights || []),
-          ]
-        );
-      }
+    // Thêm các cột mới nếu bảng club_posts đã tồn tại từ trước
+    try {
+      await db.exec("ALTER TABLE club_posts ADD COLUMN event_year TEXT NOT NULL DEFAULT '2026';");
+    } catch {
+      // đã tồn tại
+    }
+    try {
+      await db.exec("ALTER TABLE club_posts ADD COLUMN tagged_players_json TEXT NOT NULL DEFAULT '[]';");
+    } catch {
+      // đã tồn tại
+    }
+
+    // Đảm bảo các cột quê quán, biệt danh, phong cách, album ảnh tồn tại trong bảng players
+    try {
+      await db.exec("ALTER TABLE players ADD COLUMN hometown TEXT NOT NULL DEFAULT '';");
+    } catch {
+      // đã tồn tại
+    }
+    try {
+      await db.exec("ALTER TABLE players ADD COLUMN nickname TEXT NOT NULL DEFAULT '';");
+    } catch {
+      // đã tồn tại
+    }
+    try {
+      await db.exec("ALTER TABLE players ADD COLUMN playing_style TEXT NOT NULL DEFAULT '';");
+    } catch {
+      // đã tồn tại
+    }
+    try {
+      await db.exec("ALTER TABLE players ADD COLUMN gallery_urls_json TEXT NOT NULL DEFAULT '[]';");
+    } catch {
+      // đã tồn tại
+    }
+
+    // Nâng cấp & cá nhân hóa thông tin chi tiết của 23 cầu thủ nếu đang là mẫu mặc định
+    for (const initP of INITIAL_PLAYERS) {
+      await db.run(
+        `UPDATE players
+         SET hometown = CASE WHEN hometown = '' OR hometown IS NULL THEN ? ELSE hometown END,
+             nickname = CASE WHEN nickname = '' OR nickname IS NULL THEN ? ELSE nickname END,
+             playing_style = CASE WHEN playing_style = '' OR playing_style IS NULL THEN ? ELSE playing_style END,
+             bio = CASE
+                     WHEN bio IS NULL OR bio = '' OR bio LIKE 'Thành viên nhiệt huyết của FC HĐH Gò Nổi. Luôn cháy hết mình%'
+                     THEN ?
+                     ELSE bio
+                   END
+         WHERE full_name = ?`,
+        [initP.hometown, initP.nickname, initP.playing_style, initP.bio, initP.full_name]
+      );
+    }
+
+    // Luôn chèn các bài viết chuẩn mới nhất nếu chưa có trong DB
+    for (const post of CLUB_ACTIVITIES_POSTS) {
+      await db.run(
+        `INSERT OR IGNORE INTO club_posts (
+          id, category, category_label, category_badge_class,
+          title, slug, summary, published_date, author,
+          featured_image, gallery_images_json, reading_time,
+          paragraphs_json, quote, highlights_json,
+          event_year, tagged_players_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          post.id,
+          post.category,
+          post.categoryLabel,
+          post.categoryBadgeClass,
+          post.title,
+          post.slug,
+          post.summary,
+          post.publishedDate,
+          post.author,
+          post.featuredImage,
+          JSON.stringify(post.galleryImages || []),
+          post.readingTime,
+          JSON.stringify(post.paragraphs || []),
+          post.quote || "",
+          JSON.stringify(post.highlights || []),
+          post.eventYear || "2026",
+          JSON.stringify(post.taggedPlayerNames || []),
+        ]
+      );
     }
     clubPostsInitialized = true;
   } catch (err) {
@@ -893,6 +1247,12 @@ interface RawClubPostRow {
   paragraphs_json: string;
   quote: string;
   highlights_json: string;
+  event_year?: string;
+  tagged_players_json?: string;
+}
+
+interface RawPlayerRow extends Player {
+  gallery_urls_json?: string;
 }
 
 function safeJsonParseArray(raw: string): string[] {
@@ -924,7 +1284,7 @@ export async function getFullAppData(): Promise<FullAppData> {
     fanpage_url: FANPAGE_URL,
   };
 
-  const rawPlayers = await db.query<Player>(
+  const rawPlayers = await db.query<RawPlayerRow>(
     "SELECT * FROM players ORDER BY code_order ASC, id ASC"
   );
 
@@ -932,6 +1292,7 @@ export async function getFullAppData(): Promise<FullAppData> {
   const players = rawPlayers.map((p) => ({
     ...p,
     pin_code: "",
+    gallery_urls: safeJsonParseArray(p.gallery_urls_json || "[]"),
   }));
 
   const matches = await db.query<MatchRecord>(
@@ -965,6 +1326,7 @@ export async function getFullAppData(): Promise<FullAppData> {
         slug: r.slug,
         summary: r.summary,
         publishedDate: r.published_date,
+        eventYear: r.event_year || "2026",
         author: r.author,
         featuredImage: r.featured_image,
         galleryImages: safeJsonParseArray(r.gallery_images_json),
@@ -972,6 +1334,7 @@ export async function getFullAppData(): Promise<FullAppData> {
         paragraphs: safeJsonParseArray(r.paragraphs_json),
         quote: r.quote || undefined,
         highlights: safeJsonParseArray(r.highlights_json),
+        taggedPlayerNames: safeJsonParseArray(r.tagged_players_json || "[]"),
       }));
     }
   } catch {
