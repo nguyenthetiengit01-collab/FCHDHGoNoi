@@ -6,6 +6,7 @@ import { createClient, type Client, type InArgs } from "@libsql/client";
 import { EXPENSE_CATEGORIES, FANPAGE_URL } from "@/types/app";
 import { CLUB_ACTIVITIES_POSTS, type ClubActivityPost } from "@/data/clubActivities";
 import { calculateFinancialSummary } from "./financialCalculations";
+import { formatBirthYear } from "./athleteProfile";
 import type {
   TeamSettings,
   Player,
@@ -1177,6 +1178,13 @@ export async function ensureClubPostsReady(db: AsyncDb): Promise<void> {
       // đã tồn tại
     }
 
+    // Chuẩn hoá năm sinh trong database: loại bỏ triệt để hậu tố .0
+    try {
+      await db.exec("UPDATE players SET birth_year = REPLACE(birth_year, '.0', '') WHERE birth_year LIKE '%.0';");
+    } catch {
+      // bỏ qua nếu lỗi
+    }
+
     // Nâng cấp & cá nhân hóa thông tin chi tiết của 23 cầu thủ nếu đang là mẫu mặc định
     for (const initP of INITIAL_PLAYERS) {
       await db.run(
@@ -1288,9 +1296,10 @@ export async function getFullAppData(): Promise<FullAppData> {
     "SELECT * FROM players ORDER BY code_order ASC, id ASC"
   );
 
-  // Bảo mật: Xóa mã PIN cá nhân trong dữ liệu trả về cho client/khách truy cập
+  // Bảo mật: Xóa mã PIN cá nhân trong dữ liệu trả về cho client/khách truy cập, chuẩn hóa năm sinh số nguyên
   const players = rawPlayers.map((p) => ({
     ...p,
+    birth_year: formatBirthYear(p.birth_year),
     pin_code: "",
     gallery_urls: safeJsonParseArray(p.gallery_urls_json || "[]"),
   }));

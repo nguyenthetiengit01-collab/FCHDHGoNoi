@@ -33,6 +33,7 @@ import { convertFileToWebp, convertMultipleFilesToWebp } from "@/lib/imageToWebp
 import { ModalDialog } from "./ModalDialog";
 import { ImageLightboxModal, type LightboxImage } from "./ImageLightboxModal";
 import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
+import { formatBirthYear, BIRTH_YEAR_OPTIONS } from "@/lib/athleteProfile";
 
 interface PlayersTabProps {
   data: FullAppData;
@@ -155,7 +156,7 @@ export function PlayersTab({
     setJerseyNumber(p.jersey_number !== null ? String(p.jersey_number) : "");
     setPosition(p.position);
     setPhone(p.phone || "");
-    setBirthYear(p.birth_year ? String(p.birth_year) : "1991");
+    setBirthYear(formatBirthYear(p.birth_year) || "1991");
     setAvatarUrl(p.avatar_url || "/uploads/avatars/member-1.jpg");
     setWebpInfo("");
     setRole(p.role);
@@ -561,7 +562,7 @@ export function PlayersTab({
                     </span>
                   </div>
                   <p className="text-slate-600">
-                    Năm sinh: <strong>{p.birth_year || "1991"}</strong> • Vị trí:{" "}
+                    Năm sinh: <strong>{formatBirthYear(p.birth_year) || "1991"}</strong> • Vị trí:{" "}
                     <strong className="text-[#0284c7]">{p.position}</strong>
                   </p>
                   <p className="text-slate-600">
@@ -631,7 +632,7 @@ export function PlayersTab({
                           </span>
                         </p>
                         <p className="text-[11px] text-slate-500 mt-0.5">
-                          Năm sinh: <strong>{p.birth_year || "1991"}</strong> •{" "}
+                          Năm sinh: <strong>{formatBirthYear(p.birth_year) || "1991"}</strong> •{" "}
                           <span className="text-slate-700 font-medium">
                             Xã {p.hometown || "Điện Quang"}
                           </span>
@@ -788,7 +789,7 @@ export function PlayersTab({
         }
         subtitle={
           detailPlayer
-            ? `${detailPlayer.position} • Năm sinh: ${detailPlayer.birth_year || "1991"
+            ? `${detailPlayer.position} • Năm sinh: ${formatBirthYear(detailPlayer.birth_year) || "1991"
             } • Tên gọi: ${detailPlayer.short_name}`
             : ""
         }
@@ -1047,17 +1048,20 @@ export function PlayersTab({
               >
                 Năm Sinh
               </label>
-              <input
+              <select
                 id="player-birthyear"
                 name="birth_year"
-                type="text"
-                inputMode="numeric"
                 value={birthYear}
-                onChange={(e) =>
-                  setBirthYear(e.target.value.replace(/[^0-9]/g, ""))
-                }
-                className="form-input"
-              />
+                onChange={(e) => setBirthYear(e.target.value)}
+                className="form-select"
+              >
+                <option value="">-- Chọn năm sinh --</option>
+                {BIRTH_YEAR_OPTIONS.map((y) => (
+                  <option key={y} value={String(y)}>
+                    {y} ({new Date().getFullYear() - y} tuổi)
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label

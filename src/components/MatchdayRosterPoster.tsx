@@ -6,16 +6,16 @@ import {
   Check,
   Clock,
   Copy,
+  Download,
   Loader2,
   MapPin,
-  Share2,
   Users,
   X,
 } from "lucide-react";
 import type { MatchRecord, MatchAttendance, Player } from "@/types/app";
 import { getPlayerPositionBadge, getPlayerHamlet } from "@/lib/athleteProfile";
 import {
-  exportAndShareElement,
+  downloadElementAsPng,
   buildMatchdayRosterFilename,
 } from "@/lib/exportImage";
 
@@ -71,10 +71,10 @@ export function MatchdayRosterPosterModal({
     setIsExporting(true);
     try {
       const filename = buildMatchdayRosterFilename(match.label, match.match_date);
-      await exportAndShareElement(posterRef.current, {
-        filename,
-        shareTitle: `Danh Sách Điểm Danh Ra Sân: ${match.label} - FC HĐH Gò Nổi`,
-        shareText: `Đội hình điểm danh ra sân trận ${match.label} (${match.venue}). Tổng cộng: ${registeredPlayerList.length} cầu thủ sẵn sàng thi đấu!`,
+      // Tải trực tiếp file ảnh PNG sắc nét về máy (Downloads)
+      await downloadElementAsPng(posterRef.current, filename, {
+        pixelRatio: 2.5,
+        quality: 0.98,
       });
       setExportSuccess(true);
       setTimeout(() => setExportSuccess(false), 3000);
@@ -148,21 +148,22 @@ export function MatchdayRosterPosterModal({
               onClick={handleExportPoster}
               disabled={isExporting}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 text-xs font-black uppercase tracking-wider transition cursor-pointer shadow-md disabled:opacity-60"
+              title="Tải trực tiếp ảnh bảng điểm danh PNG sắc nét về máy"
             >
               {isExporting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin text-slate-950" />
-                  <span>Đang tạo ảnh...</span>
+                  <span>Đang tải ảnh...</span>
                 </>
               ) : exportSuccess ? (
                 <>
-                  <Check className="h-4 w-4 text-emerald-900" />
-                  <span>Đã tải ảnh!</span>
+                  <Check className="h-4 w-4 text-emerald-950" />
+                  <span>Đã tải về máy!</span>
                 </>
               ) : (
                 <>
-                  <Share2 className="h-4 w-4 text-slate-950" />
-                  <span>Tải Ảnh Gửi Zalo</span>
+                  <Download className="h-4 w-4 text-slate-950" />
+                  <span>Tải Ảnh Về Máy (PNG)</span>
                 </>
               )}
             </button>

@@ -102,3 +102,38 @@ export function buildAthleteLightboxImages(
   ];
 }
 
+/**
+ * Chuẩn hoá năm sinh thành chuỗi số nguyên 4 chữ số, loại bỏ hoàn toàn hậu tố ".0"
+ * Ví dụ: "1991.0" -> "1991", 1989.0 -> "1989", "1995" -> "1995", null -> ""
+ */
+export function formatBirthYear(birthYear?: string | number | null): string {
+  if (birthYear === undefined || birthYear === null) return "";
+  const raw = String(birthYear).trim().replace(/\.0+$/, "");
+  if (!raw || raw === "NaN" || raw === "null" || raw === "undefined") return "";
+  const num = parseInt(raw, 10);
+  return isNaN(num) || num <= 1900 ? "" : String(num);
+}
+
+/**
+ * Tính tuổi cầu thủ chính xác hoặc trả về "Nòng cốt"
+ */
+export function getPlayerAgeText(birthYear?: string | number | null): string {
+  const yearStr = formatBirthYear(birthYear);
+  if (!yearStr) return "Nòng cốt";
+  const num = parseInt(yearStr, 10);
+  const currentYear = new Date().getFullYear();
+  if (num > 1950 && num <= currentYear) {
+    return `${currentYear - num} tuổi`;
+  }
+  return "Nòng cốt";
+}
+
+/**
+ * Danh sách năm sinh khả dụng để chọn từ Dropdown (từ 2012 về 1965)
+ */
+export const BIRTH_YEAR_OPTIONS: number[] = Array.from(
+  { length: 2012 - 1965 + 1 },
+  (_, i) => 2012 - i
+);
+
+

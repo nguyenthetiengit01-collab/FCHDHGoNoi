@@ -724,10 +724,10 @@ export function PublicGuestPortal({
                       type="button"
                       onClick={() => setPosterModalOpen(true)}
                       className="inline-flex items-center gap-2 bg-[#061b36] hover:bg-[#092b57] text-[#d4af37] border border-[#d4af37]/50 font-extrabold px-5 py-3.5 text-xs uppercase tracking-wider rounded-lg cursor-pointer transition shadow-md"
-                      title="Xuất bảng điểm danh cầu thủ chất lượng cao để chia sẻ vào Zalo"
+                      title="Tải trực tiếp ảnh đội hình ra sân về máy để gửi vào Zalo"
                     >
                       <Camera className="h-4 w-4" />
-                      <span>Xuất Ảnh Đội Hình</span>
+                      <span>Tải Ảnh Đội Hình (PNG)</span>
                     </button>
 
                     <button

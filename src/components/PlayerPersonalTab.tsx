@@ -31,6 +31,7 @@ import {
   type LightboxImage,
 } from "./ImageLightboxModal";
 import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
+import { formatBirthYear, BIRTH_YEAR_OPTIONS } from "@/lib/athleteProfile";
 
 interface PlayerPersonalTabProps {
   data: FullAppData;
@@ -119,7 +120,7 @@ export function PlayerPersonalTab({
     setJerseyNumber(me.jersey_number !== null ? String(me.jersey_number) : "");
     setPosition(me.position);
     setPhone(me.phone || "");
-    setBirthYear(me.birth_year ? String(me.birth_year) : "");
+    setBirthYear(formatBirthYear(me.birth_year));
     setAvatarUrl(me.avatar_url || "/uploads/avatars/member-1.jpg");
     setWebpInfo("");
     setBio(me.bio || "");
@@ -624,17 +625,19 @@ export function PlayerPersonalTab({
               >
                 Năm sinh
               </label>
-              <input
+              <select
                 id="my-birthyear"
-                type="text"
-                inputMode="numeric"
-                placeholder="VD: 1992"
                 value={birthYear}
-                onChange={(e) =>
-                  setBirthYear(e.target.value.replace(/[^0-9]/g, ""))
-                }
-                className="form-input"
-              />
+                onChange={(e) => setBirthYear(e.target.value)}
+                className="form-select"
+              >
+                <option value="">-- Chọn năm sinh --</option>
+                {BIRTH_YEAR_OPTIONS.map((y) => (
+                  <option key={y} value={String(y)}>
+                    {y} ({new Date().getFullYear() - y} tuổi)
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

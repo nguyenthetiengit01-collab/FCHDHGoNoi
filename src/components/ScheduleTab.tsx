@@ -41,6 +41,7 @@ import {
 } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
 import { MatchdayRosterPosterModal } from "./MatchdayRosterPoster";
+import { formatBirthYear, BIRTH_YEAR_OPTIONS } from "@/lib/athleteProfile";
 
 interface ScheduleTabProps {
   data: FullAppData;
@@ -381,7 +382,7 @@ export function ScheduleTab({
     );
     setProfilePosition(me.position || "Tiền vệ");
     setProfilePhone(me.phone || "");
-    setProfileBirthYear(me.birth_year ? String(me.birth_year) : "1991");
+    setProfileBirthYear(formatBirthYear(me.birth_year) || "1991");
     setProfileAvatarUrl(me.avatar_url || "/uploads/avatars/member-1.jpg");
     setProfileWebpInfo("");
     setProfileBio(me.bio || "");
@@ -906,10 +907,10 @@ export function ScheduleTab({
                   type="button"
                   onClick={() => setPosterModalOpen(true)}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
-                  title="Xuất bảng điểm danh cầu thủ chất lượng cao để chia sẻ vào Zalo"
+                  title="Tải trực tiếp ảnh bảng điểm danh cầu thủ chất lượng cao về máy để chia sẻ vào Zalo"
                 >
                   <Camera className="h-4 w-4" />
-                  <span>📸 Xuất Ảnh Gửi Zalo</span>
+                  <span>📸 Tải Ảnh Điểm Danh (PNG)</span>
                 </button>
 
                 <a
@@ -1023,7 +1024,7 @@ export function ScheduleTab({
 
                         <p className="text-xs text-sky-100">
                           Vị trí: <strong className="text-[#ffc933]">{me.position}</strong> •{" "}
-                          Năm sinh: <strong>{me.birth_year || "—"}</strong>
+                          Năm sinh: <strong>{formatBirthYear(me.birth_year) || "—"}</strong>
                           {me.phone ? ` • SĐT: ${me.phone}` : ""}
                           {me.playing_style ? ` • Lối chơi: ${me.playing_style}` : ""}
                         </p>
@@ -1235,10 +1236,10 @@ export function ScheduleTab({
                         type="button"
                         onClick={() => setPosterModalOpen(true)}
                         className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-xs"
-                        title="Xuất bảng điểm danh cầu thủ chất lượng cao để chia sẻ vào Zalo"
+                        title="Tải trực tiếp ảnh bảng điểm danh cầu thủ chất lượng cao về máy để chia sẻ vào Zalo"
                       >
                         <Camera className="h-3.5 w-3.5" />
-                        <span>Xuất Ảnh Gửi Zalo</span>
+                        <span>Tải Ảnh Gửi Zalo</span>
                       </button>
 
                       {/* 3 Huy hiệu quân số */}
@@ -1938,13 +1939,18 @@ export function ScheduleTab({
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Năm sinh
                 </label>
-                <input
-                  type="number"
+                <select
                   value={profileBirthYear}
                   onChange={(e) => setProfileBirthYear(e.target.value)}
-                  placeholder="VD: 1991, 1996..."
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
-                />
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none bg-white"
+                >
+                  <option value="">-- Chọn năm sinh --</option>
+                  {BIRTH_YEAR_OPTIONS.map((y) => (
+                    <option key={y} value={String(y)}>
+                      {y} ({new Date().getFullYear() - y} tuổi)
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

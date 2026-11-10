@@ -8,7 +8,6 @@ import {
   Loader2,
   MapPin,
   Quote,
-  Share2,
   Shield,
 } from "lucide-react";
 import type { Player, MatchAttendance, MatchRecord } from "@/types/app";
@@ -17,10 +16,12 @@ import {
   getPlayerPositionBadge,
   getPlayerHamlet,
   buildAthleteLightboxImages,
+  formatBirthYear,
+  getPlayerAgeText,
   type PositionBadgeInfo,
 } from "@/lib/athleteProfile";
 import {
-  exportAndShareElement,
+  downloadElementAsPng,
   buildAthleteCardFilename,
 } from "@/lib/exportImage";
 
@@ -31,6 +32,8 @@ export {
   getPlayerPositionBadge,
   getPlayerHamlet,
   buildAthleteLightboxImages,
+  formatBirthYear,
+  getPlayerAgeText,
   type PositionBadgeInfo,
 };
 
@@ -71,10 +74,10 @@ export function BroadcastAthleteCard({
         player.full_name,
         player.jersey_number
       );
-      await exportAndShareElement(cardRef.current, {
-        filename,
-        shareTitle: `Thẻ VĐV #${player.jersey_number ?? ""}: ${player.full_name} - FC HĐH Gò Nổi`,
-        shareText: `Thẻ vận động viên chính thức của ${player.full_name} (${player.position}) - FC Hội Đồng Hương Gò Nổi`,
+      // Tải trực tiếp file ảnh PNG sắc nét về máy (Downloads)
+      await downloadElementAsPng(cardRef.current, filename, {
+        pixelRatio: 2.5,
+        quality: 0.98,
       });
       setExportSuccess(true);
       setTimeout(() => setExportSuccess(false), 3000);
@@ -96,12 +99,8 @@ export function BroadcastAthleteCard({
   const totalMatches =
     totalMatchesCount ?? (matches ? matches.length : 17);
 
-  const currentYear = new Date().getFullYear();
-  const birthYearNum = player.birth_year ? Number(player.birth_year) : null;
-  const playerAge =
-    birthYearNum && !isNaN(birthYearNum)
-      ? `${currentYear - birthYearNum} tuổi`
-      : "Nòng cốt";
+  const cleanBirthYear = formatBirthYear(player.birth_year);
+  const playerAge = getPlayerAgeText(player.birth_year);
 
   const allLightboxImages = buildAthleteLightboxImages(player, fallbackPhotos);
 
@@ -187,7 +186,7 @@ export function BroadcastAthleteCard({
               <span className="font-bold text-[#d4af37]">
                 {player.short_name}
               </span>
-              {player.birth_year ? ` • Sinh năm ${player.birth_year}` : ""}
+              {cleanBirthYear ? ` • Sinh năm ${cleanBirthYear}` : ""}
               {player.role ? ` • ${player.role}` : ""}
             </p>
 
@@ -322,8 +321,8 @@ export function BroadcastAthleteCard({
                   </>
                 ) : (
                   <>
-                    <Share2 className="h-4 w-4 text-[#d4af37]" />
-                    <span>Xuất Ảnh Thẻ (Zalo)</span>
+                    <Download className="h-4 w-4 text-[#d4af37]" />
+                    <span>Tải Ảnh Thẻ Về Máy (PNG)</span>
                   </>
                 )}
               </button>
@@ -381,8 +380,8 @@ export function BroadcastAthleteCard({
                 <span>{player.role || "Cầu thủ thi đấu"}</span>
                 <span>•</span>
                 <span>
-                  {player.birth_year
-                    ? `Sinh năm ${player.birth_year}`
+                  {cleanBirthYear
+                    ? `Sinh năm ${cleanBirthYear}`
                     : "Thành viên nòng cốt"}
                 </span>
                 <span>•</span>
@@ -567,7 +566,7 @@ export function BroadcastAthleteCard({
                 ) : (
                   <>
                     <Download className="h-3.5 w-3.5 text-[#d4af37]" />
-                    <span>Xuất Thẻ</span>
+                    <span>Tải Ảnh Thẻ</span>
                   </>
                 )}
               </button>
@@ -629,8 +628,8 @@ export function BroadcastAthleteCard({
         </div>
         <p className="text-xs sm:text-sm text-sky-200 mt-1">
           {player.role || "Cầu thủ thi đấu"} •{" "}
-          {player.birth_year
-            ? `Năm sinh ${player.birth_year}`
+          {cleanBirthYear
+            ? `Năm sinh ${cleanBirthYear}`
             : "Thành viên nòng cốt"}
         </p>
 

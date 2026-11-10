@@ -3,6 +3,9 @@ import {
   getPlayerPositionBadge,
   getPlayerHamlet,
   buildAthleteLightboxImages,
+  formatBirthYear,
+  getPlayerAgeText,
+  BIRTH_YEAR_OPTIONS,
 } from "./athleteProfile";
 import type { Player } from "@/types/app";
 
@@ -20,6 +23,30 @@ describe("BroadcastAthleteCard - Deep Module Domain Logic", () => {
     expect(getPlayerHamlet({ hometown: "Điện Trung", notes: "" })).toBe("Điện Trung");
     expect(getPlayerHamlet({ hometown: "Điện Phong", notes: "" })).toBe("Điện Phong");
     expect(getPlayerHamlet({ hometown: "", notes: "Cầu thủ quê gốc Xã Điện Phong" })).toBe("Điện Phong");
+  });
+
+  it("sanitizes birth_year to pure integer string removing any .0 suffix", () => {
+    expect(formatBirthYear("1989.0")).toBe("1989");
+    expect(formatBirthYear("1992.00")).toBe("1992");
+    expect(formatBirthYear(1995.0)).toBe("1995");
+    expect(formatBirthYear("1991")).toBe("1991");
+    expect(formatBirthYear(null)).toBe("");
+    expect(formatBirthYear("")).toBe("");
+  });
+
+  it("computes player age accurately without decimal places", () => {
+    const currentYear = new Date().getFullYear();
+    expect(getPlayerAgeText("1990.0")).toBe(`${currentYear - 1990} tuổi`);
+    expect(getPlayerAgeText(1995)).toBe(`${currentYear - 1995} tuổi`);
+    expect(getPlayerAgeText("")).toBe("Nòng cốt");
+    expect(getPlayerAgeText(null)).toBe("Nòng cốt");
+  });
+
+  it("provides valid birth year options for dropdown selection", () => {
+    expect(BIRTH_YEAR_OPTIONS.length).toBeGreaterThan(30);
+    expect(BIRTH_YEAR_OPTIONS[0]).toBe(2012);
+    expect(BIRTH_YEAR_OPTIONS).toContain(1991);
+    expect(BIRTH_YEAR_OPTIONS).toContain(1986);
   });
 
   it("builds lightbox image list with avatar and gallery items", () => {

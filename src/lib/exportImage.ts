@@ -7,6 +7,7 @@ export interface ExportImageOptions {
   shareTitle?: string;
   shareText?: string;
   skipShare?: boolean; // Nếu true thì luôn tải file về máy thay vì mở share sheet
+  preferShareOnMobile?: boolean; // Chỉ kích hoạt native share trên di động khi người dùng yêu cầu
 }
 
 /**
@@ -46,17 +47,35 @@ export function buildMatchdayRosterFilename(matchLabel: string, matchDate?: stri
 }
 
 /**
- * Kích hoạt tải Blob ảnh về máy thông qua thẻ <a> ảo
+ * Kích hoạt tải Blob ảnh về máy thông qua thẻ <a> ảo trực tiếp vào thư mục Downloads của thiết bị
  */
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
+  link.style.display = "none";
   link.href = url;
+  link.setAttribute("download", filename);
   link.download = filename;
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  setTimeout(() => {
+    if (document.body.contains(link)) {
+      document.body.removeChild(link);
+    }
+    URL.revokeObjectURL(url);
+  }, 10000);
+}
+
+/**
+ * Tải trực tiếp DOM Element thành file ảnh PNG về máy (Downloads folder)
+ */
+export async function downloadElementAsPng(
+  element: HTMLElement,
+  filename: string,
+  options?: { pixelRatio?: number; quality?: number }
+): Promise<void> {
+  const blob = await captureElementToBlob(element, options);
+  downloadBlob(blob, filename);
 }
 
 /**
@@ -102,8 +121,8 @@ export async function captureElementToBlob(
 
 /**
  * Xuất và Chia sẻ / Tải ảnh:
- * - Trên thiết bị di động (Zalo webview, iOS Safari, Android Chrome): Nếu hỗ trợ Web Share API với file ảnh thì mở sheet chia sẻ trực tiếp tới Zalo, Messenger, AirDrop.
- * - Trên máy tính hoặc khi Web Share không hỗ trợ: Tự động tải file ảnh PNG sắc nét về máy.
+ * - Mặc định luôn tải trực tiếp file ảnh PNG sắc nét về máy (thư mục Downloads).
+ * - Nếu ở trên điện thoại di động và có tùy chọn preferShareOnMobile, mở hộp thoại chia sẻ Zalo / AirDrop.
  */
 export async function exportAndShareElement(
   element: HTMLElement,
@@ -115,8 +134,18 @@ export async function exportAndShareElement(
     quality: options.quality,
   });
 
-  // Kiểm tra xem có thể dùng Web Share API với file ảnh không
-  if (!options.skipShare && typeof navigator !== "undefined" && typeof File !== "undefined") {
+  const isMobile =
+    typeof navigator !== "undefined" &&
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+
+  // Chỉ mở Web Share API khi thực sự đang ở trên điện thoại di động và có yêu cầu preferShareOnMobile
+  if (
+    options.preferShareOnMobile &&
+    isMobile &&
+    !options.skipShare &&
+    typeof navigator !== "undefined" &&
+    typeof File !== "undefined"
+  ) {
     try {
       const file = new File([blob], filename, { type: "image/png" });
       if (
@@ -132,15 +161,13 @@ export async function exportAndShareElement(
         return { shared: true, downloaded: false };
       }
     } catch (err: unknown) {
-      // Nếu người dùng chủ động bấm Hủy chia sẻ (AbortError), không ép tải về
       if (err instanceof Error && err.name === "AbortError") {
         return { shared: false, downloaded: false, cancelled: true };
       }
-      // Các lỗi khác thì chuyển sang phương thức tải về máy bên dưới
     }
   }
 
-  // Fallback: Tải file về máy
+  // Luôn tải trực tiếp file ảnh về máy
   downloadBlob(blob, filename);
   return { shared: false, downloaded: true };
 }

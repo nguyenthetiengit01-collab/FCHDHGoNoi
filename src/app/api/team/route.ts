@@ -7,6 +7,7 @@ import {
 } from "@/lib/db";
 import { getAuthSession } from "@/lib/auth";
 import { ensureWebpDataUrlServer } from "@/lib/serverWebp";
+import { formatBirthYear } from "@/lib/athleteProfile";
 
 export async function GET() {
   try {
@@ -190,9 +191,7 @@ export async function POST(req: NextRequest) {
                 : null,
               position || "Đa năng",
               phone || "",
-              birth_year !== null && birth_year !== undefined
-                ? String(birth_year)
-                : "",
+              formatBirthYear(birth_year),
               webpAvatar,
               typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
@@ -230,9 +229,7 @@ export async function POST(req: NextRequest) {
                 : null,
               position || "Đa năng",
               phone || "",
-              birth_year !== null && birth_year !== undefined
-                ? String(birth_year)
-                : "",
+              formatBirthYear(birth_year),
               webpAvatar,
               typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
@@ -340,9 +337,7 @@ export async function POST(req: NextRequest) {
               : null,
             position || "Đa năng",
             phone || "",
-            birth_year !== null && birth_year !== undefined
-              ? String(birth_year)
-              : "",
+            formatBirthYear(birth_year),
             webpAvatar,
             typeof bio === "string" ? bio : "",
             notes || "",
