@@ -12,6 +12,8 @@ import {
   Edit3,
   Upload,
   Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -86,6 +88,9 @@ export function PlayerPersonalTab({
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [pwdError, setPwdError] = useState("");
+  const [showOldPin, setShowOldPin] = useState(false);
+  const [showNewPin, setShowNewPin] = useState(false);
+  const [showConfirmPin, setShowConfirmPin] = useState(false);
 
   if (!me) {
     return (
@@ -215,7 +220,9 @@ export function PlayerPersonalTab({
       return;
     }
     if (!newUsername.trim() && !newPin.trim()) {
-      setPwdError("Vui lòng nhập Tên đăng nhập mới hoặc Mật khẩu mới cần thay đổi");
+      setPwdError(
+        "Vui lòng nhập Tên đăng nhập mới hoặc Mật khẩu mới cần thay đổi"
+      );
       return;
     }
     if (newUsername.trim() && newUsername.trim().length < 3) {
@@ -223,8 +230,14 @@ export function PlayerPersonalTab({
       return;
     }
     if (newPin.trim()) {
-      if (newPin.trim().length < 4) {
-        setPwdError("Mật khẩu mới cần ít nhất 4 ký tự");
+      if (newPin.trim().length < 6) {
+        setPwdError("Mật khẩu mới phải có ít nhất 6 ký tự để đảm bảo an toàn");
+        return;
+      }
+      if (newPin.trim() === "1234" || newPin.trim() === "123456") {
+        setPwdError(
+          "Không thể dùng mật khẩu mặc định (1234, 123456). Vui lòng chọn mật khẩu khác an toàn hơn"
+        );
         return;
       }
       if (newPin.trim() !== confirmPin.trim()) {
@@ -242,6 +255,9 @@ export function PlayerPersonalTab({
     setOldPin("");
     setNewPin("");
     setConfirmPin("");
+    setShowOldPin(false);
+    setShowNewPin(false);
+    setShowConfirmPin(false);
   };
 
   const myAtts = attendances.filter((a) => a.player_id === me.id);
@@ -878,57 +894,135 @@ export function PlayerPersonalTab({
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="new-pin"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Mật khẩu mới (tùy chọn)
-              </label>
-              <input
-                id="new-pin"
-                type="password"
-                placeholder="Ít nhất 4 ký tự"
-                value={newPin}
-                onChange={(e) => setNewPin(e.target.value)}
-                className="form-input"
-              />
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label
+                  htmlFor="new-pin"
+                  className="block text-xs font-bold text-slate-700 mb-1"
+                >
+                  Mật khẩu mới (tối thiểu 6 ký tự)
+                </label>
+                <div className="relative">
+                  <input
+                    id="new-pin"
+                    type={showNewPin ? "text" : "password"}
+                    placeholder="Tối thiểu 6 ký tự"
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value)}
+                    className="form-input !pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPin(!showNewPin)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {showNewPin ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label
+                  htmlFor="confirm-pin"
+                  className="block text-xs font-bold text-slate-700 mb-1"
+                >
+                  Xác nhận mật khẩu mới
+                </label>
+                <div className="relative">
+                  <input
+                    id="confirm-pin"
+                    type={showConfirmPin ? "text" : "password"}
+                    placeholder="Nhập lại mật khẩu mới"
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value)}
+                    className="form-input !pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPin(!showConfirmPin)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {showConfirmPin ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
-            <div>
-              <label
-                htmlFor="confirm-pin"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Xác nhận mật khẩu mới
-              </label>
-              <input
-                id="confirm-pin"
-                type="password"
-                placeholder="Nhập lại mật khẩu mới"
-                value={confirmPin}
-                onChange={(e) => setConfirmPin(e.target.value)}
-                className="form-input"
-              />
-            </div>
+
+            {newPin && (
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5 space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-600">Độ an toàn:</span>
+                  <span
+                    className={`font-bold ${
+                      newPin.length < 6
+                        ? "text-rose-600"
+                        : newPin.length >= 8 && /[0-9]/.test(newPin) && /[a-zA-Z]/.test(newPin)
+                        ? "text-emerald-600"
+                        : "text-amber-600"
+                    }`}
+                  >
+                    {newPin.length < 6
+                      ? "Chưa đủ 6 ký tự"
+                      : newPin.length >= 8 && /[0-9]/.test(newPin) && /[a-zA-Z]/.test(newPin)
+                      ? "Mạnh (Chữ + Số + Độ dài tốt)"
+                      : "Trung bình"}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      newPin.length < 6
+                        ? "w-1/4 bg-rose-500"
+                        : newPin.length >= 8 && /[0-9]/.test(newPin) && /[a-zA-Z]/.test(newPin)
+                        ? "w-full bg-emerald-500"
+                        : "w-2/3 bg-amber-500"
+                    }`}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pt-2 border-t border-slate-200">
             <label
               htmlFor="old-pin"
-              className="block text-sm font-bold text-slate-800 mb-1"
+              className="block text-xs font-bold text-slate-800 mb-1"
             >
               Mật khẩu hiện tại (bắt buộc để xác thực)
             </label>
-            <input
-              id="old-pin"
-              type="password"
-              required
-              placeholder="Nhập mật khẩu hiện tại của bạn"
-              value={oldPin}
-              onChange={(e) => setOldPin(e.target.value)}
-              className="form-input font-bold"
-            />
+            <div className="relative">
+              <input
+                id="old-pin"
+                type={showOldPin ? "text" : "password"}
+                required
+                placeholder="Nhập mật khẩu hiện tại"
+                value={oldPin}
+                onChange={(e) => setOldPin(e.target.value)}
+                className="form-input !pr-10 font-bold"
+              />
+              <button
+                type="button"
+                onClick={() => setShowOldPin(!showOldPin)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                tabIndex={-1}
+              >
+                {showOldPin ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {pwdError && (

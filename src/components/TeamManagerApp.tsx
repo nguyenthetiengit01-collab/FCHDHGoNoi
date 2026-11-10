@@ -15,8 +15,9 @@ import {
   Globe,
   LogOut,
   ExternalLink,
-  User,
-  Lock,
+  ShieldAlert,
+  KeyRound,
+  X,
   Newspaper,
 } from "lucide-react";
 import type { FullAppData, AuthSession, Player } from "@/types/app";
@@ -31,7 +32,7 @@ import { FinanceTab } from "./FinanceTab";
 import { PlayerPersonalTab } from "./PlayerPersonalTab";
 import { PublicGuestPortal } from "./PublicGuestPortal";
 import ClubPostsTab from "./ClubPostsTab";
-import { ModalDialog } from "./ModalDialog";
+import { LoginModal } from "./LoginModal";
 
 type ActiveTab =
   | "public"
@@ -48,7 +49,10 @@ interface TeamManagerAppProps {
   initialData: FullAppData;
 }
 
-function buildSessionFromPlayer(p: Player): AuthSession {
+function buildSessionFromPlayer(
+  p: Player,
+  mustChangePassword?: boolean
+): AuthSession {
   return {
     role: p.access_role === "manager" ? "manager" : "player",
     playerId: p.id,
@@ -57,6 +61,7 @@ function buildSessionFromPlayer(p: Player): AuthSession {
     jerseyNumber: p.jersey_number,
     position: p.position,
     teamRole: p.role,
+    mustChangePassword: !!mustChangePassword,
   };
 }
 
@@ -81,9 +86,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
   // Login modal states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [usernameInput, setUsernameInput] = useState<string>("");
-  const [pinInput, setPinInput] = useState<string>("");
-  const [loginError, setLoginError] = useState<string>("");
+  const [dismissSecurityBanner, setDismissSecurityBanner] = useState(false);
 
   // Tự động khôi phục phiên làm việc an toàn từ Server Cookie khi khởi tạo
   useEffect(() => {
@@ -93,7 +96,10 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       .then((res) => {
         if (!mounted) return;
         if (res.authenticated && res.player) {
-          const restoredSession = buildSessionFromPlayer(res.player);
+          const restoredSession = buildSessionFromPlayer(
+            res.player,
+            res.mustChangePassword
+          );
           setSession(restoredSession);
         }
       })
@@ -136,7 +142,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       }
       setData(json);
       if (action === "change_own_password") {
-        showToast("Đã cập nhật mật khẩu (PIN) mới thành công!");
+        setSession((prev) => ({ ...prev, mustChangePassword: false }));
+        showToast("Đã cập nhật mật khẩu mới thành công!");
       } else if (action === "reset_player_password") {
         showToast("Đã reset mật khẩu cầu thủ về mặc định (1234)!");
       } else if (action === "upsert_club_post") {
@@ -186,53 +193,6 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
     } finally {
       setIsSaving(false);
       e.target.value = "";
-    }
-  };
-
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanUsername = usernameInput.trim();
-    const cleanPin = pinInput.trim();
-
-    if (!cleanUsername) {
-      setLoginError("Vui lòng nhập Tên đăng nhập");
-      return;
-    }
-    if (!cleanPin) {
-      setLoginError("Vui lòng nhập Mật khẩu");
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "login",
-          username: cleanUsername,
-          pin: cleanPin,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        setLoginError(
-          json.error || "Tên đăng nhập hoặc mật khẩu không chính xác."
-        );
-        return;
-      }
-
-      const p: Player = json.player;
-      const newSession = buildSessionFromPlayer(p);
-      setSession(newSession);
-      setLoginModalOpen(false);
-      setUsernameInput("");
-      setPinInput("");
-      setLoginError("");
-      setActiveTab("schedule");
-      showToast(`Xin chào ${p.full_name} (#${p.jersey_number ?? "-"})!`);
-    } catch {
-      setLoginError("Không thể kết nối đến máy chủ xác thực.");
     }
   };
 
@@ -556,6 +516,48 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         </div>
       )}
 
+      {/* Cảnh báo bảo mật tài khoản nếu đang dùng mật khẩu mặc định */}
+      {session.role !== "guest" &&
+        session.mustChangePassword &&
+        !dismissSecurityBanner && (
+          <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 pt-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 border border-amber-500/40 shadow-sm backdrop-blur-sm">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                  <ShieldAlert className="h-5 w-5" />
+                </div>
+                <div className="text-xs sm:text-sm">
+                  <p className="font-bold text-amber-200">
+                    Cảnh báo bảo mật tài khoản
+                  </p>
+                  <p className="text-slate-300 text-xs mt-0.5">
+                    Tài khoản của bạn đang dùng mật khẩu mặc định (1234). Vui
+                    lòng đổi mật khẩu cá nhân mới để bảo vệ thông tin.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("personal")}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-sm transition cursor-pointer"
+                >
+                  <KeyRound className="h-3.5 w-3.5" />
+                  <span>Đổi mật khẩu ngay</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDismissSecurityBanner(true)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                  title="Bỏ qua nhắc nhở"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       {/* Main Content Area */}
       <main id="main-content" key={`${session.role}-${activeTab}`} className={
           session.role === "guest"
@@ -676,132 +678,20 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         </nav>
       )}
 
-      {/* Modal Đăng Nhập Thành Viên & Ban Quản Lý */}
-      <ModalDialog
+      {/* Modal Đăng Nhập Thành Viên & Ban Quản Lý Chuyên Nghiệp */}
+      <LoginModal
         isOpen={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
-        title="Đăng Nhập Thành Viên FC HĐH Gò Nổi"
-        subtitle="Cổng thông tin & điều hành nội bộ dành riêng cho Cầu thủ và Ban Quản Lý CLB."
-      >
-        <div className="space-y-5">
-          {/* Logo & Tiêu đề CLB */}
-          <div className="flex items-center gap-3.5 rounded-2xl bg-gradient-to-r from-[#092244] to-[#0d2e5b] text-white p-3.5 border border-[#d4af37]/40 shadow-md">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={OFFICIAL_LOGO_URL}
-              alt="Logo FC HĐH Gò Nổi"
-              className="h-12 w-12 rounded-xl object-contain bg-white p-0.5 border border-[#d4af37] shrink-0"
-            />
-            <div className="text-xs">
-              <div className="font-bold text-sm text-[#d4af37] uppercase">
-                CLB BÓNG ĐÁ HĐH GÒ NỔI (TP.HCM)
-              </div>
-              <p className="text-sky-100 mt-0.5">
-                Mỗi cầu thủ đăng nhập bằng tài khoản và mật khẩu được cấp riêng.
-              </p>
-            </div>
-          </div>
-
-          {/* Form đăng nhập dạng chuẩn: Tên đăng nhập + Mật khẩu */}
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <div>
-              <label
-                htmlFor="login-username-input"
-                className="block text-sm font-bold text-slate-700 mb-1"
-              >
-                Tên đăng nhập
-              </label>
-              <div className="relative">
-                <User className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  id="login-username-input"
-                  type="text"
-                  value={usernameInput}
-                  placeholder="Nhập tên đăng nhập hoặc số áo"
-                  onChange={(e) => {
-                    setUsernameInput(e.target.value);
-                    setLoginError("");
-                  }}
-                  className="form-input !pl-9 font-medium"
-                  autoFocus
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="login-pin-input"
-                className="block text-sm font-bold text-slate-700 mb-1"
-              >
-                Mật khẩu
-              </label>
-              <div className="relative">
-                <Lock className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  id="login-pin-input"
-                  type="password"
-                  value={pinInput}
-                  placeholder="Nhập mật khẩu"
-                  onChange={(e) => {
-                    setPinInput(e.target.value);
-                    setLoginError("");
-                  }}
-                  className="form-input !pl-9 font-bold tracking-widest"
-                  required
-                />
-              </div>
-              {loginError && (
-                <p className="mt-1.5 text-xs font-bold text-rose-600 flex items-center gap-1.5">
-                  <span>⚽</span>
-                  <span>{loginError}</span>
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={() => {
-                  setLoginModalOpen(false);
-                  setUsernameInput("");
-                  setPinInput("");
-                  setLoginError("");
-                }}
-                className="rounded-lg border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
-              >
-                Đóng
-              </button>
-
-              <button
-                type="submit"
-                className="rounded-xl bg-gradient-to-r from-[#17488c] to-[#1e5eb8] hover:from-[#1e5eb8] hover:to-[#2563eb] px-6 py-2.5 text-sm font-bold text-white transition shadow-md cursor-pointer inline-flex items-center gap-2 border border-sky-300/30"
-              >
-                <span>⚽</span>
-                <span>Đăng Nhập</span>
-              </button>
-            </div>
-          </form>
-
-          {/* Hướng dẫn đăng nhập & phân quyền rõ ràng */}
-          <div className="pt-4 mt-2 border-t border-slate-200 space-y-2 text-xs">
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1.5">
-              <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                <span>🛡️</span>
-                <span>Phân quyền tài khoản khi đăng nhập:</span>
-              </div>
-              <ul className="list-disc list-inside space-y-0.5 text-slate-600 pl-1">
-                <li>
-                  <strong className="text-[#17488c]">Ban Quản Lý:</strong> Toàn quyền quản trị lịch, thu chi tiền sân, chốt trận đấu & quản lý quỹ đội.
-                </li>
-                <li>
-                  <strong className="text-emerald-700">Cầu Thủ Thành Viên:</strong> Xem lịch tuần, điểm danh cá nhân, tra cứu quỹ đội & tự do đổi tên đăng nhập/mật khẩu cá nhân.
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </ModalDialog>
+        onSuccess={(player, mustChangePassword) => {
+          const newSession = buildSessionFromPlayer(player, mustChangePassword);
+          setSession(newSession);
+          setLoginModalOpen(false);
+          setActiveTab("schedule");
+          showToast(
+            `Xin chào ${player.full_name} (#${player.jersey_number ?? "-"})!`
+          );
+        }}
+      />
     </div>
   );
 }

@@ -3,13 +3,15 @@ import {
   verifyCredentials,
   createSessionToken,
   getAuthSession,
+  getPasswordFingerprint,
+  isDefaultPassword,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth";
 import { getAsyncDb } from "@/lib/db";
 import type { Player } from "@/types/app";
 
 /**
- * Lấy thông tin phiên làm việc hiện tại
+ * Lấy thông tin phiên làm việc hiện tại và kiểm tra tính hợp lệ
  */
 export async function GET(req: NextRequest) {
   try {
@@ -30,16 +32,33 @@ export async function GET(req: NextRequest) {
       return res;
     }
 
+    // Thu hồi phiên tức thì nếu mật khẩu đã bị thay đổi trên thiết bị khác
+    if (session.pwdFingerprint) {
+      const currentFp = getPasswordFingerprint(playerRow.pin_code || "1234");
+      if (session.pwdFingerprint !== currentFp) {
+        const res = NextResponse.json({
+          authenticated: false,
+          player: null,
+          error: "Mật khẩu của bạn đã được thay đổi. Vui lòng đăng nhập lại.",
+        });
+        res.cookies.delete(SESSION_COOKIE_NAME);
+        return res;
+      }
+    }
+
     // Luôn ẩn mã PIN trước khi gửi về client
     const safePlayer: Player = {
       ...playerRow,
       pin_code: "",
     };
 
+    const mustChangePassword = isDefaultPassword(playerRow.pin_code);
+
     return NextResponse.json({
       authenticated: true,
       player: safePlayer,
       role: session.accessRole,
+      mustChangePassword,
     });
   } catch (error) {
     console.error("GET /api/auth error:", error);
@@ -51,7 +70,7 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * Xử lý đăng nhập và đăng xuất an toàn
+ * Xử lý đăng nhập và đăng xuất an toàn với chuẩn chống Brute-force và Session Timeout
  */
 export async function POST(req: NextRequest) {
   try {
@@ -128,8 +147,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "login") {
-      const { username, pin } = body;
-      const verifyRes = await verifyCredentials(username, pin);
+      const { username, pin, rememberMe } = body;
+      const clientIp =
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        req.headers.get("x-real-ip") ||
+        "local";
+
+      const verifyRes = await verifyCredentials(username, pin, clientIp);
 
       if (!verifyRes.success || !verifyRes.player) {
         return NextResponse.json(
@@ -139,7 +163,9 @@ export async function POST(req: NextRequest) {
       }
 
       const player = verifyRes.player;
-      const token = createSessionToken(player, 24 * 7); // 7 ngày
+      // Ghi nhớ 30 ngày nếu chọn rememberMe, nếu không phiên là 24 giờ (an toàn cho máy lạ)
+      const durationHours = rememberMe ? 24 * 30 : 24;
+      const token = createSessionToken(player, durationHours);
 
       // Bảo mật: Xóa mã PIN trước khi trả về dữ liệu người dùng
       const safePlayer: Player = {
@@ -150,6 +176,7 @@ export async function POST(req: NextRequest) {
       const res = NextResponse.json({
         success: true,
         player: safePlayer,
+        mustChangePassword: verifyRes.mustChangePassword,
         message: `Đăng nhập thành công: ${player.full_name}`,
       });
 
@@ -157,7 +184,7 @@ export async function POST(req: NextRequest) {
       res.cookies.set({
         name: SESSION_COOKIE_NAME,
         value: token,
-        maxAge: 7 * 24 * 3600, // 7 ngày
+        maxAge: durationHours * 3600,
         path: "/",
         httpOnly: true,
         sameSite: "lax",
@@ -179,4 +206,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

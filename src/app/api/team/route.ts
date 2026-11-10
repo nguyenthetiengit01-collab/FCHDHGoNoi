@@ -5,7 +5,14 @@ import {
   seedAsyncInitialDataIfNeeded,
   ensureClubPostsReady,
 } from "@/lib/db";
-import { getAuthSession } from "@/lib/auth";
+import {
+  getAuthSession,
+  hashPassword,
+  verifyPassword,
+  validatePasswordStrength,
+  createSessionToken,
+  SESSION_COOKIE_NAME,
+} from "@/lib/auth";
 import { ensureWebpDataUrlServer } from "@/lib/serverWebp";
 import { formatBirthYear } from "@/lib/athleteProfile";
 
@@ -166,8 +173,11 @@ export async function POST(req: NextRequest) {
             "SELECT pin_code, gallery_urls_json FROM players WHERE id = ?",
             [Number(id)]
           );
-          const finalPin =
-            String(pin_code || "").trim() || existing?.pin_code || "1234";
+          const rawPin = String(pin_code || "").trim();
+          let finalPin = existing?.pin_code || "1234";
+          if (rawPin) {
+            finalPin = rawPin.startsWith("scrypt$") ? rawPin : hashPassword(rawPin);
+          }
           const finalGalleryJson =
             gallery_urls !== undefined
               ? JSON.stringify(webpGallery)
@@ -234,7 +244,9 @@ export async function POST(req: NextRequest) {
               typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
               access_role === "manager" ? "manager" : "player",
-              String(pin_code || "1234").trim(),
+              String(pin_code || "1234").trim().startsWith("scrypt$")
+                ? String(pin_code || "1234").trim()
+                : hashPassword(String(pin_code || "1234").trim()),
               status || "Đang sinh hoạt",
               notes || "",
               String(hometown || "").trim(),
@@ -376,9 +388,9 @@ export async function POST(req: NextRequest) {
             { status: 404 }
           );
         }
-        if ((row.pin_code || "1234") !== providedOldPin) {
+        if (!verifyPassword(providedOldPin, row.pin_code || "1234")) {
           return NextResponse.json(
-            { error: "Mật khẩu hiện tại không đúng. Vui lòng thử lại hoặc liên hệ Ban Quản Lý." },
+            { error: "Mật khẩu hiện tại không đúng. Vui lòng kiểm tra lại hoặc liên hệ Ban Quản Lý." },
             { status: 400 }
           );
         }
@@ -407,15 +419,17 @@ export async function POST(req: NextRequest) {
         }
 
         if (cleanNewPin) {
-          if (cleanNewPin.length < 4) {
+          const strength = validatePasswordStrength(cleanNewPin, cleanNewUser || row.username);
+          if (!strength.valid) {
             return NextResponse.json(
-              { error: "Mật khẩu mới cần có ít nhất 4 ký tự" },
+              { error: strength.message || "Mật khẩu mới chưa đủ an toàn (tối thiểu 6 ký tự)." },
               { status: 400 }
             );
           }
+          const hashedPin = hashPassword(cleanNewPin);
           await db.run(
             "UPDATE players SET pin_code = ? WHERE id = ?",
-            [cleanNewPin, Number(player_id)]
+            [hashedPin, Number(player_id)]
           );
         }
         break;
@@ -425,9 +439,10 @@ export async function POST(req: NextRequest) {
       case "reset_player_password": {
         const { player_id, new_pin } = payload;
         const cleanPin = String(new_pin || "1234").trim() || "1234";
+        const hashedPin = hashPassword(cleanPin);
         await db.run(
           "UPDATE players SET pin_code = ? WHERE id = ?",
-          [cleanPin, Number(player_id)]
+          [hashedPin, Number(player_id)]
         );
         break;
       }
@@ -1209,7 +1224,26 @@ export async function POST(req: NextRequest) {
     }
 
     const updated = await getFullAppData();
-    return NextResponse.json(updated);
+    const res = NextResponse.json(updated);
+
+    // Nếu vừa đổi mật khẩu của chính mình, cấp lại session token mới với vân tay mật khẩu mới
+    if (action === "change_own_password" && session) {
+      const updatedPlayer = updated.players.find((p) => p.id === session.playerId);
+      if (updatedPlayer) {
+        const token = createSessionToken(updatedPlayer, 24 * 7);
+        res.cookies.set({
+          name: SESSION_COOKIE_NAME,
+          value: token,
+          maxAge: 7 * 24 * 3600,
+          path: "/",
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+        });
+      }
+    }
+
+    return res;
   } catch (error) {
     console.error("POST /api/team error:", error);
     return NextResponse.json(

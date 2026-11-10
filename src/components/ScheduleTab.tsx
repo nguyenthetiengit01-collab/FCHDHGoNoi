@@ -24,6 +24,8 @@ import {
   Quote,
   Upload,
   Camera,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -373,6 +375,9 @@ export function ScheduleTab({
   const [pwdNewPin, setPwdNewPin] = useState("");
   const [pwdConfirmPin, setPwdConfirmPin] = useState("");
   const [pwdError, setPwdError] = useState("");
+  const [pwdShowOldPin, setPwdShowOldPin] = useState(false);
+  const [pwdShowNewPin, setPwdShowNewPin] = useState(false);
+  const [pwdShowConfirmPin, setPwdShowConfirmPin] = useState(false);
 
   const openEditMyProfile = () => {
     if (!me) return;
@@ -477,8 +482,14 @@ export function ScheduleTab({
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!me) return;
-    if (pwdNewPin.trim().length < 4) {
-      setPwdError("Mật khẩu mới phải có ít nhất 4 ký tự.");
+    if (pwdNewPin.trim().length < 6) {
+      setPwdError("Mật khẩu mới phải có ít nhất 6 ký tự để đảm bảo an toàn.");
+      return;
+    }
+    if (pwdNewPin.trim() === "1234" || pwdNewPin.trim() === "123456") {
+      setPwdError(
+        "Không thể dùng mật khẩu mặc định (1234, 123456). Vui lòng chọn mật khẩu khác an toàn hơn."
+      );
       return;
     }
     if (pwdNewPin !== pwdConfirmPin) {
@@ -496,6 +507,9 @@ export function ScheduleTab({
     setPwdOldPin("");
     setPwdNewPin("");
     setPwdConfirmPin("");
+    setPwdShowOldPin(false);
+    setPwdShowNewPin(false);
+    setPwdShowConfirmPin(false);
   };
 
   return (
@@ -2089,44 +2103,126 @@ export function ScheduleTab({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Mật khẩu hiện tại
+                Mật khẩu hiện tại *
               </label>
-              <input
-                type="password"
-                required
-                value={pwdOldPin}
-                onChange={(e) => setPwdOldPin(e.target.value)}
-                placeholder="Nhập mật khẩu hiện tại (mặc định 1234)"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type={pwdShowOldPin ? "text" : "password"}
+                  required
+                  value={pwdOldPin}
+                  onChange={(e) => setPwdOldPin(e.target.value)}
+                  placeholder="Nhập mật khẩu hiện tại (mặc định 1234)"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPwdShowOldPin(!pwdShowOldPin)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {pwdShowOldPin ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Mật khẩu mới * (ít nhất 4 ký tự)
+                Mật khẩu mới * (tối thiểu 6 ký tự)
               </label>
-              <input
-                type="password"
-                required
-                value={pwdNewPin}
-                onChange={(e) => setPwdNewPin(e.target.value)}
-                placeholder="Nhập mật khẩu mới"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type={pwdShowNewPin ? "text" : "password"}
+                  required
+                  value={pwdNewPin}
+                  onChange={(e) => setPwdNewPin(e.target.value)}
+                  placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPwdShowNewPin(!pwdShowNewPin)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {pwdShowNewPin ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
+
+            {pwdNewPin && (
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5 space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-600">Độ an toàn:</span>
+                  <span
+                    className={`font-bold ${
+                      pwdNewPin.length < 6
+                        ? "text-rose-600"
+                        : pwdNewPin.length >= 8 &&
+                          /[0-9]/.test(pwdNewPin) &&
+                          /[a-zA-Z]/.test(pwdNewPin)
+                        ? "text-emerald-600"
+                        : "text-amber-600"
+                    }`}
+                  >
+                    {pwdNewPin.length < 6
+                      ? "Chưa đủ 6 ký tự"
+                      : pwdNewPin.length >= 8 &&
+                        /[0-9]/.test(pwdNewPin) &&
+                        /[a-zA-Z]/.test(pwdNewPin)
+                      ? "Mạnh"
+                      : "Trung bình"}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      pwdNewPin.length < 6
+                        ? "w-1/4 bg-rose-500"
+                        : pwdNewPin.length >= 8 &&
+                          /[0-9]/.test(pwdNewPin) &&
+                          /[a-zA-Z]/.test(pwdNewPin)
+                        ? "w-full bg-emerald-500"
+                        : "w-2/3 bg-amber-500"
+                    }`}
+                  />
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Xác nhận lại mật khẩu mới *
               </label>
-              <input
-                type="password"
-                required
-                value={pwdConfirmPin}
-                onChange={(e) => setPwdConfirmPin(e.target.value)}
-                placeholder="Nhập lại mật khẩu mới"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
-              />
+              <div className="relative">
+                <input
+                  type={pwdShowConfirmPin ? "text" : "password"}
+                  required
+                  value={pwdConfirmPin}
+                  onChange={(e) => setPwdConfirmPin(e.target.value)}
+                  placeholder="Nhập lại mật khẩu mới"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPwdShowConfirmPin(!pwdShowConfirmPin)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  tabIndex={-1}
+                >
+                  {pwdShowConfirmPin ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {pwdError && (

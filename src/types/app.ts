@@ -25,6 +25,7 @@ export interface AuthSession {
   position: string;
   teamRole: string;
   avatarUrl?: string;
+  mustChangePassword?: boolean;
 }
 
 export interface TeamSettings {
