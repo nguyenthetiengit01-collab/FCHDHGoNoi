@@ -8,7 +8,6 @@ import {
   Loader2,
   MapPin,
   Quote,
-  Shield,
 } from "lucide-react";
 import type { Player, MatchAttendance, MatchRecord } from "@/types/app";
 import type { LightboxImage } from "./ImageLightboxModal";
@@ -186,8 +185,8 @@ export function BroadcastAthleteCard({
               <span className="font-bold text-[#ffd700]">
                 {player.short_name}
               </span>
+              <span> • Thành viên</span>
               {cleanBirthYear ? ` • Sinh năm ${cleanBirthYear}` : ""}
-              {player.role ? ` • ${player.role}` : ""}
             </p>
 
             {player.playing_style && (
@@ -276,12 +275,6 @@ export function BroadcastAthleteCard({
                 <span className="text-[10px] uppercase tracking-widest text-sky-200 font-bold">
                   OFFICIAL ATHLETE CARD
                 </span>
-                {player.access_role === "manager" && (
-                  <span className="inline-flex items-center gap-1 rounded bg-[#d4af37]/25 border border-[#d4af37]/60 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#fde047]">
-                    <Shield className="h-3 w-3" />
-                    <span>BAN ĐIỀU HÀNH &amp; THỦ QUỸ</span>
-                  </span>
-                )}
               </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs text-sky-100 font-medium">
@@ -377,7 +370,7 @@ export function BroadcastAthleteCard({
                 )}
               </div>
               <p className="text-xs sm:text-sm text-sky-100 mt-1 flex items-center gap-1 flex-wrap">
-                <span>{player.role || "Cầu thủ thi đấu"}</span>
+                <span className="font-semibold text-white">Thành viên</span>
                 <span>•</span>
                 <span>
                   {cleanBirthYear
@@ -627,7 +620,7 @@ export function BroadcastAthleteCard({
           )}
         </div>
         <p className="text-xs sm:text-sm text-sky-100 mt-1">
-          {player.role || "Cầu thủ thi đấu"} •{" "}
+          <span className="font-semibold text-white">Thành viên</span> •{" "}
           {cleanBirthYear
             ? `Năm sinh ${cleanBirthYear}`
             : "Thành viên nòng cốt"}

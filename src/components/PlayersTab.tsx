@@ -10,7 +10,6 @@ import {
   Eye,
   CheckCircle2,
   Clock,
-  Shield,
   KeyRound,
   RotateCcw,
   FileSpreadsheet,
@@ -566,7 +565,7 @@ export function PlayersTab({
                     <strong className="text-[#0284c7]">{p.position}</strong>
                   </p>
                   <p className="text-slate-600">
-                    Chức vụ: <strong>{p.role}</strong>
+                    Vai trò: <strong>Thành viên</strong>
                   </p>
                   {isManager && p.phone && (
                     <p className="text-slate-700 font-semibold">
@@ -645,12 +644,9 @@ export function PlayersTab({
                       </div>
                     </div>
 
-                    {p.access_role === "manager" && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-900 shrink-0">
-                        <Shield className="h-3 w-3" />
-                        Quản lý
-                      </span>
-                    )}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold text-slate-500 bg-slate-100 shrink-0">
+                      Thành viên
+                    </span>
                   </div>
 
                   {/* Thống kê chuyên cần & quỹ */}

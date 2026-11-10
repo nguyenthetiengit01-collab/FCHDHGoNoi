@@ -302,7 +302,7 @@ export function PublicGuestPortal({
 
   const [scrolled, setScrolled] = useState(false);
   const [matchTab, setMatchTab] = useState<"fixtures" | "results">("fixtures");
-  const [squadFilter, setSquadFilter] = useState<"all" | "manager" | "player">("all");
+  const [squadFilter, setSquadFilter] = useState<"all" | "GK" | "DF" | "MF" | "FW" | "ĐN">("all");
   const [heroIdx, setHeroIdx] = useState(0);
 
   /* Cầu thủ được chọn để phóng to 1/2 màn hình bên trái */
@@ -360,7 +360,11 @@ export function PublicGuestPortal({
     (p) => !/nghỉ|rời|ngưng/i.test(p.status || "")
   );
   const squad = activePlayers
-    .filter((p) => (squadFilter === "all" ? true : p.access_role === squadFilter))
+    .filter((p) => {
+      if (squadFilter === "all") return true;
+      const badge = getPlayerPositionBadge(p);
+      return badge.code === squadFilter;
+    })
     .slice()
     .sort((a, b) => (a.jersey_number ?? 999) - (b.jersey_number ?? 999));
 
@@ -1136,19 +1140,22 @@ export function PublicGuestPortal({
                   </div>
 
                   {/* Filter tabs */}
-                  <div className="flex items-center gap-1 p-1 rounded-lg bg-[#09254d] border border-white/20 text-xs font-bold uppercase tracking-wider shrink-0">
+                  <div className="flex items-center gap-1 p-1 rounded-lg bg-[#09254d] border border-white/20 text-xs font-bold uppercase tracking-wider shrink-0 overflow-x-auto">
                     {(
                       [
                         ["all", "Tất cả"],
-                        ["manager", "BQL"],
-                        ["player", "Cầu thủ"],
+                        ["GK", "Thủ môn"],
+                        ["DF", "Hậu vệ"],
+                        ["MF", "Tiền vệ"],
+                        ["FW", "Tiền đạo"],
+                        ["ĐN", "Đa năng"],
                       ] as const
                     ).map(([key, label]) => (
                       <button
                         key={key}
                         type="button"
                         onClick={() => setSquadFilter(key)}
-                        className={`px-3 py-1.5 rounded transition cursor-pointer ${squadFilter === key
+                        className={`px-2.5 py-1.5 rounded transition cursor-pointer text-[11px] shrink-0 ${squadFilter === key
                             ? "bg-[#ffd700] text-slate-950 font-black shadow-sm"
                             : "text-sky-200 hover:text-white"
                           }`}

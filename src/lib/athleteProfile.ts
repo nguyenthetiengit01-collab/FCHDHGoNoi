@@ -1,14 +1,14 @@
 import type { Player } from "@/types/app";
 
 export interface PositionBadgeInfo {
-  code: "GK" | "DF" | "MF" | "FW" | "BQL";
+  code: "GK" | "DF" | "MF" | "FW" | "ĐN";
   label: string;
   badgeClass: string;
   tone: string;
 }
 
 export function getPlayerPositionBadge(
-  player: Pick<Player, "position" | "access_role">
+  player: Pick<Player, "position">
 ): PositionBadgeInfo {
   const pos = player.position || "";
   if (pos.includes("Thủ môn")) {
@@ -44,7 +44,7 @@ export function getPlayerPositionBadge(
     };
   }
   return {
-    code: "BQL",
+    code: "ĐN",
     label: "ĐA NĂNG",
     badgeClass: "bg-purple-500/20 text-purple-300 border-purple-500/40",
     tone: "bg-purple-500/20 text-purple-300 border-purple-500/40",

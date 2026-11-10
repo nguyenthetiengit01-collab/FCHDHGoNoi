@@ -20,7 +20,7 @@ Hệ thống quản lý đội bóng FC Hội Đồng Hương Gò Nổi. Website
   - `DF` (Hậu vệ): Xanh dương Blue
   - `MF` (Tiền vệ): Vàng hổ phách Amber
   - `FW` (Tiền đạo): Đỏ hồng Rose
-  - `BQL` (Ban Quản Lý / Đa năng): Tím Purple
+  - `ĐN` (Đa năng): Tím Purple
 - **Tránh vibe website AI**:
   - Tuyệt đối tránh gradient tím hồng generic, bo tròn quá đà 32px kiểu bong bóng.
   - Sử dụng góc bo sắc nét (8px - 12px), typography kỹ thuật, border tương phản tinh tế.

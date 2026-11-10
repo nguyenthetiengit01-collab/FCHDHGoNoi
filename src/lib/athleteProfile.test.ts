@@ -15,7 +15,7 @@ describe("BroadcastAthleteCard - Deep Module Domain Logic", () => {
     expect(getPlayerPositionBadge({ position: "Hậu vệ cánh", access_role: "player" }).code).toBe("DF");
     expect(getPlayerPositionBadge({ position: "Tiền vệ trung tâm", access_role: "player" }).code).toBe("MF");
     expect(getPlayerPositionBadge({ position: "Tiền đạo cắm", access_role: "player" }).code).toBe("FW");
-    expect(getPlayerPositionBadge({ position: "Đa năng", access_role: "manager" }).code).toBe("BQL");
+    expect(getPlayerPositionBadge({ position: "Đa năng", access_role: "manager" }).code).toBe("ĐN");
   });
 
   it("extracts canonical hometown / hamlet accurately", () => {
