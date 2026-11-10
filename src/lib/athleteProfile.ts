@@ -54,8 +54,11 @@ export function getPlayerPositionBadge(
 export function getPlayerHamlet(
   player: Pick<Player, "hometown" | "notes">
 ): string {
-  if (player.hometown && player.hometown.trim()) {
-    return player.hometown.trim();
+  let raw = (player.hometown || "").trim();
+  if (raw) {
+    // Loại bỏ tiền tố "Xã " nếu có để tránh hiển thị trùng "Xã Xã ..."
+    raw = raw.replace(/^(Xã|xa|XÃ)[:\s]+/i, "").trim();
+    if (raw) return raw;
   }
   const notes = player.notes || "";
   if (notes.includes("Điện Quang")) return "Điện Quang";

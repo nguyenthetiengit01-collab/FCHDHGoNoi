@@ -174,23 +174,23 @@ export function MatchdayRosterPosterModal({
         </div>
 
         {/* Scrollable Preview Area */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-5 flex justify-center bg-[#020813]">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 flex justify-center bg-[#071933]">
           {/* POSTER CHÍNH ĐƯỢC CHỤP ẢNH (BỐ CỤC CHUẨN GỌN GÀNG FANPAGE & ZALO) */}
           <div
             ref={posterRef}
-            className="w-full max-w-[620px] bg-gradient-to-b from-[#0b2447] via-[#081a33] to-[#040e1a] rounded-xl border-2 border-[#d4af37] p-4 sm:p-5 shadow-[0_20px_60px_rgba(0,0,0,0.9)] text-white space-y-3.5"
+            className="w-full max-w-[620px] bg-gradient-to-b from-[#184e9b] via-[#123e7a] to-[#0d2a54] rounded-xl border-2 border-[#ffd700] p-4 sm:p-5 shadow-[0_20px_50px_rgba(15,50,110,0.5)] text-white space-y-3.5"
           >
             {/* Header Poster: Logo + Tên Đội + Huy hiệu Matchday */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#d4af37]/40 gap-3">
+            <div className="flex items-center justify-between pb-3 border-b border-[#ffd700]/50 gap-3">
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/images/logo.jpg"
                   alt="FC HĐH Gò Nổi"
-                  className="h-11 w-11 rounded-full object-contain bg-white p-0.5 border border-[#d4af37] shadow shrink-0"
+                  className="h-11 w-11 rounded-full object-contain bg-white p-0.5 border-2 border-[#ffd700] shadow shrink-0"
                 />
                 <div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#d4af37] block">
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#ffd700] block">
                     ĐIỆN BÀN • QUẢNG NAM
                   </span>
                   <h1 className="font-display font-black uppercase text-base sm:text-lg text-white tracking-wide leading-tight">
@@ -200,21 +200,21 @@ export function MatchdayRosterPosterModal({
               </div>
 
               <div className="text-right shrink-0">
-                <span className="inline-block px-2.5 py-0.5 rounded bg-[#d4af37] text-slate-950 font-black text-[11px] uppercase tracking-wider shadow">
+                <span className="inline-block px-2.5 py-0.5 rounded bg-[#ffd700] text-slate-950 font-black text-[11px] uppercase tracking-wider shadow">
                   MATCHDAY ROSTER
                 </span>
-                <span className="block text-[9px] uppercase font-bold text-slate-400 mt-0.5">
+                <span className="block text-[9px] uppercase font-bold text-sky-200 mt-0.5">
                   ĐIỂM DANH THI ĐẤU
                 </span>
               </div>
             </div>
 
             {/* Khung Thông Tin Trận Đấu Rút Gọn */}
-            <div className="rounded-xl bg-[#041224] border border-[#d4af37]/40 p-3 text-center space-y-2">
+            <div className="rounded-xl bg-gradient-to-r from-[#0d346b] via-[#124285] to-[#0d346b] border border-[#ffd700]/60 p-3 text-center space-y-2 shadow-md">
               <div className="flex items-center justify-between gap-2 px-1">
                 {/* Đội nhà */}
                 <div className="flex-1 text-right min-w-0">
-                  <span className="text-[9px] uppercase font-bold text-[#d4af37] tracking-wider block">
+                  <span className="text-[9px] uppercase font-bold text-[#ffd700] tracking-wider block">
                     CHỦ NHÀ
                   </span>
                   <h2 className="font-display font-black uppercase text-sm sm:text-base text-white truncate">
@@ -223,41 +223,41 @@ export function MatchdayRosterPosterModal({
                 </div>
 
                 {/* VS */}
-                <div className="flex flex-col items-center justify-center px-3 py-1 rounded-md bg-[#061b36] border border-white/10 shrink-0 mx-2">
-                  <span className="font-display font-black text-base sm:text-lg text-[#fde047] leading-none">
+                <div className="flex flex-col items-center justify-center px-3 py-1 rounded-md bg-gradient-to-br from-[#ffd700] to-[#e6b800] border border-white/30 shrink-0 mx-2 shadow-xs">
+                  <span className="font-display font-black text-base sm:text-lg text-slate-950 leading-none">
                     VS
                   </span>
                 </div>
 
                 {/* Đối thủ */}
                 <div className="flex-1 text-left min-w-0">
-                  <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider block">
+                  <span className="text-[9px] uppercase font-bold text-sky-200 tracking-wider block">
                     ĐỐI THỦ
                   </span>
-                  <h2 className="font-display font-black uppercase text-sm sm:text-base text-sky-100 truncate">
+                  <h2 className="font-display font-black uppercase text-sm sm:text-base text-white truncate">
                     {match.opponent || "ĐỐI THỦ GIAO HỮU"}
                   </h2>
                 </div>
               </div>
 
               {/* Chi tiết thời gian & sân thi đấu */}
-              <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs">
+              <div className="pt-2 border-t border-white/15 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs">
                 <span className="inline-flex items-center gap-1 font-bold text-white">
-                  <Clock className="h-3 w-3 text-[#d4af37]" />
+                  <Clock className="h-3 w-3 text-[#ffd700]" />
                   <span>{match.kickoff_time || "19:00"}</span>
                 </span>
-                <span className="text-white/30">•</span>
+                <span className="text-white/40">•</span>
                 <span className="inline-flex items-center gap-1 font-bold text-white">
-                  <Calendar className="h-3 w-3 text-[#d4af37]" />
+                  <Calendar className="h-3 w-3 text-[#ffd700]" />
                   <span>{formatDateVN(match.match_date)}</span>
                 </span>
-                <span className="text-white/30">•</span>
-                <span className="inline-flex items-center gap-1 font-semibold text-sky-200">
-                  <MapPin className="h-3 w-3 text-[#d4af37]" />
+                <span className="text-white/40">•</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-sky-100">
+                  <MapPin className="h-3 w-3 text-[#ffd700]" />
                   <span>{match.venue}</span>
                 </span>
-                <span className="text-white/30 hidden sm:inline">•</span>
-                <span className="text-[9px] font-black uppercase tracking-wider text-[#d4af37] bg-[#d4af37]/15 px-1.5 py-0.5 rounded border border-[#d4af37]/30">
+                <span className="text-white/40 hidden sm:inline">•</span>
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-950 bg-[#ffd700] px-2 py-0.5 rounded shadow-xs">
                   SÂN 7 NGƯỜI
                 </span>
               </div>
@@ -265,20 +265,20 @@ export function MatchdayRosterPosterModal({
 
             {/* MỤC 1: CHIẾN BINH ĐÃ ĐĂNG KÝ RA SÂN (LƯỚI 3 CỘT GỌN GÀNG) */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between pb-1 border-b border-white/10">
+              <div className="flex items-center justify-between pb-1 border-b border-white/15">
                 <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-sm" />
                   <h3 className="font-display font-black uppercase text-xs sm:text-sm text-white tracking-wider">
                     CHIẾN BINH RA SÂN ({registeredPlayerList.length} CẦU THỦ)
                   </h3>
                 </div>
-                <span className="text-[10px] font-black uppercase text-[#d4af37] bg-[#d4af37]/20 border border-[#d4af37]/50 px-2 py-0.5 rounded">
+                <span className="text-[10px] font-black uppercase text-slate-950 bg-[#ffd700] px-2 py-0.5 rounded shadow-xs">
                   ĐÃ XÁC NHẬN
                 </span>
               </div>
 
               {registeredPlayerList.length === 0 ? (
-                <div className="p-3 rounded-lg bg-white/5 text-center text-xs text-slate-400 italic">
+                <div className="p-3 rounded-lg bg-white/10 text-center text-xs text-sky-100 italic">
                   Chưa có cầu thủ điểm danh có mặt cho trận này.
                 </div>
               ) : (
@@ -289,10 +289,10 @@ export function MatchdayRosterPosterModal({
                     return (
                       <div
                         key={player.id}
-                        className="flex items-center gap-2 p-1.5 px-2 rounded-lg bg-[#051426] border border-white/15 min-w-0"
+                        className="flex items-center gap-2 p-1.5 px-2 rounded-lg bg-[#0e366e]/95 hover:bg-[#124285] border border-sky-300/35 min-w-0 shadow-xs"
                       >
                         {/* Số áo */}
-                        <span className="h-6 w-6 rounded bg-[#040e1a] border border-[#d4af37]/50 flex items-center justify-center shrink-0 font-display font-black text-xs text-[#d4af37]">
+                        <span className="h-6 w-6 rounded bg-[#072147] border border-[#ffd700]/70 flex items-center justify-center shrink-0 font-display font-black text-xs text-[#ffd700]">
                           #{player.jersey_number ?? idx + 1}
                         </span>
 
@@ -316,18 +316,18 @@ export function MatchdayRosterPosterModal({
 
             {/* MỤC 2: CẦU THỦ BÁO VẮNG (DẠNG HÀNG GỌN GÀNG) */}
             {absentPlayerList.length > 0 && (
-              <div className="rounded-lg bg-rose-950/40 border border-rose-500/20 px-3 py-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              <div className="rounded-lg bg-rose-950/60 border border-rose-400/40 px-3 py-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                 <span className="text-[10px] font-black uppercase tracking-wider text-rose-300 shrink-0">
                   BÁO BẬN ({absentPlayerList.length}):
                 </span>
-                <span className="text-[11px] text-rose-200">
+                <span className="text-[11px] text-rose-100 font-medium">
                   {absentPlayerList.map((p) => p.short_name || p.full_name).join(", ")}
                 </span>
               </div>
             )}
 
             {/* MỤC 3: LƯU Ý THI ĐẤU & CHÂN TRANG THƯƠNG HIỆU */}
-            <div className="pt-2 border-t border-[#d4af37]/30 flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] text-slate-300">
+            <div className="pt-2 border-t border-[#ffd700]/40 flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] text-slate-200">
               <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[#d4af37]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

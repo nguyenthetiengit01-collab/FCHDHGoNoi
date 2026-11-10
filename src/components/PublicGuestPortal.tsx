@@ -225,25 +225,25 @@ function CompactPlayerRow({
     <div
       onClick={onSelect}
       className={`group flex items-center justify-between p-3 rounded-lg transition-all cursor-pointer border ${isSelected
-          ? "bg-[#103567] border-l-4 border-l-[#d4af37] border-y-[#d4af37]/60 border-r-[#d4af37]/60 shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
-          : "bg-[#061830] border border-white/10 hover:border-white/25 hover:bg-[#092244]"
+          ? "bg-[#17488c] border-l-4 border-l-[#ffd700] border-y-[#ffd700]/70 border-r-[#ffd700]/70 shadow-[0_4px_25px_rgba(20,70,140,0.5)]"
+          : "bg-[#0c2f5e] border border-white/15 hover:border-sky-300/40 hover:bg-[#123e7a]"
         }`}
     >
       <div className="flex items-center gap-3 min-w-0">
-        <div className="h-10 w-10 rounded-md bg-[#040e1a] border border-white/15 flex items-center justify-center shrink-0 font-display font-black text-base text-[#d4af37]">
+        <div className="h-10 w-10 rounded-md bg-[#09254d] border border-[#ffd700]/60 flex items-center justify-center shrink-0 font-display font-black text-base text-[#ffd700]">
           #{player.jersey_number ?? "--"}
         </div>
 
-        <div className="relative h-11 w-11 rounded-md overflow-hidden bg-[#071933] border border-white/15 shrink-0">
+        <div className="relative h-11 w-11 rounded-md overflow-hidden bg-[#0a2752] border border-white/20 shrink-0">
           {player.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={player.avatar_url}
               alt={player.full_name}
-              className="h-full w-full object-cover object-top"
+              className="h-full w-full object-cover object-top filter brightness-105 contrast-105"
             />
           ) : (
-            <div className="h-full w-full flex items-center justify-center text-[10px] font-bold text-slate-400">
+            <div className="h-full w-full flex items-center justify-center text-[10px] font-bold text-sky-200">
               {posBadge.code}
             </div>
           )}
@@ -255,7 +255,7 @@ function CompactPlayerRow({
               {player.full_name}
             </h4>
             {player.nickname && (
-              <span className="text-xs text-[#d4af37] font-semibold shrink-0">
+              <span className="text-xs text-[#ffd700] font-semibold shrink-0">
                 ({player.nickname})
               </span>
             )}
@@ -266,7 +266,7 @@ function CompactPlayerRow({
             >
               {posBadge.code}
             </span>
-            <span className="text-[11px] text-slate-400 truncate">
+            <span className="text-[11px] text-sky-200/80 truncate">
               Xã {hamlet}
             </span>
           </div>
@@ -275,11 +275,11 @@ function CompactPlayerRow({
 
       <div className="text-right shrink-0 pl-2">
         {isSelected ? (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#d4af37] text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#ffd700] text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm">
             <span>ĐANG XEM</span>
           </span>
         ) : (
-          <span className="text-[11px] font-semibold text-slate-400 group-hover:text-white transition inline-flex items-center gap-1">
+          <span className="text-[11px] font-semibold text-sky-200 group-hover:text-white transition inline-flex items-center gap-1">
             <span>Xem</span>
             <ArrowRight className="h-3 w-3" />
           </span>
@@ -618,27 +618,27 @@ export function PublicGuestPortal({
       {nextMatch && (
         <section
           id="match-center"
-          className="relative bg-gradient-to-b from-[#061830] via-[#092244] to-[#061830] py-16 sm:py-24 overflow-hidden border-y border-white/10"
+          className="relative bg-gradient-to-b from-[#0e3164] via-[#123e7a] to-[#0c2b57] py-16 sm:py-24 overflow-hidden border-y border-white/15"
         >
           <span
             aria-hidden="true"
-            className="absolute -left-4 top-1/2 -translate-y-1/2 font-display font-black text-[24vw] leading-none text-white/[0.02] select-none whitespace-nowrap pointer-events-none"
+            className="absolute -left-4 top-1/2 -translate-y-1/2 font-display font-black text-[24vw] leading-none text-white/[0.03] select-none whitespace-nowrap pointer-events-none"
           >
             MATCHDAY
           </span>
           <div className={`${WRAP} relative`}>
             <Reveal>
               {/* Technical Section Index */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-6 border-b border-white/10">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-6 border-b border-white/15">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#d4af37] bg-[#d4af37]/15 px-2.5 py-1 rounded border border-[#d4af37]/30">
+                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700] bg-[#ffd700]/15 px-2.5 py-1 rounded border border-[#ffd700]/40">
                     01 // MATCHDAY FIXTURE
                   </span>
-                  <span className="text-xs uppercase font-extrabold tracking-widest text-slate-300">
+                  <span className="text-xs uppercase font-extrabold tracking-widest text-slate-200">
                     {nextMatch.label}
                   </span>
                 </div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold uppercase tracking-wider">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span>
                     {(data.attendances || []).filter(
@@ -650,14 +650,14 @@ export function PublicGuestPortal({
               </div>
 
               {/* TV Broadcast Scoreboard Box */}
-              <div className="mt-8 rounded-xl bg-[#041224] border border-white/15 p-6 sm:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.85)] relative overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent" />
+              <div className="mt-8 rounded-xl bg-gradient-to-br from-[#123e7a] via-[#0e3164] to-[#0a2347] border border-[#ffd700]/50 p-6 sm:p-10 shadow-[0_20px_50px_rgba(14,49,100,0.5)] relative overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent" />
 
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] items-center gap-8 lg:gap-12">
                   {/* Đội chủ nhà FC Gò Nổi */}
                   <div className="flex flex-col lg:items-end items-center text-center lg:text-right space-y-2">
                     <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-bold uppercase tracking-widest text-[#d4af37] bg-[#d4af37]/10 px-2 py-0.5 rounded border border-[#d4af37]/30">
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-[#ffd700] bg-[#ffd700]/15 px-2 py-0.5 rounded border border-[#ffd700]/40">
                         CHỦ NHÀ
                       </span>
                     </div>
@@ -670,7 +670,7 @@ export function PublicGuestPortal({
                   </div>
 
                   {/* Tỷ số hoặc VS Broadcast Center */}
-                  <div className="flex flex-col items-center justify-center px-6 py-4 rounded-lg bg-[#061b36] border border-white/10 shrink-0">
+                  <div className="flex flex-col items-center justify-center px-6 py-4 rounded-lg bg-[#0a2752] border border-white/20 shrink-0 shadow-md">
                     {nextMatch.team_score !== null &&
                       nextMatch.opponent_score !== null ? (
                       <div className="font-display font-black text-5xl sm:text-7xl text-[#fde047] leading-none tracking-tight">
@@ -679,11 +679,11 @@ export function PublicGuestPortal({
                         {nextMatch.opponent_score}
                       </div>
                     ) : (
-                      <div className="font-display font-black text-4xl sm:text-5xl text-[#d4af37] leading-none tracking-widest">
+                      <div className="font-display font-black text-4xl sm:text-5xl text-[#ffd700] leading-none tracking-widest">
                         VS
                       </div>
                     )}
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-2">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-200 mt-2">
                       SÂN 7 NGƯỜI
                     </span>
                   </div>
@@ -691,30 +691,30 @@ export function PublicGuestPortal({
                   {/* Đội đối thủ */}
                   <div className="flex flex-col lg:items-start items-center text-center lg:text-left space-y-2">
                     <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-slate-300 bg-white/10 px-2 py-0.5 rounded border border-white/20">
                         ĐỐI THỦ
                       </span>
                     </div>
                     <h2 className="font-display font-black uppercase text-4xl sm:text-6xl lg:text-7xl text-sky-100 tracking-tight leading-none">
                       {nextMatch.opponent}
                     </h2>
-                    <p className="text-xs text-slate-400 uppercase tracking-widest">
+                    <p className="text-xs text-sky-200/80 uppercase tracking-widest">
                       Giao Hữu Phong Trào
                     </p>
                   </div>
                 </div>
 
                 {/* Match Bottom Bar */}
-                <div className="mt-10 pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="mt-10 pt-6 border-t border-white/15 flex flex-col md:flex-row items-center justify-between gap-6">
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-8 gap-y-2 text-sm text-white">
                     <span className="inline-flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-[#d4af37]" />
+                      <Clock className="h-4 w-4 text-[#ffd700]" />
                       <span className="font-bold">{nextMatch.kickoff_time}</span>
-                      <span className="text-slate-400">•</span>
+                      <span className="text-white/40">•</span>
                       <span>{formatDateVN(nextMatch.match_date)}</span>
                     </span>
-                    <span className="inline-flex items-center gap-2 text-sky-200">
-                      <MapPin className="h-4 w-4 text-[#d4af37]" />
+                    <span className="inline-flex items-center gap-2 text-sky-100">
+                      <MapPin className="h-4 w-4 text-[#ffd700]" />
                       <span>{nextMatch.venue}</span>
                     </span>
                   </div>
@@ -723,7 +723,7 @@ export function PublicGuestPortal({
                     <button
                       type="button"
                       onClick={() => setPosterModalOpen(true)}
-                      className="inline-flex items-center gap-2 bg-[#061b36] hover:bg-[#092b57] text-[#d4af37] border border-[#d4af37]/50 font-extrabold px-5 py-3.5 text-xs uppercase tracking-wider rounded-lg cursor-pointer transition shadow-md"
+                      className="inline-flex items-center gap-2 bg-[#0f376a] hover:bg-[#144788] text-[#ffd700] border border-[#ffd700]/60 font-extrabold px-5 py-3.5 text-xs uppercase tracking-wider rounded-lg cursor-pointer transition shadow-md"
                       title="Tải trực tiếp ảnh đội hình ra sân về máy để gửi vào Zalo"
                     >
                       <Camera className="h-4 w-4" />
@@ -733,7 +733,7 @@ export function PublicGuestPortal({
                     <button
                       type="button"
                       onClick={onOpenLogin}
-                      className="inline-flex items-center gap-2.5 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-black px-6 py-3.5 text-xs uppercase tracking-widest rounded-lg cursor-pointer transition shadow-lg hover:shadow-xl"
+                      className="inline-flex items-center gap-2.5 bg-gradient-to-r from-[#ffd700] to-[#f5c518] hover:from-[#f5c518] hover:to-[#ffd700] text-slate-950 font-black px-6 py-3.5 text-xs uppercase tracking-widest rounded-lg cursor-pointer transition shadow-lg hover:shadow-xl"
                     >
                       <SoccerBallIcon className="h-4 w-4" />
                       <span>Đăng nhập để điểm danh</span>
@@ -1060,32 +1060,32 @@ export function PublicGuestPortal({
       {/* ===================== CẦU THỦ NÒNG CỐT 23+ (BROADCAST SQUAD ROSTER) ===================== */}
       <section
         id="squad-section"
-        className="relative bg-gradient-to-b from-[#092244] via-[#071933] to-[#092244] py-20 sm:py-28 overflow-hidden border-y border-[#d4af37]/20"
+        className="relative bg-gradient-to-b from-[#0e3164] via-[#123e7a] to-[#0c2b57] py-20 sm:py-28 overflow-hidden border-y border-[#ffd700]/30"
       >
         <div className={WRAP}>
           <Reveal>
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 pb-8 border-b border-white/10">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 pb-8 border-b border-white/15">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#d4af37] bg-[#d4af37]/15 px-2.5 py-1 rounded border border-[#d4af37]/30">
+                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700] bg-[#ffd700]/15 px-2.5 py-1 rounded border border-[#ffd700]/40">
                     03 // ĐỘI HÌNH &amp; HỒ SƠ 23+ CẦU THỦ
                   </span>
-                  <span className="text-xs uppercase font-extrabold tracking-widest text-slate-400">
+                  <span className="text-xs uppercase font-extrabold tracking-widest text-sky-200">
                     ROSTER 2026
                   </span>
                 </div>
                 <h2 className="mt-3 font-display font-black uppercase leading-tight text-4xl sm:text-6xl text-white">
-                  Đội hình <span className="text-[#d4af37]">23+ chiến binh</span>
+                  Đội hình <span className="text-[#ffd700]">23+ chiến binh</span>
                 </h2>
-                <p className="text-xs sm:text-sm text-sky-200 mt-2 max-w-2xl leading-relaxed font-light">
+                <p className="text-xs sm:text-sm text-sky-100 mt-2 max-w-2xl leading-relaxed font-light">
                   Bảng danh sách đăng ký thi đấu chính thức mùa giải 2026. Chọn cầu thủ bên danh sách để xem thẻ vận động viên và hồ sơ chuyên sâu.
                 </p>
               </div>
 
               {/* Thông số nhanh */}
               <div className="flex items-center gap-3">
-                <div className="bg-[#051426] px-5 py-3 rounded-lg border border-[#d4af37]/40 shadow-sm text-right">
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">
+                <div className="bg-[#0c2f5e] px-5 py-3 rounded-lg border border-[#ffd700]/50 shadow-md text-right">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-sky-200 block">
                     Đội hình chính thức
                   </span>
                   <span className="text-2xl font-display font-black text-[#fde047] leading-none">
@@ -1111,18 +1111,18 @@ export function PublicGuestPortal({
 
             {/* CỘT 1/2 BÊN PHẢI: TEAM SHEET ROSTER */}
             <div className="lg:col-span-6 space-y-4">
-              <div className="rounded-xl bg-[#061830] border border-white/10 p-4 sm:p-5 shadow-xl space-y-4">
+              <div className="rounded-xl bg-[#0e3366] border border-white/20 p-4 sm:p-5 shadow-xl space-y-4">
                 {/* Thanh tìm kiếm & lọc */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                   {/* Ô tìm kiếm */}
                   <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-sky-300/70" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-sky-200" />
                     <input
                       type="text"
                       value={playerSearchQuery}
                       onChange={(e) => setPlayerSearchQuery(e.target.value)}
                       placeholder="Tìm theo tên, số áo, vị trí..."
-                      className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#092244] border border-white/15 text-white placeholder-sky-200/50 text-xs focus:outline-none focus:border-[#d4af37] transition"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#09254d] border border-white/25 text-white placeholder-sky-200/60 text-xs focus:outline-none focus:border-[#ffd700] transition"
                     />
                     {playerSearchQuery && (
                       <button
@@ -1136,7 +1136,7 @@ export function PublicGuestPortal({
                   </div>
 
                   {/* Filter tabs */}
-                  <div className="flex items-center gap-1 p-1 rounded-lg bg-[#092244] border border-white/10 text-xs font-bold uppercase tracking-wider shrink-0">
+                  <div className="flex items-center gap-1 p-1 rounded-lg bg-[#09254d] border border-white/20 text-xs font-bold uppercase tracking-wider shrink-0">
                     {(
                       [
                         ["all", "Tất cả"],
@@ -1149,7 +1149,7 @@ export function PublicGuestPortal({
                         type="button"
                         onClick={() => setSquadFilter(key)}
                         className={`px-3 py-1.5 rounded transition cursor-pointer ${squadFilter === key
-                            ? "bg-[#d4af37] text-slate-950 font-black shadow-sm"
+                            ? "bg-[#ffd700] text-slate-950 font-black shadow-sm"
                             : "text-sky-200 hover:text-white"
                           }`}
                       >
@@ -1159,11 +1159,11 @@ export function PublicGuestPortal({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-slate-400 px-1 pt-1 border-t border-white/10">
+                <div className="flex items-center justify-between text-xs text-slate-300 px-1 pt-1 border-t border-white/15">
                   <span>
                     Hiển thị: <strong className="text-[#fde047]">{displayedSquad.length}</strong> cầu thủ
                   </span>
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-[11px] text-sky-200/80">
                     Chọn cầu thủ để xem hồ sơ bên trái
                   </span>
                 </div>
@@ -1172,7 +1172,7 @@ export function PublicGuestPortal({
               {/* Danh sách cuộn thu nhỏ */}
               <div className="space-y-2 max-h-[640px] overflow-y-auto pr-1 gn-hide-scroll">
                 {displayedSquad.length === 0 ? (
-                  <div className="p-8 text-center rounded-xl bg-[#061830] border border-white/10 text-slate-400 text-sm">
+                  <div className="p-8 text-center rounded-xl bg-[#0e3366] border border-white/20 text-slate-300 text-sm">
                     Không tìm thấy cầu thủ nào phù hợp với &ldquo;{playerSearchQuery}&rdquo;
                   </div>
                 ) : (
@@ -1226,77 +1226,77 @@ export function PublicGuestPortal({
 
             {/* 4 Trụ cột cam kết chào đón anh em (Athletic Technical Index) */}
             <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-              <div className="rounded-xl bg-[#041224] p-6 border border-white/10 hover:border-[#d4af37]/60 shadow-lg transition group">
+              <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-6 border border-white/20 hover:border-[#ffd700]/60 shadow-lg transition group">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-display font-black text-2xl text-[#d4af37]">
+                  <span className="font-display font-black text-2xl text-[#ffd700]">
                     01
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-white/5 px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-sky-200 bg-white/10 px-2 py-0.5 rounded">
                     QUY MÔ
                   </span>
                 </div>
-                <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-[#d4af37] transition">
+                <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-[#ffd700] transition">
                   23+ Cầu thủ nòng cốt
                 </h3>
-                <p className="text-xs sm:text-sm text-sky-200/80 leading-relaxed font-light">
+                <p className="text-xs sm:text-sm text-sky-100 leading-relaxed font-light">
                   Đội bóng đã quy tụ hơn 23 anh em từ các thế hệ và luôn mở rộng đón nhận thêm thành viên mới mỗi tuần mà không giới hạn số lượng.
                 </p>
               </div>
 
-              <div className="rounded-xl bg-[#041224] p-6 border border-white/10 hover:border-emerald-500/60 shadow-lg transition group">
+              <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-6 border border-white/20 hover:border-emerald-400/60 shadow-lg transition group">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-display font-black text-2xl text-emerald-400">
                     02
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-white/5 px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-sky-200 bg-white/10 px-2 py-0.5 rounded">
                     CƠ HỘI
                   </span>
                 </div>
                 <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-emerald-300 transition">
                   Ai cũng được ra sân
                 </h3>
-                <p className="text-xs sm:text-sm text-sky-200/80 leading-relaxed font-light">
+                <p className="text-xs sm:text-sm text-sky-100 leading-relaxed font-light">
                   Chỉ cần bạn yêu bóng đá và mang trong mình nhiệt huyết quê hương. Đội luôn tạo điều kiện xoay tua để mọi anh em đều được đá và toả sáng.
                 </p>
               </div>
 
-              <div className="rounded-xl bg-[#041224] p-6 border border-white/10 hover:border-sky-400/60 shadow-lg transition group">
+              <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-6 border border-white/20 hover:border-sky-300/60 shadow-lg transition group">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-display font-black text-2xl text-sky-400">
+                  <span className="font-display font-black text-2xl text-sky-300">
                     03
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-white/5 px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-sky-200 bg-white/10 px-2 py-0.5 rounded">
                     NGHĨA TÌNH
                   </span>
                 </div>
-                <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-sky-300 transition">
+                <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-sky-200 transition">
                   Gắn kết đồng hương
                 </h3>
-                <p className="text-xs sm:text-sm text-sky-200/80 leading-relaxed font-light">
+                <p className="text-xs sm:text-sm text-sky-100 leading-relaxed font-light">
                   Sau 90 phút trên sân cỏ là những câu chuyện quê nhà, hỗ trợ nhau trong công việc, nghề nghiệp và cuộc sống tại đất Sài Gòn.
                 </p>
               </div>
 
-              <div className="rounded-xl bg-[#041224] p-6 border border-white/10 hover:border-[#fde047]/60 shadow-lg transition group">
+              <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-6 border border-white/20 hover:border-[#fde047]/60 shadow-lg transition group">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-display font-black text-2xl text-[#fde047]">
                     04
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-white/5 px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-sky-200 bg-white/10 px-2 py-0.5 rounded">
                     QUẢN TRỊ
                   </span>
                 </div>
                 <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-[#fde047] transition">
                   Minh bạch &amp; Bài bản
                 </h3>
-                <p className="text-xs sm:text-sm text-sky-200/80 leading-relaxed font-light">
+                <p className="text-xs sm:text-sm text-sky-100 leading-relaxed font-light">
                   Hệ thống website quản lý hiện đại: quỹ thu chi công khai từng đồng, điểm danh trực tuyến và thông báo lịch đấu rõ ràng hàng tuần.
                 </p>
               </div>
             </div>
 
             {/* Khung hành động & Ban Quản Lý */}
-            <div className="mt-10 rounded-xl bg-[#041224] p-6 sm:p-8 border border-[#d4af37]/40 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 shadow-2xl">
+            <div className="mt-10 rounded-xl bg-gradient-to-r from-[#123e7a] via-[#164a91] to-[#0e3164] p-6 sm:p-8 border border-[#ffd700]/50 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 shadow-2xl">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[#d4af37] block mb-1">
                   BẠN LÀ NGƯỜI CON GÒ NỔI TẠI TP.HCM?

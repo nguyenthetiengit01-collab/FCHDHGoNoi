@@ -33,7 +33,7 @@ import { convertFileToWebp, convertMultipleFilesToWebp } from "@/lib/imageToWebp
 import { ModalDialog } from "./ModalDialog";
 import { ImageLightboxModal, type LightboxImage } from "./ImageLightboxModal";
 import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
-import { formatBirthYear, BIRTH_YEAR_OPTIONS } from "@/lib/athleteProfile";
+import { formatBirthYear, BIRTH_YEAR_OPTIONS, getPlayerHamlet } from "@/lib/athleteProfile";
 
 interface PlayersTabProps {
   data: FullAppData;
@@ -562,7 +562,7 @@ export function PlayersTab({
                     </span>
                   </div>
                   <p className="text-slate-600">
-                    Năm sinh: <strong>{formatBirthYear(p.birth_year) || "1991"}</strong> • Vị trí:{" "}
+                    Năm sinh: <strong>{formatBirthYear(p.birth_year) || "—"}</strong> • Vị trí:{" "}
                     <strong className="text-[#0284c7]">{p.position}</strong>
                   </p>
                   <p className="text-slate-600">
@@ -632,9 +632,9 @@ export function PlayersTab({
                           </span>
                         </p>
                         <p className="text-[11px] text-slate-500 mt-0.5">
-                          Năm sinh: <strong>{formatBirthYear(p.birth_year) || "1991"}</strong> •{" "}
+                          Năm sinh: <strong>{formatBirthYear(p.birth_year) || "—"}</strong> •{" "}
                           <span className="text-slate-700 font-medium">
-                            Xã {p.hometown || "Điện Quang"}
+                            Xã {getPlayerHamlet(p)}
                           </span>
                           {p.nickname ? (
                             <span className="text-[#1e4fc2] font-semibold">
@@ -789,8 +789,7 @@ export function PlayersTab({
         }
         subtitle={
           detailPlayer
-            ? `${detailPlayer.position} • Năm sinh: ${formatBirthYear(detailPlayer.birth_year) || "1991"
-            } • Tên gọi: ${detailPlayer.short_name}`
+            ? `${detailPlayer.position} • ${formatBirthYear(detailPlayer.birth_year) ? `Năm sinh: ${formatBirthYear(detailPlayer.birth_year)}` : "Thành viên nòng cốt"} • Xã ${getPlayerHamlet(detailPlayer)} • Tên sân: ${detailPlayer.short_name}`
             : ""
         }
       >

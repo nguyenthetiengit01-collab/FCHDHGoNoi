@@ -20,8 +20,8 @@ describe("BroadcastAthleteCard - Deep Module Domain Logic", () => {
 
   it("extracts canonical hometown / hamlet accurately", () => {
     expect(getPlayerHamlet({ hometown: "Điện Quang", notes: "" })).toBe("Điện Quang");
-    expect(getPlayerHamlet({ hometown: "Điện Trung", notes: "" })).toBe("Điện Trung");
-    expect(getPlayerHamlet({ hometown: "Điện Phong", notes: "" })).toBe("Điện Phong");
+    expect(getPlayerHamlet({ hometown: "Xã Điện Phong", notes: "" })).toBe("Điện Phong");
+    expect(getPlayerHamlet({ hometown: "xã: Điện Trung", notes: "" })).toBe("Điện Trung");
     expect(getPlayerHamlet({ hometown: "", notes: "Cầu thủ quê gốc Xã Điện Phong" })).toBe("Điện Phong");
   });
 

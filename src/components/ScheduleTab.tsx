@@ -23,7 +23,6 @@ import {
   KeyRound,
   Quote,
   Upload,
-  Shield,
   Camera,
 } from "lucide-react";
 import type {
@@ -41,6 +40,7 @@ import {
 } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
 import { MatchdayRosterPosterModal } from "./MatchdayRosterPoster";
+import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
 import { formatBirthYear, BIRTH_YEAR_OPTIONS } from "@/lib/athleteProfile";
 
 interface ScheduleTabProps {
@@ -966,169 +966,127 @@ export function ScheduleTab({
                     </div>
                   </div>
 
-                  {/* Thẻ định danh cầu thủ Hoàng Gia Sapphire & Vàng Gold */}
-                  <div className="rounded-2xl bg-gradient-to-br from-[#071933] via-[#0d2e5b] to-[#124285] text-white p-4 sm:p-5 border-2 border-[#ffc933]/60 shadow-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                      {/* Avatar Chân Dung Nửa Thân Trên */}
-                      <div className="relative shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={me.avatar_url || "/uploads/avatars/member-1.jpg"}
-                          alt={me.full_name}
-                          className="h-24 w-20 sm:h-28 sm:w-24 rounded-xl object-cover object-top border-2 border-[#ffc933] bg-slate-900 shadow-md"
-                        />
-                        <span className="absolute -bottom-2 -right-2 rounded-lg bg-[#ffc933] text-slate-950 px-2 py-0.5 text-xs font-black border border-[#1e4fc2] shadow-xs">
-                          #{me.jersey_number ?? "-"}
+                  {/* Thẻ Vận Động Viên Đồng Bộ Tuyệt Đối Chuẩn Toàn Dự Án */}
+                  <BroadcastAthleteCard
+                    player={me}
+                    matches={matches}
+                    attendances={attendances}
+                    layout="split"
+                    actions={
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRosterViewMode("team_roster")}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 hover:bg-white/10 px-3 py-2 text-xs font-bold text-slate-200 transition cursor-pointer"
+                          title="Xem danh sách điểm danh cả đội tuần này"
+                        >
+                          <Users className="h-3.5 w-3.5 text-[#ffd700]" />
+                          <span>DS Đội ({registeredPlayers.length})</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={openEditMyProfile}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#ffd700] to-[#f5c518] hover:from-[#f5c518] hover:to-[#ffd700] px-3.5 py-2 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                          <span>Sửa Hồ Sơ &amp; Bài Viết</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPwdError("");
+                            setPwdNewUsername(me.username || "");
+                            setPwdOldPin("");
+                            setPwdNewPin("");
+                            setPwdModalOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2 text-xs font-bold text-white transition cursor-pointer"
+                        >
+                          <KeyRound className="h-3.5 w-3.5 text-[#ffd700]" />
+                          <span>Đổi Mật Khẩu</span>
+                        </button>
+                      </div>
+                    }
+                  />
+
+                  {/* Thanh Điểm Danh Nhanh Tuần Này & Tài Chính Cá Nhân */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {/* Hộp điểm danh nhanh */}
+                    <div className="rounded-xl bg-gradient-to-r from-[#123e7a] to-[#0d2d5a] border border-[#ffd700]/50 p-3.5 flex flex-col justify-between gap-2.5 text-white shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-sky-200 font-bold flex items-center gap-1.5">
+                          <Clock className="h-4 w-4 text-[#ffd700]" />
+                          <span>Điểm danh: {activeMatch.label}</span>
                         </span>
+                        {myAttendance?.rsvp_status === "registered" ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                            <span>Có Mặt Ra Sân</span>
+                          </span>
+                        ) : myAttendance?.rsvp_status === "absent_notice" ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase text-rose-300 bg-rose-950/60 border border-rose-500/40 px-2 py-0.5 rounded">
+                            <XCircle className="h-3.5 w-3.5 text-rose-400" />
+                            <span>Báo Vắng Trận Này</span>
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-bold text-amber-300 bg-amber-950/50 border border-amber-500/40 px-2 py-0.5 rounded">
+                            Chưa điểm danh
+                          </span>
+                        )}
                       </div>
 
-                      {/* Thông tin chính */}
-                      <div className="flex-1 text-center sm:text-left space-y-1.5 min-w-0">
-                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                          <h4 className="text-lg sm:text-xl font-extrabold text-white">
-                            {me.full_name}
-                          </h4>
-                          <span className="rounded-full bg-[#1e4fc2] px-2.5 py-0.5 text-xs font-bold text-[#ffc933] border border-[#ffc933]/40">
-                            Tên sân: {me.short_name}
-                          </span>
-                          <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold text-sky-200">
-                            @{me.username || me.short_name.toLowerCase()}
-                          </span>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold border inline-flex items-center gap-1 ${
-                              me.access_role === "manager"
-                                ? "bg-[#ffc933] text-slate-950 border-[#ffc933]"
-                                : "bg-emerald-600 text-white border-emerald-400"
-                            }`}
-                          >
-                            {me.access_role === "manager" ? (
-                              <>
-                                <Shield className="h-3 w-3" />
-                                <span>Ban Quản Lý</span>
-                              </>
-                            ) : (
-                              <span>⚽ Cầu Thủ Thành Viên</span>
-                            )}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[#ffc933]/20 border border-[#ffc933]/50 px-2.5 py-0.5 text-xs font-bold text-[#ffc933]">
-                            <MapPin className="h-3 w-3" />
-                            <span>Xã {me.hometown || "Điện Quang"}</span>
-                          </span>
-                          {me.nickname && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-400/20 border border-sky-400/40 px-2.5 py-0.5 text-xs font-extrabold text-sky-200">
-                              <Sparkles className="h-3 w-3 text-[#ffc933]" />
-                              <span>&ldquo;{me.nickname}&rdquo;</span>
-                            </span>
-                          )}
-                        </div>
-
-                        <p className="text-xs text-sky-100">
-                          Vị trí: <strong className="text-[#ffc933]">{me.position}</strong> •{" "}
-                          Năm sinh: <strong>{formatBirthYear(me.birth_year) || "—"}</strong>
-                          {me.phone ? ` • SĐT: ${me.phone}` : ""}
-                          {me.playing_style ? ` • Lối chơi: ${me.playing_style}` : ""}
-                        </p>
-
-                        {/* Album ảnh cá nhân nếu có */}
-                        {me.gallery_urls && me.gallery_urls.length > 0 && (
-                          <div className="pt-1 flex items-center gap-2">
-                            <span className="text-[11px] uppercase tracking-wider text-sky-200 font-bold flex items-center gap-1">
-                              <Camera className="h-3 w-3 text-[#ffc933]" />
-                              <span>Album ({me.gallery_urls.length} ảnh):</span>
-                            </span>
-                            <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-                              {me.gallery_urls.map((url, idx) => (
-                                <div
-                                  key={idx}
-                                  className="h-8 w-8 rounded-lg overflow-hidden border border-[#ffc933]/50 shrink-0 bg-black/40"
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={url}
-                                    alt={`Ảnh ${idx + 1}`}
-                                    className="h-full w-full object-cover"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Điểm danh tuần này của chính cầu thủ */}
-                        <div className="pt-2 flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                          <span className="text-xs text-sky-200 font-medium">
-                            Điểm danh {activeMatch.label}:
-                          </span>
-                          {myAttendance?.rsvp_status === "registered" ? (
-                            <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 text-white font-extrabold text-xs px-2.5 py-1 shadow-xs">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>Đã đăng ký Có Mặt Ra Sân</span>
-                            </span>
-                          ) : myAttendance?.rsvp_status === "absent_notice" ? (
-                            <span className="inline-flex items-center gap-1 rounded-lg bg-rose-600 text-white font-extrabold text-xs px-2.5 py-1 shadow-xs">
-                              <XCircle className="h-3.5 w-3.5" />
-                              <span>Đã báo Vắng Trận Này</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-lg bg-amber-400 text-slate-950 font-extrabold text-xs px-2.5 py-1">
-                              <span>Chưa điểm danh</span>
-                            </span>
-                          )}
-
-                          <div className="inline-flex items-center gap-1 ml-1">
-                            <button
-                              type="button"
-                              disabled={isSaving}
-                              onClick={() => handleSetRsvp(session.playerId!, "registered")}
-                              className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
-                                myAttendance?.rsvp_status === "registered"
-                                  ? "bg-white text-emerald-800 font-black"
-                                  : "bg-emerald-700/80 hover:bg-emerald-600 text-white"
-                              }`}
-                            >
-                              Có mặt
-                            </button>
-                            <button
-                              type="button"
-                              disabled={isSaving}
-                              onClick={() => handleSetRsvp(session.playerId!, "absent_notice")}
-                              className={`px-2 py-1 rounded text-[11px] font-bold transition cursor-pointer ${
-                                myAttendance?.rsvp_status === "absent_notice"
-                                  ? "bg-white text-rose-800 font-black"
-                                  : "bg-rose-700/80 hover:bg-rose-600 text-white"
-                              }`}
-                            >
-                              Báo vắng
-                            </button>
-                          </div>
-                        </div>
+                      <div className="flex items-center gap-2 pt-1 border-t border-white/10">
+                        <button
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() => handleSetRsvp(session.playerId!, "registered")}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-black transition cursor-pointer text-center ${
+                            myAttendance?.rsvp_status === "registered"
+                              ? "bg-emerald-500 text-white shadow-xs"
+                              : "bg-emerald-700/80 hover:bg-emerald-600 text-white"
+                          }`}
+                        >
+                          ✓ Xác Nhận Ra Sân
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() => handleSetRsvp(session.playerId!, "absent_notice")}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-black transition cursor-pointer text-center ${
+                            myAttendance?.rsvp_status === "absent_notice"
+                              ? "bg-rose-500 text-white shadow-xs"
+                              : "bg-rose-700/80 hover:bg-rose-600 text-white"
+                          }`}
+                        >
+                          ✕ Báo Bận Vắng
+                        </button>
                       </div>
                     </div>
 
-                    {/* 4 Chỉ số thi đấu & chuyên cần cá nhân */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-white/15 text-center sm:text-left">
-                      <div className="rounded-xl bg-white/10 p-2.5 border border-white/10">
-                        <span className="text-[11px] text-sky-200 block">Số trận đã tham gia</span>
-                        <span className="text-base font-extrabold text-white">
-                          {myMatchesPlayed}/{matches.length} trận
+                    {/* Hộp tài chính & chuyên cần cá nhân */}
+                    <div className="grid grid-cols-2 gap-2 text-center text-white">
+                      <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-3 border border-sky-300/30 flex flex-col justify-center">
+                        <span className="text-[10px] uppercase font-bold text-sky-200 tracking-wider">
+                          Tiền Quỹ Đã Nộp
                         </span>
-                      </div>
-                      <div className="rounded-xl bg-white/10 p-2.5 border border-white/10">
-                        <span className="text-[11px] text-sky-200 block">Tỷ lệ chuyên cần</span>
-                        <span className="text-base font-extrabold text-[#ffc933]">
-                          {myRate}%
-                        </span>
-                      </div>
-                      <div className="rounded-xl bg-white/10 p-2.5 border border-white/10">
-                        <span className="text-[11px] text-sky-200 block">Tiền quỹ đã nộp</span>
-                        <span className="text-base font-extrabold text-emerald-300">
+                        <span className="text-base font-black text-emerald-300 mt-0.5">
                           {formatVND(myTotalPaid)}
                         </span>
+                        <span className="text-[9px] text-sky-200/70 mt-0.5">
+                          {myMatchesPlayed}/{matches.length} trận ({myRate}%)
+                        </span>
                       </div>
-                      <div className="rounded-xl bg-white/10 p-2.5 border border-white/10">
-                        <span className="text-[11px] text-sky-200 block">Tiền sân còn nợ</span>
-                        <span className={`text-base font-extrabold ${myTotalUnpaid > 0 ? "text-rose-300" : "text-white"}`}>
+                      <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-3 border border-sky-300/30 flex flex-col justify-center">
+                        <span className="text-[10px] uppercase font-bold text-sky-200 tracking-wider">
+                          Tiền Sân Còn Nợ
+                        </span>
+                        <span className={`text-base font-black mt-0.5 ${myTotalUnpaid > 0 ? "text-rose-300" : "text-white"}`}>
                           {formatVND(myTotalUnpaid)}
+                        </span>
+                        <span className="text-[9px] text-sky-200/70 mt-0.5">
+                          {myTotalUnpaid > 0 ? "Cần thanh toán" : "Đã hoàn thành"}
                         </span>
                       </div>
                     </div>
