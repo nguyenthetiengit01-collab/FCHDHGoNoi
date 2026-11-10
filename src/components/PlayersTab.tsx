@@ -1419,9 +1419,56 @@ export function PlayersTab({
         onConfirm={(res) => {
           setAvatarUrl(res.dataUrl);
           setWebpInfo(
-            `✅ Đã cắt & tối ưu ảnh WebP HD thành công (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+            `✅ Đã cắt ảnh chuẩn 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)! Hãy bấm nút "Lưu Thành Viên" màu xanh bên dưới để hoàn tất.`
           );
         }}
+        onDirectSave={
+          editingPlayer
+            ? async (res) => {
+                if (!isManager && editingPlayer.id === session.playerId) {
+                  await onMutate("update_own_profile", {
+                    player_id: editingPlayer.id,
+                    full_name: fullName,
+                    short_name: shortName,
+                    jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+                    position,
+                    phone,
+                    birth_year: birthYear === "" ? null : Number(birthYear),
+                    avatar_url: res.dataUrl,
+                    notes,
+                    hometown,
+                    nickname,
+                  });
+                } else if (isManager) {
+                  await onMutate("upsert_player", {
+                    id: editingPlayer.id,
+                    code_order: editingPlayer.code_order,
+                    full_name: fullName,
+                    short_name: shortName,
+                    jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+                    position,
+                    phone,
+                    birth_year: birthYear === "" ? null : Number(birthYear),
+                    avatar_url: res.dataUrl,
+                    role,
+                    access_role: accessRole,
+                    pin_code: pinCode,
+                    status,
+                    notes,
+                    hometown,
+                    nickname,
+                    playing_style: playingStyle,
+                    bio,
+                    gallery_urls: galleryUrls,
+                  });
+                }
+                setAvatarUrl(res.dataUrl);
+                setWebpInfo(
+                  `✅ Đã lưu trực tiếp ảnh mới vào hồ sơ cầu thủ (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+                );
+              }
+            : undefined
+        }
       />
 
       {/* Lightbox xem ảnh toàn màn hình */}

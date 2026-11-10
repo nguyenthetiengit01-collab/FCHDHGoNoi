@@ -2267,7 +2267,28 @@ export function ScheduleTab({
           onConfirm={(res) => {
             setProfileAvatarUrl(res.dataUrl);
             setProfileWebpInfo(
-              `✅ Đã cắt & tối ưu ảnh WebP HD thành công (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+              `✅ Đã cắt ảnh chuẩn 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)! Hãy bấm nút "Lưu Hồ Sơ Điểm Danh" màu xanh bên dưới để hoàn tất.`
+            );
+          }}
+          onDirectSave={async (res) => {
+            await onMutate("update_own_profile", {
+              player_id: me.id,
+              short_name: profileShortName || me.short_name,
+              jersey_number: profileJerseyNumber === "" ? null : Number(profileJerseyNumber || me.jersey_number),
+              position: profilePosition || me.position,
+              phone: profilePhone || me.phone,
+              birth_year: profileBirthYear === "" ? null : Number(profileBirthYear || me.birth_year),
+              avatar_url: res.dataUrl,
+              bio: profileBio !== undefined ? profileBio : me.bio,
+              notes: profileNotes !== undefined ? profileNotes : me.notes,
+              hometown: profileHometown !== undefined ? profileHometown : me.hometown,
+              nickname: profileNickname !== undefined ? profileNickname : me.nickname,
+              playing_style: profilePlayingStyle !== undefined ? profilePlayingStyle : me.playing_style,
+              gallery_urls: profileGalleryUrls.length > 0 ? profileGalleryUrls : (me.gallery_urls || []),
+            });
+            setProfileAvatarUrl(res.dataUrl);
+            setProfileWebpInfo(
+              `✅ Đã lưu trực tiếp ảnh mới vào hồ sơ (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
             );
           }}
         />

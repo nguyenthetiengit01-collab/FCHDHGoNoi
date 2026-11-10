@@ -285,6 +285,18 @@ export function PlayerPersonalTab({
             <button
               type="button"
               onClick={() => {
+                setCropperSource(me.avatar_url || "/uploads/avatars/member-1.jpg");
+                setCropperOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-2.5 text-xs font-bold text-sky-200 hover:text-white transition cursor-pointer"
+              title="Mở Studio để canh chỉnh hoặc đổi ảnh đại diện nhanh"
+            >
+              <Crop className="h-4 w-4 text-[#ffd700]" />
+              <span>✂️ Đổi / Canh Chỉnh Ảnh</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 setPwdError("");
                 setNewUsername(me.username || "");
                 setOldPin("");
@@ -1062,7 +1074,29 @@ export function PlayerPersonalTab({
         onConfirm={(res) => {
           setAvatarUrl(res.dataUrl);
           setWebpInfo(
-            `✅ Đã cắt & tối ưu ảnh WebP HD thành công (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+            `✅ Đã cắt ảnh chuẩn 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)! Hãy nhấn nút "Lưu Thay Đổi Hồ Sơ" màu xanh bên dưới để hoàn tất cập nhật.`
+          );
+        }}
+        onDirectSave={async (res) => {
+          await onMutate("update_own_profile", {
+            player_id: me.id,
+            full_name: fullName || me.full_name,
+            short_name: shortName || me.short_name,
+            jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber || me.jersey_number),
+            position: position || me.position,
+            phone: phone || me.phone,
+            birth_year: birthYear === "" ? null : Number(birthYear || me.birth_year),
+            avatar_url: res.dataUrl,
+            bio: bio !== undefined ? bio : me.bio,
+            notes: notes !== undefined ? notes : me.notes,
+            hometown: hometown !== undefined ? hometown : me.hometown,
+            nickname: nickname !== undefined ? nickname : me.nickname,
+            playing_style: playingStyle !== undefined ? playingStyle : me.playing_style,
+            gallery_urls: galleryUrls.length > 0 ? galleryUrls : (me.gallery_urls || []),
+          });
+          setAvatarUrl(res.dataUrl);
+          setWebpInfo(
+            `✅ Đã lưu trực tiếp ảnh mới vào hồ sơ (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
           );
         }}
       />
