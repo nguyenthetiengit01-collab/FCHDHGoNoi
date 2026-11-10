@@ -139,4 +139,22 @@ export const BIRTH_YEAR_OPTIONS: number[] = Array.from(
   (_, i) => 2012 - i
 );
 
+/**
+ * Đường dẫn nội bộ đến hồ sơ cầu thủ độc lập
+ */
+export function getPlayerProfilePath(playerId: number | string): string {
+  return `/cau-thu/${playerId}`;
+}
+
+/**
+ * Đường dẫn URL đầy đủ đến hồ sơ cầu thủ để chia sẻ đa nền tảng
+ */
+export function getPlayerProfileUrl(
+  playerId: number | string,
+  baseUrl = "https://fchdhgonoi.vercel.app"
+): string {
+  return `${baseUrl.replace(/\/+$/, "")}/cau-thu/${playerId}`;
+}
+
+
 

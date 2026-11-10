@@ -6,6 +6,8 @@ import {
   formatBirthYear,
   getPlayerAgeText,
   BIRTH_YEAR_OPTIONS,
+  getPlayerProfilePath,
+  getPlayerProfileUrl,
 } from "./athleteProfile";
 import type { Player } from "@/types/app";
 
@@ -73,5 +75,11 @@ describe("BroadcastAthleteCard - Deep Module Domain Logic", () => {
     expect(images[0].tag).toBe("Hồ Sơ Cầu Thủ");
     expect(images[1].src).toBe("/uploads/gallery/match-1.webp");
     expect(images[1].tag).toBe("Khoảnh Khắc Sân Cỏ");
+  });
+
+  it("generates correct canonical profile path and shareable profile URL", () => {
+    expect(getPlayerProfilePath(12)).toBe("/cau-thu/12");
+    expect(getPlayerProfileUrl(12)).toBe("https://fchdhgonoi.vercel.app/cau-thu/12");
+    expect(getPlayerProfileUrl("99", "https://custom-domain.com")).toBe("https://custom-domain.com/cau-thu/99");
   });
 });

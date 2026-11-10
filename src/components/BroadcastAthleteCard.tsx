@@ -8,6 +8,8 @@ import {
   Loader2,
   MapPin,
   Quote,
+  Share2,
+  Copy,
 } from "lucide-react";
 import type { Player, MatchAttendance, MatchRecord } from "@/types/app";
 import type { LightboxImage } from "./ImageLightboxModal";
@@ -64,6 +66,44 @@ export function BroadcastAthleteCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const getProfileUrl = () => {
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/cau-thu/${player.id}`;
+    }
+    return `https://fchdhgonoi.vercel.app/cau-thu/${player.id}`;
+  };
+
+  const handleCopyProfileLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const url = getProfileUrl();
+      await navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleShareProfile = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = getProfileUrl();
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: `Hồ Sơ Cầu Thủ ${player.full_name} #${player.jersey_number ?? ""}`,
+          text: `Xem hồ sơ vận động viên ${player.full_name} (${posBadge.label} • Xã ${hamlet}) - FC HĐH Gò Nổi`,
+          url,
+        });
+        return;
+      } catch {
+        // Fallback to copy link
+      }
+    }
+    handleCopyProfileLink(e);
+  };
 
   const handleExportCard = async () => {
     if (!cardRef.current || isExporting) return;
@@ -122,6 +162,19 @@ export function BroadcastAthleteCard({
       >
         {exportable && (
           <div data-export-ignore="true" className="absolute top-3 right-3 flex items-center gap-1 z-10">
+            <button
+              type="button"
+              onClick={handleCopyProfileLink}
+              className="inline-flex items-center gap-1 p-1.5 px-2 rounded-lg bg-white/15 hover:bg-white/25 border border-white/25 text-xs font-bold text-white transition cursor-pointer"
+              title="Sao chép link hồ sơ cá nhân"
+            >
+              {copiedLink ? (
+                <Check className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <Copy className="h-3.5 w-3.5 text-sky-200" />
+              )}
+              <span className="text-[10px]">{copiedLink ? "Đã chép!" : "Link"}</span>
+            </button>
             <button
               type="button"
               onClick={handleExportCard}
@@ -244,7 +297,7 @@ export function BroadcastAthleteCard({
             />
             <span>FC HỘI ĐỒNG HƯƠNG GÒ NỔI • OFFICIAL ATHLETE</span>
           </div>
-          <span className="font-mono text-slate-300">fchdhgonoi.vercel.app</span>
+          <span className="font-mono text-slate-300">fchdhgonoi.vercel.app/cau-thu/{player.id}</span>
         </div>
       </div>
     );
@@ -293,6 +346,32 @@ export function BroadcastAthleteCard({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 sm:self-start">
+            <button
+              type="button"
+              data-export-ignore="true"
+              onClick={handleShareProfile}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-3 py-2.5 text-xs font-bold transition cursor-pointer shadow-md"
+              title="Chia sẻ hồ sơ vận động viên qua Zalo / Facebook"
+            >
+              <Share2 className="h-4 w-4 text-sky-200" />
+              <span>Chia sẻ</span>
+            </button>
+
+            <button
+              type="button"
+              data-export-ignore="true"
+              onClick={handleCopyProfileLink}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2.5 text-xs font-bold transition cursor-pointer shadow-md"
+              title="Sao chép đường dẫn hồ sơ"
+            >
+              {copiedLink ? (
+                <Check className="h-4 w-4 text-emerald-400" />
+              ) : (
+                <Copy className="h-4 w-4 text-[#ffd700]" />
+              )}
+              <span>{copiedLink ? "Đã chép link!" : "Copy Link"}</span>
+            </button>
+
             {exportable && (
               <button
                 type="button"
@@ -492,7 +571,7 @@ export function BroadcastAthleteCard({
             <span>FC HỘI ĐỒNG HƯƠNG GÒ NỔI • OFFICIAL ATHLETE</span>
           </div>
           <span className="text-slate-300 font-mono text-[10px] hidden sm:inline">
-            fchdhgonoi.vercel.app
+            fchdhgonoi.vercel.app/cau-thu/{player.id}
           </span>
         </div>
       </section>
@@ -536,6 +615,21 @@ export function BroadcastAthleteCard({
               <MapPin className="h-3.5 w-3.5 text-[#ffd700]" />
               <span>Xã {hamlet}</span>
             </span>
+
+            <button
+              type="button"
+              data-export-ignore="true"
+              onClick={handleCopyProfileLink}
+              className="inline-flex items-center gap-1 rounded-md bg-white/10 hover:bg-white/20 border border-white/20 text-white px-2 py-1 text-xs font-bold transition cursor-pointer"
+              title="Sao chép link hồ sơ cá nhân"
+            >
+              {copiedLink ? (
+                <Check className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <Copy className="h-3.5 w-3.5 text-sky-200" />
+              )}
+              <span className="hidden sm:inline">{copiedLink ? "Đã chép!" : "Copy Link"}</span>
+            </button>
 
             {exportable && (
               <button
@@ -733,7 +827,7 @@ export function BroadcastAthleteCard({
           <span>FC HỘI ĐỒNG HƯƠNG GÒ NỔI • OFFICIAL ATHLETE</span>
         </div>
         <span className="text-slate-300 font-mono text-[10px] hidden sm:inline">
-          fchdhgonoi.vercel.app
+          fchdhgonoi.vercel.app/cau-thu/{player.id}
         </span>
       </div>
     </div>

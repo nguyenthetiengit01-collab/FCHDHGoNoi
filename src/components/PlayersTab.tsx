@@ -19,6 +19,7 @@ import {
   LayoutGrid,
   Camera,
   Sparkles,
+  Crop,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -28,10 +29,11 @@ import type {
 } from "@/types/app";
 import { OFFICIAL_LOGO_URL } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
-import { convertFileToWebp, convertMultipleFilesToWebp } from "@/lib/imageToWebp";
+import { convertMultipleFilesToWebp } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
 import { ImageLightboxModal, type LightboxImage } from "./ImageLightboxModal";
 import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
+import { AvatarCropperModal } from "./AvatarCropperModal";
 import { formatBirthYear, BIRTH_YEAR_OPTIONS, getPlayerHamlet } from "@/lib/athleteProfile";
 
 interface PlayersTabProps {
@@ -92,7 +94,6 @@ export function PlayersTab({
   const [birthYear, setBirthYear] = useState("1991");
   const [avatarUrl, setAvatarUrl] = useState("/uploads/avatars/member-1.jpg");
   const [webpInfo, setWebpInfo] = useState("");
-  const [isConvertingWebp, setIsConvertingWebp] = useState(false);
   const [role, setRole] = useState("Thành viên");
   const [accessRole, setAccessRole] = useState<"manager" | "player">("player");
   const [pinCode, setPinCode] = useState("1234");
@@ -108,6 +109,10 @@ export function PlayersTab({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxImages, setLightboxImages] = useState<LightboxImage[]>([]);
+
+  // Studio Canh Chỉnh & Cắt Ảnh Đại Diện
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropperSource, setCropperSource] = useState<string | File | null>(null);
 
   // Chặn tuyệt đối nếu là Khách (Guest)
   if (session.role === "guest") {
@@ -172,31 +177,14 @@ export function PlayersTab({
     setFormOpen(true);
   }
 
-  const handleImageFileUpload = async (
+  const handleImageFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setIsConvertingWebp(true);
-    setWebpInfo("Đang tự động chuyển ảnh sang định dạng WebP...");
-    try {
-      const converted = await convertFileToWebp(file, {
-        mode: "portrait",
-        maxWidth: 600,
-        maxHeight: 800,
-        quality: 0.86,
-      });
-      setAvatarUrl(converted.dataUrl);
-      setWebpInfo(
-        `✅ Đã tự động chuyển sang chuẩn WebP (${converted.webpFileName} • ${converted.originalSizeKB}KB → ${converted.webpSizeKB}KB${converted.savedPercent > 0 ? `, nhẹ hơn ${converted.savedPercent}%` : ""
-        })`
-      );
-    } catch {
-      setWebpInfo("❌ Không thể xử lý ảnh. Vui lòng chọn file ảnh khác.");
-    } finally {
-      setIsConvertingWebp(false);
-      e.target.value = "";
-    }
+    setCropperSource(file);
+    setCropperOpen(true);
+    e.target.value = "";
   };
 
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -933,21 +921,37 @@ export function PlayersTab({
               className="h-24 w-20 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shrink-0"
             />
             <div className="space-y-2 flex-1 text-center sm:text-left">
-              <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition">
-                <Upload className="h-3.5 w-3.5" />
-                <span>
-                  {isConvertingWebp
-                    ? "Đang chuyển đổi ảnh sang WebP..."
-                    : "Tải Ảnh Hồ Sơ (Tự Động Chuyển Sang WebP)"}
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition">
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>Tải Ảnh Mới (Canh Chỉnh Studio)</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageFileUpload}
+                    className="sr-only"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (avatarUrl) {
+                      setCropperSource(avatarUrl);
+                      setCropperOpen(true);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-900 px-3 py-2 text-xs font-bold transition cursor-pointer"
+                  title="Mở Studio để kéo thả, phóng to và cắt ảnh theo ý muốn"
+                >
+                  <Crop className="h-3.5 w-3.5 text-amber-700" />
+                  <span>✂️ Canh Chỉnh / Cắt Ảnh</span>
+                </button>
+
+                <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[11px] font-bold text-emerald-700">
+                  Chuẩn 3:4 WebP HD
                 </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={isConvertingWebp}
-                  onChange={handleImageFileUpload}
-                  className="sr-only"
-                />
-              </label>
+              </div>
               {webpInfo && (
                 <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 inline-block">
                   {webpInfo}
@@ -1402,6 +1406,24 @@ export function PlayersTab({
           </div>
         </form>
       </ModalDialog>
+      {/* Studio Canh Chỉnh & Cắt Ảnh Đại Diện Chuẩn 3:4 */}
+      <AvatarCropperModal
+        isOpen={cropperOpen}
+        onClose={() => {
+          setCropperOpen(false);
+          setCropperSource(null);
+        }}
+        imageSource={cropperSource}
+        playerName={fullName || "Cầu thủ"}
+        jerseyNumber={jerseyNumber}
+        onConfirm={(res) => {
+          setAvatarUrl(res.dataUrl);
+          setWebpInfo(
+            `✅ Đã cắt & tối ưu ảnh WebP HD thành công (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+          );
+        }}
+      />
+
       {/* Lightbox xem ảnh toàn màn hình */}
       <ImageLightboxModal
         isOpen={lightboxOpen}

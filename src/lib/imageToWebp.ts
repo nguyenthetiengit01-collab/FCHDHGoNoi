@@ -188,3 +188,154 @@ export async function convertMultipleFilesToWebp(
   return results;
 }
 
+export interface AvatarCropTransform {
+  zoom: number; // 1.0 -> 4.0
+  panX: number; // Offset X tính trên viewport
+  panY: number; // Offset Y tính trên viewport
+  rotation: number; // 0, 90, 180, 270 độ
+  flipH: boolean; // Lật ngang
+  brightness: number; // -50 đến +50 (0 là bình thường)
+  contrast: number; // -50 đến +50 (0 là bình thường)
+  viewportWidth: number; // Kích thước viewport hiển thị (ví dụ 300)
+  viewportHeight: number; // Kích thước viewport hiển thị (ví dụ 400)
+  targetWidth?: number; // Độ phân giải xuất ra (mặc định 900px)
+  targetHeight?: number; // Độ phân giải xuất ra (mặc định 1200px)
+  quality?: number; // 0.88
+  fileName?: string;
+}
+
+/**
+ * Tải ảnh an toàn từ File, DataURL hoặc URL để vẽ lên Canvas
+ */
+export function loadImageElement(source: string | File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Không thể tải hình ảnh để xử lý."));
+
+    if (typeof source === "string") {
+      img.src = source;
+    } else {
+      const reader = new FileReader();
+      reader.onload = () => {
+        img.src = String(reader.result);
+      };
+      reader.onerror = () => reject(new Error("Không thể đọc file hình ảnh."));
+      reader.readAsDataURL(source);
+    }
+  });
+}
+
+/**
+ * Cắt & hiệu chỉnh ảnh đại diện cầu thủ với độ phân giải cao WebP (900x1200px)
+ */
+export async function renderCroppedAvatarWebp(
+  source: string | File | HTMLImageElement,
+  transform: AvatarCropTransform
+): Promise<WebpConversionResult> {
+  const {
+    zoom = 1,
+    panX = 0,
+    panY = 0,
+    rotation = 0,
+    flipH = false,
+    brightness = 0,
+    contrast = 0,
+    viewportWidth = 300,
+    viewportHeight = 400,
+    targetWidth = 900,
+    targetHeight = 1200,
+    quality = 0.88,
+    fileName = "avatar-cau-thu.webp",
+  } = transform;
+
+  const img =
+    source instanceof HTMLImageElement ? source : await loadImageElement(source);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Trình duyệt không hỗ trợ Canvas 2D.");
+  }
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  // Áp dụng bộ lọc ánh sáng & tương phản nếu có
+  const filterParts: string[] = [];
+  if (brightness !== 0) {
+    filterParts.push(`brightness(${100 + brightness}%)`);
+  }
+  if (contrast !== 0) {
+    filterParts.push(`contrast(${100 + contrast}%)`);
+  }
+  if (filterParts.length > 0) {
+    ctx.filter = filterParts.join(" ");
+  }
+
+  // Tỉ lệ scale giữa viewport xem trước và canvas thực tế xuất ra
+  const resMultiplier = targetWidth / viewportWidth;
+
+  // Tính toán kích thước ảnh cơ sở để cover viewport
+  const baseScale = Math.max(
+    viewportWidth / img.naturalWidth,
+    viewportHeight / img.naturalHeight
+  );
+
+  const finalDrawW = img.naturalWidth * baseScale * zoom * resMultiplier;
+  const finalDrawH = img.naturalHeight * baseScale * zoom * resMultiplier;
+
+  ctx.save();
+  // Di chuyển tâm vẽ tới tọa độ trung tâm + pan di chuyển của người dùng
+  ctx.translate(
+    targetWidth / 2 + panX * resMultiplier,
+    targetHeight / 2 + panY * resMultiplier
+  );
+
+  // Xoay ảnh
+  if (rotation !== 0) {
+    ctx.rotate((rotation * Math.PI) / 180);
+  }
+
+  // Lật ảnh ngang
+  if (flipH) {
+    ctx.scale(-1, 1);
+  }
+
+  // Vẽ ảnh tâm đối xứng
+  ctx.drawImage(img, -finalDrawW / 2, -finalDrawH / 2, finalDrawW, finalDrawH);
+  ctx.restore();
+
+  // Xuất WebP
+  let webpDataUrl = canvas.toDataURL("image/webp", quality);
+
+  // Fallback nếu trình duyệt cũ không hỗ trợ WebP từ canvas
+  if (!webpDataUrl.startsWith("data:image/webp")) {
+    webpDataUrl = canvas.toDataURL("image/jpeg", quality);
+  }
+
+  const webpSizeKB = estimateBase64SizeKB(webpDataUrl);
+  const originalSizeKB =
+    typeof source === "object" && "size" in source
+      ? Math.round(source.size / 1024)
+      : webpSizeKB;
+
+  return {
+    dataUrl: webpDataUrl,
+    originalSizeKB,
+    webpSizeKB,
+    savedPercent:
+      originalSizeKB > webpSizeKB
+        ? Math.round(((originalSizeKB - webpSizeKB) / originalSizeKB) * 100)
+        : 0,
+    width: targetWidth,
+    height: targetHeight,
+    webpFileName: fileName.endsWith(".webp") ? fileName : `${fileName}.webp`,
+  };
+}
+
+

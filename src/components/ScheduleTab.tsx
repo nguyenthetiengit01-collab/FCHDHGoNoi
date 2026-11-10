@@ -26,6 +26,7 @@ import {
   Camera,
   Eye,
   EyeOff,
+  Crop,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -37,12 +38,12 @@ import type {
 import { FANPAGE_URL, OFFICIAL_LOGO_URL } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
 import {
-  convertFileToWebp,
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
 import { MatchdayRosterPosterModal } from "./MatchdayRosterPoster";
 import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
+import { AvatarCropperModal } from "./AvatarCropperModal";
 import { formatBirthYear, BIRTH_YEAR_OPTIONS } from "@/lib/athleteProfile";
 
 interface ScheduleTabProps {
@@ -358,7 +359,6 @@ export function ScheduleTab({
   const [profileBirthYear, setProfileBirthYear] = useState("");
   const [profileAvatarUrl, setProfileAvatarUrl] = useState("");
   const [profileWebpInfo, setProfileWebpInfo] = useState("");
-  const [isConvertingProfileWebp, setIsConvertingProfileWebp] = useState(false);
   const [profileBio, setProfileBio] = useState("");
   const [profileNotes, setProfileNotes] = useState("");
   const [profileHometown, setProfileHometown] = useState("Điện Quang");
@@ -367,6 +367,10 @@ export function ScheduleTab({
   const [profileGalleryUrls, setProfileGalleryUrls] = useState<string[]>([]);
   const [isConvertingProfileGallery, setIsConvertingProfileGallery] = useState(false);
   const [profileGalleryWebpInfo, setProfileGalleryWebpInfo] = useState("");
+
+  // Studio Canh Chỉnh & Cắt Ảnh Đại Diện
+  const [profileCropperOpen, setProfileCropperOpen] = useState(false);
+  const [profileCropperSource, setProfileCropperSource] = useState<string | File | null>(null);
 
   // State cho Modal Đổi Tên Đăng Nhập & Mật Khẩu Cá Nhân
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
@@ -400,32 +404,14 @@ export function ScheduleTab({
     setProfileModalOpen(true);
   };
 
-  const handleProfileImageUpload = async (
+  const handleProfileImageUpload = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setIsConvertingProfileWebp(true);
-    setProfileWebpInfo("Đang tự động chuyển ảnh chân dung sang định dạng WebP...");
-    try {
-      const converted = await convertFileToWebp(file, {
-        mode: "portrait",
-        maxWidth: 600,
-        maxHeight: 800,
-        quality: 0.86,
-      });
-      setProfileAvatarUrl(converted.dataUrl);
-      setProfileWebpInfo(
-        `✅ Đã tự động chuyển sang chuẩn WebP (${converted.originalSizeKB}KB → ${converted.webpSizeKB}KB${
-          converted.savedPercent > 0 ? `, nhẹ hơn ${converted.savedPercent}%` : ""
-        })`
-      );
-    } catch {
-      setProfileWebpInfo("❌ Không thể xử lý ảnh. Vui lòng chọn file ảnh khác.");
-    } finally {
-      setIsConvertingProfileWebp(false);
-      e.target.value = "";
-    }
+    setProfileCropperSource(file);
+    setProfileCropperOpen(true);
+    e.target.value = "";
   };
 
   const handleProfileGalleryUpload = async (
@@ -1816,21 +1802,37 @@ export function ScheduleTab({
                 className="h-24 w-20 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shrink-0 bg-slate-900"
               />
               <div className="space-y-2 flex-1 text-center sm:text-left">
-                <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition">
-                  <Upload className="h-3.5 w-3.5" />
-                  <span>
-                    {isConvertingProfileWebp
-                      ? "Đang chuyển sang WebP..."
-                      : "Tải Ảnh Chân Dung (Tự Động Chuyển WebP)"}
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition">
+                    <Upload className="h-3.5 w-3.5" />
+                    <span>Tải Ảnh Mới (Canh Chỉnh Studio)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfileImageUpload}
+                      className="sr-only"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (profileAvatarUrl) {
+                        setProfileCropperSource(profileAvatarUrl);
+                        setProfileCropperOpen(true);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-900 px-3 py-2 text-xs font-bold transition cursor-pointer"
+                    title="Mở Studio để kéo thả, phóng to và cắt ảnh theo ý muốn"
+                  >
+                    <Crop className="h-3.5 w-3.5 text-amber-700" />
+                    <span>✂️ Canh Chỉnh / Cắt Ảnh</span>
+                  </button>
+
+                  <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[11px] font-bold text-emerald-700">
+                    Chuẩn 3:4 WebP HD
                   </span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={isConvertingProfileWebp}
-                    onChange={handleProfileImageUpload}
-                    className="sr-only"
-                  />
-                </label>
+                </div>
                 {profileWebpInfo && (
                   <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 inline-block">
                     {profileWebpInfo}
@@ -2069,7 +2071,7 @@ export function ScheduleTab({
               </button>
               <button
                 type="submit"
-                disabled={isSaving || isConvertingProfileWebp}
+                disabled={isSaving || isConvertingProfileGallery}
                 className="rounded-xl bg-[#1e4fc2] hover:bg-[#2f66dd] disabled:opacity-50 px-5 py-2 text-xs font-black text-[#ffc933] shadow-md cursor-pointer"
               >
                 {isSaving ? "Đang lưu..." : "Lưu Hồ Sơ & Bài Viết"}
@@ -2249,6 +2251,26 @@ export function ScheduleTab({
             </div>
           </form>
         </ModalDialog>
+      )}
+
+      {/* Studio Canh Chỉnh & Cắt Ảnh Đại Diện Chuẩn 3:4 */}
+      {me && (
+        <AvatarCropperModal
+          isOpen={profileCropperOpen}
+          onClose={() => {
+            setProfileCropperOpen(false);
+            setProfileCropperSource(null);
+          }}
+          imageSource={profileCropperSource}
+          playerName={me.full_name}
+          jerseyNumber={me.jersey_number}
+          onConfirm={(res) => {
+            setProfileAvatarUrl(res.dataUrl);
+            setProfileWebpInfo(
+              `✅ Đã cắt & tối ưu ảnh WebP HD thành công (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+            );
+          }}
+        />
       )}
 
       {/* Modal Xem & Xuất Ảnh Bảng Điểm Danh Trận Đấu */}

@@ -349,3 +349,4 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
     </div>
   );
 }
+
