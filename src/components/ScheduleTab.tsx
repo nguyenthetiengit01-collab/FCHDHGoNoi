@@ -284,7 +284,7 @@ export function ScheduleTab({
 
     const baseLines = [
       `🔥 [THÔNG BÁO LỊCH THI ĐẤU TUẦN] — FC HĐH GÒ NỔI TẠI TP. HCM ⚽`,
-      `💛💙 Gắn kết tình quê hương Gò Nổi – Điện Bàn – Quảng Nam trên sân cỏ Sài Gòn!`,
+      `💛💙 Gắn kết tình quê hương Xã Gò Nổi (TP. Đà Nẵng) – cội nguồn 3 xã Điện Quang, Điện Trung, Điện Phong cũ trên sân cỏ Sài Gòn!`,
       ``,
       `🏆 Trận đấu: ${m.label} (${m.opponent})`,
       `⏰ Thời gian: ${m.kickoff_time} | Ngày ${formatDateVN(m.match_date)}`,

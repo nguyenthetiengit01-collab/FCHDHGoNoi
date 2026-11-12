@@ -542,7 +542,7 @@ export function BroadcastAthleteCard({
                   Xã {hamlet}
                 </span>
                 <span className="text-[9px] text-sky-200/80 block mt-0.5">
-                  Gò Nổi (Quảng Nam)
+                  Xã Gò Nổi • TP. Đà Nẵng
                 </span>
               </div>
               <div className="bg-[#0c2f5e]/85 p-2.5 rounded-lg border border-sky-300/25 backdrop-blur-xs">
@@ -826,7 +826,7 @@ export function BroadcastAthleteCard({
             Xã {hamlet}
           </span>
           <span className="text-[9px] text-sky-200/80 block mt-0.5">
-            Gò Nổi, Điện Bàn
+            Xã Gò Nổi • TP. Đà Nẵng
           </span>
         </div>
         <div className="bg-[#0c2f5e]/85 p-2.5 sm:p-3 rounded-lg border border-sky-300/25 backdrop-blur-xs">

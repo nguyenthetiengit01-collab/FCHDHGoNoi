@@ -7,8 +7,9 @@ Quy tắc tiêu thụ và cập nhật tài liệu nghiệp vụ cho FC HĐH Gò
 - **`GLOSSARY.md`** tại thư mục gốc của repository: Định nghĩa chuẩn các thuật ngữ nghiệp vụ (Cầu thủ, Ban Quản Lý, Khách, Trận đấu, RSVP, Ra sân thực tế, Quỹ trận, Sổ cái, Thẻ VĐV).
 - **`docs/adr/`**: Đọc các quyết định kiến trúc trước khi thay đổi các cấu trúc lớn.
 
-## Vocabulary Rules
+## Core Club Story & Brand Standards
 
-- Khi đặt tên biến, tên hàm, tiêu đề issue, bài viết hay thông báo: Luôn dùng thuật ngữ được định nghĩa trong `GLOSSARY.md`.
-- Tránh các từ đồng nghĩa mơ hồ nằm trong mục `_Avoid_` (ví dụ: dùng `Player` thay vì `User/Member`, dùng `Manager` thay vì `Admin`).
+- **Đội bóng**: **FC HĐH Gò Nổi tại TP.HCM** — đại diện cho **xã Gò Nổi** sau sáp nhập thuộc **TP. Đà Nẵng**.
+- **Cội nguồn quê quán**: Giữ nguyên tên **3 xã cũ (Điện Quang, Điện Trung, Điện Phong thuộc TX. Điện Bàn, tỉnh Quảng Nam cũ)** để anh em đồng hương biết rõ về nhau và nhớ về nguồn gốc.
+- **Nhãn hiển thị địa phương của CLB**: `Xã Gò Nổi • TP. Đà Nẵng` (thay vì ghi cứng Điện Bàn • Quảng Nam).
 

@@ -191,7 +191,7 @@ export function MatchdayRosterPosterModal({
                 />
                 <div>
                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#ffd700] block">
-                    ĐIỆN BÀN • QUẢNG NAM
+                    XÃ GÒ NỔI • TP. ĐÀ NẴNG
                   </span>
                   <h1 className="font-display font-black uppercase text-base sm:text-lg text-white tracking-wide leading-tight">
                     FC HỘI ĐỒNG HƯƠNG GÒ NỔI

@@ -48,7 +48,7 @@ export const CLUB_TIMELINE_YEARS: Array<{
     id: "2025",
     label: "Mùa Giải 2025",
     highlight: "Khẳng Định Bản Lĩnh",
-    description: "Tham dự các giải phủi đồng hương Điện Bàn - Quảng Nam, thắt chặt nghĩa tình",
+    description: "Tham dự các giải bóng đá đồng hương, thắt chặt nghĩa tình người con đất Quảng - Đà",
   },
   {
     id: "2024",
@@ -126,7 +126,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     summary:
       "Dưới ánh đèn rực rỡ của các sân cỏ nhân tạo TP.HCM, những bước chạy thanh thoát và lối đá máu lửa của anh em Gò Nổi đã tạo nên những trận cầu nghẹt thở, cống hiến trọn vẹn cho người hâm mộ quê nhà.",
     paragraphs: [
-      "Bước vào mỗi giải đấu phong trào, FC HĐH Gò Nổi luôn mang trong mình niềm tự hào đại diện cho mảnh đất ba xã Điện Quang, Điện Trung, Điện Phong. Không chỉ là sự so tài về kỹ chiến thuật trên mặt cỏ nhân tạo, mỗi trận đấu là dịp để anh em khẳng định bản lĩnh kiên cường, sự bền bỉ của người con xứ Quảng xa quê.",
+      "Bước vào mỗi giải đấu phong trào, FC HĐH Gò Nổi tại TP.HCM luôn mang trong mình niềm tự hào đại diện cho xã Gò Nổi (TP. Đà Nẵng) cùng cội nguồn ba xã anh em Điện Quang, Điện Trung, Điện Phong cũ. Không chỉ là sự so tài về kỹ chiến thuật trên mặt cỏ nhân tạo, mỗi trận đấu là dịp để anh em khẳng định bản lĩnh kiên cường, sự bền bỉ của người con quê nhà xa xứ.",
       "Ở từng pha bóng tranh chấp quyết liệt từ giữa sân cho đến những pha phản công thần tốc bên cánh, các cầu thủ luôn thi đấu với hơn 100% sức lực. Dưới sự chỉ đạo nhịp nhàng của Đội trưởng Thế Tiếng cùng sự chắc chắn của hàng thủ do Đội phó Viết Tín chỉ huy, đội bóng đã thể hiện lối chơi gắn kết, tôn trọng đối thủ và cống hiến những pha phối hợp đẹp mắt.",
       "Tiếng reo hò từ đường biên của các cổ động viên đồng hương là nguồn động lực to lớn giúp các cầu thủ vượt qua những thời khắc căng thẳng nhất. Dù thắng hay hòa, điều đọng lại sâu sắc nhất vẫn là tinh thần fair-play, nụ cười rạng rỡ và sự tự hào khi cùng khoác lên mình màu áo quê hương.",
     ],
@@ -411,7 +411,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     summary:
       "Sinh ra từ mảnh đất bãi bồi trù phú được bao bọc bởi hai nhánh sông Thu Bồn, những người con Gò Nổi xa quê đã cùng nhau dựng xây nên một mái nhà thể thao tràn đầy nghĩa tình tại phương Nam.",
     paragraphs: [
-      "Vùng đất Gò Nổi gồm ba xã Điện Quang, Điện Trung, Điện Phong vốn nức tiếng hiếu học, kiên cường và giàu truyền thống cách mạng. Rời quê hương vào TP.HCM lập nghiệp, mỗi người mang một số phận, một công việc khác nhau, nhưng trong tim ai cũng đau đáu nỗi nhớ quê.",
+      "Vùng đất Gò Nổi — nay là xã Gò Nổi thuộc TP. Đà Nẵng, trước đây gồm ba xã Điện Quang, Điện Trung, Điện Phong (TX. Điện Bàn, Quảng Nam cũ) — vốn nức tiếng hiếu học, kiên cường và giàu truyền thống cách mạng. Rời quê hương vào TP.HCM lập nghiệp, mỗi người mang một số phận, một công việc khác nhau, nhưng trong tim ai cũng đau đáu nỗi nhớ quê.",
       "Ý tưởng thành lập đội bóng nảy sinh từ một buổi gặp mặt thân mật của một nhóm anh em yêu thể thao vào giữa năm 2024. Với mong muốn tạo ra một không gian sinh hoạt văn hóa, rèn luyện sức khỏe và tương trợ lẫn nhau, FC HĐH Gò Nổi chính thức ra đời.",
       "Từ những ngày đầu gom góp từng chiếc áo tập, tìm kiếm từng cụm sân bóng, đến nay đội đã phát triển thành một tập thể vững mạnh với đông đảo cầu thủ nòng cốt, nhận được sự đồng hành to lớn của Hội đồng hương và các mạnh thường quân quê nhà. Đây chính là minh chứng sống động cho câu ca: 'Người Gò Nổi đi đâu cũng tìm về với nhau'.",
     ],

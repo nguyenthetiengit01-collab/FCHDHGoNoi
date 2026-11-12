@@ -1,6 +1,13 @@
 # FC HĐH Gò Nổi
 
-Hệ thống quản lý thông tin, điểm danh thi đấu, quỹ đội và lưu trữ kỷ niệm cho đội bóng FC Hội Đồng Hương Gò Nổi (Quảng Nam) tại TP.HCM.
+Hệ thống quản lý thông tin, điểm danh thi đấu, quỹ đội và lưu trữ kỷ niệm cho đội bóng **FC HĐH Gò Nổi** tại TP.HCM.
+
+### Câu Chuyện Thương Hiệu & Nguồn Gốc Đội Bóng:
+- **Đội bóng**: **FC HĐH Gò Nổi tại TP.HCM** — đại diện cho **xã Gò Nổi** sau sáp nhập thuộc **TP. Đà Nẵng**.
+- **Cội nguồn quê quán cầu thủ**: Giữ nguyên tên **3 xã cũ (Điện Quang, Điện Trung, Điện Phong thuộc TX. Điện Bàn, tỉnh Quảng Nam cũ)** để anh em biết rõ về nhau, nhận xóm làng và luôn nhớ về nguồn gốc.
+- **Quy chuẩn địa danh trên giao diện**:
+  - Dưới logo CLB, Matchday fixture & Footer: `Xã Gò Nổi • TP. Đà Nẵng`.
+  - Trên Thẻ Vận Động Viên (Profile Card) và bảng đội hình: Quê quán cầu thủ hiển thị `Xã [Điện Quang / Điện Trung / Điện Phong]` kèm nhãn phụ `Xã Gò Nổi • TP. Đà Nẵng`.
 
 ## Language
 
@@ -49,7 +56,7 @@ _Avoid_: Transaction log, balance sheet
 ### Định Danh & Truyền Thông
 
 **Quê Quán Gò Nổi (Hometown)**:
-Gốc gác làng xã của cầu thủ thuộc vùng đất Gò Nổi (TX Điện Bàn, tỉnh Quảng Nam): Xã Điện Quang, Xã Điện Trung, hoặc Xã Điện Phong.
+Gốc gác làng xã của cầu thủ thuộc vùng đất Gò Nổi được ghi nhận theo 3 xã cũ (Điện Quang, Điện Trung, Điện Phong) để anh em đồng hương biết rõ về nhau và nhớ về nguồn gốc bản quán.
 _Avoid_: Address, location
 
 **Thẻ Vận Động Viên Truyền Hình (Broadcast Athlete Card)**:

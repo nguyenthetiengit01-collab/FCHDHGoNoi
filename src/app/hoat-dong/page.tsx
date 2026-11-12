@@ -164,7 +164,7 @@ export default function HoatDongPage() {
           </h1>
 
           <p className="max-w-2xl mx-auto text-sm sm:text-base text-sky-200 font-light leading-relaxed">
-            Nơi lưu giữ từng nhịp đập, trận cầu rực lửa sân 7, những nghĩa tình đồng hương sâu nặng và hành trình quả cảm của những người con quê hương Điện Bàn, Quảng Nam tại Sài Gòn.
+            Nơi lưu giữ từng nhịp đập, trận cầu rực lửa sân 7, những nghĩa tình đồng hương sâu nặng của những người con xã Gò Nổi (TP. Đà Nẵng) – chung cội nguồn 3 xã Điện Quang, Điện Trung, Điện Phong cũ tại Sài Gòn.
           </p>
 
           {/* Ô tìm kiếm nhanh */}

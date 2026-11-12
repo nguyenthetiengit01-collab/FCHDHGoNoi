@@ -2,6 +2,16 @@
 
 Hệ thống quản lý đội bóng FC Hội Đồng Hương Gò Nổi. Website phục vụ quản lý chuyên cần thi đấu, tài chính minh bạch, hồ sơ vận động viên truyền hình và lưu trữ kỷ niệm dài hạn cho hội đồng hương.
 
+## Brand Identity & Story Standards (BẮT BUỘC TUÂN THỦ)
+
+- **Tên đội bóng chính thức**: **FC HĐH Gò Nổi tại TP.HCM**.
+- **Địa danh hành chính hiện tại**: **Xã Gò Nổi, TP. Đà Nẵng** (sau sáp nhập).
+- **Cội nguồn quê quán cầu thủ**: **Điện Phong - Điện Trung - Điện Quang** (3 xã cũ của TX. Điện Bàn, tỉnh Quảng Nam cũ).
+- **Nguyên tắc hiển thị**:
+  - Tên 3 xã cũ được giữ nguyên trong thông tin cá nhân và thẻ VĐV của cầu thủ để anh em biết rõ về nhau và luôn nhớ về nguồn gốc.
+  - Nhãn địa danh đại diện cho CLB (Header, Matchday Fixture, Footer, Banner) thống nhất là: `Xã Gò Nổi • TP. Đà Nẵng`.
+  - Không dùng đơn thuần nhãn cứng "Điện Bàn • Quảng Nam" làm đại diện cho toàn bộ CLB.
+
 ## Tech Stack & Architecture
 
 - **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4.

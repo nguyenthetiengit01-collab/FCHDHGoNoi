@@ -473,7 +473,7 @@ export function PublicGuestPortal({
                 FC HĐH Gò Nổi
               </span>
               <span className="text-[10px] uppercase tracking-widest text-[#d4af37] font-bold block mt-0.5">
-                Điện Bàn • Quảng Nam
+                Xã Gò Nổi • TP. Đà Nẵng
               </span>
             </div>
           </button>
@@ -818,7 +818,7 @@ export function PublicGuestPortal({
                       FC HĐH Gò Nổi
                     </h2>
                     <p className="text-xs text-sky-200 uppercase tracking-widest">
-                      Điện Bàn • Quảng Nam
+                      Xã Gò Nổi • TP. Đà Nẵng
                     </p>
                   </div>
 
@@ -1936,7 +1936,7 @@ export function PublicGuestPortal({
                 className="h-10 w-10 rounded-full object-contain bg-white p-0.5 ring-2 ring-slate-950"
               />
               <span>
-                CLB bóng đá đồng hương Gò Nổi (Điện Bàn, Quảng Nam) tại TP. Hồ Chí Minh
+                CLB bóng đá Hội Đồng Hương Xã Gò Nổi (TP. Đà Nẵng) tại TP. Hồ Chí Minh • Gắn kết con em 3 xã Điện Quang, Điện Trung, Điện Phong cũ
               </span>
             </div>
             <span>© {new Date().getFullYear()} FC HĐH Gò Nổi</span>
