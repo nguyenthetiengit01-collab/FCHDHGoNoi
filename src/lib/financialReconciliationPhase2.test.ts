@@ -69,6 +69,7 @@ const mockMatch: MatchRecord = {
   id: 1,
   match_number: 1,
   match_date: "2026-03-01",
+  kickoff_time: "17:30",
   venue: "Sân Vĩnh Lộc",
   pitch_cost: 900000,
   fee_per_player: 100000,
@@ -77,6 +78,8 @@ const mockMatch: MatchRecord = {
   notes: "",
   payer_name: "Tiếng",
   label: "Trận 1",
+  team_score: null,
+  opponent_score: null,
 };
 
 const mockSettings: TeamSettings = {
@@ -150,6 +153,7 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
       id: i + 1,
       match_number: i + 1,
       match_date: `2026-04-${String(i + 1).padStart(2, "0")}`,
+      kickoff_time: "17:30",
       venue: `Sân bóng số ${i + 1}`,
       pitch_cost: 900000,
       fee_per_player: 100000,
@@ -158,6 +162,8 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
       notes: "",
       payer_name: "Tiếng",
       label: `Trận ${i + 1}`,
+      team_score: null,
+      opponent_score: null,
     }));
 
     const attendances: MatchAttendance[] = matches.map((m) => ({
@@ -288,6 +294,7 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
       id: 10,
       match_number: 10,
       match_date: "2026-05-01",
+      kickoff_time: "17:30",
       venue: "Sân Vĩnh Lộc",
       pitch_cost: 0, // Hủy sân nên chi phí = 0
       fee_per_player: 100000,
@@ -296,6 +303,8 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
       notes: "Trận bị hủy do mưa ngập sân",
       payer_name: "Tiếng",
       label: "Trận 10 (Hủy)",
+      team_score: null,
+      opponent_score: null,
     };
 
     // Khi trận hủy, không có lượt thu tiền trận hợp lệ
@@ -480,6 +489,7 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
           id: 1,
           match_number: 1,
           match_date: "2026-03-01",
+          kickoff_time: "17:30",
           venue: "Sân Vĩnh Lộc",
           pitch_cost: 900000,
           fee_per_player: 100000,
@@ -488,6 +498,8 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
           notes: "",
           payer_name: "Tiếng",
           label: "Trận 1",
+          team_score: null,
+          opponent_score: null,
         },
       ],
       attendances: [
