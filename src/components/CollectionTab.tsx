@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -11,9 +11,20 @@ import {
   XCircle,
   Plus,
   Zap,
+  Save,
+  RotateCcw,
 } from "lucide-react";
 import type { FullAppData, MutateActionFn, AuthSession } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
+import {
+  type CollectionDraftState,
+  getEffectiveAttendance,
+  calculateDraftTotals,
+  buildBatchPayloadItems,
+  loadDraftFromStorage,
+  saveDraftToStorage,
+  clearDraftFromStorage,
+} from "@/lib/collectionDraft";
 
 const VENUE_PRESETS = [
   { venue: "Sân Vĩnh Lộc", cost: 900000, shortLabel: "Vĩnh Lộc (900k)" },
@@ -46,7 +57,6 @@ export function CollectionTab({
   const [collectorName, setCollectorName] = useState<string>(
     session.shortName || managers[0]?.short_name || "Tiếng"
   );
-  const [customAmounts, setCustomAmounts] = useState<Record<number, string>>({});
   const [selectedWalkInPlayerId, setSelectedWalkInPlayerId] =
     useState<string>("");
   const [newWalkInName, setNewWalkInName] = useState<string>("");
@@ -55,6 +65,39 @@ export function CollectionTab({
   const activeMatch =
     matches.find((m) => m.id === selectedMatchId) ||
     matches[matches.length - 1];
+
+  // Local draft state cho trận đấu đang chọn (Record<number, DraftItem>)
+  const [draft, setDraft] = useState<CollectionDraftState>(() =>
+    activeMatch ? loadDraftFromStorage(activeMatch.id) : {}
+  );
+
+  // Khi đổi trận đấu: nạp draft của trận đó
+  const handleSelectMatch = (newMatchId: number) => {
+    const dirtyCount = Object.keys(draft).length;
+    if (dirtyCount > 0 && selectedMatchId !== newMatchId) {
+      const confirmLeave = window.confirm(
+        `Bạn đang có ${dirtyCount} thay đổi chưa lưu ở trận hiện tại. Bạn có chắc muốn chuyển sang trận khác? Các thay đổi nháp vẫn được lưu tạm trên máy.`
+      );
+      if (!confirmLeave) return;
+    }
+    setSelectedMatchId(newMatchId);
+    setDraft(loadDraftFromStorage(newMatchId));
+    const found = matches.find((x) => x.id === newMatchId);
+    if (found) {
+      setPitchVenue(found.venue || "Sân Vĩnh Lộc");
+      setPitchCostInput(String(found.pitch_cost || 900000));
+      setPitchPayer(
+        (found.payer_name || "Tiếng").split("-")[0].trim() || "Tiếng"
+      );
+    }
+  };
+
+  // Đồng bộ draft vào localStorage mỗi khi draft thay đổi
+  useEffect(() => {
+    if (activeMatch) {
+      saveDraftToStorage(activeMatch.id, draft);
+    }
+  }, [draft, activeMatch]);
 
   const [pitchVenue, setPitchVenue] = useState<string>(
     activeMatch?.venue || "Sân Vĩnh Lộc"
@@ -66,6 +109,74 @@ export function CollectionTab({
     (activeMatch?.payer_name || "Tiếng").split("-")[0].trim() || "Tiếng"
   );
 
+  const matchAtts = useMemo(
+    () => (activeMatch ? attendances.filter((a) => a.match_id === activeMatch.id) : []),
+    [attendances, activeMatch]
+  );
+
+  const attByPlayer = useMemo(
+    () => new Map(matchAtts.map((a) => [a.player_id, a])),
+    [matchAtts]
+  );
+
+  // Lấy attendance thực tế sau khi đã áp dụng nháp cục bộ
+  const getPlayerEffective = useCallback(
+    (playerId: number) => {
+      const defaultFee = activeMatch?.fee_per_player || 100000;
+      const origAtt = attByPlayer.get(playerId);
+      const draftItem = draft[playerId];
+      const eff = getEffectiveAttendance(playerId, origAtt, draftItem, defaultFee);
+
+      return {
+        ...origAtt,
+        paid: eff.paid,
+        amount: eff.amount,
+        attended: eff.attended,
+        walk_in: eff.walk_in,
+        isRemoved: eff.isRemoved,
+        isDirty: eff.isDirty,
+        rsvp_status: origAtt?.rsvp_status ?? ("none" as const),
+        collected_by: origAtt?.collected_by || collectorName,
+      };
+    },
+    [attByPlayer, draft, activeMatch, collectorName]
+  );
+
+  // Danh sách thu tiền trận = Các cầu thủ đã Điểm danh (rsvp_status === 'registered')
+  // HOẶC các cầu thủ không đăng ký nhưng vẫn tham gia (walk_in === 1 || attended === 1 || paid === 1)
+  const participatingPlayers = useMemo(() => {
+    return players.filter((p) => {
+      const eff = getPlayerEffective(p.id);
+      if (eff.isRemoved) return false;
+      return (
+        eff.rsvp_status === "registered" ||
+        eff.walk_in === 1 ||
+        eff.attended === 1 ||
+        eff.paid === 1
+      );
+    });
+  }, [players, getPlayerEffective]);
+
+  // Các cầu thủ trong đội CHƯA đăng ký điểm danh & chưa có trong danh sách thu tiền
+  const unregisteredPlayers = useMemo(() => {
+    return players.filter(
+      (p) => !participatingPlayers.some((joined) => joined.id === p.id)
+    );
+  }, [players, participatingPlayers]);
+
+  // Tính toán tổng thu và số lượng theo nháp
+  const totals = useMemo(() => {
+    const defaultFee = activeMatch?.fee_per_player || 100000;
+    return calculateDraftTotals(
+      participatingPlayers,
+      attByPlayer,
+      draft,
+      defaultFee
+    );
+  }, [participatingPlayers, attByPlayer, draft, activeMatch]);
+
+  const dirtyCount = totals.dirtyCount;
+
   if (!activeMatch) {
     return (
       <div className="rounded-xl bg-white p-8 text-center border border-slate-200">
@@ -74,112 +185,112 @@ export function CollectionTab({
     );
   }
 
-  const matchAtts = attendances.filter((a) => a.match_id === activeMatch.id);
-  const attByPlayer = new Map(matchAtts.map((a) => [a.player_id, a]));
+  // Xử lý Toggle Thu Tiền (Lưu vào draft cục bộ, phản hồi ngay 0ms)
+  const handleTogglePaidDraft = (playerId: number) => {
+    const eff = getPlayerEffective(playerId);
+    const newPaid = eff.paid === 1 ? 0 : 1;
+    const defaultFee = activeMatch.fee_per_player || 100000;
+    const newAmount =
+      newPaid === 1
+        ? eff.amount > 0
+          ? eff.amount
+          : defaultFee
+        : eff.amount;
 
-  // Danh sách thu tiền trận = Các cầu thủ đã Điểm danh (rsvp_status === 'registered')
-  // HOẶC các cầu thủ không đăng ký nhưng vẫn tham gia (walk_in === 1 || attended === 1 || paid === 1)
-  const participatingPlayers = players.filter((p) => {
-    const a = attByPlayer.get(p.id);
-    if (!a) return false;
-    return (
-      a.rsvp_status === "registered" ||
-      a.walk_in === 1 ||
-      a.attended === 1 ||
-      a.paid === 1
+    setDraft((prev) => ({
+      ...prev,
+      [playerId]: {
+        attended: newPaid === 1 ? 1 : eff.attended,
+        paid: newPaid,
+        amount: newAmount,
+        walk_in: eff.walk_in,
+        removed: false,
+      },
+    }));
+  };
+
+  // Sửa số tiền thu trong draft
+  const handleAmountChangeDraft = (playerId: number, rawVal: string) => {
+    const num = Number(rawVal.replace(/[^0-9]/g, "")) || 0;
+    const eff = getPlayerEffective(playerId);
+    setDraft((prev) => ({
+      ...prev,
+      [playerId]: {
+        attended: eff.attended,
+        paid: eff.paid,
+        amount: num,
+        walk_in: eff.walk_in,
+        removed: false,
+      },
+    }));
+  };
+
+  // Bỏ cầu thủ khỏi trận trong draft
+  const handleRemoveFromMatchDraft = (playerId: number) => {
+    setDraft((prev) => ({
+      ...prev,
+      [playerId]: {
+        attended: 0,
+        paid: 0,
+        amount: 0,
+        walk_in: 0,
+        removed: true,
+      },
+    }));
+  };
+
+  // Huỷ bỏ các thay đổi nháp
+  const handleDiscardDraft = () => {
+    if (dirtyCount === 0) return;
+    const ok = window.confirm(
+      "Bạn có chắc muốn huỷ bỏ toàn bộ các thay đổi thu tiền chưa lưu của trận này?"
     );
-  });
-
-  // Các cầu thủ trong đội CHƯA đăng ký điểm danh & chưa có trong danh sách thu tiền
-  const unregisteredPlayers = players.filter(
-    (p) => !participatingPlayers.some((joined) => joined.id === p.id)
-  );
-
-  const totalCollected = matchAtts
-    .filter((a) => a.paid === 1)
-    .reduce((s, a) => s + a.amount, 0);
-  const totalPaidCount = matchAtts.filter((a) => a.paid === 1).length;
-  const totalUnpaidCount = participatingPlayers.filter((p) => {
-    const a = attByPlayer.get(p.id);
-    return !a || a.paid === 0;
-  }).length;
-
-  const getPlayerInputAmount = (playerId: number): number => {
-    const existing = attByPlayer.get(playerId);
-    if (customAmounts[playerId] !== undefined) {
-      return Number(customAmounts[playerId].replace(/[^0-9]/g, "")) || 0;
+    if (ok) {
+      clearDraftFromStorage(activeMatch.id);
+      setDraft({});
     }
-    if (existing && existing.amount > 0) {
-      return existing.amount;
-    }
-    return activeMatch.fee_per_player || 100000;
   };
 
-  const handleTogglePaid = async (playerId: number, markPaid: boolean) => {
-    const amt = getPlayerInputAmount(playerId);
-    const existing = attByPlayer.get(playerId);
-    await onMutate("collect_match_fee", {
+  // Lưu toàn bộ phiếu thu lên máy chủ qua 1 Transaction Batch duy nhất
+  const handleSaveBatch = async () => {
+    if (dirtyCount === 0) return;
+    const items = buildBatchPayloadItems(
+      draft,
+      attByPlayer,
+      activeMatch.fee_per_player || 100000
+    );
+    if (items.length === 0) return;
+
+    await onMutate("collect_match_fees_batch", {
       match_id: activeMatch.id,
-      player_id: playerId,
-      attended: 1,
-      paid: markPaid ? 1 : 0,
-      amount: amt,
-      walk_in: existing?.walk_in ?? 0,
       collected_by: collectorName,
+      items,
     });
+
+    clearDraftFromStorage(activeMatch.id);
+    setDraft({});
   };
 
-  const handleUpdateAmountBlur = async (playerId: number) => {
-    const existing = attByPlayer.get(playerId);
-    if (!existing || existing.paid === 0) return;
-    const amt = getPlayerInputAmount(playerId);
-    if (amt === existing.amount) return;
-    await onMutate("collect_match_fee", {
-      match_id: activeMatch.id,
-      player_id: playerId,
-      attended: 1,
-      paid: 1,
-      amount: amt,
-      walk_in: existing.walk_in,
-      collected_by: collectorName,
-    });
-  };
-
-  const handleRemoveFromMatch = async (playerId: number) => {
-    await onMutate("collect_match_fee", {
-      match_id: activeMatch.id,
-      player_id: playerId,
-      attended: 0,
-      paid: 0,
-      amount: 0,
-      walk_in: 0,
-      collected_by: collectorName,
-    });
-    await onMutate("set_rsvp", {
-      match_id: activeMatch.id,
-      player_id: playerId,
-      rsvp_status: "absent_notice",
-    });
-  };
-
-  const handleAddWalkInMember = async (
-    playerId: number,
-    immediatePaid: boolean
-  ) => {
+  // Thêm thành viên có sẵn (Walk-in) trực tiếp vào draft
+  const handleAddWalkInMemberToDraft = (playerId: number) => {
     const amt =
       Number(walkInAmount.replace(/[^0-9]/g, "")) ||
       activeMatch.fee_per_player ||
       100000;
-    await onMutate("add_walkin_player", {
-      match_id: activeMatch.id,
-      player_id: playerId,
-      amount: amt,
-      paid: immediatePaid ? 1 : 0,
-      collected_by: collectorName,
-    });
+    setDraft((prev) => ({
+      ...prev,
+      [playerId]: {
+        attended: 1,
+        paid: 1,
+        amount: amt,
+        walk_in: 1,
+        removed: false,
+      },
+    }));
     setSelectedWalkInPlayerId("");
   };
 
+  // Thêm khách mời mới ngoài danh sách: gọi server tạo record
   const handleAddNewGuestWalkIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWalkInName.trim()) return;
@@ -198,7 +309,7 @@ export function CollectionTab({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       {/* Header Khu Vực Thu Tiền Trận (Chỉ dành cho Ban Quản Lý) */}
       <div className="rounded-xl bg-white p-5 border border-slate-200 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -211,11 +322,10 @@ export function CollectionTab({
               </span>
             </div>
             <h2 className="mt-1.5 text-lg sm:text-xl font-extrabold text-slate-900">
-              Thu Tiền Trận Dựa Trên Danh Sách Điểm Danh
+              Thu Tiền Trận Nhanh (Lưu Tạm & Lưu 1 Lần)
             </h2>
             <p className="text-xs text-slate-600 mt-0.5">
-              Nhập số tiền thực thu & bấm tích xác nhận cho các cầu thủ đã điểm
-              danh, hoặc bổ sung cầu thủ không đăng ký trước nhưng vẫn ra sân.
+              Bấm tích thu tiền hoặc sửa số tiền sẽ được <strong>lưu tạm tức thì</strong> trên máy. Sau khi hoàn tất danh sách, bấm <strong>Lưu Phiếu Thu</strong> để cập nhật hệ thống trong 1 lần duy nhất.
             </p>
           </div>
 
@@ -231,19 +341,7 @@ export function CollectionTab({
               <select
                 id="collect-match-select"
                 value={activeMatch.id}
-                onChange={(e) => {
-                  const idNum = Number(e.target.value);
-                  setSelectedMatchId(idNum);
-                  const found = matches.find((x) => x.id === idNum);
-                  if (found) {
-                    setPitchVenue(found.venue || "Sân Vĩnh Lộc");
-                    setPitchCostInput(String(found.pitch_cost || 900000));
-                    setPitchPayer(
-                      (found.payer_name || "Tiếng").split("-")[0].trim() ||
-                        "Tiếng"
-                    );
-                  }
-                }}
+                onChange={(e) => handleSelectMatch(Number(e.target.value))}
                 className="form-select font-bold text-slate-900"
               >
                 {matches
@@ -262,7 +360,7 @@ export function CollectionTab({
                 htmlFor="collect-manager-select"
                 className="block text-xs font-bold uppercase text-slate-500 mb-1"
               >
-                Người Quản Lý Đang Thu
+                Người Quản Lý Thu Tiền
               </label>
               <select
                 id="collect-manager-select"
@@ -280,7 +378,7 @@ export function CollectionTab({
           </div>
         </div>
 
-        {/* 4 Chỉ số nhanh của trận đang thu */}
+        {/* 4 Chỉ số nhanh của trận đang thu (Phản ánh trực tiếp nháp hiện tại) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-xl bg-slate-50 border border-slate-200 p-3.5">
             <span className="text-xs text-slate-500 font-semibold block">
@@ -292,10 +390,10 @@ export function CollectionTab({
           </div>
           <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3.5">
             <span className="text-xs text-emerald-800 font-semibold block">
-              Đã thu tiền ({totalPaidCount} người)
+              Đã thu ({totals.totalPaidCount} người)
             </span>
             <span className="mt-1 text-lg font-extrabold text-emerald-700 block">
-              {formatVND(totalCollected)}
+              {formatVND(totals.totalCollected)}
             </span>
           </div>
           <div className="rounded-xl bg-amber-50 border border-amber-200 p-3.5">
@@ -303,7 +401,7 @@ export function CollectionTab({
               Chưa nộp tiền trận
             </span>
             <span className="mt-1 text-lg font-extrabold text-amber-900 block">
-              {totalUnpaidCount} người
+              {totals.totalUnpaidCount} người
             </span>
           </div>
           <div className="rounded-xl bg-rose-50 border border-rose-200 p-3.5">
@@ -322,8 +420,7 @@ export function CollectionTab({
             <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#1e4fc2]">
               <Zap className="h-4 w-4 text-amber-600" />
               <span>
-                Chi Tiền Sân Nhanh ({activeMatch.label}) — Chọn sân & người chi
-                1 chạm:
+                Chi Tiền Sân Nhanh ({activeMatch.label}) — Chọn sân & người chi 1 chạm:
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -419,13 +516,12 @@ export function CollectionTab({
                   Danh Sách Cầu Thủ Tham Gia & Thu Tiền ({activeMatch.label})
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Tự động lấy từ danh sách Điểm danh tuần + các cầu thủ bổ sung
-                  tại sân
+                  Thao tác tức thì không cần chờ mạng • Nhớ bấm &quot;Lưu Phiếu Thu&quot; ở thanh dưới
                 </p>
               </div>
             </div>
             <span className="text-xs font-semibold text-slate-600">
-              Định mức chuẩn: <strong>{formatVND(activeMatch.fee_per_player)}</strong>
+              Định mức: <strong>{formatVND(activeMatch.fee_per_player)}</strong>
             </span>
           </div>
 
@@ -433,35 +529,29 @@ export function CollectionTab({
             <div className="rounded-xl bg-slate-50 border border-dashed border-slate-300 p-8 text-center space-y-2">
               <Users className="h-8 w-8 text-slate-400 mx-auto" />
               <p className="text-sm font-bold text-slate-700">
-                Chưa có cầu thủ nào đăng ký điểm danh ở trận này
+                Chưa có cầu thủ nào trong danh sách tham gia trận này
               </p>
               <p className="text-xs text-slate-500">
-                Bạn có thể nhắc anh em vào mục <strong>Lịch & Điểm Danh</strong>{" "}
-                để báo danh, hoặc thêm trực tiếp ở khung bên phải.
+                Bạn có thể bổ sung nhanh từ khung thành viên bên phải.
               </p>
             </div>
           ) : (
             <div className="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden">
               {participatingPlayers.map((p, index) => {
-                const att = attByPlayer.get(p.id);
-                const isPaid = att?.paid === 1;
+                const eff = getPlayerEffective(p.id);
+                const isPaid = eff.paid === 1;
                 const isWalkIn =
-                  att?.walk_in === 1 && att?.rsvp_status !== "registered";
-                const inputVal =
-                  customAmounts[p.id] !== undefined
-                    ? customAmounts[p.id]
-                    : String(
-                        att && att.amount > 0
-                          ? att.amount
-                          : activeMatch.fee_per_player || 100000
-                      );
+                  eff.walk_in === 1 && eff.rsvp_status !== "registered";
+                const isDirty = eff.isDirty;
 
                 return (
                   <div
                     key={p.id}
                     className={`p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
-                      isPaid ? "bg-emerald-50/50" : "bg-white hover:bg-slate-50"
-                    }`}
+                      isPaid
+                        ? "bg-emerald-50/50"
+                        : "bg-white hover:bg-slate-50"
+                    } ${isDirty ? "ring-1 ring-amber-400/80 bg-amber-50/30" : ""}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="text-xs font-bold text-slate-400 w-5">
@@ -480,18 +570,23 @@ export function CollectionTab({
                           </span>
                           {isWalkIn ? (
                             <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-900">
-                              Không đăng ký trước • Vẫn tham gia
+                              Không đăng ký • Tham gia
                             </span>
                           ) : (
                             <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
                               Đã điểm danh
                             </span>
                           )}
+                          {isDirty && (
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900 animate-pulse">
+                              Lưu tạm
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {p.position}
-                          {isPaid && att?.collected_by
-                            ? ` • Người thu: ${att.collected_by}`
+                          {isPaid && (eff.collected_by || collectorName)
+                            ? ` • Người thu: ${eff.collected_by || collectorName}`
                             : ""}
                         </p>
                       </div>
@@ -504,14 +599,10 @@ export function CollectionTab({
                           type="text"
                           inputMode="numeric"
                           aria-label={`Số tiền thu của ${p.full_name}`}
-                          value={inputVal}
+                          value={eff.amount > 0 ? String(eff.amount) : "0"}
                           onChange={(e) =>
-                            setCustomAmounts((prev) => ({
-                              ...prev,
-                              [p.id]: e.target.value.replace(/[^0-9]/g, ""),
-                            }))
+                            handleAmountChangeDraft(p.id, e.target.value)
                           }
-                          onBlur={() => handleUpdateAmountBlur(p.id)}
                           className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 pr-6 text-right text-sm font-bold text-slate-900 focus-visible:outline-2 focus-visible:outline-emerald-600"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 pointer-events-none">
@@ -521,9 +612,8 @@ export function CollectionTab({
 
                       <button
                         type="button"
-                        disabled={isSaving}
-                        onClick={() => handleTogglePaid(p.id, !isPaid)}
-                        className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-extrabold transition cursor-pointer ${
+                        onClick={() => handleTogglePaidDraft(p.id)}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-extrabold transition cursor-pointer select-none ${
                           isPaid
                             ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs"
                             : "bg-amber-400 text-slate-950 hover:bg-amber-500"
@@ -544,8 +634,7 @@ export function CollectionTab({
 
                       <button
                         type="button"
-                        disabled={isSaving}
-                        onClick={() => handleRemoveFromMatch(p.id)}
+                        onClick={() => handleRemoveFromMatchDraft(p.id)}
                         title="Cầu thủ này thực tế không ra sân (Bỏ khỏi danh sách thu)"
                         className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
                       >
@@ -565,12 +654,11 @@ export function CollectionTab({
             <div className="flex items-center gap-2 text-purple-900">
               <UserPlus className="h-5 w-5 text-purple-700" />
               <h3 className="text-base font-bold">
-                Thêm Cầu Thủ Không Đăng Ký Vẫn Tham Gia
+                Thêm Cầu Thủ Vào Phiếu Thu
               </h3>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Dành cho cầu thủ quên điểm danh trên app nhưng vẫn ra sân đá, hoặc
-              khách mời / anh em mới tham gia trận này.
+              Dành cho anh em quên báo danh trên web hoặc khách mời/giao lưu ngoài danh sách.
             </p>
           </div>
 
@@ -594,13 +682,13 @@ export function CollectionTab({
             />
           </div>
 
-          {/* Cách 1: Chọn từ danh sách thành viên trong đội chưa đăng ký */}
+          {/* Cách 1: Chọn từ danh sách thành viên trong đội chưa có trong phiếu */}
           <div className="space-y-2.5">
             <label
               htmlFor="walkin-member-select"
               className="block text-sm font-bold text-slate-800"
             >
-              1. Thành viên trong đội chưa điểm danh ({unregisteredPlayers.length})
+              1. Thành viên trong đội ({unregisteredPlayers.length})
             </label>
             <div className="flex gap-2">
               <select
@@ -618,9 +706,9 @@ export function CollectionTab({
               </select>
               <button
                 type="button"
-                disabled={!selectedWalkInPlayerId || isSaving}
+                disabled={!selectedWalkInPlayerId}
                 onClick={() =>
-                  handleAddWalkInMember(Number(selectedWalkInPlayerId), true)
+                  handleAddWalkInMemberToDraft(Number(selectedWalkInPlayerId))
                 }
                 className="shrink-0 rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-40 cursor-pointer"
               >
@@ -632,15 +720,14 @@ export function CollectionTab({
             {unregisteredPlayers.length > 0 && (
               <div className="pt-1">
                 <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">
-                  Hoặc bấm nhanh vào tên để đưa vào danh sách thu tiền:
+                  Bấm nhanh tên để đưa vào phiếu thu:
                 </span>
                 <div className="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto p-1">
                   {unregisteredPlayers.map((p) => (
                     <button
                       key={p.id}
                       type="button"
-                      disabled={isSaving}
-                      onClick={() => handleAddWalkInMember(p.id, true)}
+                      onClick={() => handleAddWalkInMemberToDraft(p.id)}
                       className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-emerald-900 transition cursor-pointer"
                     >
                       <Plus className="h-3 w-3 text-emerald-600" />
@@ -685,7 +772,70 @@ export function CollectionTab({
           </form>
         </section>
       </div>
+
+      {/* THANH TÁC VỤ CỐ ĐỊNH Ở ĐÁY: HIỆN SỐ LƯỢNG THAY ĐỔI & NÚT LƯU PHIẾU THU */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#081a33]/95 backdrop-blur-md border-t border-white/10 px-4 py-3 shadow-2xl transition-transform">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            {dirtyCount > 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 border border-amber-400/50 px-3 py-1 text-xs font-extrabold text-[#fde047]">
+                <span className="h-2 w-2 rounded-full bg-[#fde047] animate-ping" />
+                <span>{dirtyCount} thay đổi chưa lưu</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-xs font-semibold text-emerald-300">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Đã đồng bộ với máy chủ</span>
+              </span>
+            )}
+
+            <div className="text-xs text-slate-300 hidden md:block">
+              {activeMatch.label} • Thu bởi:{" "}
+              <strong className="text-white">{collectorName}</strong>
+              {totals.netAmountDiff !== 0 && (
+                <span className="ml-2 font-bold text-amber-300">
+                  ({totals.netAmountDiff > 0 ? "+" : ""}
+                  {formatVND(totals.netAmountDiff)})
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            {dirtyCount > 0 && (
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleDiscardDraft}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-600 bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-slate-200 transition cursor-pointer"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Huỷ Thay Đổi</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              disabled={dirtyCount === 0 || isSaving}
+              onClick={handleSaveBatch}
+              className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-extrabold transition cursor-pointer shadow-lg ${
+                dirtyCount > 0 && !isSaving
+                  ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/30"
+                  : "bg-slate-700 text-slate-400 opacity-60 cursor-not-allowed"
+              }`}
+            >
+              <Save className="h-4 w-4" />
+              <span>
+                {isSaving
+                  ? "Đang ghi nhận..."
+                  : dirtyCount > 0
+                  ? `Lưu Phiếu Thu (${dirtyCount})`
+                  : "Phiếu Thu Đã Lưu"}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-

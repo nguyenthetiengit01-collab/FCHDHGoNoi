@@ -143,6 +143,18 @@ export function BroadcastAthleteCard({
 
   const allLightboxImages = buildAthleteLightboxImages(player, fallbackPhotos);
 
+  const profileImageSrc =
+    player.profile_image_url ||
+    (player.gallery_urls && player.gallery_urls.length > 0 ? player.gallery_urls[0] : null) ||
+    (fallbackPhotos.length > 0 ? fallbackPhotos[0] : null);
+
+  const profileImgIdx = allLightboxImages.findIndex(
+    (img) => img.src === (player.profile_image_url || profileImageSrc || "")
+  );
+  const avatarImgIdx = allLightboxImages.findIndex(
+    (img) => img.src === (player.avatar_url || "")
+  );
+
   const handleImageClick = (index = 0) => {
     if (onOpenLightbox && allLightboxImages.length > 0) {
       onOpenLightbox(allLightboxImages, index);
@@ -403,11 +415,34 @@ export function BroadcastAthleteCard({
           </div>
         </div>
 
-        {/* Nội dung danh tính + Ảnh chân dung + Lối chơi */}
+        {/* ẢNH ĐẠI DIỆN GIỚI THIỆU PROFILE CẦU THỦ (KHUNG RỘNG) */}
+        {profileImageSrc && (
+          <div
+            onClick={() => handleImageClick(profileImgIdx >= 0 ? profileImgIdx : 0)}
+            className="relative w-full aspect-[21/9] sm:aspect-[24/9] max-h-[220px] rounded-xl overflow-hidden border border-white/20 shadow-md group cursor-pointer bg-slate-900"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={profileImageSrc}
+              alt={`${player.full_name} - Ảnh Giới Thiệu Profile`}
+              className="w-full h-full object-cover object-center filter brightness-105 group-hover:scale-105 transition duration-700"
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-gradient-to-t from-[#0a244c] via-transparent to-transparent pointer-events-none"
+            />
+            <div className="absolute top-2.5 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded border border-white/20 flex items-center gap-1">
+              <Camera className="h-3 w-3 text-[#ffd700]" />
+              <span>Phóng to</span>
+            </div>
+          </div>
+        )}
+
+        {/* Nội dung danh tính + Ảnh Avatar 3:4 hồ sơ thi đấu + Lối chơi */}
         <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] lg:grid-cols-[180px_1fr] gap-6 items-start">
           <div
-            onClick={() => handleImageClick(0)}
-            className="relative aspect-[3/4] rounded-lg overflow-hidden border border-white/20 bg-gradient-to-b from-[#10386d] via-[#0d2d58] to-[#092244] shadow-lg group cursor-pointer"
+            onClick={() => handleImageClick(avatarImgIdx >= 0 ? avatarImgIdx : 0)}
+            className="relative aspect-[3/4] rounded-lg overflow-hidden border-2 border-[#ffd700]/70 bg-gradient-to-b from-[#10386d] via-[#0d2d58] to-[#092244] shadow-lg group cursor-pointer"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -417,7 +452,10 @@ export function BroadcastAthleteCard({
             />
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded border border-white/20 flex items-center gap-1">
               <Camera className="h-3 w-3 text-[#ffd700]" />
-              <span>Phóng to</span>
+              <span>Avatar 3:4</span>
+            </div>
+            <div className="absolute bottom-1.5 left-1.5 bg-black/75 backdrop-blur-xs px-2 py-0.5 rounded text-[9px] font-bold text-[#ffd700] border border-white/10 pointer-events-none">
+              Avatar 3:4 Hồ Sơ
             </div>
             <div
               aria-hidden="true"
@@ -668,37 +706,63 @@ export function BroadcastAthleteCard({
         </div>
       </div>
 
-      {/* Ảnh chân dung lớn: Nhấp để phóng to Lightbox */}
-      <div
-        onClick={() => handleImageClick(0)}
-        className="relative w-full aspect-[3/4] max-h-[480px] rounded-lg overflow-hidden border border-white/20 shadow-[0_15px_40px_rgba(10,35,80,0.5)] bg-gradient-to-b from-[#10386d] via-[#0d2d58] to-[#092244] flex items-center justify-center cursor-pointer group"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={player.avatar_url || "/uploads/avatars/member-1.jpg"}
-          alt={player.full_name}
-          className="w-full h-full object-cover object-top filter brightness-110 contrast-105 saturate-105 group-hover:scale-105 transition duration-500"
-        />
-
-        {/* Nút bấm phóng to hiển thị khi hover */}
-        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-md border border-white/20 flex items-center gap-1.5 shadow-lg">
-          <Camera className="h-3.5 w-3.5 text-[#ffd700]" />
-          <span>Phóng to ảnh</span>
-        </div>
-
-        {/* Lớp phủ chuyển sắc nhẹ đáy ảnh */}
+      {/* Khung Ảnh Profile Khung Rộng & Avatar Chân Dung Kết Hợp Kép */}
+      <div className="space-y-3">
+        {/* 1. Ảnh Profile Khung Rộng (Toàn thân / Hoạt động sân cỏ) */}
         <div
-          aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#092244] via-[#092244]/60 to-transparent pointer-events-none"
-        />
-
-        {/* Số áo in chìm kỹ thuật */}
-        <span
-          aria-hidden="true"
-          className="absolute right-3 bottom-1 font-display font-black text-7xl text-transparent [-webkit-text-stroke:1.5px_rgba(255,215,0,0.4)] pointer-events-none select-none leading-none drop-shadow-lg"
+          onClick={() => handleImageClick(profileImgIdx >= 0 ? profileImgIdx : 0)}
+          className="relative w-full aspect-[16/9] sm:aspect-[16/10] max-h-[380px] rounded-xl overflow-hidden border border-white/20 shadow-[0_15px_40px_rgba(10,35,80,0.5)] bg-slate-900 group cursor-pointer"
         >
-          {player.jersey_number ?? ""}
-        </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={profileImageSrc || player.avatar_url || "/uploads/avatars/member-1.jpg"}
+            alt={`${player.full_name} - Ảnh Giới Thiệu Profile`}
+            className="w-full h-full object-cover object-center filter brightness-105 group-hover:scale-105 transition duration-700"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-gradient-to-t from-[#092244] via-transparent to-transparent pointer-events-none"
+          />
+          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-md border border-white/20 flex items-center gap-1.5">
+            <Camera className="h-3.5 w-3.5 text-[#ffd700]" />
+            <span>Phóng to</span>
+          </div>
+
+          {/* Huy hiệu Avatar 3:4 chân dung lồng ở góc dưới */}
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              handleImageClick(avatarImgIdx >= 0 ? avatarImgIdx : 0);
+            }}
+            className="absolute bottom-3 left-3 flex items-center gap-2.5 bg-slate-950/85 backdrop-blur-md p-1.5 rounded-xl border border-[#ffd700]/70 shadow-2xl hover:scale-105 transition"
+            title="Nhấp để xem ảnh thẻ Avatar chuẩn 3:4"
+          >
+            <div className="relative h-16 w-12 rounded-lg overflow-hidden border border-white/30 bg-slate-800 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={player.avatar_url || "/uploads/avatars/member-1.jpg"}
+                alt="Avatar 3:4"
+                className="h-full w-full object-cover object-top filter brightness-110"
+              />
+            </div>
+            <div className="pr-2">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-[#ffd700] block">
+                Avatar 3:4
+              </span>
+              <span className="text-xs font-extrabold text-white block">
+                Hồ sơ thi đấu
+              </span>
+            </div>
+          </div>
+
+          {/* Số áo in chìm */}
+          <span
+            aria-hidden="true"
+            className="absolute right-3 bottom-0 font-display font-black text-6xl sm:text-7xl text-transparent [-webkit-text-stroke:1.5px_rgba(255,215,0,0.4)] pointer-events-none select-none leading-none drop-shadow-lg"
+          >
+            {player.jersey_number ?? ""}
+          </span>
+        </div>
       </div>
 
       {/* Thông tin danh tính & Lối chơi */}

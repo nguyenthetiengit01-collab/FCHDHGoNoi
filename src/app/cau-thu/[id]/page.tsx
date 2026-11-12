@@ -34,11 +34,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     player.playing_style ? `Lối chơi: ${player.playing_style}. ` : ""
   }${player.bio || ""}`;
 
-  const avatar = player.avatar_url
-    ? player.avatar_url.startsWith("http")
-      ? player.avatar_url
-      : `https://fchdhgonoi.vercel.app${player.avatar_url}`
+  const shareImageRaw = player.profile_image_url || player.avatar_url;
+  const shareImage = shareImageRaw
+    ? shareImageRaw.startsWith("http")
+      ? shareImageRaw
+      : `https://fchdhgonoi.vercel.app${shareImageRaw}`
     : "https://fchdhgonoi.vercel.app/images/cover-team.jpg";
+  const isWideImage = Boolean(player.profile_image_url);
 
   return {
     title,
@@ -50,9 +52,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       siteName: "FC Hội Đồng Hương Gò Nổi",
       images: [
         {
-          url: avatar,
-          width: 900,
-          height: 1200,
+          url: shareImage,
+          width: isWideImage ? 1600 : 900,
+          height: isWideImage ? 900 : 1200,
           alt: player.full_name,
         },
       ],
@@ -62,7 +64,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       card: "summary_large_image",
       title,
       description,
-      images: [avatar],
+      images: [shareImage],
     },
   };
 }

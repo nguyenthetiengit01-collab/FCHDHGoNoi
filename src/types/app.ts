@@ -52,6 +52,7 @@ export interface Player {
   phone: string;
   birth_year: string;
   avatar_url: string;
+  profile_image_url?: string;
   role: string;
   access_role: "manager" | "player";
   username?: string;
@@ -137,6 +138,41 @@ export interface FinancialSummary {
   categoryBreakdown: CategoryBreakdownItem[];
 }
 
+export type SponsorTier =
+  | "title" // Tài trợ chính
+  | "gold" // Nhà tài trợ Vàng
+  | "silver" // Nhà tài trợ Bạc
+  | "partner" // Đối tác & Đồng hành
+  | "supporter"; // Đơn vị hỗ trợ
+
+export interface Sponsor {
+  id: number;
+  name: string;
+  tier: SponsorTier;
+  logo_url: string;
+  banner_url?: string;
+  website_url?: string;
+  description?: string;
+  slogan?: string;
+  start_date?: string;
+  end_date?: string;
+  show_banner?: number;
+  display_positions?: string[];
+  sort_order: number;
+  is_active: boolean | number;
+  note?: string; // Ghi chú hợp đồng / liên hệ (chỉ BQL thấy)
+  created_at?: string;
+}
+
+export interface BatchCollectFeeItem {
+  player_id: number;
+  attended: number;
+  paid: number;
+  amount: number;
+  walk_in: number;
+  remove?: boolean;
+}
+
 export interface FullAppData {
   settings: TeamSettings;
   players: Player[];
@@ -146,6 +182,7 @@ export interface FullAppData {
   expenses: ExpenseRecord[];
   summary: FinancialSummary;
   posts?: ClubActivityPost[];
+  sponsors?: Sponsor[];
 }
 
 export type MutateActionFn = (

@@ -16,6 +16,8 @@ import type {
   ExpenseRecord,
   RsvpStatus,
   FullAppData,
+  Sponsor,
+  SponsorTier,
 } from "@/types/app";
 
 const TURSO_URL =
@@ -39,6 +41,9 @@ export interface AsyncDb {
     sql: string,
     params?: unknown[]
   ): Promise<{ lastInsertRowid: number; changes: number }>;
+  batch(
+    statements: Array<{ sql: string; params?: unknown[] }>
+  ): Promise<void>;
   exec(sql: string): Promise<void>;
 }
 
@@ -74,6 +79,19 @@ export class TursoDbAdapter implements AsyncDb {
       lastInsertRowid: Number(res.lastInsertRowid || 0),
       changes: Number(res.rowsAffected || 0),
     };
+  }
+
+  async batch(
+    statements: Array<{ sql: string; params?: unknown[] }>
+  ): Promise<void> {
+    if (statements.length === 0) return;
+    await this.client.batch(
+      statements.map((s) => ({
+        sql: s.sql,
+        args: (s.params || []) as InArgs,
+      })),
+      "write"
+    );
   }
 
   async exec(sql: string): Promise<void> {
@@ -117,6 +135,28 @@ export class LocalSqliteAdapter implements AsyncDb {
       lastInsertRowid: Number(res?.lastInsertRowid || 0),
       changes: Number(res?.changes || 0),
     };
+  }
+
+  async batch(
+    statements: Array<{ sql: string; params?: unknown[] }>
+  ): Promise<void> {
+    if (statements.length === 0) return;
+    type RunFn = (...args: unknown[]) => void;
+    this.db.exec("BEGIN TRANSACTION;");
+    try {
+      for (const s of statements) {
+        const stmt = this.db.prepare(s.sql);
+        (stmt.run as RunFn)(...(s.params || []));
+      }
+      this.db.exec("COMMIT;");
+    } catch (err) {
+      try {
+        this.db.exec("ROLLBACK;");
+      } catch {
+        // rollback fail safe
+      }
+      throw err;
+    }
   }
 
   async exec(sql: string): Promise<void> {
@@ -223,6 +263,7 @@ function initSchema(db: DatabaseSyncType) {
       phone TEXT NOT NULL DEFAULT '',
       birth_year TEXT NOT NULL DEFAULT '',
       avatar_url TEXT NOT NULL DEFAULT '',
+      profile_image_url TEXT NOT NULL DEFAULT '',
       bio TEXT NOT NULL DEFAULT '',
       role TEXT NOT NULL DEFAULT 'Thành viên',
       access_role TEXT NOT NULL DEFAULT 'player',
@@ -299,6 +340,23 @@ function initSchema(db: DatabaseSyncType) {
       quote TEXT DEFAULT '',
       highlights_json TEXT NOT NULL DEFAULT '[]'
     );
+
+    CREATE TABLE IF NOT EXISTS sponsors (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      tier TEXT NOT NULL DEFAULT 'partner',
+      logo_url TEXT NOT NULL DEFAULT '',
+      banner_url TEXT NOT NULL DEFAULT '',
+      website_url TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      start_date TEXT NOT NULL DEFAULT '',
+      end_date TEXT NOT NULL DEFAULT '',
+      display_positions_json TEXT NOT NULL DEFAULT '["home_banner","home_partners"]',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
@@ -358,6 +416,11 @@ function runMigrations(db: DatabaseSyncType) {
       const picIdx = (idx % 14) + 1;
       updAvatar.run(`/uploads/avatars/member-${picIdx}.jpg`, p.id);
     });
+  }
+  if (!hasColumn(db, "players", "profile_image_url")) {
+    db.exec(
+      `ALTER TABLE players ADD COLUMN profile_image_url TEXT NOT NULL DEFAULT '';`
+    );
   }
   if (!hasColumn(db, "players", "bio")) {
     db.exec(
@@ -1173,6 +1236,11 @@ export async function ensureClubPostsReady(db: AsyncDb): Promise<void> {
       // đã tồn tại
     }
     try {
+      await db.exec("ALTER TABLE players ADD COLUMN profile_image_url TEXT NOT NULL DEFAULT '';");
+    } catch {
+      // đã tồn tại
+    }
+    try {
       await db.exec("ALTER TABLE players ADD COLUMN gallery_urls_json TEXT NOT NULL DEFAULT '[]';");
     } catch {
       // đã tồn tại
@@ -1239,6 +1307,57 @@ export async function ensureClubPostsReady(db: AsyncDb): Promise<void> {
   }
 }
 
+let sponsorsInitialized = false;
+
+export async function ensureSponsorsReady(db: AsyncDb): Promise<void> {
+  if (sponsorsInitialized) return;
+  try {
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS sponsors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        tier TEXT NOT NULL DEFAULT 'partner',
+        logo_url TEXT NOT NULL DEFAULT '',
+        banner_url TEXT NOT NULL DEFAULT '',
+        website_url TEXT NOT NULL DEFAULT '',
+        description TEXT NOT NULL DEFAULT '',
+        start_date TEXT NOT NULL DEFAULT '',
+        end_date TEXT NOT NULL DEFAULT '',
+        display_positions_json TEXT NOT NULL DEFAULT '["home_banner","home_partners"]',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+
+    const countRow = await db.queryOne<{ cnt: number }>(
+      "SELECT COUNT(*) as cnt FROM sponsors"
+    );
+    if (!countRow || Number(countRow.cnt) === 0) {
+      await db.run(
+        `INSERT INTO sponsors (name, tier, logo_url, banner_url, website_url, description, start_date, end_date, display_positions_json, is_active, sort_order, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?)`,
+        [
+          "Ban Liên Lạc Hội Đồng Hương Gò Nổi",
+          "title",
+          "/uploads/avatars/member-1.jpg",
+          "/uploads/avatars/member-1.jpg",
+          FANPAGE_URL,
+          "Đơn vị bảo trợ tinh thần và đồng hành xuyên suốt cùng các hoạt động phong trào con em Gò Nổi xa quê.",
+          "2026-01-01",
+          "2026-12-31",
+          JSON.stringify(["home_banner", "home_partners", "match_roster"]),
+          "Bảo trợ phong trào và giải đấu thường niên",
+        ]
+      );
+    }
+    sponsorsInitialized = true;
+  } catch (err) {
+    console.error("ensureSponsorsReady error:", err);
+  }
+}
+
 interface RawClubPostRow {
   id: string;
   category: ClubActivityPost["category"];
@@ -1272,9 +1391,27 @@ function safeJsonParseArray(raw: string): string[] {
   }
 }
 
+interface RawSponsorRow {
+  id: number;
+  name: string;
+  tier: SponsorTier;
+  logo_url: string;
+  banner_url: string;
+  website_url: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  display_positions_json: string;
+  is_active: number;
+  sort_order: number;
+  note?: string;
+  created_at?: string;
+}
+
 export async function getFullAppData(): Promise<FullAppData> {
   const db = getAsyncDb();
   await ensureClubPostsReady(db);
+  await ensureSponsorsReady(db);
 
   const settings = (await db.queryOne<TeamSettings>(
     "SELECT * FROM team_settings WHERE id = 1"
@@ -1301,6 +1438,7 @@ export async function getFullAppData(): Promise<FullAppData> {
     ...p,
     birth_year: formatBirthYear(p.birth_year),
     pin_code: "",
+    profile_image_url: p.profile_image_url || "",
     gallery_urls: safeJsonParseArray(p.gallery_urls_json || "[]"),
   }));
 
@@ -1350,6 +1488,32 @@ export async function getFullAppData(): Promise<FullAppData> {
     posts = CLUB_ACTIVITIES_POSTS;
   }
 
+  let sponsors: Sponsor[] = [];
+  try {
+    const rawSponsors = await db.query<RawSponsorRow>(
+      "SELECT * FROM sponsors ORDER BY sort_order ASC, id ASC"
+    );
+    sponsors = rawSponsors.map((r) => ({
+      id: Number(r.id),
+      name: r.name,
+      tier: (r.tier || "partner") as SponsorTier,
+      logo_url: r.logo_url || "",
+      banner_url: r.banner_url || "",
+      website_url: r.website_url || "",
+      description: r.description || "",
+      start_date: r.start_date || "",
+      end_date: r.end_date || "",
+      display_positions: safeJsonParseArray(r.display_positions_json),
+      is_active: Boolean(r.is_active),
+      sort_order: Number(r.sort_order || 0),
+      note: r.note || "",
+      created_at: r.created_at || "",
+    }));
+  } catch (err) {
+    console.error("Failed to query sponsors:", err);
+    sponsors = [];
+  }
+
   const summary = calculateFinancialSummary({
     attendances,
     otherIncomes,
@@ -1366,6 +1530,7 @@ export async function getFullAppData(): Promise<FullAppData> {
       expenses,
       summary,
       posts,
+      sponsors,
     })
   );
 }

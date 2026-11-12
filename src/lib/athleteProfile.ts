@@ -85,24 +85,38 @@ export function buildAthleteLightboxImages(
       ? player.gallery_urls
       : fallbackPhotos;
 
-  return [
-    ...(player.avatar_url
-      ? [
-          {
-            src: player.avatar_url,
-            title: `${player.full_name} #${player.jersey_number ?? ""}`,
-            caption: `Ảnh chân dung chính thức • ${posBadge.label} • Xã ${hamlet}`,
-            tag: "Hồ Sơ Cầu Thủ",
-          },
-        ]
-      : []),
-    ...gallery.map((url, i) => ({
-      src: url,
-      title: `${player.full_name} • Khoảnh khắc #${i + 1}`,
-      caption: `Hình ảnh thi đấu và hoạt động cùng FC HĐH Gò Nổi`,
-      tag: "Khoảnh Khắc Sân Cỏ",
-    })),
-  ];
+  const images: AthleteLightboxImageItem[] = [];
+
+  if (player.profile_image_url) {
+    images.push({
+      src: player.profile_image_url,
+      title: `${player.full_name} #${player.jersey_number ?? ""} • Ảnh Giới Thiệu Profile`,
+      caption: `Ảnh toàn thân & phong thái thi đấu • ${posBadge.label} • Xã ${hamlet}`,
+      tag: "Ảnh Giới Thiệu Profile",
+    });
+  }
+
+  if (player.avatar_url) {
+    images.push({
+      src: player.avatar_url,
+      title: `${player.full_name} #${player.jersey_number ?? ""} • Ảnh Thẻ VĐV`,
+      caption: `Ảnh chân dung chuẩn 3:4 hồ sơ thi đấu • ${posBadge.label} • Xã ${hamlet}`,
+      tag: "Ảnh Avatar Thi Đấu (3:4)",
+    });
+  }
+
+  gallery.forEach((url, i) => {
+    if (url && url !== player.avatar_url && url !== player.profile_image_url) {
+      images.push({
+        src: url,
+        title: `${player.full_name} • Khoảnh khắc #${i + 1}`,
+        caption: `Hình ảnh thi đấu và hoạt động cùng FC HĐH Gò Nổi`,
+        tag: "Khoảnh Khắc Sân Cỏ",
+      });
+    }
+  });
+
+  return images;
 }
 
 /**

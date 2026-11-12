@@ -16,6 +16,7 @@ import {
   Grid3X3,
   Upload,
   Save,
+  Ratio,
 } from "lucide-react";
 import {
   renderCroppedAvatarWebp,
@@ -29,11 +30,13 @@ export interface AvatarCropperModalProps {
   imageSource: string | File | null;
   playerName?: string;
   jerseyNumber?: number | string | null;
+  cropMode?: "avatar" | "profile";
   onConfirm: (result: WebpConversionResult) => void;
   onDirectSave?: (result: WebpConversionResult) => Promise<void>;
 }
 
 type LightingPreset = "original" | "bright" | "vivid";
+type ProfileAspectRatio = "16:9" | "4:3";
 
 export function AvatarCropperModal({
   isOpen,
@@ -41,6 +44,7 @@ export function AvatarCropperModal({
   imageSource,
   playerName = "Cầu thủ",
   jerseyNumber,
+  cropMode = "avatar",
   onConfirm,
   onDirectSave,
 }: AvatarCropperModalProps) {
@@ -58,6 +62,9 @@ export function AvatarCropperModal({
   const [directSaving, setDirectSaving] = useState(false);
   const [imgError, setImgError] = useState("");
 
+  // Aspect ratio for profile mode (wide landscape vs full-body 4:3)
+  const [profileAspect, setProfileAspect] = useState<ProfileAspectRatio>("16:9");
+
   // Transform states
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -67,9 +74,25 @@ export function AvatarCropperModal({
   const [showGrid, setShowGrid] = useState(true);
   const [lighting, setLighting] = useState<LightingPreset>("bright");
 
-  // Viewport dimensions (3:4 ratio)
-  const viewportW = 300;
-  const viewportH = 400;
+  // Viewport & target dimensions based on mode
+  let viewportW = 300;
+  let viewportH = 400;
+  let targetWidth = 900;
+  let targetHeight = 1200;
+
+  if (cropMode === "profile") {
+    if (profileAspect === "16:9") {
+      viewportW = 384;
+      viewportH = 216;
+      targetWidth = 1600;
+      targetHeight = 900;
+    } else {
+      viewportW = 360;
+      viewportH = 270;
+      targetWidth = 1440;
+      targetHeight = 1080;
+    }
+  }
 
   // Pointer dragging state
   const isDraggingRef = useRef(false);
@@ -216,10 +239,11 @@ export function AvatarCropperModal({
   // Generate cropped result
   const generateCroppedResult = async (): Promise<WebpConversionResult | null> => {
     if (!loadedImg) return null;
+    const prefix = cropMode === "profile" ? "profile" : "avatar";
     const fileName =
       typeof activeSource === "object" && activeSource && "name" in activeSource
         ? activeSource.name
-        : `avatar-${jerseyNumber ?? "vdv"}.webp`;
+        : `${prefix}-${jerseyNumber ?? "vdv"}.webp`;
 
     return await renderCroppedAvatarWebp(loadedImg, {
       zoom,
@@ -231,8 +255,8 @@ export function AvatarCropperModal({
       contrast: contrastVal,
       viewportWidth: viewportW,
       viewportHeight: viewportH,
-      targetWidth: 900,
-      targetHeight: 1200,
+      targetWidth,
+      targetHeight,
       quality: 0.88,
       fileName,
     });
@@ -296,6 +320,8 @@ export function AvatarCropperModal({
   const displayW = naturalW * baseScale * zoom;
   const displayH = naturalH * baseScale * zoom;
 
+  const isProfileMode = cropMode === "profile";
+
   return (
     <dialog
       ref={dialogRef}
@@ -339,10 +365,15 @@ export function AvatarCropperModal({
           </div>
           <div>
             <h3 className="font-display font-black text-sm sm:text-base text-white uppercase tracking-tight">
-              Studio Canh Chỉnh Ảnh Đại Diện
+              {isProfileMode
+                ? "Studio Ảnh Giới Thiệu Profile (Khung Rộng)"
+                : "Studio Ảnh Avatar Hồ Sơ Thi Đấu (3:4)"}
             </h3>
             <p className="text-[11px] text-sky-200">
-              {playerName} {jerseyNumber ? `(#${jerseyNumber})` : ""} • Khung chuẩn 3:4 Thẻ VĐV
+              {playerName} {jerseyNumber ? `(#${jerseyNumber})` : ""} •{" "}
+              {isProfileMode
+                ? `Khung ${profileAspect} toàn thân / hoạt động sân cỏ`
+                : "Khung chuẩn 3:4 thẻ chân dung VĐV"}
             </p>
           </div>
         </div>
@@ -370,6 +401,46 @@ export function AvatarCropperModal({
 
       {/* Body with scrolling */}
       <div className="p-4 sm:p-5 space-y-4 overflow-y-auto max-h-[calc(100dvh-10rem)]">
+        {/* Chuyển đổi tỉ lệ khung cho chế độ Profile */}
+        {isProfileMode && (
+          <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/5 border border-white/10">
+            <div className="flex items-center gap-1.5 text-xs text-sky-200 font-semibold">
+              <Ratio className="h-4 w-4 text-[#ffd700]" />
+              <span>Tỉ lệ khung hình Profile:</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileAspect("16:9");
+                  resetTransform();
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                  profileAspect === "16:9"
+                    ? "bg-[#ffd700] text-slate-950 border-[#ffd700] shadow-sm"
+                    : "bg-white/10 text-slate-300 border-white/15 hover:text-white"
+                }`}
+              >
+                16:9 (Toàn Cảnh Sân Cỏ)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileAspect("4:3");
+                  resetTransform();
+                }}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer border ${
+                  profileAspect === "4:3"
+                    ? "bg-[#ffd700] text-slate-950 border-[#ffd700] shadow-sm"
+                    : "bg-white/10 text-slate-300 border-white/15 hover:text-white"
+                }`}
+              >
+                4:3 (Toàn Thân / Hành Động)
+              </button>
+            </div>
+          </div>
+        )}
+
         {imgError ? (
           <div className="p-6 rounded-xl bg-rose-500/10 border border-rose-500/30 text-center text-rose-300 text-xs sm:text-sm space-y-3">
             <p>{imgError}</p>
@@ -389,7 +460,7 @@ export function AvatarCropperModal({
           </div>
         ) : (
           <>
-            {/* Khu vực Cắt Ảnh (Viewport 300x400) */}
+            {/* Khu vực Cắt Ảnh (Dynamic Viewport) */}
             <div className="flex flex-col items-center justify-center">
               <div
                 className="relative overflow-hidden rounded-xl border-2 border-[#ffd700] shadow-[0_10px_35px_rgba(0,0,0,0.6)] cursor-grab active:cursor-grabbing select-none touch-none bg-slate-900"
@@ -434,30 +505,32 @@ export function AvatarCropperModal({
                     <div className="border-r border-b border-white/25" />
                     <div className="border-r border-b border-white/25" />
                     <div className="border-b border-white/25" />
-                    <div className="border-r border-white/25" />
-                    <div className="border-r border-white/25" />
+                    <div className="border-r border-b border-white/25" />
+                    <div className="border-r border-b border-white/25" />
                     <div />
                   </div>
                 )}
 
-                {/* Vạch gợi ý căn chỉnh mặt & vai chuyên nghiệp */}
-                <div className="absolute inset-x-0 top-10 flex flex-col items-center pointer-events-none opacity-40">
-                  <div className="w-28 h-36 rounded-full border border-dashed border-[#ffd700]" />
-                  <div className="w-48 h-16 rounded-t-full border-t border-dashed border-[#ffd700] -mt-2" />
-                  <span className="text-[10px] font-bold text-[#ffd700] tracking-wider uppercase mt-1">
-                    Khu vực khuôn mặt &amp; ngực
-                  </span>
-                </div>
+                {/* Vạch gợi ý căn chỉnh mặt & vai cho chế độ avatar 3:4 */}
+                {!isProfileMode && (
+                  <div className="absolute inset-x-0 top-10 flex flex-col items-center pointer-events-none opacity-40">
+                    <div className="w-28 h-36 rounded-full border border-dashed border-[#ffd700]" />
+                    <div className="w-48 h-16 rounded-t-full border-t border-dashed border-[#ffd700] -mt-2" />
+                    <span className="text-[10px] font-bold text-[#ffd700] tracking-wider uppercase mt-1">
+                      Khu vực khuôn mặt &amp; ngực
+                    </span>
+                  </div>
+                )}
 
                 {/* Nút chỉ dẫn kéo thả */}
                 <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-[10px] font-semibold text-slate-300 flex items-center gap-1 pointer-events-none border border-white/10">
                   <Move className="h-3 w-3 text-[#ffd700]" />
-                  <span>Giữ &amp; kéo để canh vị trí</span>
+                  <span>Giữ &amp; kéo để canh góc</span>
                 </div>
 
-                {/* Tỷ lệ chuẩn 3:4 */}
+                {/* Tỷ lệ chuẩn */}
                 <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-bold text-[#ffd700] border border-white/10 pointer-events-none">
-                  Tỷ lệ 3:4
+                  {isProfileMode ? profileAspect : "Tỷ lệ 3:4"}
                 </div>
               </div>
             </div>
@@ -649,7 +722,11 @@ export function AvatarCropperModal({
               ) : (
                 <>
                   <Save className="h-4 w-4 text-slate-950" />
-                  <span>Cắt &amp; Lưu Vào Hồ Sơ Ngay</span>
+                  <span>
+                    {isProfileMode
+                      ? "Cắt & Lưu Ảnh Profile Ngay"
+                      : "Cắt & Lưu Ảnh Avatar Ngay"}
+                  </span>
                 </>
               )}
             </button>

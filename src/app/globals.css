@@ -215,7 +215,7 @@ dialog:modal {
 }
 
 dialog.cropper-dialog:modal {
-  max-width: min(40rem, calc(100vw - 1rem));
+  max-width: min(44rem, calc(100vw - 1rem));
   width: 100%;
   max-height: calc(100dvh - 1rem);
   border: 1px solid rgba(212, 175, 55, 0.45);

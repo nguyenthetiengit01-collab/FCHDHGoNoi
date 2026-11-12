@@ -4,6 +4,7 @@ import {
   getFullAppData,
   seedAsyncInitialDataIfNeeded,
   ensureClubPostsReady,
+  ensureSponsorsReady,
 } from "@/lib/db";
 import {
   getAuthSession,
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
       "set_match_status",
       "quick_pitch_expense",
       "collect_match_fee",
+      "collect_match_fees_batch",
       "add_walkin_player",
       "upsert_expense",
       "delete_expense",
@@ -54,6 +56,8 @@ export async function POST(req: NextRequest) {
       "update_settings",
       "upsert_club_post",
       "delete_club_post",
+      "upsert_sponsor",
+      "delete_sponsor",
       "reset_to_excel",
     ]);
 
@@ -125,6 +129,7 @@ export async function POST(req: NextRequest) {
           phone,
           birth_year,
           avatar_url,
+          profile_image_url,
           role,
           access_role,
           pin_code,
@@ -154,6 +159,17 @@ export async function POST(req: NextRequest) {
           { maxWidth: 600, maxHeight: 800, quality: 85 }
         );
 
+        let webpProfileImage: string | undefined = undefined;
+        if (profile_image_url !== undefined) {
+          webpProfileImage = profile_image_url
+            ? await ensureWebpDataUrlServer(profile_image_url, {
+                maxWidth: 1600,
+                maxHeight: 1000,
+                quality: 88,
+              })
+            : "";
+        }
+
         // Chuyển đổi WebP cho album ảnh cá nhân nếu có
         const rawGal = Array.isArray(gallery_urls)
           ? gallery_urls.map(String).filter(Boolean)
@@ -169,8 +185,12 @@ export async function POST(req: NextRequest) {
         }
 
         if (id) {
-          const existing = await db.queryOne<{ pin_code: string; gallery_urls_json: string }>(
-            "SELECT pin_code, gallery_urls_json FROM players WHERE id = ?",
+          const existing = await db.queryOne<{
+            pin_code: string;
+            gallery_urls_json: string;
+            profile_image_url?: string;
+          }>(
+            "SELECT pin_code, gallery_urls_json, profile_image_url FROM players WHERE id = ?",
             [Number(id)]
           );
           const rawPin = String(pin_code || "").trim();
@@ -182,11 +202,15 @@ export async function POST(req: NextRequest) {
             gallery_urls !== undefined
               ? JSON.stringify(webpGallery)
               : existing?.gallery_urls_json || "[]";
+          const finalProfileImage =
+            profile_image_url !== undefined
+              ? (webpProfileImage || "")
+              : existing?.profile_image_url || "";
 
           await db.run(
             `UPDATE players
             SET code_order = ?, full_name = ?, short_name = ?, jersey_number = ?,
-                position = ?, phone = ?, birth_year = ?, avatar_url = ?, bio = ?,
+                position = ?, phone = ?, birth_year = ?, avatar_url = ?, profile_image_url = ?, bio = ?,
                 role = ?, access_role = ?, pin_code = ?, status = ?, notes = ?,
                 hometown = ?, nickname = ?, playing_style = ?, gallery_urls_json = ?
             WHERE id = ?`,
@@ -203,6 +227,7 @@ export async function POST(req: NextRequest) {
               phone || "",
               formatBirthYear(birth_year),
               webpAvatar,
+              finalProfileImage,
               typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
               access_role === "manager" ? "manager" : "player",
@@ -224,10 +249,10 @@ export async function POST(req: NextRequest) {
           const res = await db.run(
             `INSERT INTO players (
               code_order, full_name, short_name, jersey_number,
-              position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes,
+              position, phone, birth_year, avatar_url, profile_image_url, bio, role, access_role, pin_code, status, notes,
               hometown, nickname, playing_style, gallery_urls_json
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               nextOrder,
               cleanName,
@@ -241,6 +266,7 @@ export async function POST(req: NextRequest) {
               phone || "",
               formatBirthYear(birth_year),
               webpAvatar,
+              webpProfileImage || "",
               typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
               access_role === "manager" ? "manager" : "player",
@@ -283,6 +309,7 @@ export async function POST(req: NextRequest) {
           phone,
           birth_year,
           avatar_url,
+          profile_image_url,
           bio,
           notes,
           hometown,
@@ -321,6 +348,16 @@ export async function POST(req: NextRequest) {
           { maxWidth: 600, maxHeight: 800, quality: 85 }
         );
 
+        const hasProfileImageInPayload = profile_image_url !== undefined;
+        let webpProfileImage = "";
+        if (hasProfileImageInPayload && profile_image_url) {
+          webpProfileImage = await ensureWebpDataUrlServer(profile_image_url, {
+            maxWidth: 1600,
+            maxHeight: 1000,
+            quality: 88,
+          });
+        }
+
         // Chuyển đổi WebP cho album ảnh cá nhân nếu có
         const rawGal = Array.isArray(gallery_urls) ? gallery_urls.map(String).filter(Boolean) : [];
         const webpGallery: string[] = [];
@@ -335,7 +372,9 @@ export async function POST(req: NextRequest) {
         await db.run(
           `UPDATE players
           SET full_name = ?, short_name = ?, jersey_number = ?,
-              position = ?, phone = ?, birth_year = ?, avatar_url = ?, bio = ?, notes = ?,
+              position = ?, phone = ?, birth_year = ?, avatar_url = ?,
+              profile_image_url = CASE WHEN ? = 1 THEN ? ELSE profile_image_url END,
+              bio = ?, notes = ?,
               hometown = ?, nickname = ?, playing_style = ?,
               gallery_urls_json = CASE WHEN ? = 1 THEN ? ELSE gallery_urls_json END
           WHERE id = ?`,
@@ -351,6 +390,8 @@ export async function POST(req: NextRequest) {
             phone || "",
             formatBirthYear(birth_year),
             webpAvatar,
+            hasProfileImageInPayload ? 1 : 0,
+            webpProfileImage,
             typeof bio === "string" ? bio : "",
             notes || "",
             String(hometown || "").trim(),
@@ -830,6 +871,82 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      // THU TIỀN HÀNG LOẠT (Lưu tạm trên máy trước khi bấm lưu 1 lần theo transaction batch)
+      case "collect_match_fees_batch": {
+        const { match_id, collected_by, items } = payload;
+        if (!match_id) {
+          return NextResponse.json({ error: "Thiếu mã trận đấu" }, { status: 400 });
+        }
+        if (!Array.isArray(items) || items.length === 0) {
+          break; // Không có thay đổi nào cần lưu
+        }
+
+        const matchRow = await db.queryOne<{ fee_per_player: number }>(
+          "SELECT fee_per_player FROM matches WHERE id = ?",
+          [Number(match_id)]
+        );
+        const defaultFee = matchRow?.fee_per_player ?? 100000;
+        const collector = String(collected_by || "Tiếng").trim();
+
+        const sql = `INSERT INTO match_attendances (
+          match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
+        )
+        VALUES (?, ?, 'none', ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(match_id, player_id)
+        DO UPDATE SET
+          walk_in = CASE WHEN excluded.walk_in = 1 THEN 1 ELSE match_attendances.walk_in END,
+          attended = excluded.attended,
+          paid = excluded.paid,
+          amount = excluded.amount,
+          collected_by = CASE WHEN excluded.collected_by != '' THEN excluded.collected_by ELSE match_attendances.collected_by END,
+          note = CASE WHEN excluded.note != '' THEN excluded.note ELSE match_attendances.note END`;
+
+        const statements: Array<{ sql: string; params: unknown[] }> = [];
+        for (const item of items) {
+          const playerId = Number(item.player_id);
+          if (!playerId) continue;
+
+          if (item.remove) {
+            statements.push({
+              sql: `UPDATE match_attendances
+                    SET attended = 0, paid = 0, amount = 0, rsvp_status = 'absent_notice'
+                    WHERE match_id = ? AND player_id = ?`,
+              params: [Number(match_id), playerId],
+            });
+            continue;
+          }
+
+          const isPaid = Number(item.paid) === 1 ? 1 : 0;
+          const isAttended = isPaid === 1 || Number(item.attended) === 1 ? 1 : 0;
+          const finalAmount =
+            item.amount !== undefined && item.amount !== null && item.amount !== ""
+              ? Number(item.amount)
+              : isAttended
+              ? defaultFee
+              : 0;
+          const isWalkIn = Number(item.walk_in) === 1 ? 1 : 0;
+
+          statements.push({
+            sql,
+            params: [
+              Number(match_id),
+              playerId,
+              isWalkIn,
+              isAttended,
+              isPaid,
+              finalAmount,
+              collector,
+              String(item.note || ""),
+            ],
+          });
+        }
+
+        if (statements.length > 0) {
+          await db.batch(statements);
+        }
+        break;
+      }
+
       // Thêm cầu thủ không đăng ký trước (Walk-in: thành viên có sẵn hoặc khách/cầu thủ mới) vào danh sách tham gia & thu tiền
       case "add_walkin_player": {
         const {
@@ -1208,6 +1325,110 @@ export async function POST(req: NextRequest) {
           );
         }
         await db.run("DELETE FROM club_posts WHERE id = ?", [String(id)]);
+        break;
+      }
+
+      // QUẢN LÝ ĐƠN VỊ TÀI TRỢ & ĐỐI TÁC
+      case "upsert_sponsor": {
+        await ensureSponsorsReady(db);
+        const {
+          id,
+          name,
+          tier,
+          logo_url,
+          banner_url,
+          website_url,
+          description,
+          start_date,
+          end_date,
+          display_positions,
+          is_active,
+          sort_order,
+          note,
+        } = payload;
+
+        if (!name || !String(name).trim()) {
+          return NextResponse.json(
+            { error: "Tên đơn vị tài trợ không được để trống" },
+            { status: 400 }
+          );
+        }
+
+        let finalLogo = logo_url || "";
+        let finalBanner = banner_url || "";
+        if (finalLogo && finalLogo.startsWith("data:image/")) {
+          finalLogo = await ensureWebpDataUrlServer(finalLogo, { maxWidth: 600 });
+        }
+        if (finalBanner && finalBanner.startsWith("data:image/")) {
+          finalBanner = await ensureWebpDataUrlServer(finalBanner, { maxWidth: 1600 });
+        }
+
+        const positionsJson = JSON.stringify(
+          Array.isArray(display_positions)
+            ? display_positions
+            : ["home_banner", "home_partners"]
+        );
+        const activeVal = is_active === false || is_active === 0 ? 0 : 1;
+        const sortOrderNum = Number(sort_order) || 0;
+
+        if (id) {
+          await db.run(
+            `UPDATE sponsors
+             SET name = ?, tier = ?, logo_url = ?, banner_url = ?, website_url = ?,
+                 description = ?, start_date = ?, end_date = ?, display_positions_json = ?,
+                 is_active = ?, sort_order = ?, note = ?
+             WHERE id = ?`,
+            [
+              String(name).trim(),
+              tier || "partner",
+              finalLogo,
+              finalBanner,
+              website_url || "",
+              description || "",
+              start_date || "",
+              end_date || "",
+              positionsJson,
+              activeVal,
+              sortOrderNum,
+              note || "",
+              Number(id),
+            ]
+          );
+        } else {
+          await db.run(
+            `INSERT INTO sponsors (
+              name, tier, logo_url, banner_url, website_url, description,
+              start_date, end_date, display_positions_json, is_active, sort_order, note
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              String(name).trim(),
+              tier || "partner",
+              finalLogo,
+              finalBanner,
+              website_url || "",
+              description || "",
+              start_date || "",
+              end_date || "",
+              positionsJson,
+              activeVal,
+              sortOrderNum,
+              note || "",
+            ]
+          );
+        }
+        break;
+      }
+
+      case "delete_sponsor": {
+        await ensureSponsorsReady(db);
+        const { id } = payload;
+        if (!id) {
+          return NextResponse.json(
+            { error: "Thiếu ID đơn vị tài trợ cần xóa" },
+            { status: 400 }
+          );
+        }
+        await db.run("DELETE FROM sponsors WHERE id = ?", [Number(id)]);
         break;
       }
 

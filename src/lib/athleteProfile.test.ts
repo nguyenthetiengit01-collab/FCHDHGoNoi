@@ -61,6 +61,7 @@ describe("BroadcastAthleteCard - Deep Module Domain Logic", () => {
       role: "Đội trưởng",
       status: "Đang sinh hoạt",
       avatar_url: "/uploads/avatars/tieng.webp",
+      profile_image_url: "/uploads/profiles/tieng-action.webp",
       hometown: "Điện Quang",
       gallery_urls: [
         "/uploads/gallery/match-1.webp",
@@ -70,11 +71,13 @@ describe("BroadcastAthleteCard - Deep Module Domain Logic", () => {
     };
 
     const images = buildAthleteLightboxImages(mockPlayer);
-    expect(images).toHaveLength(3);
-    expect(images[0].src).toBe("/uploads/avatars/tieng.webp");
-    expect(images[0].tag).toBe("Hồ Sơ Cầu Thủ");
-    expect(images[1].src).toBe("/uploads/gallery/match-1.webp");
-    expect(images[1].tag).toBe("Khoảnh Khắc Sân Cỏ");
+    expect(images).toHaveLength(4);
+    expect(images[0].src).toBe("/uploads/profiles/tieng-action.webp");
+    expect(images[0].tag).toBe("Ảnh Giới Thiệu Profile");
+    expect(images[1].src).toBe("/uploads/avatars/tieng.webp");
+    expect(images[1].tag).toBe("Ảnh Avatar Thi Đấu (3:4)");
+    expect(images[2].src).toBe("/uploads/gallery/match-1.webp");
+    expect(images[2].tag).toBe("Khoảnh Khắc Sân Cỏ");
   });
 
   it("generates correct canonical profile path and shareable profile URL", () => {

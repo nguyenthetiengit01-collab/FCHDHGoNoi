@@ -8,12 +8,15 @@ import {
   ArrowRight,
   ArrowUpRight,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Camera,
   HeartHandshake,
   Calendar,
   BookOpen,
   Clock,
   Search,
+  Award,
 } from "lucide-react";
 import type { FullAppData, Player } from "@/types/app";
 import {
@@ -21,6 +24,11 @@ import {
   OFFICIAL_LOGO_URL,
 } from "@/types/app";
 import { formatDateVN } from "@/lib/format";
+import {
+  shouldShowBannerAt,
+  groupSponsorsByTier,
+  SPONSOR_TIERS,
+} from "@/lib/sponsors";
 import {
   CLUB_ACTIVITIES_POSTS,
   ACTIVITY_CATEGORIES,
@@ -402,17 +410,34 @@ export function PublicGuestPortal({
   const go = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
+  const totalPlayerCount = players.length;
+
   const navLinks = [
     { id: "banner-hero", label: "Trang chủ" },
     { id: "match-center", label: "Lịch đấu" },
     { id: "activities", label: "Hoạt động" },
-    { id: "squad-section", label: "Cầu thủ 23+" },
+    { id: "squad-section", label: `Cầu thủ (${totalPlayerCount})` },
+    { id: "partners-section", label: "Đồng hành" },
     { id: "join-us", label: "Gia nhập đội" },
     { id: "gallery", label: "Khoảnh khắc" },
   ];
 
+  const homeBanners = (data.sponsors || []).filter(
+    (sp) => shouldShowBannerAt(sp, "home_banner") && Boolean(sp.banner_url)
+  );
+  const [activeBannerIdx, setActiveBannerIdx] = useState(0);
+
+  // Tự động chuyển banner mỗi 6 giây nếu có nhiều hơn 1 banner
+  useEffect(() => {
+    if (homeBanners.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveBannerIdx((prev) => (prev + 1) % homeBanners.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [homeBanners.length]);
+
   const ticker = [
-    "23+ Cầu thủ nòng cốt • Mở rộng chào đón tất cả anh em Gò Nổi",
+    `${totalPlayerCount}+ Cầu thủ nòng cốt • Mở rộng chào đón tất cả anh em Gò Nổi`,
     "Điện Quang • Điện Trung • Điện Phong chung một mái nhà",
     "Đá phủi hết mình • Đoàn kết • Nghĩa tình",
     "Hướng đến toàn bộ con em quê hương Gò Nổi tại Sài Gòn",
@@ -539,7 +564,7 @@ export function PublicGuestPortal({
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 px-3 py-0.5 text-[11px] font-extrabold text-[#fde047] backdrop-blur-md">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>23+ Cầu thủ • Mở rộng đón anh em Gò Nổi</span>
+              <span>{totalPlayerCount}+ Cầu thủ • Mở rộng đón anh em Gò Nổi</span>
             </span>
           </div>
 
@@ -554,7 +579,7 @@ export function PublicGuestPortal({
 
           <div className="mt-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
             <p className="max-w-xl text-lg sm:text-xl text-sky-100 leading-relaxed font-light">
-              Ngôi nhà chung của <strong className="text-[#fde047] font-bold">23+ anh em chiến binh</strong> và không ngừng mở rộng, hướng đến việc quy tụ toàn bộ anh em con em Điện Quang, Điện Trung, Điện Phong tại TP.HCM. Bất kể bạn đá ở vị trí nào, chỉ cần mang trong mình tinh thần Gò Nổi — sân bóng luôn sẵn sàng đón bạn!
+              Ngôi nhà chung của <strong className="text-[#fde047] font-bold">{totalPlayerCount}+ anh em chiến binh</strong> và không ngừng mở rộng, hướng đến việc quy tụ toàn bộ anh em con em Điện Quang, Điện Trung, Điện Phong tại TP.HCM. Bất kể bạn đá ở vị trí nào, chỉ cần mang trong mình tinh thần Gò Nổi — sân bóng luôn sẵn sàng đón bạn!
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <button
@@ -579,7 +604,7 @@ export function PublicGuestPortal({
           {/* Số liệu thật */}
           <dl className="mt-14 flex flex-wrap gap-x-14 gap-y-6 border-t border-white/20 pt-8">
             {[
-              { n: `${Math.max(23, activePlayers.length)}+`, l: "Cầu thủ tham gia" },
+              { n: `${totalPlayerCount}+`, l: "Cầu thủ tham gia" },
               { n: matches.length, l: "Trận đã lên lịch" },
               { n: wins, l: "Trận thắng" },
             ].map((s) => (
@@ -617,6 +642,130 @@ export function PublicGuestPortal({
           </div>
         </div>
       </section>
+
+      {/* ===================== BANNER ĐƠN VỊ TÀI TRỢ & ĐỐI TÁC TRANG CHỦ ===================== */}
+      {homeBanners.length > 0 && (
+        <section className="relative bg-[#061730] py-6 sm:py-8 border-b border-white/10">
+          <div className={WRAP}>
+            <div className="relative rounded-2xl overflow-hidden border border-[#d4af37]/40 shadow-2xl bg-gradient-to-r from-[#081a33] to-[#0b2447]">
+              {/* Slide hình ảnh Banner */}
+              <div className="relative aspect-[21/9] sm:aspect-[24/9] min-h-[180px] w-full overflow-hidden">
+                {homeBanners.map((sp, idx) => {
+                  const isActive = idx === activeBannerIdx;
+                  const tierMeta = SPONSOR_TIERS[sp.tier] || SPONSOR_TIERS.partner;
+
+                  return (
+                    <div
+                      key={sp.id}
+                      className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                        isActive
+                          ? "opacity-100 z-10 pointer-events-auto"
+                          : "opacity-0 pointer-events-none z-0"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={sp.banner_url}
+                        alt={`Banner ${sp.name}`}
+                        className="h-full w-full object-cover object-center"
+                      />
+                      {/* Lớp phủ chuyển sắc bảo đảm chữ luôn nổi bật */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-5 sm:p-8">
+                        <div className="max-w-2xl space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider border ${tierMeta.badgeClass}`}
+                            >
+                              {tierMeta.label}
+                            </span>
+                            {sp.logo_url && (
+                              <div className="h-6 w-6 rounded bg-white p-0.5 shadow-xs">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={sp.logo_url}
+                                  alt=""
+                                  className="h-full w-full object-contain"
+                                />
+                              </div>
+                            )}
+                          </div>
+                          <h3 className="font-display font-extrabold uppercase text-xl sm:text-3xl text-white drop-shadow">
+                            {sp.name}
+                          </h3>
+                          {sp.description && (
+                            <p className="text-xs sm:text-sm text-slate-200 line-clamp-2 max-w-xl font-light">
+                              {sp.description}
+                            </p>
+                          )}
+                          {sp.website_url && (
+                            <div className="pt-1">
+                              <a
+                                href={sp.website_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#d4af37] hover:bg-[#fde047] px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-slate-950 transition"
+                              >
+                                <span>Ghé thăm đơn vị</span>
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Điều khiển lùi/tiến nếu có từ 2 banner */}
+              {homeBanners.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveBannerIdx(
+                        (prev) =>
+                          (prev - 1 + homeBanners.length) % homeBanners.length
+                      )
+                    }
+                    className="absolute left-3 top-1/2 -translate-y-1/2 z-20 rounded-full bg-slate-950/70 hover:bg-slate-950 p-2 text-white border border-white/20 transition cursor-pointer"
+                    aria-label="Banner trước"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveBannerIdx(
+                        (prev) => (prev + 1) % homeBanners.length
+                      )
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 rounded-full bg-slate-950/70 hover:bg-slate-950 p-2 text-white border border-white/20 transition cursor-pointer"
+                    aria-label="Banner tiếp theo"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                  <div className="absolute bottom-3 right-5 z-20 flex items-center gap-1.5">
+                    {homeBanners.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setActiveBannerIdx(i)}
+                        className={`h-2 rounded-full transition-all cursor-pointer ${
+                          i === activeBannerIdx
+                            ? "w-6 bg-[#d4af37]"
+                            : "w-2 bg-white/40 hover:bg-white/70"
+                        }`}
+                        aria-label={`Tới banner ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ===================== TRẬN CẦU TÂM ĐIỂM (BROADCAST MATCHDAY SCOREBOARD) ===================== */}
       {nextMatch && (
@@ -1072,14 +1221,14 @@ export function PublicGuestPortal({
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700] bg-[#ffd700]/15 px-2.5 py-1 rounded border border-[#ffd700]/40">
-                    03 // ĐỘI HÌNH &amp; HỒ SƠ 23+ CẦU THỦ
+                    03 // ĐỘI HÌNH &amp; HỒ SƠ {totalPlayerCount}+ CẦU THỦ
                   </span>
                   <span className="text-xs uppercase font-extrabold tracking-widest text-sky-200">
                     ROSTER 2026
                   </span>
                 </div>
                 <h2 className="mt-3 font-display font-black uppercase leading-tight text-4xl sm:text-6xl text-white">
-                  Đội hình <span className="text-[#ffd700]">23+ chiến binh</span>
+                  Đội hình <span className="text-[#ffd700]">{totalPlayerCount}+ chiến binh</span>
                 </h2>
                 <p className="text-xs sm:text-sm text-sky-100 mt-2 max-w-2xl leading-relaxed font-light">
                   Bảng danh sách đăng ký thi đấu chính thức mùa giải 2026. Chọn cầu thủ bên danh sách để xem thẻ vận động viên và hồ sơ chuyên sâu.
@@ -1093,7 +1242,7 @@ export function PublicGuestPortal({
                     Đội hình chính thức
                   </span>
                   <span className="text-2xl font-display font-black text-[#fde047] leading-none">
-                    {activePlayers.length}+ Cầu thủ
+                    {totalPlayerCount}+ Cầu thủ
                   </span>
                 </div>
               </div>
@@ -1243,10 +1392,10 @@ export function PublicGuestPortal({
                   </span>
                 </div>
                 <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-[#ffd700] transition">
-                  23+ Cầu thủ nòng cốt
+                  {totalPlayerCount}+ Cầu thủ nòng cốt
                 </h3>
                 <p className="text-xs sm:text-sm text-sky-100 leading-relaxed font-light">
-                  Đội bóng đã quy tụ hơn 23 anh em từ các thế hệ và luôn mở rộng đón nhận thêm thành viên mới mỗi tuần mà không giới hạn số lượng.
+                  Đội bóng đã quy tụ hơn {totalPlayerCount} anh em từ các thế hệ và luôn mở rộng đón nhận thêm thành viên mới mỗi tuần mà không giới hạn số lượng.
                 </p>
               </div>
 
@@ -1539,6 +1688,180 @@ export function PublicGuestPortal({
         </div>
       </section>
 
+      {/* ===================== ĐỐI TÁC & ĐƠN VỊ ĐỒNG HÀNH ===================== */}
+      <section
+        id="partners-section"
+        className="relative bg-gradient-to-b from-[#092244] via-[#071b36] to-[#051329] py-20 border-t border-white/10"
+      >
+        <div className={WRAP}>
+          <Reveal>
+            <div className="flex flex-col items-center text-center max-w-3xl mx-auto space-y-3">
+              <span className="font-bold uppercase tracking-[0.35em] text-xs text-[#d4af37] flex items-center gap-2">
+                <Award className="h-4 w-4 text-[#d4af37]" />
+                <span>Tri Ân & Đồng Hành Phong Trào</span>
+              </span>
+              <h2 className="font-display font-extrabold uppercase text-4xl sm:text-6xl text-white tracking-tight">
+                Đồng Hành Cùng <span className="text-[#d4af37]">FC Gò Nổi</span>
+              </h2>
+              <p className="text-sm sm:text-base text-sky-100/90 font-light leading-relaxed">
+                Xin chân thành cảm ơn các cơ quan đoàn thể, doanh nghiệp, mạnh thường quân và những người con Gò Nổi xa quê đã chung tay tiếp lửa cho màu cờ sắc áo của đội bóng.
+              </p>
+            </div>
+
+            {/* Phân tầng danh sách đơn vị tài trợ */}
+            {(() => {
+              const allSponsors = data.sponsors || [];
+              const grouped = groupSponsorsByTier(allSponsors);
+              const hasAny = allSponsors.length > 0;
+
+              if (!hasAny) {
+                return (
+                  <div className="mt-12 rounded-2xl bg-white/5 border border-white/10 p-10 text-center max-w-xl mx-auto">
+                    <p className="text-sm text-slate-300">
+                      CLB luôn trân trọng chào đón các đơn vị tài trợ và quý mạnh thường quân đồng hành cùng giải đấu và hoạt động phong trào thường niên.
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="mt-14 space-y-12">
+                  {/* Hạng Tài Trợ Chính / Kim Cương */}
+                  {grouped.title.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 px-4 py-1 text-xs font-black uppercase tracking-widest text-[#fde047]">
+                          ★ Đơn Vị Bảo Trợ & Tài Trợ Kim Cương ★
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                        {grouped.title.map((sp) => (
+                          <div
+                            key={sp.id}
+                            className="rounded-2xl bg-gradient-to-br from-[#10346a] via-[#0e2a57] to-[#091b38] border-2 border-[#d4af37] p-6 shadow-[0_10px_40px_rgba(212,175,55,0.2)] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left transition hover:scale-[1.02]"
+                          >
+                            {sp.logo_url && (
+                              <div className="relative h-20 w-20 shrink-0 rounded-xl bg-white p-2 border border-[#d4af37]/60 shadow-md overflow-hidden">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={sp.logo_url}
+                                  alt={sp.name}
+                                  className="h-full w-full object-contain"
+                                />
+                              </div>
+                            )}
+                            <div className="space-y-1 min-w-0">
+                              <h4 className="font-display font-extrabold uppercase text-lg sm:text-xl text-white">
+                                {sp.name}
+                              </h4>
+                              {sp.description && (
+                                <p className="text-xs text-sky-200/90 font-light line-clamp-3">
+                                  {sp.description}
+                                </p>
+                              )}
+                              {sp.website_url && (
+                                <a
+                                  href={sp.website_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs font-bold text-[#fde047] hover:underline pt-1"
+                                >
+                                  <span>Tìm hiểu thêm</span>
+                                  <ArrowUpRight className="h-3 w-3" />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Hạng Tài Trợ Vàng & Bạc */}
+                  {(grouped.gold.length > 0 || grouped.silver.length > 0) && (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <span className="text-xs font-bold uppercase tracking-widest text-slate-300">
+                          Nhà Tài Trợ Vàng & Bạc
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-center gap-4 max-w-5xl mx-auto">
+                        {[...grouped.gold, ...grouped.silver].map((sp) => (
+                          <div
+                            key={sp.id}
+                            className="rounded-xl bg-[#0b2447] border border-white/15 hover:border-[#d4af37]/60 p-4 flex items-center gap-3.5 transition hover:bg-[#0f3161] min-w-[240px] max-w-sm"
+                          >
+                            {sp.logo_url ? (
+                              <div className="relative h-12 w-12 shrink-0 rounded-lg bg-white p-1 border border-slate-200 overflow-hidden shadow-xs">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={sp.logo_url}
+                                  alt={sp.name}
+                                  className="h-full w-full object-contain"
+                                />
+                              </div>
+                            ) : (
+                              <div className="h-12 w-12 shrink-0 rounded-lg bg-slate-800 flex items-center justify-center font-black text-xs text-slate-400">
+                                LOGO
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase border ${
+                                  (SPONSOR_TIERS[sp.tier] || SPONSOR_TIERS.gold).badgeClass
+                                }`}
+                              >
+                                {(SPONSOR_TIERS[sp.tier] || SPONSOR_TIERS.gold).label}
+                              </span>
+                              <h5 className="font-bold text-sm text-white truncate mt-0.5">
+                                {sp.name}
+                              </h5>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Đối Tác & Đơn Vị Hỗ Trợ */}
+                  {(grouped.partner.length > 0 || grouped.supporter.length > 0) && (
+                    <div className="space-y-4 pt-4 border-t border-white/10 max-w-5xl mx-auto">
+                      <div className="text-center">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                          Đối Tác Đồng Hành & Đơn Vị Hỗ Trợ
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-center gap-3">
+                        {[...grouped.partner, ...grouped.supporter].map((sp) => (
+                          <div
+                            key={sp.id}
+                            className="rounded-lg bg-white/5 border border-white/10 px-3.5 py-2 flex items-center gap-2.5 transition hover:bg-white/10"
+                          >
+                            {sp.logo_url && (
+                              <div className="h-6 w-6 rounded bg-white p-0.5 shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={sp.logo_url}
+                                  alt=""
+                                  className="h-full w-full object-contain"
+                                />
+                              </div>
+                            )}
+                            <span className="text-xs font-semibold text-slate-200">
+                              {sp.name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </Reveal>
+        </div>
+      </section>
+
       {/* ===================== CTA + FOOTER SANG TRỌNG ===================== */}
       <footer className="relative bg-gradient-to-r from-[#d4af37] via-[#f5d97f] to-[#d4af37] text-slate-950 overflow-hidden shadow-2xl">
         <div className={`${WRAP} pt-20 sm:pt-28 pb-10`}>
@@ -1546,7 +1869,7 @@ export function PublicGuestPortal({
             <h2 className="font-display font-bold uppercase leading-[0.8] text-[17vw] sm:text-[13vw] lg:text-[11rem] drop-shadow-sm">
               Ra sân cùng
               <br />
-              23+ anh em Gò Nổi
+              {totalPlayerCount}+ anh em Gò Nổi
             </h2>
             <p className="mt-4 text-base sm:text-xl font-bold uppercase tracking-wider text-slate-900/80 max-w-xl">
               Cánh cửa đội bóng luôn rộng mở chào đón tất cả anh em Điện Quang, Điện Trung, Điện Phong tại Sài Gòn!
@@ -1572,7 +1895,39 @@ export function PublicGuestPortal({
             </div>
           </Reveal>
 
-          <div className="mt-16 pt-6 border-t border-slate-950/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm font-bold">
+          {/* Hàng Logo Đối Tác Chân Trang */}
+          {(data.sponsors || []).length > 0 && (
+            <div className="mt-12 pt-6 border-t border-slate-950/20">
+              <span className="text-[10px] uppercase font-black tracking-widest text-slate-900/60 block mb-3 text-center sm:text-left">
+                Đơn Vị Đồng Hành Cùng FC HĐH Gò Nổi:
+              </span>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
+                {(data.sponsors || []).map((sp) => (
+                  <div
+                    key={sp.id}
+                    title={sp.name}
+                    className="flex items-center gap-2 rounded-lg bg-slate-950/10 px-2.5 py-1.5"
+                  >
+                    {sp.logo_url && (
+                      <div className="h-5 w-5 rounded bg-white p-0.5 shrink-0 shadow-2xs">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={sp.logo_url}
+                          alt=""
+                          className="h-full w-full object-contain"
+                        />
+                      </div>
+                    )}
+                    <span className="text-xs font-bold text-slate-950">
+                      {sp.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-8 pt-6 border-t border-slate-950/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm font-bold">
             <div className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

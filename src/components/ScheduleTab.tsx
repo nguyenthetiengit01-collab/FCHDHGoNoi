@@ -27,6 +27,8 @@ import {
   Eye,
   EyeOff,
   Crop,
+  Image as ImageIcon,
+  Check,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -99,8 +101,8 @@ export function ScheduleTab({
 
   const [selectedUpcomingId, setSelectedUpcomingId] = useState<number>(
     upcomingMatches[upcomingMatches.length - 1]?.id ??
-      latestMatchOverall?.id ??
-      1
+    latestMatchOverall?.id ??
+    1
   );
   const [selectedFinishedMatch, setSelectedFinishedMatch] =
     useState<MatchRecord | null>(null);
@@ -275,8 +277,7 @@ export function ScheduleTab({
     const regNames = registeredPlayers
       .map(
         (p, i) =>
-          `   ${i + 1}. ${p.full_name} (Số áo #${p.jersey_number ?? "-"} • ${
-            p.position
+          `   ${i + 1}. ${p.full_name} (Số áo #${p.jersey_number ?? "-"} • ${p.position
           })`
       )
       .join("\n");
@@ -358,7 +359,9 @@ export function ScheduleTab({
   const [profilePhone, setProfilePhone] = useState("");
   const [profileBirthYear, setProfileBirthYear] = useState("");
   const [profileAvatarUrl, setProfileAvatarUrl] = useState("");
+  const [profileProfileImageUrl, setProfileProfileImageUrl] = useState("");
   const [profileWebpInfo, setProfileWebpInfo] = useState("");
+  const [profileProfileWebpInfo, setProfileProfileWebpInfo] = useState("");
   const [profileBio, setProfileBio] = useState("");
   const [profileNotes, setProfileNotes] = useState("");
   const [profileHometown, setProfileHometown] = useState("Điện Quang");
@@ -371,6 +374,7 @@ export function ScheduleTab({
   // Studio Canh Chỉnh & Cắt Ảnh Đại Diện
   const [profileCropperOpen, setProfileCropperOpen] = useState(false);
   const [profileCropperSource, setProfileCropperSource] = useState<string | File | null>(null);
+  const [profileCropperMode, setProfileCropperMode] = useState<"avatar" | "profile">("avatar");
 
   // State cho Modal Đổi Tên Đăng Nhập & Mật Khẩu Cá Nhân
   const [pwdModalOpen, setPwdModalOpen] = useState(false);
@@ -393,7 +397,9 @@ export function ScheduleTab({
     setProfilePhone(me.phone || "");
     setProfileBirthYear(formatBirthYear(me.birth_year) || "1991");
     setProfileAvatarUrl(me.avatar_url || "/uploads/avatars/member-1.jpg");
+    setProfileProfileImageUrl(me.profile_image_url || "");
     setProfileWebpInfo("");
+    setProfileProfileWebpInfo("");
     setProfileBio(me.bio || "");
     setProfileNotes(me.notes || "");
     setProfileHometown(me.hometown || "Điện Quang");
@@ -404,11 +410,23 @@ export function ScheduleTab({
     setProfileModalOpen(true);
   };
 
-  const handleProfileImageUpload = (
+  const handleProfileAvatarUpload = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setProfileCropperMode("avatar");
+    setProfileCropperSource(file);
+    setProfileCropperOpen(true);
+    e.target.value = "";
+  };
+
+  const handleProfileProfileImageUpload = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProfileCropperMode("profile");
     setProfileCropperSource(file);
     setProfileCropperOpen(true);
     e.target.value = "";
@@ -455,6 +473,7 @@ export function ScheduleTab({
       birth_year:
         profileBirthYear === "" ? null : Number(profileBirthYear),
       avatar_url: profileAvatarUrl,
+      profile_image_url: profileProfileImageUrl || null,
       bio: profileBio.trim(),
       notes: profileNotes.trim(),
       hometown: profileHometown,
@@ -506,11 +525,10 @@ export function ScheduleTab({
           <button
             type="button"
             onClick={() => setSpaceMode("upcoming")}
-            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-extrabold transition cursor-pointer ${
-              spaceMode === "upcoming"
+            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-extrabold transition cursor-pointer ${spaceMode === "upcoming"
                 ? "bg-[#1e4fc2] text-[#ffc933] shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
-            }`}
+              }`}
           >
             <BellRing className="h-4 w-4" />
             <span>Lịch Tuần & Điểm Danh ({upcomingMatches.length})</span>
@@ -519,11 +537,10 @@ export function ScheduleTab({
           <button
             type="button"
             onClick={() => setSpaceMode("finished")}
-            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-extrabold transition cursor-pointer ${
-              spaceMode === "finished"
+            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-extrabold transition cursor-pointer ${spaceMode === "finished"
                 ? "bg-[#1e4fc2] text-[#ffc933] shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
-            }`}
+              }`}
           >
             <Archive className="h-4 w-4" />
             <span>Các Trận Đã Kết Thúc ({finishedMatches.length})</span>
@@ -575,11 +592,10 @@ export function ScheduleTab({
                       setSelectedUpcomingId(m.id);
                       syncQuickPitchInputs(m);
                     }}
-                    className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-extrabold border transition cursor-pointer ${
-                      isSelected
+                    className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-extrabold border transition cursor-pointer ${isSelected
                         ? "bg-[#1e4fc2] text-[#ffc933] border-[#1e4fc2]"
                         : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                    }`}
+                      }`}
                   >
                     {m.label} ({m.venue})
                   </button>
@@ -658,11 +674,10 @@ export function ScheduleTab({
                     onClick={() =>
                       handleSetRsvp(session.playerId!, "registered")
                     }
-                    className={`min-h-[54px] inline-flex items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 text-base font-black transition cursor-pointer shadow-lg ${
-                      myAttendance?.rsvp_status === "registered"
+                    className={`min-h-[54px] inline-flex items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 text-base font-black transition cursor-pointer shadow-lg ${myAttendance?.rsvp_status === "registered"
                         ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white ring-4 ring-emerald-300 scale-105"
                         : "bg-emerald-600 hover:bg-emerald-500 text-white hover:scale-102 border-2 border-emerald-400"
-                    }`}
+                      }`}
                   >
                     <CheckCircle2 className="h-6 w-6 shrink-0" />
                     <span>Có Mặt Ra Sân</span>
@@ -674,11 +689,10 @@ export function ScheduleTab({
                     onClick={() =>
                       handleSetRsvp(session.playerId!, "absent_notice")
                     }
-                    className={`min-h-[54px] inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-base font-black transition cursor-pointer shadow-md ${
-                      myAttendance?.rsvp_status === "absent_notice"
+                    className={`min-h-[54px] inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-base font-black transition cursor-pointer shadow-md ${myAttendance?.rsvp_status === "absent_notice"
                         ? "bg-gradient-to-r from-rose-600 to-red-700 text-white ring-4 ring-rose-300 scale-105"
                         : "bg-slate-800/90 hover:bg-rose-600 text-white border-2 border-slate-600 hover:border-rose-400"
-                    }`}
+                      }`}
                   >
                     <XCircle className="h-6 w-6 shrink-0" />
                     <span>Báo Vắng</span>
@@ -731,11 +745,10 @@ export function ScheduleTab({
                         setQuickVenue(preset.venue);
                         setQuickPitchCost(String(preset.cost));
                       }}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-extrabold border transition cursor-pointer ${
-                        isActivePreset
+                      className={`rounded-lg px-3 py-1.5 text-xs font-extrabold border transition cursor-pointer ${isActivePreset
                           ? "bg-[#1e4fc2] text-[#ffc933] border-[#1e4fc2]"
                           : "bg-white text-slate-800 border-slate-300 hover:bg-slate-100"
-                      }`}
+                        }`}
                     >
                       🏟️ {preset.shortLabel}
                     </button>
@@ -785,11 +798,10 @@ export function ScheduleTab({
                         key={pName}
                         type="button"
                         onClick={() => setQuickPayer(pName)}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                          quickPayer === pName
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${quickPayer === pName
                             ? "bg-[#1e4fc2] text-[#ffc933] border-[#1e4fc2]"
                             : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
-                        }`}
+                          }`}
                       >
                         {pName}
                       </button>
@@ -862,22 +874,20 @@ export function ScheduleTab({
                 <button
                   type="button"
                   onClick={() => setPostTemplateMode("fanpage")}
-                  className={`rounded-lg py-1.5 px-2 text-xs font-bold transition cursor-pointer ${
-                    postTemplateMode === "fanpage"
+                  className={`rounded-lg py-1.5 px-2 text-xs font-bold transition cursor-pointer ${postTemplateMode === "fanpage"
                       ? "bg-[#1e4fc2] text-[#ffc933]"
                       : "text-slate-700 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   Mẫu 1: Đăng Fanpage
                 </button>
                 <button
                   type="button"
                   onClick={() => setPostTemplateMode("with_roster")}
-                  className={`rounded-lg py-1.5 px-2 text-xs font-bold transition cursor-pointer ${
-                    postTemplateMode === "with_roster"
+                  className={`rounded-lg py-1.5 px-2 text-xs font-bold transition cursor-pointer ${postTemplateMode === "with_roster"
                       ? "bg-[#1e4fc2] text-[#ffc933]"
                       : "text-slate-700 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   Mẫu 2: Kèm DS Điểm Danh ({registeredPlayers.length})
                 </button>
@@ -1042,11 +1052,10 @@ export function ScheduleTab({
                           type="button"
                           disabled={isSaving}
                           onClick={() => handleSetRsvp(session.playerId!, "registered")}
-                          className={`flex-1 py-1.5 rounded-lg text-xs font-black transition cursor-pointer text-center ${
-                            myAttendance?.rsvp_status === "registered"
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-black transition cursor-pointer text-center ${myAttendance?.rsvp_status === "registered"
                               ? "bg-emerald-500 text-white shadow-xs"
                               : "bg-emerald-700/80 hover:bg-emerald-600 text-white"
-                          }`}
+                            }`}
                         >
                           ✓ Xác Nhận Ra Sân
                         </button>
@@ -1054,11 +1063,10 @@ export function ScheduleTab({
                           type="button"
                           disabled={isSaving}
                           onClick={() => handleSetRsvp(session.playerId!, "absent_notice")}
-                          className={`flex-1 py-1.5 rounded-lg text-xs font-black transition cursor-pointer text-center ${
-                            myAttendance?.rsvp_status === "absent_notice"
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-black transition cursor-pointer text-center ${myAttendance?.rsvp_status === "absent_notice"
                               ? "bg-rose-500 text-white shadow-xs"
                               : "bg-rose-700/80 hover:bg-rose-600 text-white"
-                          }`}
+                            }`}
                         >
                           ✕ Báo Bận Vắng
                         </button>
@@ -1227,15 +1235,14 @@ export function ScheduleTab({
                       return (
                         <div
                           key={p.id}
-                          className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition ${
-                            isMe
+                          className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition ${isMe
                               ? "ring-2 ring-[#ffc933] border-[#1e4fc2] bg-amber-50 shadow-xs"
                               : rsvp === "registered"
-                              ? "bg-emerald-50/80 border-emerald-300"
-                              : rsvp === "absent_notice"
-                              ? "bg-rose-50/80 border-rose-300"
-                              : "bg-white border-slate-200"
-                          }`}
+                                ? "bg-emerald-50/80 border-emerald-300"
+                                : rsvp === "absent_notice"
+                                  ? "bg-rose-50/80 border-rose-300"
+                                  : "bg-white border-slate-200"
+                            }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <div className="relative shrink-0">
@@ -1278,15 +1285,13 @@ export function ScheduleTab({
                                   rsvp === "registered" ? "none" : "registered"
                                 )
                               }
-                              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition ${
-                                !canToggle
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition ${!canToggle
                                   ? "opacity-75 cursor-default"
                                   : "cursor-pointer"
-                              } ${
-                                rsvp === "registered"
+                                } ${rsvp === "registered"
                                   ? "bg-emerald-600 text-white"
                                   : "bg-slate-100 text-slate-700 hover:bg-emerald-100 hover:text-emerald-800"
-                              }`}
+                                }`}
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" />
                               <span>Có mặt</span>
@@ -1304,15 +1309,13 @@ export function ScheduleTab({
                                 )
                               }
                               title="Báo vắng trận này"
-                              className={`px-2 py-1.5 rounded-lg text-xs font-bold transition ${
-                                !canToggle
+                              className={`px-2 py-1.5 rounded-lg text-xs font-bold transition ${!canToggle
                                   ? "opacity-75 cursor-default"
                                   : "cursor-pointer"
-                              } ${
-                                rsvp === "absent_notice"
+                                } ${rsvp === "absent_notice"
                                   ? "bg-rose-600 text-white"
                                   : "bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700"
-                              }`}
+                                }`}
                             >
                               <XCircle className="h-3.5 w-3.5" />
                             </button>
@@ -1470,8 +1473,8 @@ export function ScheduleTab({
         subtitle={
           selectedFinishedMatch
             ? `${selectedFinishedMatch.venue} • Ngày ${formatDateVN(
-                selectedFinishedMatch.match_date
-              )}`
+              selectedFinishedMatch.match_date
+            )}`
             : ""
         }
       >
@@ -1640,11 +1643,10 @@ export function ScheduleTab({
                     setVenue(preset.venue);
                     setPitchCost(String(preset.cost));
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                    venue === preset.venue
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${venue === preset.venue
                       ? "bg-[#1e4fc2] text-[#ffc933] border-[#1e4fc2]"
                       : "bg-white text-slate-700 border-slate-300"
-                  }`}
+                    }`}
                 >
                   {preset.shortLabel}
                 </button>
@@ -1793,75 +1795,232 @@ export function ScheduleTab({
           subtitle="Tự do cập nhật ảnh chân dung, thông tin thi đấu và viết bài ngỏ / bio giới thiệu bản thân."
         >
           <form onSubmit={handleSaveMyProfile} className="space-y-4">
-            {/* Tải ảnh chân dung thật - Tự động nén WebP */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl bg-slate-50 p-3.5 border border-slate-200">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={profileAvatarUrl || "/uploads/avatars/member-1.jpg"}
-                alt="Ảnh chân dung"
-                className="h-24 w-20 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shrink-0 bg-slate-900"
-              />
-              <div className="space-y-2 flex-1 text-center sm:text-left">
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition">
-                    <Upload className="h-3.5 w-3.5" />
-                    <span>Tải Ảnh Mới (Canh Chỉnh Studio)</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfileImageUpload}
-                      className="sr-only"
-                    />
-                  </label>
+            {/* 1. Ảnh đại diện Avatar thi đấu (Chuẩn 3:4) */}
+            <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  <Crop className="h-4 w-4 text-[#1e4fc2]" />
+                  <span>1. Ảnh Avatar Thi Đấu (Chuẩn 3:4)</span>
+                </span>
+                <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                  Chân dung 3:4 WebP HD
+                </span>
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (profileAvatarUrl) {
-                        setProfileCropperSource(profileAvatarUrl);
-                        setProfileCropperOpen(true);
-                      }
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-900 px-3 py-2 text-xs font-bold transition cursor-pointer"
-                    title="Mở Studio để kéo thả, phóng to và cắt ảnh theo ý muốn"
-                  >
-                    <Crop className="h-3.5 w-3.5 text-amber-700" />
-                    <span>✂️ Canh Chỉnh / Cắt Ảnh</span>
-                  </button>
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={profileAvatarUrl || "/uploads/avatars/member-1.jpg"}
+                  alt="Ảnh chân dung"
+                  className="h-28 w-21 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shrink-0 bg-slate-900 shadow-sm"
+                />
+                <div className="space-y-2 flex-1 text-center sm:text-left">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition shadow-xs">
+                      <Upload className="h-3.5 w-3.5" />
+                      <span>Tải Avatar Mới</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProfileAvatarUpload}
+                        className="sr-only"
+                      />
+                    </label>
 
-                  <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[11px] font-bold text-emerald-700">
-                    Chuẩn 3:4 WebP HD
-                  </span>
-                </div>
-                {profileWebpInfo && (
-                  <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 inline-block">
-                    {profileWebpInfo}
-                  </p>
-                )}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                  {PRESET_AVATARS.map((url, idx) => (
                     <button
-                      key={url}
                       type="button"
                       onClick={() => {
-                        setProfileAvatarUrl(url);
-                        setProfileWebpInfo("");
+                        setProfileCropperMode("avatar");
+                        setProfileCropperSource(profileAvatarUrl || "/uploads/avatars/member-1.jpg");
+                        setProfileCropperOpen(true);
                       }}
-                      className={`h-9 w-9 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${
-                        profileAvatarUrl === url
-                          ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
-                          : "border-transparent opacity-70 hover:opacity-100"
-                      }`}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-900 px-3 py-2 text-xs font-bold transition cursor-pointer"
+                      title="Mở Studio để kéo thả, phóng to và cắt ảnh Avatar chuẩn 3:4"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={url}
-                        alt={`Avatar ${idx + 1}`}
-                        className="h-full w-full object-cover"
-                      />
+                      <Crop className="h-3.5 w-3.5 text-amber-700" />
+                      <span>✂️ Canh Chỉnh 3:4</span>
                     </button>
-                  ))}
+                  </div>
+                  {profileWebpInfo && (
+                    <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 inline-block">
+                      {profileWebpInfo}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    {PRESET_AVATARS.map((url, idx) => (
+                      <button
+                        key={url}
+                        type="button"
+                        onClick={() => {
+                          setProfileAvatarUrl(url);
+                          setProfileWebpInfo("");
+                        }}
+                        className={`h-8 w-8 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${profileAvatarUrl === url
+                            ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
+                            : "border-transparent opacity-70 hover:opacity-100"
+                          }`}
+                        title={`Ảnh thành viên #${idx + 1}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={url}
+                          alt={`Avatar ${idx + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              </div>
+            </div>
+
+            {/* 2. Ảnh Giới Thiệu Profile / Hoạt Động (Khung Rộng 16:9 hoặc 4:3) */}
+            <div className="rounded-xl bg-sky-50/60 p-4 border border-sky-200 space-y-3">
+              <div className="flex items-center justify-between border-b border-sky-200/60 pb-2">
+                <span className="text-xs font-black uppercase tracking-wider text-sky-950 flex items-center gap-1.5">
+                  <ImageIcon className="h-4 w-4 text-[#1e4fc2]" />
+                  <span>2. Ảnh Giới Thiệu Profile (Khung Rộng 16:9 / 4:3)</span>
+                </span>
+                <span className="rounded-md bg-sky-100 border border-sky-300 px-2 py-0.5 text-[10px] font-black text-sky-800">
+                  Toàn Thân / Hành Động Sân Cỏ
+                </span>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="relative w-full sm:w-44 aspect-video rounded-xl overflow-hidden bg-slate-900 border-2 border-sky-400 shrink-0 shadow-sm flex items-center justify-center">
+                  {profileProfileImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={profileProfileImageUrl}
+                      alt="Ảnh profile rộng"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-center p-2 text-slate-400 text-[11px] font-semibold flex flex-col items-center gap-1">
+                      <ImageIcon className="h-6 w-6 text-slate-500" />
+                      <span>Chưa có ảnh rộng</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 flex-1 text-center sm:text-left">
+                  <p className="text-xs text-slate-600">
+                    Ảnh dáng đứng toàn thân, khoảnh khắc thi đấu khái quát làm nền hồ sơ profile và tạo link chia sẻ Facebook/Zalo trực quan.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    <label className="inline-flex items-center gap-1.5 rounded-lg bg-sky-800 hover:bg-sky-900 px-3.5 py-2 text-xs font-bold text-white cursor-pointer transition shadow-xs">
+                      <Upload className="h-3.5 w-3.5 text-[#ffc933]" />
+                      <span>Tải Ảnh Profile Mới</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProfileProfileImageUpload}
+                        className="sr-only"
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileCropperMode("profile");
+                        setProfileCropperSource(profileProfileImageUrl || profileAvatarUrl || "/images/cover-team.jpg");
+                        setProfileCropperOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-sky-300 text-sky-900 hover:bg-sky-100 px-3 py-2 text-xs font-bold transition cursor-pointer"
+                      title="Mở Studio để cắt ảnh theo tỉ lệ 16:9 hoặc 4:3"
+                    >
+                      <Crop className="h-3.5 w-3.5 text-sky-700" />
+                      <span>✂️ Canh Chỉnh Khung Rộng</span>
+                    </button>
+
+                    {profileProfileImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileProfileImageUrl("");
+                          setProfileProfileWebpInfo("");
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-2.5 py-2 text-xs font-semibold transition cursor-pointer"
+                        title="Gỡ ảnh profile rộng này"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Gỡ</span>
+                      </button>
+                    )}
+                  </div>
+                  {profileProfileWebpInfo && (
+                    <p className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
+                      {profileProfileWebpInfo}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Chọn nhanh ảnh Profile từ Album hoạt động cá nhân */}
+              <div className="pt-2.5 border-t border-sky-200/70 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                    <Camera className="h-3.5 w-3.5 text-[#1e4fc2]" />
+                    <span>Hoặc chọn nhanh từ Album hoạt động cá nhân ({profileGalleryUrls.length} ảnh):</span>
+                  </span>
+                  {profileGalleryUrls.length > 0 && (
+                    <span className="text-[11px] text-slate-500 italic">Nhấn vào ảnh để chọn</span>
+                  )}
+                </div>
+
+                {profileGalleryUrls.length > 0 ? (
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5">
+                    {profileGalleryUrls.map((url, idx) => {
+                      const isSelected = profileProfileImageUrl === url;
+                      return (
+                        <div key={idx} className="relative group shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileProfileImageUrl(url);
+                              setProfileProfileWebpInfo(`✅ Đã chọn ảnh hoạt động #${idx + 1} làm ảnh Profile!`);
+                            }}
+                            className={`relative h-14 w-24 rounded-lg overflow-hidden border-2 transition cursor-pointer ${
+                              isSelected
+                                ? "border-[#ffd700] ring-2 ring-[#1e4fc2] shadow-md"
+                                : "border-slate-300 opacity-80 hover:opacity-100 hover:border-sky-500"
+                            }`}
+                            title={`Chọn ảnh hoạt động #${idx + 1} làm ảnh Profile`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={url}
+                              alt={`Ảnh hoạt động ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            {isSelected && (
+                              <span className="absolute bottom-0 inset-x-0 bg-[#092244]/85 text-[9px] font-black text-[#ffd700] text-center py-0.5 flex items-center justify-center gap-0.5">
+                                <Check className="h-2.5 w-2.5" />
+                                <span>Đang chọn</span>
+                              </span>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileCropperMode("profile");
+                              setProfileCropperSource(url);
+                              setProfileCropperOpen(true);
+                            }}
+                            className="absolute top-1 right-1 bg-black/80 hover:bg-black text-[#ffc933] p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                            title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
+                          >
+                            <Crop className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-sky-100/50 border border-dashed border-sky-300 p-2 text-center text-xs text-sky-800">
+                    Chưa có ảnh trong Album hoạt động bên dưới. Bạn có thể kéo xuống mục &ldquo;Album ảnh thi đấu &amp; hoạt động&rdquo; bên dưới để tải ảnh lên hoặc tải trực tiếp ở trên.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2006,24 +2165,65 @@ export function ScheduleTab({
                 <p className="text-xs text-emerald-800 font-medium">{profileGalleryWebpInfo}</p>
               )}
               {profileGalleryUrls.length > 0 && (
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-1">
-                  {profileGalleryUrls.map((url, idx) => (
-                    <div
-                      key={idx}
-                      className="relative aspect-square rounded-lg overflow-hidden border border-slate-300 group bg-slate-200"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveProfileGalleryImage(idx)}
-                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm cursor-pointer"
-                        title="Xoá ảnh này"
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
+                  {profileGalleryUrls.map((url, idx) => {
+                    const isProfile = profileProfileImageUrl === url;
+                    return (
+                      <div
+                        key={idx}
+                        className={`relative aspect-square rounded-xl overflow-hidden border-2 group bg-slate-900 transition ${
+                          isProfile
+                            ? "border-[#ffd700] ring-2 ring-sky-500 shadow-md"
+                            : "border-slate-300"
+                        }`}
                       >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
+
+                        {isProfile && (
+                          <div className="absolute top-1 left-1 bg-[#092244]/90 text-[9px] font-black text-[#ffd700] px-1.5 py-0.5 rounded border border-white/20 shadow flex items-center gap-0.5">
+                            <Check className="h-2.5 w-2.5" />
+                            <span>Profile</span>
+                          </div>
+                        )}
+
+                        {/* Nút hành động nổi lên khi hover */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5 p-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileProfileImageUrl(url);
+                              setProfileProfileWebpInfo(`✅ Đã chọn ảnh #${idx + 1} làm ảnh Profile rộng!`);
+                            }}
+                            className="h-7 w-7 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer"
+                            title="Đặt ảnh này làm ảnh Giới thiệu Profile rộng"
+                          >
+                            <ImageIcon className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileCropperMode("profile");
+                              setProfileCropperSource(url);
+                              setProfileCropperOpen(true);
+                            }}
+                            className="h-7 w-7 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer"
+                            title="Canh chỉnh & cắt ảnh này làm Profile rộng"
+                          >
+                            <Crop className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveProfileGalleryImage(idx)}
+                            className="h-7 w-7 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer"
+                            title="Xoá ảnh này khỏi Album"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -2164,36 +2364,34 @@ export function ScheduleTab({
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-slate-600">Độ an toàn:</span>
                   <span
-                    className={`font-bold ${
-                      pwdNewPin.length < 6
+                    className={`font-bold ${pwdNewPin.length < 6
                         ? "text-rose-600"
                         : pwdNewPin.length >= 8 &&
                           /[0-9]/.test(pwdNewPin) &&
                           /[a-zA-Z]/.test(pwdNewPin)
-                        ? "text-emerald-600"
-                        : "text-amber-600"
-                    }`}
+                          ? "text-emerald-600"
+                          : "text-amber-600"
+                      }`}
                   >
                     {pwdNewPin.length < 6
                       ? "Chưa đủ 6 ký tự"
                       : pwdNewPin.length >= 8 &&
                         /[0-9]/.test(pwdNewPin) &&
                         /[a-zA-Z]/.test(pwdNewPin)
-                      ? "Mạnh"
-                      : "Trung bình"}
+                        ? "Mạnh"
+                        : "Trung bình"}
                   </span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                   <div
-                    className={`h-full transition-all duration-300 ${
-                      pwdNewPin.length < 6
+                    className={`h-full transition-all duration-300 ${pwdNewPin.length < 6
                         ? "w-1/4 bg-rose-500"
                         : pwdNewPin.length >= 8 &&
                           /[0-9]/.test(pwdNewPin) &&
                           /[a-zA-Z]/.test(pwdNewPin)
-                        ? "w-full bg-emerald-500"
-                        : "w-2/3 bg-amber-500"
-                    }`}
+                          ? "w-full bg-emerald-500"
+                          : "w-2/3 bg-amber-500"
+                      }`}
                   />
                 </div>
               </div>
@@ -2253,10 +2451,11 @@ export function ScheduleTab({
         </ModalDialog>
       )}
 
-      {/* Studio Canh Chỉnh & Cắt Ảnh Đại Diện Chuẩn 3:4 */}
+      {/* Studio Canh Chỉnh & Cắt Ảnh Đại Diện & Profile */}
       {me && (
         <AvatarCropperModal
           isOpen={profileCropperOpen}
+          cropMode={profileCropperMode}
           onClose={() => {
             setProfileCropperOpen(false);
             setProfileCropperSource(null);
@@ -2265,31 +2464,62 @@ export function ScheduleTab({
           playerName={me.full_name}
           jerseyNumber={me.jersey_number}
           onConfirm={(res) => {
-            setProfileAvatarUrl(res.dataUrl);
-            setProfileWebpInfo(
-              `✅ Đã cắt ảnh chuẩn 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)! Hãy bấm nút "Lưu Hồ Sơ Điểm Danh" màu xanh bên dưới để hoàn tất.`
-            );
+            if (profileCropperMode === "profile") {
+              setProfileProfileImageUrl(res.dataUrl);
+              setProfileProfileWebpInfo(
+                `✅ Đã chuẩn bị ảnh Profile rộng (${res.width}x${res.height} • ${res.webpSizeKB}KB)! Hãy bấm nút "Lưu Hồ Sơ Điểm Danh" để hoàn tất.`
+              );
+            } else {
+              setProfileAvatarUrl(res.dataUrl);
+              setProfileWebpInfo(
+                `✅ Đã cắt ảnh chuẩn 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)! Hãy bấm nút "Lưu Hồ Sơ Điểm Danh" để hoàn tất.`
+              );
+            }
           }}
           onDirectSave={async (res) => {
-            await onMutate("update_own_profile", {
-              player_id: me.id,
-              short_name: profileShortName || me.short_name,
-              jersey_number: profileJerseyNumber === "" ? null : Number(profileJerseyNumber || me.jersey_number),
-              position: profilePosition || me.position,
-              phone: profilePhone || me.phone,
-              birth_year: profileBirthYear === "" ? null : Number(profileBirthYear || me.birth_year),
-              avatar_url: res.dataUrl,
-              bio: profileBio !== undefined ? profileBio : me.bio,
-              notes: profileNotes !== undefined ? profileNotes : me.notes,
-              hometown: profileHometown !== undefined ? profileHometown : me.hometown,
-              nickname: profileNickname !== undefined ? profileNickname : me.nickname,
-              playing_style: profilePlayingStyle !== undefined ? profilePlayingStyle : me.playing_style,
-              gallery_urls: profileGalleryUrls.length > 0 ? profileGalleryUrls : (me.gallery_urls || []),
-            });
-            setProfileAvatarUrl(res.dataUrl);
-            setProfileWebpInfo(
-              `✅ Đã lưu trực tiếp ảnh mới vào hồ sơ (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
-            );
+            if (profileCropperMode === "profile") {
+              await onMutate("update_own_profile", {
+                player_id: me.id,
+                short_name: profileShortName || me.short_name,
+                jersey_number: profileJerseyNumber === "" ? null : Number(profileJerseyNumber || me.jersey_number),
+                position: profilePosition || me.position,
+                phone: profilePhone || me.phone,
+                birth_year: profileBirthYear === "" ? null : Number(profileBirthYear || me.birth_year),
+                avatar_url: profileAvatarUrl || me.avatar_url,
+                profile_image_url: res.dataUrl,
+                bio: profileBio !== undefined ? profileBio : me.bio,
+                notes: profileNotes !== undefined ? profileNotes : me.notes,
+                hometown: profileHometown !== undefined ? profileHometown : me.hometown,
+                nickname: profileNickname !== undefined ? profileNickname : me.nickname,
+                playing_style: profilePlayingStyle !== undefined ? profilePlayingStyle : me.playing_style,
+                gallery_urls: profileGalleryUrls.length > 0 ? profileGalleryUrls : (me.gallery_urls || []),
+              });
+              setProfileProfileImageUrl(res.dataUrl);
+              setProfileProfileWebpInfo(
+                `✅ Đã lưu trực tiếp ảnh Profile rộng (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+              );
+            } else {
+              await onMutate("update_own_profile", {
+                player_id: me.id,
+                short_name: profileShortName || me.short_name,
+                jersey_number: profileJerseyNumber === "" ? null : Number(profileJerseyNumber || me.jersey_number),
+                position: profilePosition || me.position,
+                phone: profilePhone || me.phone,
+                birth_year: profileBirthYear === "" ? null : Number(profileBirthYear || me.birth_year),
+                avatar_url: res.dataUrl,
+                profile_image_url: profileProfileImageUrl !== undefined ? profileProfileImageUrl : me.profile_image_url,
+                bio: profileBio !== undefined ? profileBio : me.bio,
+                notes: profileNotes !== undefined ? profileNotes : me.notes,
+                hometown: profileHometown !== undefined ? profileHometown : me.hometown,
+                nickname: profileNickname !== undefined ? profileNickname : me.nickname,
+                playing_style: profilePlayingStyle !== undefined ? profilePlayingStyle : me.playing_style,
+                gallery_urls: profileGalleryUrls.length > 0 ? profileGalleryUrls : (me.gallery_urls || []),
+              });
+              setProfileAvatarUrl(res.dataUrl);
+              setProfileWebpInfo(
+                `✅ Đã lưu trực tiếp ảnh Avatar 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+              );
+            }
           }}
         />
       )}

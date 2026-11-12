@@ -42,7 +42,7 @@ export const CLUB_TIMELINE_YEARS: Array<{
     id: "2026",
     label: "Mùa Giải 2026",
     highlight: "Chuyển Mình & Số Hóa",
-    description: "Đồng bộ website chính thức, quy chuẩn áo đấu, mở rộng đội hình 23+ chiến binh",
+    description: "Đồng bộ website chính thức, quy chuẩn áo đấu, mở rộng đội hình chiến binh",
   },
   {
     id: "2025",
@@ -86,7 +86,7 @@ export const ACTIVITY_CATEGORIES: Array<{
     id: "cauthu",
     label: "Cầu Thủ Gò Nổi",
     iconName: "Users",
-    description: "Gương mặt, câu chuyện và những khoảnh khắc tỏa sáng của 23+ chiến binh sân cỏ",
+    description: "Gương mặt, câu chuyện và những khoảnh khắc tỏa sáng của các chiến binh sân cỏ",
   },
   {
     id: "taitro",
@@ -269,7 +269,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     category: "cauthu",
     categoryLabel: "Cầu Thủ Gò Nổi",
     categoryBadgeClass: "bg-sky-500/20 text-sky-300 border-sky-500/40",
-    title: "23+ Chiến binh Gò Nổi: Tinh thần nhiệt huyết, sức trẻ và bản lĩnh sân cỏ",
+    title: "Những Chiến binh Gò Nổi: Tinh thần nhiệt huyết, sức trẻ và bản lĩnh sân cỏ",
     slug: "23-chien-binh-go-noi-tinh-than-nhiet-huyet",
     publishedDate: "2026-10-20",
     eventYear: "2026",
@@ -287,13 +287,13 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     summary:
       "Mỗi cầu thủ là một câu chuyện riêng về tình yêu bóng đá và lòng hướng về cội nguồn. Từ anh em sinh viên cho đến các kỹ sư, nhân viên văn phòng, tất cả cùng chung nhịp đập khi xỏ giày ra sân.",
     paragraphs: [
-      "Đội hình hiện tại của FC HĐH Gò Nổi quy tụ hơn 23 thành viên nòng cốt và đang tiếp tục kết nạp thêm nhiều nhân tố mới. Điều đặc biệt là mỗi cầu thủ đều sở hữu một thẻ Profile cá nhân 3D trên hệ thống website, nơi anh em có thể tự do viết lời giới thiệu, thể hiện phong cách thi đấu và phương châm sống của mình.",
+      "Đội hình hiện tại của FC HĐH Gò Nổi quy tụ đông đảo thành viên nòng cốt và đang tiếp tục kết nạp thêm nhiều nhân tố mới. Điều đặc biệt là mỗi cầu thủ đều sở hữu một thẻ Profile cá nhân 3D trên hệ thống website, nơi anh em có thể tự do viết lời giới thiệu, thể hiện phong cách thi đấu và phương châm sống của mình.",
       "Từ vị trí thủ môn kiên cường, các hậu vệ lăn xả cản phá, những tiền vệ điều phối nhịp nhàng đến các tiền đạo chớp thời cơ nhạy bén — mỗi cá nhân đều là một mảnh ghép không thể thiếu tạo nên sức mạnh đoàn kết của đội bóng.",
       "Dù công việc thường ngày có bận rộn đến đâu, cứ đến tối thứ Bảy hay sáng Chủ Nhật, anh em lại cùng nhau ra sân với nụ cười sảng khoái và tinh thần tràn đầy năng lượng tích cực.",
     ],
     quote: "Không quan trọng bạn đá ở vị trí nào, chỉ cần bạn mang trong mình tinh thần Gò Nổi — bạn là một phần của chiến thắng!",
     highlights: [
-      "Đội hình 23+ cầu thủ đa dạng độ tuổi, giàu nhiệt huyết",
+      "Đội hình cầu thủ đa dạng độ tuổi, giàu nhiệt huyết",
       "Tính năng Profile cá nhân tự sửa độc đáo trên website",
       "Chào đón tất cả anh em đồng hương muốn gia nhập",
     ],
@@ -413,7 +413,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     paragraphs: [
       "Vùng đất Gò Nổi gồm ba xã Điện Quang, Điện Trung, Điện Phong vốn nức tiếng hiếu học, kiên cường và giàu truyền thống cách mạng. Rời quê hương vào TP.HCM lập nghiệp, mỗi người mang một số phận, một công việc khác nhau, nhưng trong tim ai cũng đau đáu nỗi nhớ quê.",
       "Ý tưởng thành lập đội bóng nảy sinh từ một buổi gặp mặt thân mật của một nhóm anh em yêu thể thao vào giữa năm 2024. Với mong muốn tạo ra một không gian sinh hoạt văn hóa, rèn luyện sức khỏe và tương trợ lẫn nhau, FC HĐH Gò Nổi chính thức ra đời.",
-      "Từ những ngày đầu gom góp từng chiếc áo tập, tìm kiếm từng cụm sân bóng, đến nay đội đã phát triển thành một tập thể vững mạnh với hơn 23 cầu thủ nòng cốt, nhận được sự đồng hành to lớn của Hội đồng hương và các mạnh thường quân quê nhà. Đây chính là minh chứng sống động cho câu ca: 'Người Gò Nổi đi đâu cũng tìm về với nhau'.",
+      "Từ những ngày đầu gom góp từng chiếc áo tập, tìm kiếm từng cụm sân bóng, đến nay đội đã phát triển thành một tập thể vững mạnh với đông đảo cầu thủ nòng cốt, nhận được sự đồng hành to lớn của Hội đồng hương và các mạnh thường quân quê nhà. Đây chính là minh chứng sống động cho câu ca: 'Người Gò Nổi đi đâu cũng tìm về với nhau'.",
     ],
     quote: "Dù đi trăm nẻo bốn phương, hồn quê Gò Nổi vẫn vẹn nguyên trong từng bước chạy.",
     highlights: [

@@ -20,6 +20,8 @@ import {
   Camera,
   Sparkles,
   Crop,
+  Image as ImageIcon,
+  Check,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -93,7 +95,9 @@ export function PlayersTab({
   const [phone, setPhone] = useState("");
   const [birthYear, setBirthYear] = useState("1991");
   const [avatarUrl, setAvatarUrl] = useState("/uploads/avatars/member-1.jpg");
+  const [profileImageUrl, setProfileImageUrl] = useState("");
   const [webpInfo, setWebpInfo] = useState("");
+  const [profileWebpInfo, setProfileWebpInfo] = useState("");
   const [role, setRole] = useState("Thành viên");
   const [accessRole, setAccessRole] = useState<"manager" | "player">("player");
   const [pinCode, setPinCode] = useState("1234");
@@ -113,6 +117,7 @@ export function PlayersTab({
   // Studio Canh Chỉnh & Cắt Ảnh Đại Diện
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropperSource, setCropperSource] = useState<string | File | null>(null);
+  const [cropperMode, setCropperMode] = useState<"avatar" | "profile">("avatar");
 
   // Chặn tuyệt đối nếu là Khách (Guest)
   if (session.role === "guest") {
@@ -136,7 +141,9 @@ export function PlayersTab({
     setPhone("");
     setBirthYear("1992");
     setAvatarUrl("/uploads/avatars/member-1.jpg");
+    setProfileImageUrl("");
     setWebpInfo("");
+    setProfileWebpInfo("");
     setRole("Thành viên");
     setAccessRole("player");
     setPinCode("1234");
@@ -162,7 +169,9 @@ export function PlayersTab({
     setPhone(p.phone || "");
     setBirthYear(formatBirthYear(p.birth_year) || "1991");
     setAvatarUrl(p.avatar_url || "/uploads/avatars/member-1.jpg");
+    setProfileImageUrl(p.profile_image_url || "");
     setWebpInfo("");
+    setProfileWebpInfo("");
     setRole(p.role);
     setAccessRole(p.access_role || "player");
     setPinCode(p.pin_code || "1234");
@@ -177,11 +186,23 @@ export function PlayersTab({
     setFormOpen(true);
   }
 
-  const handleImageFileUpload = (
+  const handleAvatarFileUpload = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setCropperMode("avatar");
+    setCropperSource(file);
+    setCropperOpen(true);
+    e.target.value = "";
+  };
+
+  const handleProfileImageFileUpload = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCropperMode("profile");
     setCropperSource(file);
     setCropperOpen(true);
     e.target.value = "";
@@ -226,6 +247,7 @@ export function PlayersTab({
         phone,
         birth_year: birthYear === "" ? null : Number(birthYear),
         avatar_url: avatarUrl,
+        profile_image_url: profileImageUrl || null,
         notes,
         hometown,
         nickname,
@@ -248,6 +270,7 @@ export function PlayersTab({
       phone,
       birth_year: birthYear === "" ? null : Number(birthYear),
       avatar_url: avatarUrl,
+      profile_image_url: profileImageUrl || null,
       role,
       access_role: accessRole,
       pin_code: pinCode,
@@ -912,74 +935,232 @@ export function PlayersTab({
             </div>
           </div>
 
-          {/* Chọn hoặc tải ảnh chân dung thật (Tự động chuyển sang WebP) */}
-          <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl bg-slate-50 p-3.5 border border-slate-200">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={avatarUrl || "/uploads/avatars/member-1.jpg"}
-              alt="Ảnh hồ sơ"
-              className="h-24 w-20 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shrink-0"
-            />
-            <div className="space-y-2 flex-1 text-center sm:text-left">
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition">
-                  <Upload className="h-3.5 w-3.5" />
-                  <span>Tải Ảnh Mới (Canh Chỉnh Studio)</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageFileUpload}
-                    className="sr-only"
-                  />
-                </label>
+          {/* 1. Ảnh đại diện Avatar thi đấu (Chuẩn 3:4) */}
+          <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <Crop className="h-4 w-4 text-[#1e4fc2]" />
+                <span>1. Ảnh Avatar Thi Đấu (Chuẩn 3:4)</span>
+              </span>
+              <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+                Chân dung 3:4 WebP HD
+              </span>
+            </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (avatarUrl) {
-                      setCropperSource(avatarUrl);
-                      setCropperOpen(true);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-900 px-3 py-2 text-xs font-bold transition cursor-pointer"
-                  title="Mở Studio để kéo thả, phóng to và cắt ảnh theo ý muốn"
-                >
-                  <Crop className="h-3.5 w-3.5 text-amber-700" />
-                  <span>✂️ Canh Chỉnh / Cắt Ảnh</span>
-                </button>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={avatarUrl || "/uploads/avatars/member-1.jpg"}
+                alt="Ảnh hồ sơ"
+                className="h-28 w-21 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shadow-sm shrink-0"
+              />
+              <div className="space-y-2 flex-1 text-center sm:text-left">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition shadow-xs">
+                    <Upload className="h-3.5 w-3.5" />
+                    <span>Tải Avatar Mới</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarFileUpload}
+                      className="sr-only"
+                    />
+                  </label>
 
-                <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[11px] font-bold text-emerald-700">
-                  Chuẩn 3:4 WebP HD
-                </span>
-              </div>
-              {webpInfo && (
-                <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 inline-block">
-                  {webpInfo}
-                </p>
-              )}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                {PRESET_AVATARS.map((url, idx) => (
                   <button
-                    key={url}
                     type="button"
                     onClick={() => {
-                      setAvatarUrl(url);
-                      setWebpInfo("");
+                      setCropperMode("avatar");
+                      setCropperSource(avatarUrl || "/uploads/avatars/member-1.jpg");
+                      setCropperOpen(true);
                     }}
-                    className={`h-9 w-9 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${avatarUrl === url
-                        ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
-                        : "border-transparent opacity-70 hover:opacity-100"
-                      }`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-900 px-3 py-2 text-xs font-bold transition cursor-pointer"
+                    title="Mở Studio để kéo thả, phóng to và cắt ảnh theo ý muốn"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={url}
-                      alt={`Avatar ${idx + 1}`}
-                      className="h-full w-full object-cover"
-                    />
+                    <Crop className="h-3.5 w-3.5 text-amber-700" />
+                    <span>✂️ Canh Chỉnh 3:4</span>
                   </button>
-                ))}
+                </div>
+                {webpInfo && (
+                  <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 inline-block">
+                    {webpInfo}
+                  </p>
+                )}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {PRESET_AVATARS.map((url, idx) => (
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => {
+                        setAvatarUrl(url);
+                        setWebpInfo("");
+                      }}
+                      className={`h-8 w-8 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${avatarUrl === url
+                          ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
+                          : "border-transparent opacity-70 hover:opacity-100"
+                        }`}
+                      title={`Ảnh thành viên #${idx + 1}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`Avatar ${idx + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
+            </div>
+          </div>
+
+          {/* 2. Ảnh Giới Thiệu Profile / Hoạt Động (Khung Rộng 16:9 hoặc 4:3) */}
+          <div className="rounded-xl bg-sky-50/60 p-4 border border-sky-200 space-y-3">
+            <div className="flex items-center justify-between border-b border-sky-200/60 pb-2">
+              <span className="text-xs font-black uppercase tracking-wider text-sky-950 flex items-center gap-1.5">
+                <ImageIcon className="h-4 w-4 text-[#1e4fc2]" />
+                <span>2. Ảnh Giới Thiệu Profile (Khung Rộng 16:9 / 4:3)</span>
+              </span>
+              <span className="rounded-md bg-sky-100 border border-sky-300 px-2 py-0.5 text-[10px] font-black text-sky-800">
+                Toàn Thân / Hành Động Sân Cỏ
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="relative w-full sm:w-44 aspect-video rounded-xl overflow-hidden bg-slate-900 border-2 border-sky-400 shrink-0 shadow-sm flex items-center justify-center">
+                {profileImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profileImageUrl}
+                    alt="Ảnh profile rộng"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center p-2 text-slate-400 text-[11px] font-semibold flex flex-col items-center gap-1">
+                    <ImageIcon className="h-6 w-6 text-slate-500" />
+                    <span>Chưa có ảnh rộng</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 flex-1 text-center sm:text-left">
+                <p className="text-xs text-slate-600">
+                  Ảnh toàn thân, động tác thi đấu khái quát làm nền hồ sơ profile và tạo link chia sẻ Facebook/Zalo trực quan.
+                </p>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <label className="inline-flex items-center gap-1.5 rounded-lg bg-sky-800 hover:bg-sky-900 px-3.5 py-2 text-xs font-bold text-white cursor-pointer transition shadow-xs">
+                    <Upload className="h-3.5 w-3.5 text-[#ffc933]" />
+                    <span>Tải Ảnh Profile Mới</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfileImageFileUpload}
+                      className="sr-only"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCropperMode("profile");
+                      setCropperSource(profileImageUrl || avatarUrl || "/images/cover-team.jpg");
+                      setCropperOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-sky-300 text-sky-900 hover:bg-sky-100 px-3 py-2 text-xs font-bold transition cursor-pointer"
+                    title="Mở Studio để cắt ảnh theo tỉ lệ 16:9 hoặc 4:3"
+                  >
+                    <Crop className="h-3.5 w-3.5 text-sky-700" />
+                    <span>✂️ Canh Chỉnh Khung Rộng</span>
+                  </button>
+
+                  {profileImageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileImageUrl("");
+                        setProfileWebpInfo("");
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-2.5 py-2 text-xs font-semibold transition cursor-pointer"
+                      title="Gỡ ảnh profile rộng này"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Gỡ</span>
+                    </button>
+                  )}
+                </div>
+                {profileWebpInfo && (
+                  <p className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
+                    {profileWebpInfo}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Chọn nhanh ảnh Profile từ Album hoạt động cá nhân */}
+            <div className="pt-2.5 border-t border-sky-200/70 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                  <Camera className="h-3.5 w-3.5 text-[#1e4fc2]" />
+                  <span>Hoặc chọn nhanh từ Album hoạt động cá nhân ({galleryUrls.length} ảnh):</span>
+                </span>
+                {galleryUrls.length > 0 && (
+                  <span className="text-[11px] text-slate-500 italic">Nhấn vào ảnh để chọn</span>
+                )}
+              </div>
+
+              {galleryUrls.length > 0 ? (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5">
+                  {galleryUrls.map((url, idx) => {
+                    const isSelected = profileImageUrl === url;
+                    return (
+                      <div key={idx} className="relative group shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileImageUrl(url);
+                            setProfileWebpInfo(`✅ Đã chọn ảnh hoạt động #${idx + 1} làm ảnh Profile!`);
+                          }}
+                          className={`relative h-14 w-24 rounded-lg overflow-hidden border-2 transition cursor-pointer ${
+                            isSelected
+                              ? "border-[#ffd700] ring-2 ring-[#1e4fc2] shadow-md"
+                              : "border-slate-300 opacity-80 hover:opacity-100 hover:border-sky-500"
+                          }`}
+                          title={`Chọn ảnh hoạt động #${idx + 1} làm ảnh Profile`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt={`Ảnh hoạt động ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          {isSelected && (
+                            <span className="absolute bottom-0 inset-x-0 bg-[#092244]/85 text-[9px] font-black text-[#ffd700] text-center py-0.5 flex items-center justify-center gap-0.5">
+                              <Check className="h-2.5 w-2.5" />
+                              <span>Đang chọn</span>
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCropperMode("profile");
+                            setCropperSource(url);
+                            setCropperOpen(true);
+                          }}
+                          className="absolute top-1 right-1 bg-black/80 hover:bg-black text-[#ffd700] p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                          title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
+                        >
+                          <Crop className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-lg bg-sky-100/50 border border-dashed border-sky-300 p-2 text-center text-xs text-sky-800">
+                  Chưa có ảnh trong Album hoạt động bên dưới. Bạn có thể kéo xuống mục &ldquo;Album Khoảnh Khắc Sân Cỏ&rdquo; bên dưới để tải ảnh lên hoặc tải trực tiếp ở trên.
+                </div>
+              )}
             </div>
           </div>
 
@@ -1224,28 +1405,69 @@ export function PlayersTab({
               </p>
             )}
             {galleryUrls.length > 0 && (
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-1">
-                {galleryUrls.map((url, idx) => (
-                  <div
-                    key={idx}
-                    className="relative aspect-square rounded-lg overflow-hidden border border-slate-300 group bg-slate-200"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={url}
-                      alt={`Ảnh ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveGalleryImage(idx)}
-                      className="absolute top-1 right-1 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm cursor-pointer"
-                      title="Xoá ảnh này"
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
+                {galleryUrls.map((url, idx) => {
+                  const isProfile = profileImageUrl === url;
+                  return (
+                    <div
+                      key={idx}
+                      className={`relative aspect-square rounded-xl overflow-hidden border-2 group bg-slate-900 transition ${
+                        isProfile
+                          ? "border-[#ffd700] ring-2 ring-sky-500 shadow-md"
+                          : "border-slate-300"
+                      }`}
                     >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`Ảnh ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+
+                      {isProfile && (
+                        <div className="absolute top-1 left-1 bg-[#092244]/90 text-[9px] font-black text-[#ffd700] px-1.5 py-0.5 rounded border border-white/20 shadow flex items-center gap-0.5">
+                          <Check className="h-2.5 w-2.5" />
+                          <span>Profile</span>
+                        </div>
+                      )}
+
+                      {/* Nút hành động nổi lên khi hover */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5 p-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileImageUrl(url);
+                            setProfileWebpInfo(`✅ Đã chọn ảnh #${idx + 1} làm ảnh Profile rộng!`);
+                          }}
+                          className="h-7 w-7 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer"
+                          title="Đặt ảnh này làm ảnh Giới thiệu Profile rộng"
+                        >
+                          <ImageIcon className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCropperMode("profile");
+                            setCropperSource(url);
+                            setCropperOpen(true);
+                          }}
+                          className="h-7 w-7 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer"
+                          title="Canh chỉnh & cắt ảnh này làm Profile rộng"
+                        >
+                          <Crop className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveGalleryImage(idx)}
+                          className="h-7 w-7 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer"
+                          title="Xoá ảnh này khỏi Album"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1406,9 +1628,10 @@ export function PlayersTab({
           </div>
         </form>
       </ModalDialog>
-      {/* Studio Canh Chỉnh & Cắt Ảnh Đại Diện Chuẩn 3:4 */}
+      {/* Studio Canh Chỉnh & Cắt Ảnh Đại Diện & Profile */}
       <AvatarCropperModal
         isOpen={cropperOpen}
+        cropMode={cropperMode}
         onClose={() => {
           setCropperOpen(false);
           setCropperSource(null);
@@ -1417,55 +1640,116 @@ export function PlayersTab({
         playerName={fullName || "Cầu thủ"}
         jerseyNumber={jerseyNumber}
         onConfirm={(res) => {
-          setAvatarUrl(res.dataUrl);
-          setWebpInfo(
-            `✅ Đã cắt ảnh chuẩn 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)! Hãy bấm nút "Lưu Thành Viên" màu xanh bên dưới để hoàn tất.`
-          );
+          if (cropperMode === "profile") {
+            setProfileImageUrl(res.dataUrl);
+            setProfileWebpInfo(
+              `✅ Đã chuẩn bị ảnh Profile rộng (${res.width}x${res.height} • ${res.webpSizeKB}KB)! Hãy bấm "Lưu Thành Viên" để cập nhật.`
+            );
+          } else {
+            setAvatarUrl(res.dataUrl);
+            setWebpInfo(
+              `✅ Đã cắt ảnh chuẩn 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)! Hãy bấm "Lưu Thành Viên" để cập nhật.`
+            );
+          }
         }}
         onDirectSave={
           editingPlayer
             ? async (res) => {
-                if (!isManager && editingPlayer.id === session.playerId) {
-                  await onMutate("update_own_profile", {
-                    player_id: editingPlayer.id,
-                    full_name: fullName,
-                    short_name: shortName,
-                    jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
-                    position,
-                    phone,
-                    birth_year: birthYear === "" ? null : Number(birthYear),
-                    avatar_url: res.dataUrl,
-                    notes,
-                    hometown,
-                    nickname,
-                  });
-                } else if (isManager) {
-                  await onMutate("upsert_player", {
-                    id: editingPlayer.id,
-                    code_order: editingPlayer.code_order,
-                    full_name: fullName,
-                    short_name: shortName,
-                    jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
-                    position,
-                    phone,
-                    birth_year: birthYear === "" ? null : Number(birthYear),
-                    avatar_url: res.dataUrl,
-                    role,
-                    access_role: accessRole,
-                    pin_code: pinCode,
-                    status,
-                    notes,
-                    hometown,
-                    nickname,
-                    playing_style: playingStyle,
-                    bio,
-                    gallery_urls: galleryUrls,
-                  });
+                if (cropperMode === "profile") {
+                  if (!isManager && editingPlayer.id === session.playerId) {
+                    await onMutate("update_own_profile", {
+                      player_id: editingPlayer.id,
+                      full_name: fullName,
+                      short_name: shortName,
+                      jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+                      position,
+                      phone,
+                      birth_year: birthYear === "" ? null : Number(birthYear),
+                      avatar_url: avatarUrl || editingPlayer.avatar_url,
+                      profile_image_url: res.dataUrl,
+                      notes,
+                      hometown,
+                      nickname,
+                      playing_style: playingStyle,
+                      bio,
+                      gallery_urls: galleryUrls,
+                    });
+                  } else if (isManager) {
+                    await onMutate("upsert_player", {
+                      id: editingPlayer.id,
+                      code_order: editingPlayer.code_order,
+                      full_name: fullName,
+                      short_name: shortName,
+                      jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+                      position,
+                      phone,
+                      birth_year: birthYear === "" ? null : Number(birthYear),
+                      avatar_url: avatarUrl || editingPlayer.avatar_url,
+                      profile_image_url: res.dataUrl,
+                      role,
+                      access_role: accessRole,
+                      pin_code: pinCode,
+                      status,
+                      notes,
+                      hometown,
+                      nickname,
+                      playing_style: playingStyle,
+                      bio,
+                      gallery_urls: galleryUrls,
+                    });
+                  }
+                  setProfileImageUrl(res.dataUrl);
+                  setProfileWebpInfo(
+                    `✅ Đã lưu trực tiếp ảnh Profile rộng (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+                  );
+                } else {
+                  if (!isManager && editingPlayer.id === session.playerId) {
+                    await onMutate("update_own_profile", {
+                      player_id: editingPlayer.id,
+                      full_name: fullName,
+                      short_name: shortName,
+                      jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+                      position,
+                      phone,
+                      birth_year: birthYear === "" ? null : Number(birthYear),
+                      avatar_url: res.dataUrl,
+                      profile_image_url: profileImageUrl || editingPlayer.profile_image_url,
+                      notes,
+                      hometown,
+                      nickname,
+                      playing_style: playingStyle,
+                      bio,
+                      gallery_urls: galleryUrls,
+                    });
+                  } else if (isManager) {
+                    await onMutate("upsert_player", {
+                      id: editingPlayer.id,
+                      code_order: editingPlayer.code_order,
+                      full_name: fullName,
+                      short_name: shortName,
+                      jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+                      position,
+                      phone,
+                      birth_year: birthYear === "" ? null : Number(birthYear),
+                      avatar_url: res.dataUrl,
+                      profile_image_url: profileImageUrl || editingPlayer.profile_image_url,
+                      role,
+                      access_role: accessRole,
+                      pin_code: pinCode,
+                      status,
+                      notes,
+                      hometown,
+                      nickname,
+                      playing_style: playingStyle,
+                      bio,
+                      gallery_urls: galleryUrls,
+                    });
+                  }
+                  setAvatarUrl(res.dataUrl);
+                  setWebpInfo(
+                    `✅ Đã lưu trực tiếp ảnh Avatar 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+                  );
                 }
-                setAvatarUrl(res.dataUrl);
-                setWebpInfo(
-                  `✅ Đã lưu trực tiếp ảnh mới vào hồ sơ cầu thủ (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
-                );
               }
             : undefined
         }

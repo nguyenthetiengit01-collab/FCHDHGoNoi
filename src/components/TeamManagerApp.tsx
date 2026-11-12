@@ -19,6 +19,7 @@ import {
   KeyRound,
   X,
   Newspaper,
+  Award,
 } from "lucide-react";
 import type { FullAppData, AuthSession, Player } from "@/types/app";
 import { FANPAGE_URL, OFFICIAL_LOGO_URL } from "@/types/app";
@@ -32,6 +33,7 @@ import { FinanceTab } from "./FinanceTab";
 import { PlayerPersonalTab } from "./PlayerPersonalTab";
 import { PublicGuestPortal } from "./PublicGuestPortal";
 import ClubPostsTab from "./ClubPostsTab";
+import { SponsorsTab } from "./SponsorsTab";
 import { LoginModal } from "./LoginModal";
 
 type ActiveTab =
@@ -43,7 +45,8 @@ type ActiveTab =
   | "matrix"
   | "players"
   | "finance"
-  | "posts";
+  | "posts"
+  | "sponsors";
 
 interface TeamManagerAppProps {
   initialData: FullAppData;
@@ -150,6 +153,12 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         showToast("Đã đăng / cập nhật bài viết CLB (Ảnh chuẩn WebP)!");
       } else if (action === "delete_club_post") {
         showToast("Đã xoá bài viết khỏi trang Hoạt Động CLB!");
+      } else if (action === "upsert_sponsor") {
+        showToast("Đã cập nhật thông tin đơn vị tài trợ / đối tác!");
+      } else if (action === "delete_sponsor") {
+        showToast("Đã xóa đơn vị tài trợ khỏi hệ thống!");
+      } else if (action === "collect_match_fees_batch") {
+        showToast("Đã lưu phiếu thu trận thành công!");
       } else if (
         action !== "collect_match_fee" &&
         action !== "set_rsvp"
@@ -336,6 +345,12 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         label: "Sổ Quỹ & Chi Tiêu",
         shortLabel: "Sổ quỹ",
         icon: Wallet,
+      },
+      {
+        id: "sponsors" as ActiveTab,
+        label: "Tài Trợ & Đối Tác",
+        shortLabel: "Tài trợ",
+        icon: Award,
       },
       {
         id: "matrix" as ActiveTab,
@@ -633,6 +648,14 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
         {session.role === "manager" && activeTab === "finance" && (
           <FinanceTab
+            data={data}
+            onMutate={handleMutate}
+            isSaving={isSaving}
+          />
+        )}
+
+        {session.role === "manager" && activeTab === "sponsors" && (
+          <SponsorsTab
             data={data}
             onMutate={handleMutate}
             isSaving={isSaving}
