@@ -53,7 +53,15 @@ _Avoid_: Completed, settled
 Nhật ký ghi nhận mọi khoản thu (tiền quỹ trận, tài trợ) và khoản chi (tiền sân, nước uống, bóng, đồng phục) của đội bóng kèm số dư lũy kế.
 _Avoid_: Transaction log, balance sheet
 
-### Định Danh & Truyền Thông
+**Phiếu Thu Tạm (Collection Draft)**:
+Cơ chế lưu nháp tức thì (0ms) trên trình duyệt khi Ban Quản Lý tích chọn cầu thủ nộp quỹ trận trước khi gửi batch transaction đồng loạt lên CSDL Cloud, tránh gọi API đơn lẻ làm tải lại hệ thống.
+_Avoid_: Temp cart, pending checkout
+
+### Định Danh, Truyền Thông & Tài Trợ
+
+**Đơn Vị Đồng Hành & Tài Trợ (Sponsor & Partner)**:
+Cơ quan đoàn thể, doanh nghiệp hoặc mạnh thường quân đóng góp kinh phí/hiện vật tiếp sức cho đội bóng, được phân thành 5 hạng danh dự (Kim Cương, Vàng, Bạc, Đối Tác, Hỗ Trợ) kèm quyền lợi hiển thị Banner trang chủ và chân trang.
+_Avoid_: Advertiser, client, donator
 
 **Quê Quán Gò Nổi (Hometown)**:
 Gốc gác làng xã của cầu thủ thuộc vùng đất Gò Nổi được ghi nhận theo 3 xã cũ (Điện Quang, Điện Trung, Điện Phong) để anh em đồng hương biết rõ về nhau và nhớ về nguồn gốc bản quán.

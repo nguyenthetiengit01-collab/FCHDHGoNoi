@@ -53,5 +53,5 @@ Canonical triage roles (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-
 
 ### Domain docs
 
-Single-context repository. See `docs/agents/domain.md` and `GLOSSARY.md`.
+Single-context repository. See `docs/agents/domain.md`, `PROJECT_STRUCTURE.md`, and `GLOSSARY.md`.
 
