@@ -203,3 +203,4 @@ Toàn bộ dữ liệu của FC HĐH Gò Nổi được lưu trữ an toàn trê
   * `TURSO_DATABASE_URL`: `libsql://fchdhgonoi-nguyenthetiengit01-collab.aws-ap-northeast-1.turso.io`
   * `TURSO_AUTH_TOKEN`: Token xác thực an toàn
   * `APP_SECRET`: Khóa bí mật ký phiên làm việc cookie
+
