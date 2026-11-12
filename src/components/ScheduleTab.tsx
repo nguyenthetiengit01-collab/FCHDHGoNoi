@@ -331,9 +331,7 @@ export function ScheduleTab({
 
   const me = players.find((p) => p.id === session.playerId);
   const myAtts = me ? attendances.filter((a) => a.player_id === me.id) : [];
-  const myMatchesPlayed = myAtts.filter(
-    (a) => a.attended === 1 || a.paid === 1
-  ).length;
+  const myMatchesPlayed = myAtts.filter((a) => a.attended === 1).length;
   const myTotalPaid = myAtts
     .filter((a) => a.paid === 1)
     .reduce((s, a) => s + a.amount, 0);
@@ -1357,9 +1355,7 @@ export function ScheduleTab({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {finishedMatches.map((m) => {
               const mAtt = attendances.filter((a) => a.match_id === m.id);
-              const playedCount = mAtt.filter(
-                (a) => a.attended === 1 || a.paid === 1
-              ).length;
+              const playedCount = mAtt.filter((a) => a.attended === 1).length;
 
               return (
                 <div
@@ -1526,9 +1522,40 @@ export function ScheduleTab({
                         alt={p.full_name}
                         className="h-8 w-8 rounded-lg object-cover border border-[#1e4fc2]"
                       />
-                      <div>
-                        <div className="font-bold text-slate-900">
-                          {p.full_name} (#{p.jersey_number ?? "-"})
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-slate-900 truncate">
+                            {p.full_name} (#{p.jersey_number ?? "-"})
+                          </span>
+                          {(() => {
+                            const a = attendances.find(
+                              (att) =>
+                                att.match_id === selectedFinishedMatch.id &&
+                                att.player_id === p.id
+                            );
+                            if (a?.attended === 1 && a?.paid === 1) {
+                              return (
+                                <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.5 text-[9px] font-bold">
+                                  Ra sân • Đã nộp
+                                </span>
+                              );
+                            }
+                            if (a?.attended === 1 && a?.paid === 0) {
+                              return (
+                                <span className="rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[9px] font-bold">
+                                  Ra sân (Nợ)
+                                </span>
+                              );
+                            }
+                            if (a?.attended === 0 && a?.paid === 1) {
+                              return (
+                                <span className="rounded bg-purple-100 text-purple-800 px-1.5 py-0.5 text-[9px] font-bold">
+                                  Vắng (Ủng hộ)
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                         <div className="text-[11px] text-slate-500">
                           {p.position}

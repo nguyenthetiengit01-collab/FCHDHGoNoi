@@ -103,6 +103,12 @@ export function MatrixTab({
             <span>Tham gia - Chưa nộp</span>
           </span>
           <span className="inline-flex items-center gap-1.5 font-medium">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-purple-600 text-white">
+              <Check className="h-3.5 w-3.5" />
+            </span>
+            <span>Vắng - Ủng hộ</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 font-medium">
             <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-slate-100 text-slate-400 border border-slate-200">
               <Minus className="h-3.5 w-3.5" />
             </span>
@@ -286,24 +292,32 @@ export function MatrixTab({
                   {matches.map((m) => {
                     const cell = attendanceMap.get(`${m.id}_${player.id}`);
                     const isPaid = cell?.paid === 1;
-                    const isUnpaid =
-                      cell?.attended === 1 && cell?.paid === 0;
+                    const isAttended = cell?.attended === 1;
+                    const isVoluntary = !isAttended && isPaid;
+                    const isUnpaid = isAttended && !isPaid;
 
                     return (
                       <td
                         key={m.id}
                         className="p-1.5 text-center border-r border-slate-100"
                       >
-                        {isPaid ? (
+                        {isVoluntary ? (
                           <span
-                            title={`${player.full_name} - ${m.label}: Đã nộp ${formatVND(cell?.amount || 100000)}`}
+                            title={`${player.full_name} - ${m.label}: Vắng mặt • Đóng góp ${formatVND(cell?.amount || 100000)}`}
+                            className="mx-auto inline-flex h-7 w-11 items-center justify-center rounded-md bg-purple-100 text-purple-900 font-extrabold text-xs border border-purple-300"
+                          >
+                            <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                          </span>
+                        ) : isPaid ? (
+                          <span
+                            title={`${player.full_name} - ${m.label}: Ra sân • Đã nộp ${formatVND(cell?.amount || 100000)}`}
                             className="mx-auto inline-flex h-7 w-11 items-center justify-center rounded-md bg-emerald-100 text-emerald-800 font-extrabold text-xs border border-emerald-300"
                           >
                             <Check className="h-3.5 w-3.5 stroke-[2.5]" />
                           </span>
                         ) : isUnpaid ? (
                           <span
-                            title={`${player.full_name} - ${m.label}: Chưa nộp`}
+                            title={`${player.full_name} - ${m.label}: Ra sân • Chưa nộp ${formatVND(cell?.amount || 100000)}`}
                             className="mx-auto inline-flex h-7 w-11 items-center justify-center rounded-md bg-amber-100 text-amber-900 font-bold text-[11px] border border-amber-300"
                           >
                             Nợ

@@ -135,6 +135,10 @@ export interface FinancialSummary {
   totalExpense: number;
   currentBalance: number;
   totalUnpaidAmount: number;
+  totalAttendeesCount?: number;
+  totalPaidCount?: number;
+  totalVoluntaryDonorsCount?: number;
+  totalVoluntaryAmount?: number;
   categoryBreakdown: CategoryBreakdownItem[];
 }
 
