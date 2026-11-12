@@ -82,7 +82,7 @@ export default function ClubPostsTab({
   const [contentText, setContentText] = useState("");
   const [quote, setQuote] = useState("");
   const [highlightsText, setHighlightsText] = useState("");
-  const [author, setAuthor] = useState("Ban Truyền Thông FC Gò Nổi");
+  const [author, setAuthor] = useState("Ban Truyền Thông FC HĐH Gò Nổi");
   const [publishedDate, setPublishedDate] = useState(
     new Date().toISOString().slice(0, 10)
   );
@@ -193,7 +193,7 @@ export default function ClubPostsTab({
     setContentText("");
     setQuote("");
     setHighlightsText("");
-    setAuthor("Ban Truyền Thông FC Gò Nổi");
+    setAuthor("Ban Truyền Thông FC HĐH Gò Nổi");
     setPublishedDate(new Date().toISOString().slice(0, 10));
     setReadingTime("4 phút đọc");
     setFeaturedImage("/images/hinhanh-webp/giaidau/DSC06522.webp");
@@ -213,7 +213,7 @@ export default function ClubPostsTab({
     setContentText((post.paragraphs || []).join("\n\n"));
     setQuote(post.quote || "");
     setHighlightsText((post.highlights || []).join("\n"));
-    setAuthor(post.author || "Ban Truyền Thông FC Gò Nổi");
+    setAuthor(post.author || "Ban Truyền Thông FC HĐH Gò Nổi");
     setPublishedDate(
       post.publishedDate || new Date().toISOString().slice(0, 10)
     );
@@ -320,7 +320,7 @@ export default function ClubPostsTab({
       slug,
       summary: summary.trim(),
       publishedDate,
-      author: author.trim() || "Ban Truyền Thông FC Gò Nổi",
+      author: author.trim() || "Ban Truyền Thông FC HĐH Gò Nổi",
       featuredImage,
       galleryImages,
       readingTime: readingTime.trim() || "4 phút đọc",

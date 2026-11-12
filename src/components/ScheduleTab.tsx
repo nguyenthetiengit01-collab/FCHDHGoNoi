@@ -1124,7 +1124,7 @@ export function ScheduleTab({
                     ) : (
                       <div className="rounded-xl bg-white p-3.5 border border-dashed border-amber-300 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <p className="leading-relaxed">
-                          Bạn chưa viết bài giới thiệu về bản thân. Hãy chia sẻ đôi dòng về niềm đam mê bóng đá, phong cách thi đấu và tình cảm với FC Gò Nổi để hiển thị nổi bật trên website!
+                          Bạn chưa viết bài giới thiệu về bản thân. Hãy chia sẻ đôi dòng về niềm đam mê bóng đá, phong cách thi đấu và tình cảm với FC HĐH Gò Nổi để hiển thị nổi bật trên website!
                         </p>
                         <button
                           type="button"

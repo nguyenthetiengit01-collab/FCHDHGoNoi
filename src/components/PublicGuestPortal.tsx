@@ -1562,7 +1562,7 @@ export function PublicGuestPortal({
                   </div>
                 </div>
                 <div className="font-display font-black uppercase text-2xl sm:text-3xl leading-none flex flex-wrap items-center gap-x-3">
-                  <span className="text-slate-900">FC Gò Nổi</span>
+                  <span className="text-slate-900">FC HĐH Gò Nổi</span>
                   {matchTab === "results" ? (
                     <span className="text-[#17488c] px-2 py-0.5 rounded bg-slate-100 font-black">
                       {m.team_score ?? 0} - {m.opponent_score ?? 0}
@@ -1701,7 +1701,7 @@ export function PublicGuestPortal({
                 <span>Tri Ân & Đồng Hành Phong Trào</span>
               </span>
               <h2 className="font-display font-extrabold uppercase text-4xl sm:text-6xl text-white tracking-tight">
-                Đồng Hành Cùng <span className="text-[#d4af37]">FC Gò Nổi</span>
+                Đồng Hành Cùng <span className="text-[#d4af37]">FC HĐH Gò Nổi</span>
               </h2>
               <p className="text-sm sm:text-base text-sky-100/90 font-light leading-relaxed">
                 Xin chân thành cảm ơn các cơ quan đoàn thể, doanh nghiệp, mạnh thường quân và những người con Gò Nổi xa quê đã chung tay tiếp lửa cho màu cờ sắc áo của đội bóng.

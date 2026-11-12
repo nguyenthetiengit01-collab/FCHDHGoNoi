@@ -304,7 +304,7 @@ export function BroadcastAthleteCard({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/logo.jpg"
-              alt="FC Gò Nổi"
+              alt="FC HĐH Gò Nổi"
               className="h-3.5 w-3.5 rounded-full object-contain bg-white shrink-0"
             />
             <span>FC HỘI ĐỒNG HƯƠNG GÒ NỔI • OFFICIAL ATHLETE</span>
@@ -603,7 +603,7 @@ export function BroadcastAthleteCard({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/logo.jpg"
-              alt="FC Gò Nổi"
+              alt="FC HĐH Gò Nổi"
               className="h-4 w-4 rounded-full object-contain bg-white shrink-0"
             />
             <span>FC HỘI ĐỒNG HƯƠNG GÒ NỔI • OFFICIAL ATHLETE</span>
@@ -885,7 +885,7 @@ export function BroadcastAthleteCard({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/logo.jpg"
-            alt="FC Gò Nổi"
+            alt="FC HĐH Gò Nổi"
             className="h-4 w-4 rounded-full object-contain bg-white shrink-0"
           />
           <span>FC HỘI ĐỒNG HƯƠNG GÒ NỔI • OFFICIAL ATHLETE</span>

@@ -365,7 +365,7 @@ export default function HoatDongPage() {
                           <ArrowRight className="h-4 w-4 text-[#d4af37]" />
                         </Link>
                         <span className="text-[11px] uppercase tracking-wider text-slate-400">
-                          FC Gò Nổi
+                          FC HĐH Gò Nổi
                         </span>
                       </div>
                     </div>

@@ -98,7 +98,7 @@ export const ACTIVITY_CATEGORIES: Array<{
     id: "anhbia",
     label: "Ảnh Bìa & Khí Thế",
     iconName: "Camera",
-    description: "Những khung hình tập thể trang trọng, đại diện cho bản sắc và tinh thần FC Gò Nổi",
+    description: "Những khung hình tập thể trang trọng, đại diện cho bản sắc và tinh thần FC HĐH Gò Nổi",
   },
 ];
 
@@ -112,7 +112,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     slug: "hanh-trinh-giai-dau-phong-trao-go-noi",
     publishedDate: "2026-10-25",
     eventYear: "2026",
-    author: "Ban Truyền Thông FC Gò Nổi",
+    author: "Ban Truyền Thông FC HĐH Gò Nổi",
     readingTime: "4 phút đọc",
     featuredImage: "/images/hinhanh-webp/giaidau/DSC06522.webp",
     galleryImages: [
@@ -208,7 +208,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     category: "giaoluu",
     categoryLabel: "Giao Lưu Kết Nối",
     categoryBadgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-    title: "Giao lưu nghĩa tình: Kết nối bền chặt giữa FC Gò Nổi và các CLB đồng hương tại TP.HCM",
+    title: "Giao lưu nghĩa tình: Kết nối bền chặt giữa FC HĐH Gò Nổi và các CLB đồng hương tại TP.HCM",
     slug: "giao-luu-ket-noi-dong-huong-tp-hcm",
     publishedDate: "2026-10-22",
     eventYear: "2026",
@@ -304,11 +304,11 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     category: "cauthu",
     categoryLabel: "Cầu Thủ Gò Nổi",
     categoryBadgeClass: "bg-sky-500/20 text-sky-300 border-sky-500/40",
-    title: "Những người giữ lửa thầm lặng: Tôn vinh Ban Cán Sự & hậu phương vững vàng của FC Gò Nổi",
+    title: "Những người giữ lửa thầm lặng: Tôn vinh Ban Cán Sự & hậu phương vững vàng của FC HĐH Gò Nổi",
     slug: "nhung-nguoi-giu-lua-tham-lang-bql",
     publishedDate: "2025-12-08",
     eventYear: "2025",
-    author: "Tập thể Cầu thủ FC Gò Nổi",
+    author: "Tập thể Cầu thủ FC HĐH Gò Nổi",
     readingTime: "4 phút đọc",
     featuredImage: "/images/hinhanh-webp/cauthu/edacc691f32c72722b3d19.webp",
     galleryImages: [
@@ -322,7 +322,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "Để một đội bóng phong trào duy trì bền bỉ qua nhiều năm tháng, tâm huyết của những người thủ lĩnh là yếu tố sống còn. Đội trưởng Nguyễn Thế Tiếng không chỉ là trụ cột trên sân mà còn kiêm nhiệm thủ quỹ, ghi chép sổ sách thu chi rõ ràng tới từng con số.",
       "Bên cạnh đó, Đội phó Hồ Viết Tín cùng anh Dương Hiển Hoài Sơn và Vương Lâm luôn là những người đến sân sớm nhất và ra về muộn nhất, kiểm tra trang thiết bị và lo toan mọi công việc hậu cần để anh em yên tâm cống hiến hết mình.",
     ],
-    quote: "Sự nhiệt tâm của Ban Cán Sự chính là điểm tựa vững chãi nhất để ngọn lửa FC Gò Nổi luôn rực cháy.",
+    quote: "Sự nhiệt tâm của Ban Cán Sự chính là điểm tựa vững chãi nhất để ngọn lửa FC HĐH Gò Nổi luôn rực cháy.",
     highlights: [
       "Sự cống hiến thầm lặng vì tập thể không quản ngại khó khăn",
       "Minh bạch tài chính 100% xây dựng niềm tin bền vững",
@@ -366,10 +366,10 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     categoryLabel: "Ảnh Bìa & Khí Thế",
     categoryBadgeClass: "bg-indigo-500/20 text-indigo-300 border-indigo-500/40",
     title: "Bức ảnh đại diện: Dấu ấn tập thể kiên trung và khát vọng vươn xa",
-    slug: "buc-anh-dai-dien-khi-the-fc-go-noi",
+    slug: "buc-anh-dai-dien-khi-the-fc-hdh-go-noi",
     publishedDate: "2026-10-10",
     eventYear: "2026",
-    author: "Ban Truyền Thông FC Gò Nổi",
+    author: "Ban Truyền Thông FC HĐH Gò Nổi",
     readingTime: "3 phút đọc",
     featuredImage: "/images/hinhanh-webp/anhbia/DSC06734.webp",
     galleryImages: [
@@ -400,7 +400,7 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
     slug: "khoi-nguon-fc-hdh-go-noi",
     publishedDate: "2024-06-18",
     eventYear: "2024",
-    author: "Người sáng lập FC Gò Nổi",
+    author: "Người sáng lập FC HĐH Gò Nổi",
     readingTime: "5 phút đọc",
     featuredImage: "/images/hinhanh-webp/anhbia/673ca5fcf835786b21245.webp",
     galleryImages: [

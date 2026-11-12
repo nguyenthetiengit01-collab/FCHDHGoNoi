@@ -342,7 +342,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
               <CheckCircle2 className="h-3 w-3 text-emerald-400" />
               <span>Bảo mật Scrypt &amp; HMAC-SHA256</span>
             </span>
-            <span className="text-slate-400 font-mono">FC Gò Nổi TP.HCM</span>
+            <span className="text-slate-400 font-mono">FC HĐH Gò Nổi TP.HCM</span>
           </div>
         </div>
       </div>

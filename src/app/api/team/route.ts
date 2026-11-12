@@ -1297,7 +1297,7 @@ export async function POST(req: NextRequest) {
             slug,
             String(summary || cleanParagraphs[0] || "").trim(),
             String(publishedDate || new Date().toISOString().slice(0, 10)),
-            String(author || session?.fullName || "Ban Quản Lý FC Gò Nổi"),
+            String(author || session?.fullName || "Ban Quản Lý FC HĐH Gò Nổi"),
             webpFeaturedImage,
             JSON.stringify(webpGallery),
             String(readingTime || "3 phút đọc"),

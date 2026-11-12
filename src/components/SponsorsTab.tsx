@@ -445,7 +445,7 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="Giới thiệu đôi nét về đơn vị và sự đồng hành cùng FC Gò Nổi..."
+                  placeholder="Giới thiệu đôi nét về đơn vị và sự đồng hành cùng FC HĐH Gò Nổi..."
                   value={formData.description}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, description: e.target.value }))

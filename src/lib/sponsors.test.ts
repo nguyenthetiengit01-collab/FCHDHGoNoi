@@ -69,3 +69,4 @@ describe("sponsors helper", () => {
     expect(grouped.supporter.length).toBe(1);
   });
 });
+
