@@ -13,6 +13,7 @@ import {
   Zap,
   Save,
   RotateCcw,
+  UserCheck,
 } from "lucide-react";
 import type { FullAppData, MutateActionFn, AuthSession } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
@@ -186,6 +187,7 @@ export function CollectionTab({
   }
 
   // Xử lý Toggle Thu Tiền (Lưu vào draft cục bộ, phản hồi ngay 0ms)
+  // CHUẨN HÓA 3 TRẠNG THÁI: Không tự động chuyển attended = 1 khi chỉ nộp tiền
   const handleTogglePaidDraft = (playerId: number) => {
     const eff = getPlayerEffective(playerId);
     const newPaid = eff.paid === 1 ? 0 : 1;
@@ -200,9 +202,26 @@ export function CollectionTab({
     setDraft((prev) => ({
       ...prev,
       [playerId]: {
-        attended: newPaid === 1 ? 1 : eff.attended,
+        attended: eff.attended, // Giữ nguyên trạng thái ra sân thực tế
         paid: newPaid,
         amount: newAmount,
+        walk_in: eff.walk_in,
+        removed: false,
+      },
+    }));
+  };
+
+  // Xử lý Toggle Xác Nhận Có Mặt Ra Sân Thực Tế (Độc lập với việc đã nộp tiền hay chưa)
+  const handleToggleAttendedDraft = (playerId: number) => {
+    const eff = getPlayerEffective(playerId);
+    const newAttended = eff.attended === 1 ? 0 : 1;
+
+    setDraft((prev) => ({
+      ...prev,
+      [playerId]: {
+        attended: newAttended,
+        paid: eff.paid,
+        amount: eff.amount,
         walk_in: eff.walk_in,
         removed: false,
       },
@@ -251,9 +270,9 @@ export function CollectionTab({
     }
   };
 
-  // Lưu toàn bộ phiếu thu lên máy chủ qua 1 Transaction Batch duy nhất
+  // Lưu toàn bộ phiếu thu lên máy chủ qua 1 Transaction Batch duy nhất (kèm Idempotency Key)
   const handleSaveBatch = async () => {
-    if (dirtyCount === 0) return;
+    if (dirtyCount === 0 || isSaving) return;
     const items = buildBatchPayloadItems(
       draft,
       attByPlayer,
@@ -261,14 +280,22 @@ export function CollectionTab({
     );
     if (items.length === 0) return;
 
-    await onMutate("collect_match_fees_batch", {
-      match_id: activeMatch.id,
-      collected_by: collectorName,
-      items,
-    });
+    const idempotencyKey = `batch_${activeMatch.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    clearDraftFromStorage(activeMatch.id);
-    setDraft({});
+    try {
+      await onMutate("collect_match_fees_batch", {
+        match_id: activeMatch.id,
+        collected_by: collectorName,
+        items,
+        idempotency_key: idempotencyKey,
+      });
+
+      clearDraftFromStorage(activeMatch.id);
+      setDraft({});
+    } catch (err) {
+      console.error("Lỗi khi lưu phiếu thu:", err);
+      window.alert("Không thể lưu phiếu thu lên máy chủ. Dữ liệu nháp vẫn được giữ an toàn trên máy của bạn để thử lại.");
+    }
   };
 
   // Thêm thành viên có sẵn (Walk-in) trực tiếp vào draft
@@ -568,13 +595,28 @@ export function CollectionTab({
                           <span className="text-xs text-slate-500">
                             ({p.short_name})
                           </span>
-                          {isWalkIn ? (
-                            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-900">
-                              Không đăng ký • Tham gia
+                          {/* 4 trạng thái độc lập giữa Attended và Paid */}
+                          {eff.attended === 1 && isPaid ? (
+                            <span className="rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold">
+                              Ra sân • Đã nộp
+                            </span>
+                          ) : eff.attended === 1 && !isPaid ? (
+                            <span className="rounded-full bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 text-[10px] font-bold">
+                              Ra sân (Nợ quỹ)
+                            </span>
+                          ) : eff.attended === 0 && isPaid ? (
+                            <span className="rounded-full bg-purple-100 text-purple-900 border border-purple-300 px-2 py-0.5 text-[10px] font-bold">
+                              Vắng mặt (Ủng hộ)
                             </span>
                           ) : (
-                            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-800">
-                              Đã điểm danh
+                            <span className="rounded-full bg-slate-100 text-slate-700 border border-slate-300 px-2 py-0.5 text-[10px] font-medium">
+                              Đã báo (Chưa ra sân)
+                            </span>
+                          )}
+
+                          {isWalkIn && (
+                            <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-900">
+                              Vãng lai
                             </span>
                           )}
                           {isDirty && (
@@ -609,6 +651,31 @@ export function CollectionTab({
                           đ
                         </span>
                       </div>
+
+                      {/* Nút độc lập: Xác nhận Ra sân / Vắng mặt */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAttendedDraft(p.id)}
+                        title={
+                          eff.attended === 1
+                            ? "Cầu thủ có mặt ra sân (Bấm để chuyển vắng)"
+                            : "Cầu thủ vắng mặt (Bấm để xác nhận có mặt ra sân)"
+                        }
+                        className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-bold transition cursor-pointer select-none ${
+                          eff.attended === 1
+                            ? "bg-slate-900 text-emerald-400 hover:bg-slate-800"
+                            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        }`}
+                      >
+                        <UserCheck
+                          className={`h-3.5 w-3.5 ${
+                            eff.attended === 1
+                              ? "text-emerald-400"
+                              : "text-slate-400"
+                          }`}
+                        />
+                        <span>{eff.attended === 1 ? "Ra sân" : "Vắng"}</span>
+                      </button>
 
                       <button
                         type="button"

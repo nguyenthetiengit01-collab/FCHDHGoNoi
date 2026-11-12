@@ -872,13 +872,13 @@ export async function POST(req: NextRequest) {
         );
         const defaultFee = matchRow?.fee_per_player ?? 100000;
 
+        // Chuẩn hóa 3 trạng thái độc lập: Attended và Paid hoàn toàn độc lập
         const isPaid = Number(paid) === 1 ? 1 : 0;
-        const isAttended =
-          isPaid === 1 || Number(attended) === 1 ? 1 : 0;
+        const isAttended = Number(attended) === 1 ? 1 : 0;
         const finalAmount =
           amount !== undefined && amount !== null && amount !== ""
             ? Number(amount)
-            : isAttended
+            : (isPaid === 1 || isAttended === 1)
             ? defaultFee
             : 0;
         const isWalkIn = Number(walk_in) === 1 ? 1 : 0;
@@ -912,7 +912,8 @@ export async function POST(req: NextRequest) {
 
       // THU TIỀN HÀNG LOẠT (Lưu tạm trên máy trước khi bấm lưu 1 lần theo transaction batch)
       case "collect_match_fees_batch": {
-        const { match_id, collected_by, items } = payload;
+        const { match_id, collected_by, items, idempotency_key } = payload;
+        void idempotency_key;
         if (!match_id) {
           return NextResponse.json({ error: "Thiếu mã trận đấu" }, { status: 400 });
         }
@@ -955,12 +956,13 @@ export async function POST(req: NextRequest) {
             continue;
           }
 
+          // Chuẩn hóa 3 trạng thái độc lập: Không tự động coi Paid là Attended
           const isPaid = Number(item.paid) === 1 ? 1 : 0;
-          const isAttended = isPaid === 1 || Number(item.attended) === 1 ? 1 : 0;
+          const isAttended = Number(item.attended) === 1 ? 1 : 0;
           const finalAmount =
             item.amount !== undefined && item.amount !== null && item.amount !== ""
               ? Number(item.amount)
-              : isAttended
+              : (isPaid === 1 || isAttended === 1)
               ? defaultFee
               : 0;
           const isWalkIn = Number(item.walk_in) === 1 ? 1 : 0;

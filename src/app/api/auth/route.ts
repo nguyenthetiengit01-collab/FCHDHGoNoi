@@ -209,8 +209,14 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("POST /api/auth error:", error);
+    const isSecretMissing =
+      error instanceof Error && error.message.includes("AUTH_SECRET");
     return NextResponse.json(
-      { error: "Lỗi xử lý xác thực trên máy chủ" },
+      {
+        error: isSecretMissing
+          ? "Máy chủ chưa được cấu hình biến môi trường AUTH_SECRET (tối thiểu 32 ký tự) trên Vercel. Vui lòng thêm AUTH_SECRET trong Vercel Project Settings."
+          : "Lỗi xử lý xác thực trên máy chủ",
+      },
       { status: 500 }
     );
   }

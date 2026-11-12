@@ -153,6 +153,49 @@ export async function POST(req: NextRequest) {
       existingPlayerMap.set(p.full_name.trim().toLowerCase(), p);
     }
 
+    // ĐỘNG HÓA TÌM CỘT CHO SHEET '2. Danh sách'
+    let pHeaderIdx = 3;
+    let colStt = 1;
+    let colFullName = 2;
+    let colPos = 3;
+    let colJersey = 4;
+    let colPhone = 5;
+    let colNotes = 6;
+
+    for (let r = 0; r < Math.min(10, danhSachRows.length); r++) {
+      const row = danhSachRows[r] || [];
+      const nameIdx = row.findIndex((c) =>
+        String(c).trim().toLowerCase().includes("họ và tên")
+      );
+      if (nameIdx !== -1) {
+        pHeaderIdx = r;
+        colFullName = nameIdx;
+        const sttIdx = row.findIndex(
+          (c) => String(c).trim().toLowerCase() === "stt"
+        );
+        colStt = sttIdx !== -1 ? sttIdx : colFullName - 1;
+        const posIdx = row.findIndex((c) =>
+          String(c).trim().toLowerCase().includes("vị trí")
+        );
+        if (posIdx !== -1) colPos = posIdx;
+        const jerseyIdx = row.findIndex((c) =>
+          String(c).trim().toLowerCase().includes("số áo")
+        );
+        if (jerseyIdx !== -1) colJersey = jerseyIdx;
+        const phoneIdx = row.findIndex(
+          (c) =>
+            String(c).trim().toLowerCase().includes("sđt") ||
+            String(c).trim().toLowerCase().includes("điện thoại")
+        );
+        if (phoneIdx !== -1) colPhone = phoneIdx;
+        const notesIdx = row.findIndex((c) =>
+          String(c).trim().toLowerCase().includes("ghi chú")
+        );
+        if (notesIdx !== -1) colNotes = notesIdx;
+        break;
+      }
+    }
+
     // Parse trước toàn bộ dữ liệu vào bộ nhớ để đảm bảo tính toàn vẹn 100% trước khi ghi DB
     interface ParsedPlayerData {
       stt: number;
@@ -178,19 +221,21 @@ export async function POST(req: NextRequest) {
 
     const playersToInsert: ParsedPlayerData[] = [];
 
-    for (let r = 4; r < danhSachRows.length; r++) {
+    for (let r = pHeaderIdx + 1; r < danhSachRows.length; r++) {
       const row = danhSachRows[r];
       if (!row) continue;
-      const stt = Number(row[1]) || r - 3;
-      const fullName = String(row[2] || "").trim();
+      const stt = Number(row[colStt]) || r - pHeaderIdx;
+      const fullName = String(row[colFullName] || "").trim();
       if (!fullName) continue;
-      const pos = String(row[3] || "").trim() || "Đa năng";
+      const pos = String(row[colPos] || "").trim() || "Đa năng";
       const jersey =
-        row[4] !== "" && row[4] !== null && row[4] !== undefined
-          ? Number(row[4])
+        row[colJersey] !== "" &&
+        row[colJersey] !== null &&
+        row[colJersey] !== undefined
+          ? Number(row[colJersey])
           : null;
-      const phone = String(row[5] || "").trim();
-      const notes = String(row[6] || "").trim();
+      const phone = String(row[colPhone] || "").trim();
+      const notes = String(row[colNotes] || "").trim();
       const shortName = fullName.split(/\s+/).slice(-1)[0] || fullName;
 
       // Bảo toàn thông tin từ DB nếu cầu thủ đã tồn tại
@@ -237,7 +282,42 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 5. Đọc các khoản Chi từ Sheet '5. Chi'
+    // 5. ĐỘNG HÓA TÌM CỘT CHO SHEET '5. Chi'
+    let chiHeaderIdx = 3;
+    let colChiDate = 2;
+    let colChiCat = 3;
+    let colChiDesc = 4;
+    let colChiAmt = 5;
+    let colChiPayer = 6;
+
+    for (let r = 0; r < Math.min(10, chiRows.length); r++) {
+      const row = chiRows[r] || [];
+      const descIdx = row.findIndex((c) =>
+        String(c).trim().toLowerCase().includes("nội dung chi tiết")
+      );
+      if (descIdx !== -1) {
+        chiHeaderIdx = r;
+        colChiDesc = descIdx;
+        const dateIdx = row.findIndex((c) =>
+          String(c).trim().toLowerCase() === "ngày"
+        );
+        if (dateIdx !== -1) colChiDate = dateIdx;
+        const catIdx = row.findIndex((c) =>
+          String(c).trim().toLowerCase().includes("hạng mục")
+        );
+        if (catIdx !== -1) colChiCat = catIdx;
+        const amtIdx = row.findIndex((c) =>
+          String(c).trim().toLowerCase().includes("số tiền")
+        );
+        if (amtIdx !== -1) colChiAmt = amtIdx;
+        const payerIdx = row.findIndex((c) =>
+          String(c).trim().toLowerCase().includes("người chi")
+        );
+        if (payerIdx !== -1) colChiPayer = payerIdx;
+        break;
+      }
+    }
+
     const parsedExpenses: Array<{
       date: string;
       category: string;
@@ -246,18 +326,21 @@ export async function POST(req: NextRequest) {
       payer: string;
     }> = [];
 
-    for (let r = 5; r < chiRows.length; r++) {
+    for (let r = chiHeaderIdx + 1; r < chiRows.length; r++) {
       const row = chiRows[r];
       if (!row) continue;
-      const desc = String(row[4] || "").trim();
-      const amt = Number(row[5]) || 0;
+      // Bỏ qua dòng tổng cộng nếu có
+      if (String(row[colChiDesc] || "").toLowerCase().includes("tổng chi")) continue;
+      if (String(row[colChiCat] || "").toLowerCase().includes("tổng chi")) continue;
+      const desc = String(row[colChiDesc] || "").trim();
+      const amt = Number(row[colChiAmt]) || 0;
       if (!desc && amt === 0) continue;
       parsedExpenses.push({
-        date: excelSerialToIsoDate(row[2]),
-        category: String(row[3] || "Tiền sân").trim(),
+        date: excelSerialToIsoDate(row[colChiDate]),
+        category: String(row[colChiCat] || "Tiền sân").trim(),
         description: desc,
         amount: amt,
-        payer: String(row[6] || "").trim(),
+        payer: String(row[colChiPayer] || "").trim(),
       });
     }
 
@@ -306,23 +389,77 @@ export async function POST(req: NextRequest) {
       playerIdByName.set(p.fullName, Number(res.lastInsertRowid));
     }
 
-    // 7. Đọc và tạo các Trận đấu từ Sheet '3. Thu Trận (Tích chọn)'
-    const headerRow = thuTranRows[4] || [];
-    const feeRow = thuTranRows[5] || [];
+    // 7. ĐỘNG HÓA TÌM CỘT VÀ DÒNG CHO SHEET '3. Thu Trận (Tích chọn)'
+    let dateRowIdx = 4;
+    let feeRowIdx = 5;
+    let thuTranHeaderIdx = 6;
+
+    for (let r = 0; r < Math.min(10, thuTranRows.length); r++) {
+      const str = (thuTranRows[r] || []).map((c) => String(c).toLowerCase()).join(" ");
+      if (str.includes("ngày/tháng") || str.includes("trận 1")) dateRowIdx = r;
+      if (str.includes("số tiền/trận")) feeRowIdx = r;
+      if (str.includes("tổng đã nộp") || str.includes("tích chọn")) thuTranHeaderIdx = r;
+    }
+
+    const headerRow = thuTranRows[dateRowIdx] || [];
+    const feeRow = thuTranRows[feeRowIdx] || [];
     const pitchExpenses = parsedExpenses.filter(
       (e) => e.category === "Tiền sân"
     );
 
+    // Xác định các cột trận đấu động (tương thích mọi số lượng trận > 22)
+    interface DetectedMatchCol {
+      col: number;
+      label: string;
+      fee: number;
+      matchIdx: number;
+    }
+    const detectedMatchCols: DetectedMatchCol[] = [];
+
+    let currentMatchCounter = 1;
+    for (let col = 0; col < headerRow.length; col++) {
+      const rawLabel = String(headerRow[col] || "").trim();
+      if (/trận\s+\d+/i.test(rawLabel) || rawLabel.toLowerCase().startsWith("trận")) {
+        detectedMatchCols.push({
+          col,
+          label: rawLabel,
+          fee: Number(feeRow[col]) || 100000,
+          matchIdx: currentMatchCounter++,
+        });
+      }
+    }
+
+    // Tìm dòng bắt đầu của cầu thủ trong Sheet Thu Trận
+    let thuTranPlayerRowStart = thuTranHeaderIdx + 2;
+    let colThuTranName = 2;
+    let colThuTranShort = 3;
+
+    for (let r = 0; r < Math.min(15, thuTranRows.length); r++) {
+      const row = thuTranRows[r] || [];
+      const nameIdx = row.findIndex(
+        (c) => String(c).trim().toLowerCase() === "họ và tên"
+      );
+      if (nameIdx !== -1) {
+        colThuTranName = nameIdx;
+        const shortIdx = row.findIndex(
+          (c) => String(c).trim().toLowerCase() === "tên"
+        );
+        if (shortIdx !== -1) colThuTranShort = shortIdx;
+        thuTranPlayerRowStart = r + 2; // bỏ qua header và dòng tổng
+        break;
+      }
+    }
+
     const matchIdByCol = new Map<number, { id: number; fee: number }>();
 
-    for (let col = 5; col < headerRow.length; col++) {
-      const label = String(headerRow[col] || "").trim();
-      if (!label) continue;
-      const matchIdx = col - 4;
-      const fee = Number(feeRow[col]) || 100000;
+    for (const mCol of detectedMatchCols) {
+      const col = mCol.col;
+      const label = mCol.label;
+      const matchIdx = mCol.matchIdx;
+      const fee = mCol.fee;
 
       let hasAnyPaid = false;
-      for (let r = 8; r < thuTranRows.length; r++) {
+      for (let r = thuTranPlayerRowStart; r < thuTranRows.length; r++) {
         const cellVal = thuTranRows[r]?.[col];
         if (
           cellVal === true ||
@@ -336,7 +473,8 @@ export async function POST(req: NextRequest) {
       }
 
       const matchedPitchExp = pitchExpenses[matchIdx - 1];
-      if (!hasAnyPaid && !matchedPitchExp && matchIdx > 15) {
+      // Nếu là cột trận mẫu hoàn toàn không có ngày, không có chi phí và không có ai đóng, bỏ qua
+      if (!hasAnyPaid && !matchedPitchExp && !label.includes("-") && matchIdx > 15) {
         continue;
       }
 
@@ -369,15 +507,15 @@ export async function POST(req: NextRequest) {
     }
 
     // 8. Đọc ma trận điểm danh / thu tiền từ Sheet '3. Thu Trận (Tích chọn)'
-    for (let r = 8; r < thuTranRows.length; r++) {
+    for (let r = thuTranPlayerRowStart; r < thuTranRows.length; r++) {
       const row = thuTranRows[r];
       if (!row) continue;
-      const fullName = String(row[2] || "").trim();
+      const fullName = String(row[colThuTranName] || "").trim();
       if (!fullName) continue;
       const playerId = playerIdByName.get(fullName);
       if (!playerId) continue;
 
-      const shortNameInSheet = String(row[3] || "").trim();
+      const shortNameInSheet = String(row[colThuTranShort] || "").trim();
       if (shortNameInSheet) {
         await db.run("UPDATE players SET short_name = ? WHERE id = ?", [
           shortNameInSheet,
@@ -408,22 +546,58 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 9. Lưu các khoản Thu Khác từ Sheet '4. Thu Khác'
-    for (let r = 5; r < thuKhacRows.length; r++) {
+    // 9. ĐỘNG HÓA TÌM CỘT CHO SHEET '4. Thu Khác'
+    let thuKhacHeaderIdx = 3;
+    let colTkDate = 2;
+    let colTkContributor = 3;
+    let colTkAmt = 4;
+    let colTkNote = 5;
+
+    for (let r = 0; r < Math.min(10, thuKhacRows.length); r++) {
+      const row = thuKhacRows[r] || [];
+      const contIdx = row.findIndex((c) =>
+        String(c).trim().toLowerCase().includes("người ủng hộ")
+      );
+      if (contIdx !== -1) {
+        thuKhacHeaderIdx = r;
+        colTkContributor = contIdx;
+        const dateIdx = row.findIndex((c) =>
+          String(c).trim().toLowerCase() === "ngày"
+        );
+        if (dateIdx !== -1) colTkDate = dateIdx;
+        const amtIdx = row.findIndex((c) =>
+          String(c).trim().toLowerCase().includes("số tiền")
+        );
+        if (amtIdx !== -1) colTkAmt = amtIdx;
+        const noteIdx = row.findIndex((c) =>
+          String(c).trim().toLowerCase().includes("ghi chú")
+        );
+        if (noteIdx !== -1) colTkNote = noteIdx;
+        break;
+      }
+    }
+
+    for (let r = thuKhacHeaderIdx + 1; r < thuKhacRows.length; r++) {
       const row = thuKhacRows[r];
       if (!row) continue;
-      const contributor = String(row[3] || "").trim();
-      const amount = Number(row[4]) || 0;
-      const note = String(row[5] || "").trim();
-      if (!contributor && amount === 0 && !note) continue;
+      // Bỏ qua dòng tổng thu khác
+      if (String(row[colTkContributor] || "").toLowerCase().includes("tổng thu khác")) continue;
+      const contributor = String(row[colTkContributor] || "").trim();
+      const amount = Number(row[colTkAmt]) || 0;
+      const note = String(row[colTkNote] || "").trim();
+
+      // NGUYÊN TẮC TÀI CHÍNH CHUẨN: Chỉ ghi nhận các khoản thu THỰC TẾ với amount > 0
+      // Các ghi chú số dư giải trước với amount = 0 tuyệt đối không suy diễn thành thu mới
+      if (amount <= 0) continue;
+
       await db.run(
         `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
          VALUES (?, ?, ?, ?, ?)`,
         [
-          excelSerialToIsoDate(row[2]),
+          excelSerialToIsoDate(row[colTkDate]),
           contributor || "Quỹ giải đội bóng",
           amount,
-          amount > 0 ? "Quỹ sinh hoạt" : "Ghi chú Quỹ giải",
+          "Quỹ sinh hoạt",
           note,
         ]
       );

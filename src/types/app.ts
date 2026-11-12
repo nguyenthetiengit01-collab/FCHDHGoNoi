@@ -39,7 +39,7 @@ export interface TeamSettings {
   bank_account_name: string;
   tournament_fund_reserve: number;
   tournament_fund_note: string;
-  fanpage_url: string;
+  fanpage_url?: string;
 }
 
 export interface Player {
@@ -88,7 +88,13 @@ export interface MatchRecord {
   gallery_urls?: string[];
 }
 
-export type RsvpStatus = "registered" | "absent_notice" | "none";
+export type RsvpStatus =
+  | "registered"
+  | "absent_notice"
+  | "declined"
+  | "tentative"
+  | "attending"
+  | "none";
 
 export interface MatchAttendance {
   id: number;
@@ -135,6 +141,12 @@ export interface FinancialSummary {
   totalExpense: number;
   currentBalance: number;
   totalUnpaidAmount: number;
+  totalAttendeesCount?: number;
+  totalPaidCount?: number;
+  totalVoluntaryDonorsCount?: number;
+  totalVoluntaryAmount?: number;
+  totalMatchesCount?: number;
+  totalPlayersCount?: number;
   categoryBreakdown: CategoryBreakdownItem[];
 }
 

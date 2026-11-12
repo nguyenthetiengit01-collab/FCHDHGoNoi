@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import {
@@ -40,8 +40,12 @@ export function DashboardTab({ data, onNavigateTab }: DashboardTabProps) {
     const collected = attendances
       .filter((a) => a.match_id === m.id && a.paid === 1)
       .reduce((s, a) => s + a.amount, 0);
+    // Chuẩn hóa 3 trạng thái độc lập: Chỉ tính người THỰC SỰ có mặt ra sân
     const attendeesCount = attendances.filter(
-      (a) => a.match_id === m.id && (a.attended === 1 || a.paid === 1)
+      (a) => a.match_id === m.id && a.attended === 1
+    ).length;
+    const paidCount = attendances.filter(
+      (a) => a.match_id === m.id && a.paid === 1
     ).length;
     const matchExp = expenses
       .filter((e) => e.match_id === m.id)
@@ -51,6 +55,7 @@ export function DashboardTab({ data, onNavigateTab }: DashboardTabProps) {
       ...m,
       collected,
       attendeesCount,
+      paidCount,
       expense: pitchOrExp,
       net: collected - pitchOrExp,
     };
@@ -59,20 +64,23 @@ export function DashboardTab({ data, onNavigateTab }: DashboardTabProps) {
   const playerLeaderboard = players
     .map((p) => {
       const pAtt = attendances.filter((a) => a.player_id === p.id);
-      const matchesPlayed = pAtt.filter(
-        (a) => a.attended === 1 || a.paid === 1
-      ).length;
+      // Số trận thực tế thi đấu (attended === 1, không nhầm với người chỉ nộp tiền)
+      const matchesPlayed = pAtt.filter((a) => a.attended === 1).length;
       const totalPaid = pAtt
         .filter((a) => a.paid === 1)
         .reduce((s, a) => s + a.amount, 0);
       const unpaid = pAtt
         .filter((a) => a.attended === 1 && a.paid === 0)
         .reduce((s, a) => s + a.amount, 0);
+      const voluntaryContributions = pAtt
+        .filter((a) => a.attended === 0 && a.paid === 1)
+        .reduce((s, a) => s + a.amount, 0);
       return {
         ...p,
         matchesPlayed,
         totalPaid,
         unpaid,
+        voluntaryContributions,
         attendanceRate:
           matches.length > 0
             ? Math.round((matchesPlayed / matches.length) * 100)
