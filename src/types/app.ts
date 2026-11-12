@@ -185,6 +185,52 @@ export interface FullAppData {
   sponsors?: Sponsor[];
 }
 
+/**
+ * Data Transfer Object (DTO) công khai cho cầu thủ dành cho Khách (Guest)
+ * Tuyệt đối KHÔNG chứa: phone, username, pin_code, notes, access_role
+ */
+export interface PublicPlayerDTO {
+  id: number;
+  code_order: number;
+  full_name: string;
+  short_name: string;
+  jersey_number: number | null;
+  position: string;
+  birth_year: string;
+  avatar_url: string;
+  profile_image_url?: string;
+  role: string;
+  status: string;
+  bio?: string;
+  hometown?: string;
+  nickname?: string;
+  playing_style?: string;
+  gallery_urls?: string[];
+}
+
+/**
+ * Data Transfer Object (DTO) công khai của toàn bộ câu lạc bộ dành cho Khách (Guest)
+ * Loại bỏ toàn bộ sổ chi tiết thu chi, chứng từ, SĐT, mã PIN và ghi chú nội bộ.
+ */
+export interface PublicClubData {
+  settings: {
+    team_name: string;
+    short_name: string;
+    default_match_fee: number;
+    fanpage_url: string;
+    bank_bin?: string;
+    bank_name?: string;
+    bank_account_no?: string;
+    bank_account_name?: string;
+  };
+  players: PublicPlayerDTO[];
+  matches: MatchRecord[];
+  attendances: MatchAttendance[];
+  summary: FinancialSummary;
+  posts?: ClubActivityPost[];
+  sponsors?: Sponsor[];
+}
+
 export type MutateActionFn = (
   action: string,
   payload: Record<string, unknown>

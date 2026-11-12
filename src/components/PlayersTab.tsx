@@ -174,7 +174,7 @@ export function PlayersTab({
     setProfileWebpInfo("");
     setRole(p.role);
     setAccessRole(p.access_role || "player");
-    setPinCode(p.pin_code || "1234");
+    setPinCode("");
     setStatus(p.status);
     setNotes(p.notes || "");
     setHometown(p.hometown || "Điện Quang");
@@ -694,10 +694,15 @@ export function PlayersTab({
                         <span>{p.phone || "Chưa cập nhật SĐT"}</span>
                       </span>
                       {isManager && (
-                        <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700">
+                        <button
+                          type="button"
+                          onClick={() => handleResetPassword(p)}
+                          className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-amber-100 border border-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:text-amber-900 transition cursor-pointer"
+                          title="Đặt lại mật khẩu mặc định (1234)"
+                        >
                           <KeyRound className="h-3 w-3 text-slate-500" />
-                          PIN: {p.pin_code || "1234"}
-                        </span>
+                          <span>Reset PIN</span>
+                        </button>
                       )}
                     </div>
                   ) : (
@@ -1509,6 +1514,7 @@ export function PlayersTab({
                       id="player-pin"
                       name="pin_code"
                       type="text"
+                      placeholder={editingPlayer ? "Để trống để giữ nguyên mật khẩu hiện tại" : "Mặc định 1234"}
                       value={pinCode}
                       onChange={(e) => setPinCode(e.target.value)}
                       className="form-input !pl-9"

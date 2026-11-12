@@ -6,6 +6,8 @@ import {
   getPasswordFingerprint,
   isDefaultPassword,
   SESSION_COOKIE_NAME,
+  requireManagerSession,
+  verifyCsrfOrigin,
 } from "@/lib/auth";
 import { getAsyncDb } from "@/lib/db";
 import type { Player } from "@/types/app";
@@ -74,6 +76,13 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    if (!verifyCsrfOrigin(req)) {
+      return NextResponse.json(
+        { success: false, error: "Yêu cầu bị từ chối do vi phạm bảo mật CSRF / Origin." },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const { action } = body;
 
@@ -92,11 +101,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "switch_role" || action === "quick_login") {
-      const currentSession = getAuthSession(req);
-      if (!currentSession || currentSession.accessRole !== "manager") {
+      const auth = await requireManagerSession(req);
+      if (!auth.authorized) {
         return NextResponse.json(
-          { success: false, error: "Thao tác yêu cầu đăng nhập bằng tài khoản Ban Quản Lý" },
-          { status: 401 }
+          { success: false, error: auth.error || "Thao tác yêu cầu đăng nhập bằng tài khoản Ban Quản Lý" },
+          { status: auth.status }
         );
       }
 

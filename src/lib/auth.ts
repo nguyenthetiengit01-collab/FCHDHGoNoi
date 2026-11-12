@@ -1,13 +1,31 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 import { getAsyncDb } from "./db";
-import type { Player } from "@/types/app";
+import type { Player, FullAppData, PublicPlayerDTO } from "@/types/app";
 
-// Khóa bí mật ký session token - ưu tiên lấy từ biến môi trường
-const AUTH_SECRET =
-  process.env.AUTH_SECRET ||
-  process.env.NEXTAUTH_SECRET ||
-  "fc-hdh-go-noi-sapphire-secret-key-2026-secure";
+/**
+ * Lấy khóa bí mật ký session token.
+ * Thống nhất APP_SECRET / AUTH_SECRET / NEXTAUTH_SECRET.
+ * Bắt buộc cấu hình tối thiểu 32 ký tự ở môi trường production (Fail-fast).
+ */
+export function getAuthSecret(): string {
+  const secret =
+    process.env.APP_SECRET ||
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET;
+
+  if (process.env.NODE_ENV === "production") {
+    if (!secret || secret.trim().length < 32) {
+      throw new Error(
+        "FATAL: APP_SECRET / AUTH_SECRET must be set and at least 32 characters in production."
+      );
+    }
+    return secret.trim();
+  }
+
+  // Khóa phát triển nội bộ an toàn 32+ ký tự cho dev & test
+  return secret?.trim() || "fc-hdh-go-noi-sapphire-secret-key-2026-secure-32chars";
+}
 
 export const SESSION_COOKIE_NAME = "fc_session";
 
@@ -292,7 +310,7 @@ export function createSessionToken(
 
   const payloadBase64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = crypto
-    .createHmac("sha256", AUTH_SECRET)
+    .createHmac("sha256", getAuthSecret())
     .update(payloadBase64)
     .digest("base64url");
 
@@ -314,7 +332,7 @@ export function verifySessionToken(
 
   // Kiểm tra chữ ký mật mã
   const expectedSig = crypto
-    .createHmac("sha256", AUTH_SECRET)
+    .createHmac("sha256", getAuthSecret())
     .update(payloadBase64)
     .digest("base64url");
 
@@ -471,5 +489,249 @@ export async function verifyCredentials(
     success: true,
     player: matched,
     mustChangePassword: isDefault,
+  };
+}
+
+// =========================================================================
+// 4. KIỂM SOÁT PHÂN QUYỀN (SERVER-SIDE AUTHORIZATION & CSRF)
+// =========================================================================
+
+export interface AuthCheckResult {
+  authorized: boolean;
+  status: 200 | 401 | 403;
+  error?: string;
+  session?: SessionPayload;
+  player?: Player;
+}
+
+/**
+ * Kiểm tra tính hợp lệ của Header Origin / Referer đối với các HTTP Request làm thay đổi dữ liệu
+ * Chống tấn công CSRF (Cross-Site Request Forgery)
+ */
+export function verifyCsrfOrigin(req: NextRequest): boolean {
+  const method = req.method.toUpperCase();
+  // Các phương thức an toàn chỉ đọc không yêu cầu kiểm tra CSRF
+  if (["GET", "HEAD", "OPTIONS"].includes(method)) return true;
+
+  const origin = req.headers.get("origin");
+  const host = req.headers.get("host");
+
+  if (!origin) {
+    const referer = req.headers.get("referer");
+    if (!referer) {
+      // Môi trường dev hoặc test runner nội bộ không gửi origin
+      return process.env.NODE_ENV !== "production";
+    }
+    try {
+      const refererHost = new URL(referer).host;
+      return refererHost === host;
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    const originHost = new URL(origin).host;
+    return originHost === host;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Xác thực bắt buộc quyền Ban Quản Lý (Manager).
+ * Kiểm tra trực tiếp trạng thái và vai trò hiện hành trong Cơ Sở Dữ Liệu,
+ * không chỉ tin tưởng vào claim trong session token cũ.
+ */
+export async function requireManagerSession(
+  req: NextRequest
+): Promise<AuthCheckResult> {
+  const session = getAuthSession(req);
+  if (!session) {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Yêu cầu đăng nhập tài khoản Ban Quản Lý.",
+    };
+  }
+
+  const db = getAsyncDb();
+  const players = await db.query<Player>(
+    "SELECT * FROM players WHERE id = ? LIMIT 1",
+    [session.playerId]
+  );
+  const player = players[0];
+
+  if (!player || (player as unknown as { status?: string }).status === "inactive") {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Tài khoản không tồn tại hoặc đã bị ngừng hoạt động.",
+    };
+  }
+
+  if (player.access_role !== "manager") {
+    return {
+      authorized: false,
+      status: 403,
+      error: "Thao tác yêu cầu quyền Ban Quản Lý (Manager).",
+    };
+  }
+
+  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi
+  if (session.pwdFingerprint) {
+    const currentFingerprint = getPasswordFingerprint(player.pin_code || "1234");
+    if (session.pwdFingerprint !== currentFingerprint) {
+      return {
+        authorized: false,
+        status: 401,
+        error:
+          "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
+      };
+    }
+  }
+
+  return { authorized: true, status: 200, session, player };
+}
+
+/**
+ * Xác thực bắt buộc thành viên / cầu thủ đã đăng nhập vào hệ thống
+ */
+export async function requirePlayerSession(
+  req: NextRequest
+): Promise<AuthCheckResult> {
+  const session = getAuthSession(req);
+  if (!session) {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Yêu cầu đăng nhập tài khoản.",
+    };
+  }
+
+  const db = getAsyncDb();
+  const players = await db.query<Player>(
+    "SELECT * FROM players WHERE id = ? LIMIT 1",
+    [session.playerId]
+  );
+  const player = players[0];
+
+  if (!player || (player as unknown as { status?: string }).status === "inactive") {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Tài khoản không tồn tại hoặc đã bị ngừng hoạt động.",
+    };
+  }
+
+  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi
+  if (session.pwdFingerprint) {
+    const currentFingerprint = getPasswordFingerprint(player.pin_code || "1234");
+    if (session.pwdFingerprint !== currentFingerprint) {
+      return {
+        authorized: false,
+        status: 401,
+        error:
+          "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
+      };
+    }
+  }
+
+  return { authorized: true, status: 200, session, player };
+}
+
+// =========================================================================
+// 5. LỌC VÀ CHUẨN HÓA DỮ LIỆU CÔNG KHAI (DATA SANITIZATION & DTO)
+// =========================================================================
+
+/**
+ * Lọc sạch thông tin nhạy cảm của cầu thủ cho người xem công khai (Guest)
+ * Loại bỏ: phone, username, pin_code, notes, access_role
+ */
+export function sanitizePlayerForPublic(player: Player): PublicPlayerDTO {
+  return {
+    id: player.id,
+    code_order: player.code_order,
+    full_name: player.full_name,
+    short_name: player.short_name,
+    jersey_number: player.jersey_number,
+    position: player.position,
+    birth_year: player.birth_year,
+    avatar_url: player.avatar_url,
+    profile_image_url: player.profile_image_url || "",
+    role: player.role,
+    status: player.status,
+    bio: player.bio,
+    hometown: player.hometown,
+    nickname: player.nickname,
+    playing_style: player.playing_style,
+    gallery_urls: player.gallery_urls,
+  };
+}
+
+/**
+ * Lọc dữ liệu toàn đội dành cho khách vãng lai (Guest Portal)
+ * Ẩn toàn bộ: SĐT thành viên, mã PIN, ghi chú nội bộ, chi tiết thu chi từng hóa đơn
+ */
+export function sanitizeDataForPublic(data: FullAppData): FullAppData {
+  return {
+    settings: {
+      ...data.settings,
+      tournament_fund_note: "", // Ẩn ghi chú nội bộ
+    },
+    players: data.players.map((p) => ({
+      ...p,
+      phone: "",
+      username: "",
+      pin_code: "",
+      notes: "",
+      access_role: "player" as const,
+    })),
+    matches: data.matches,
+    attendances: data.attendances,
+    otherIncomes: [], // Ẩn sổ chi tiết từng khoản ngoài
+    expenses: [], // Ẩn sổ chứng từ chi tiêu chi tiết
+    summary: data.summary,
+    posts: data.posts,
+    sponsors: data.sponsors,
+  };
+}
+
+/**
+ * Lọc dữ liệu dành cho Cầu thủ thường (Player):
+ * Giữ nguyên minh bạch tài chính và tổng quỹ, nhưng ẩn thông tin liên hệ riêng tư của cầu thủ khác
+ */
+export function sanitizeDataForPlayer(
+  data: FullAppData,
+  currentUserId: number
+): FullAppData {
+  return {
+    settings: {
+      ...data.settings,
+      tournament_fund_note: "",
+    },
+    players: data.players.map((p) => {
+      if (p.id === currentUserId) {
+        return {
+          ...p,
+          pin_code: "", // Tuyệt đối không truyền mã PIN / hash qua mạng
+        };
+      }
+      return {
+        ...p,
+        phone: "",
+        username: "",
+        pin_code: "",
+        notes: "",
+        access_role: "player" as const,
+      };
+    }),
+    matches: data.matches,
+    attendances: data.attendances,
+    otherIncomes: data.otherIncomes,
+    expenses: data.expenses,
+    summary: data.summary,
+    posts: data.posts,
+    sponsors: data.sponsors,
   };
 }

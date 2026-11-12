@@ -13,25 +13,60 @@ import {
   validatePasswordStrength,
   createSessionToken,
   SESSION_COOKIE_NAME,
+  requireManagerSession,
+  requirePlayerSession,
+  verifyCsrfOrigin,
+  sanitizeDataForPublic,
+  sanitizeDataForPlayer,
 } from "@/lib/auth";
 import { ensureWebpDataUrlServer } from "@/lib/serverWebp";
 import { formatBirthYear } from "@/lib/athleteProfile";
+import type { FullAppData } from "@/types/app";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const data = await getFullAppData();
-    return NextResponse.json(data);
+    const session = getAuthSession(req);
+
+    let sanitizedData: FullAppData;
+    if (session && session.accessRole === "manager") {
+      // Ban Quản Lý: Được xem toàn bộ dữ liệu (mã PIN vẫn luôn để trống vì lý do an ninh)
+      sanitizedData = {
+        ...data,
+        players: data.players.map((p) => ({ ...p, pin_code: "" })),
+      };
+    } else if (session) {
+      // Cầu thủ đăng nhập: Xem số liệu chung và hồ sơ của mình, ẩn SĐT/ghi chú riêng tư của người khác
+      sanitizedData = sanitizeDataForPlayer(data, session.playerId);
+    } else {
+      // Khách (Guest): Chỉ nhận thông tin công khai (ẩn liên hệ, ghi chú, sổ hóa đơn chi tiết)
+      sanitizedData = sanitizeDataForPublic(data);
+    }
+
+    return NextResponse.json(sanitizedData, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
   } catch (error) {
     console.error("GET /api/team error:", error);
     return NextResponse.json(
       { error: "Không thể tải dữ liệu đội bóng" },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. Chống CSRF trên toàn bộ mutating actions
+    if (!verifyCsrfOrigin(req)) {
+      return NextResponse.json(
+        { error: "Yêu cầu bị từ chối do vi phạm bảo mật CSRF / Origin." },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     const body = await req.json();
     const { action, payload } = body;
     const db = getAsyncDb();
@@ -62,57 +97,61 @@ export async function POST(req: NextRequest) {
     ]);
 
     if (MANAGER_ONLY_ACTIONS.has(action)) {
-      if (!session || session.accessRole !== "manager") {
+      const auth = await requireManagerSession(req);
+      if (!auth.authorized) {
         return NextResponse.json(
           {
             error:
+              auth.error ||
               "Thao tác yêu cầu quyền Ban Quản Lý (Manager). Vui lòng đăng nhập với tài khoản Ban Quản Lý.",
           },
-          { status: 403 }
+          { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
     }
 
     // Các hành động yêu cầu cầu thủ đã đăng nhập vào hệ thống
     if (action === "update_own_profile" || action === "change_own_password") {
-      if (!session) {
+      const auth = await requirePlayerSession(req);
+      if (!auth.authorized) {
         return NextResponse.json(
-          { error: "Vui lòng đăng nhập để cập nhật hồ sơ cá nhân" },
-          { status: 401 }
+          { error: auth.error || "Vui lòng đăng nhập để cập nhật hồ sơ cá nhân" },
+          { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
       const targetPlayerId = Number(payload?.player_id ?? payload?.id);
       if (
-        session.accessRole !== "manager" &&
-        targetPlayerId !== session.playerId
+        auth.player?.access_role !== "manager" &&
+        targetPlayerId !== auth.player?.id
       ) {
         return NextResponse.json(
           {
             error:
               "Bảo mật: Bạn chỉ có thể cập nhật tài khoản cá nhân của chính mình",
           },
-          { status: 403 }
+          { status: 403, headers: { "Cache-Control": "no-store" } }
         );
       }
     }
 
     if (action === "set_rsvp") {
-      if (!session) {
+      const auth = await requirePlayerSession(req);
+      if (!auth.authorized) {
         return NextResponse.json(
-          { error: "Vui lòng đăng nhập để điểm danh" },
-          { status: 401 }
+          { error: auth.error || "Vui lòng đăng nhập để điểm danh" },
+          { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
       if (
-        session.accessRole !== "manager" &&
-        Number(payload?.player_id) !== session.playerId
+        auth.player?.access_role !== "manager" &&
+        Number(payload?.player_id) !== auth.player?.id
       ) {
         return NextResponse.json(
           {
             error:
               "Bảo mật: Bạn chỉ có thể thực hiện điểm danh cho tài khoản của chính mình",
           },
-          { status: 403 }
+          { status: 403, headers: { "Cache-Control": "no-store" } }
         );
       }
     }

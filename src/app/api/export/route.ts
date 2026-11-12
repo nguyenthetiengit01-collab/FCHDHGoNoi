@@ -1,9 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { getFullAppData } from "@/lib/db";
+import { requireManagerSession } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const auth = await requireManagerSession(req);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { error: auth.error || "Thao tác yêu cầu quyền Ban Quản Lý (Manager)" },
+        {
+          status: auth.status,
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+          },
+        }
+      );
+    }
+
     const data = await getFullAppData();
     const wb = XLSX.utils.book_new();
 
@@ -137,6 +151,7 @@ export async function GET() {
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition":
           'attachment; filename="Quan_Ly_Thu_Chi_GONOIFC_Updated.xlsx"',
+        "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
   } catch (error) {

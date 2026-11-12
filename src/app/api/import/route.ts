@@ -3,6 +3,14 @@ import path from "path";
 import fs from "fs";
 import * as XLSX from "xlsx";
 import { getAsyncDb, getFullAppData } from "@/lib/db";
+import {
+  requireManagerSession,
+  verifyCsrfOrigin,
+  hashPassword,
+} from "@/lib/auth";
+import type { Player } from "@/types/app";
+
+const MAX_IMPORT_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn 5MB chống cạn kiệt bộ nhớ
 
 function excelSerialToIsoDate(val: unknown): string {
   if (!val) return new Date().toISOString().slice(0, 10);
@@ -24,6 +32,23 @@ function excelSerialToIsoDate(val: unknown): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // 1. Kiểm tra CSRF / Origin
+    if (!verifyCsrfOrigin(req)) {
+      return NextResponse.json(
+        { error: "Yêu cầu bị từ chối do vi phạm bảo mật CSRF / Origin." },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // 2. Xác thực bắt buộc quyền Ban Quản Lý (Manager)
+    const auth = await requireManagerSession(req);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { error: auth.error || "Thao tác yêu cầu quyền Ban Quản Lý (Manager)." },
+        { status: auth.status, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     let buffer: Buffer;
     const contentType = req.headers.get("content-type") || "";
 
@@ -33,7 +58,16 @@ export async function POST(req: NextRequest) {
       if (!file) {
         return NextResponse.json(
           { error: "Không tìm thấy file Excel tải lên" },
-          { status: 400 }
+          { status: 400, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+      if (file.size > MAX_IMPORT_SIZE_BYTES) {
+        return NextResponse.json(
+          {
+            error:
+              "Kích thước file vượt quá giới hạn cho phép (tối đa 5MB).",
+          },
+          { status: 400, headers: { "Cache-Control": "no-store" } }
         );
       }
       const arrayBuffer = await file.arrayBuffer();
@@ -45,15 +79,26 @@ export async function POST(req: NextRequest) {
       );
       if (!fs.existsSync(localPath)) {
         return NextResponse.json(
-          { error: "Không tìm thấy file Quan_Ly_Thu_Chi_GONOIFC.xlsx trong thư mục dự án" },
-          { status: 404 }
+          {
+            error:
+              "Không tìm thấy file Quan_Ly_Thu_Chi_GONOIFC.xlsx trong thư mục dự án",
+          },
+          { status: 404, headers: { "Cache-Control": "no-store" } }
         );
       }
       buffer = fs.readFileSync(localPath);
     }
 
-    const wb = XLSX.read(buffer, { type: "buffer" });
-    const db = getAsyncDb();
+    // 3. Đọc và Kiểm tra cấu trúc Workbook trong bộ nhớ TRƯỚC KHI thực hiện bất kỳ thao tác ghi DB nào
+    let wb: XLSX.WorkBook;
+    try {
+      wb = XLSX.read(buffer, { type: "buffer" });
+    } catch {
+      return NextResponse.json(
+        { error: "Định dạng file không hợp lệ hoặc file Excel bị hỏng." },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
     const wsDanhSach = wb.Sheets["2. Danh sách"];
     const wsThuTran = wb.Sheets["3. Thu Trận (Tích chọn)"];
@@ -66,7 +111,7 @@ export async function POST(req: NextRequest) {
           error:
             "File Excel cần có đủ các sheet: '2. Danh sách', '3. Thu Trận (Tích chọn)', '5. Chi'",
         },
-        { status: 400 }
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -86,16 +131,52 @@ export async function POST(req: NextRequest) {
     const thuKhacRows = wsThuKhac ? sheetToGrid(wsThuKhac) : [];
     const chiRows = sheetToGrid(wsChi);
 
-    await db.exec(`
-      DELETE FROM match_attendances;
-      DELETE FROM expenses;
-      DELETE FROM other_incomes;
-      DELETE FROM matches;
-      DELETE FROM players;
-    `);
+    // Validate danh sách tối thiểu có tiêu đề và ít nhất 1 dòng cầu thủ
+    if (danhSachRows.length < 5) {
+      return NextResponse.json(
+        {
+          error:
+            "Sheet '2. Danh sách' không có đủ dữ liệu thành viên hợp lệ.",
+        },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
-    // 1. Đọc danh sách cầu thủ từ Sheet '2. Danh sách' (từ dòng index 4 trở đi)
-    const playerIdByName = new Map<string, number>();
+    const db = getAsyncDb();
+
+    // 4. Đọc dữ liệu cầu thủ hiện tại trong DB để bảo toàn mã PIN (hash) và hồ sơ đã tùy chỉnh
+    const existingPlayers = await db.query<Player>(
+      "SELECT * FROM players ORDER BY id ASC"
+    );
+    const existingPlayerMap = new Map<string, Player>();
+    for (const p of existingPlayers) {
+      existingPlayerMap.set(p.full_name.trim().toLowerCase(), p);
+    }
+
+    // Parse trước toàn bộ dữ liệu vào bộ nhớ để đảm bảo tính toàn vẹn 100% trước khi ghi DB
+    interface ParsedPlayerData {
+      stt: number;
+      fullName: string;
+      shortName: string;
+      jersey: number | null;
+      pos: string;
+      phone: string;
+      birthYear: number;
+      avatarUrl: string;
+      profileImageUrl: string;
+      bio: string;
+      role: string;
+      accessRole: string;
+      pinCode: string;
+      status: string;
+      notes: string;
+      hometown: string;
+      nickname: string;
+      playingStyle: string;
+      galleryUrlsJson: string;
+    }
+
+    const playersToInsert: ParsedPlayerData[] = [];
 
     for (let r = 4; r < danhSachRows.length; r++) {
       const row = danhSachRows[r];
@@ -111,12 +192,16 @@ export async function POST(req: NextRequest) {
       const phone = String(row[5] || "").trim();
       const notes = String(row[6] || "").trim();
       const shortName = fullName.split(/\s+/).slice(-1)[0] || fullName;
+
+      // Bảo toàn thông tin từ DB nếu cầu thủ đã tồn tại
+      const existing = existingPlayerMap.get(fullName.toLowerCase());
       const isManager = [
         "Nguyễn Thế Tiếng",
         "Hồ Viết Tín",
         "Dương Hiển Hoài Sơn",
       ].includes(fullName);
-      const role =
+
+      const defaultRole =
         fullName === "Nguyễn Thế Tiếng"
           ? "Đội trưởng / Thủ quỹ"
           : fullName === "Hồ Viết Tín"
@@ -128,29 +213,31 @@ export async function POST(req: NextRequest) {
       const avatarIdx = ((stt - 1) % 14) + 1;
       const birthYear = 1986 + ((stt * 3) % 12);
 
-      const res = await db.run(
-        `INSERT INTO players (
-          code_order, full_name, short_name, jersey_number,
-          position, phone, birth_year, avatar_url, role, access_role, pin_code, status, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', ?)`,
-        [
-          stt,
-          fullName,
-          shortName,
-          jersey,
-          pos,
-          phone,
-          birthYear,
-          `/uploads/avatars/member-${avatarIdx}.jpg`,
-          role,
-          isManager ? "manager" : "player",
-          notes,
-        ]
-      );
-      playerIdByName.set(fullName, Number(res.lastInsertRowid));
+      playersToInsert.push({
+        stt,
+        fullName,
+        shortName: existing?.short_name || shortName,
+        jersey: jersey !== null ? jersey : existing?.jersey_number ?? null,
+        pos: existing?.position || pos,
+        phone: existing?.phone || phone,
+        birthYear: existing ? Number(existing.birth_year) || birthYear : birthYear,
+        avatarUrl: existing?.avatar_url || `/uploads/avatars/member-${avatarIdx}.jpg`,
+        profileImageUrl: existing?.profile_image_url || "",
+        bio: existing?.bio || "",
+        role: existing?.role || defaultRole,
+        accessRole: existing?.access_role || (isManager ? "manager" : "player"),
+        // BẢO MẬT: Giữ nguyên hash PIN hiện tại; nếu mới thì băm scrypt mặc định "1234"
+        pinCode: existing?.pin_code || hashPassword("1234"),
+        status: existing?.status || "Đang sinh hoạt",
+        notes: existing?.notes || notes,
+        hometown: existing?.hometown || "",
+        nickname: existing?.nickname || "",
+        playingStyle: existing?.playing_style || "",
+        galleryUrlsJson: (existing as unknown as { gallery_urls_json?: string })?.gallery_urls_json || "[]",
+      });
     }
 
-    // 2. Đọc các khoản Chi từ Sheet '5. Chi' (từ dòng index 5 trở đi)
+    // 5. Đọc các khoản Chi từ Sheet '5. Chi'
     const parsedExpenses: Array<{
       date: string;
       category: string;
@@ -174,7 +261,52 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. Đọc các cột Trận đấu từ Sheet '3. Thu Trận (Tích chọn)' (dòng index 4 & 5)
+    // 6. Thực thi ghi dữ liệu an toàn theo lô (Batch Execution)
+    // Sau khi đã parse và validate toàn bộ thành công
+    await db.exec(`
+      DELETE FROM match_attendances;
+      DELETE FROM expenses;
+      DELETE FROM other_incomes;
+      DELETE FROM matches;
+      DELETE FROM players;
+    `);
+
+    const playerIdByName = new Map<string, number>();
+
+    for (const p of playersToInsert) {
+      const res = await db.run(
+        `INSERT INTO players (
+          code_order, full_name, short_name, jersey_number,
+          position, phone, birth_year, avatar_url, profile_image_url, bio,
+          role, access_role, pin_code, status, notes,
+          hometown, nickname, playing_style, gallery_urls_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          p.stt,
+          p.fullName,
+          p.shortName,
+          p.jersey,
+          p.pos,
+          p.phone,
+          p.birthYear,
+          p.avatarUrl,
+          p.profileImageUrl,
+          p.bio,
+          p.role,
+          p.accessRole,
+          p.pinCode,
+          p.status,
+          p.notes,
+          p.hometown,
+          p.nickname,
+          p.playingStyle,
+          p.galleryUrlsJson,
+        ]
+      );
+      playerIdByName.set(p.fullName, Number(res.lastInsertRowid));
+    }
+
+    // 7. Đọc và tạo các Trận đấu từ Sheet '3. Thu Trận (Tích chọn)'
     const headerRow = thuTranRows[4] || [];
     const feeRow = thuTranRows[5] || [];
     const pitchExpenses = parsedExpenses.filter(
@@ -186,10 +318,9 @@ export async function POST(req: NextRequest) {
     for (let col = 5; col < headerRow.length; col++) {
       const label = String(headerRow[col] || "").trim();
       if (!label) continue;
-      const matchIdx = col - 4; // 1-based
+      const matchIdx = col - 4;
       const fee = Number(feeRow[col]) || 100000;
 
-      // Kiểm tra xem cột này có bất kỳ cầu thủ nào đã đóng chưa
       let hasAnyPaid = false;
       for (let r = 8; r < thuTranRows.length; r++) {
         const cellVal = thuTranRows[r]?.[col];
@@ -206,7 +337,6 @@ export async function POST(req: NextRequest) {
 
       const matchedPitchExp = pitchExpenses[matchIdx - 1];
       if (!hasAnyPaid && !matchedPitchExp && matchIdx > 15) {
-        // Bỏ qua các cột Trận 16..22 còn để trống trên mẫu Excel
         continue;
       }
 
@@ -238,7 +368,7 @@ export async function POST(req: NextRequest) {
       matchIdByCol.set(col, { id: Number(res.lastInsertRowid), fee });
     }
 
-    // 4. Đọc ma trận tích chọn trong Sheet '3. Thu Trận (Tích chọn)' (từ dòng index 8)
+    // 8. Đọc ma trận điểm danh / thu tiền từ Sheet '3. Thu Trận (Tích chọn)'
     for (let r = 8; r < thuTranRows.length; r++) {
       const row = thuTranRows[r];
       if (!row) continue;
@@ -278,7 +408,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. Lưu các khoản Thu Khác từ Sheet '4. Thu Khác'
+    // 9. Lưu các khoản Thu Khác từ Sheet '4. Thu Khác'
     for (let r = 5; r < thuKhacRows.length; r++) {
       const row = thuKhacRows[r];
       if (!row) continue;
@@ -299,7 +429,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 6. Lưu toàn bộ khoản Chi vào bảng expenses
+    // 10. Lưu toàn bộ khoản Chi vào bảng expenses
     for (const exp of parsedExpenses) {
       await db.run(
         `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
@@ -315,13 +445,16 @@ export async function POST(req: NextRequest) {
     }
 
     const updated = await getFullAppData();
-    return NextResponse.json(updated);
-    return NextResponse.json(updated);
+    return NextResponse.json(updated, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
   } catch (err) {
     console.error("POST /api/import error:", err);
     return NextResponse.json(
-      { error: "Không thể đọc file Excel. Vui lòng kiểm tra định dạng file." },
-      { status: 500 }
+      { error: "Không thể import file Excel. Vui lòng kiểm tra định dạng file." },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

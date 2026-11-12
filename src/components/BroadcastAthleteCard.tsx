@@ -343,14 +343,11 @@ export function BroadcastAthleteCard({
               </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs text-sky-100 font-medium">
-                  Tài khoản đăng nhập:{" "}
-                  <strong className="text-white">
-                    @{player.username || player.short_name.toLowerCase()}
-                  </strong>
+                  Đại diện: <strong className="text-[#ffd700]">Xã Gò Nổi • TP. Đà Nẵng</strong>
                 </span>
-                {player.phone && (
+                {hamlet && (
                   <span className="text-xs text-sky-200/80">
-                    • SĐT: {player.phone}
+                    • Cội nguồn: {hamlet}
                   </span>
                 )}
               </div>

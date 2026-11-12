@@ -101,12 +101,27 @@ export default async function CauThuProfilePage({ params }: PageProps) {
     );
   }
 
+  const safePlayer = {
+    ...player,
+    phone: "",
+    username: "",
+    pin_code: "",
+    notes: "",
+  };
+  const safeAllPlayers = data.players.map((p) => ({
+    ...p,
+    phone: "",
+    username: "",
+    pin_code: "",
+    notes: "",
+  }));
+
   return (
     <PlayerProfileClient
-      player={player}
+      player={safePlayer}
       attendances={data.attendances}
       matches={data.matches}
-      allPlayers={data.players}
+      allPlayers={safeAllPlayers}
     />
   );
 }
