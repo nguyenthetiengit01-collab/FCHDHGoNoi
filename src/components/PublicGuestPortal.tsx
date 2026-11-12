@@ -17,6 +17,13 @@ import {
   Clock,
   Search,
   Award,
+  Menu,
+  X,
+  Sparkles,
+  Trophy,
+  Flame,
+  Users,
+  CalendarDays,
 } from "lucide-react";
 import type { FullAppData, Player } from "@/types/app";
 import {
@@ -407,19 +414,27 @@ export function PublicGuestPortal({
     return matchCat && matchYear;
   });
 
-  const go = (id: string) =>
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const go = (id: string) => {
+    setMobileNavOpen(false);
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   const totalPlayerCount = players.length;
 
   const navLinks = [
-    { id: "banner-hero", label: "Trang chủ" },
-    { id: "match-center", label: "Lịch đấu" },
-    { id: "activities", label: "Hoạt động" },
-    { id: "squad-section", label: `Cầu thủ (${totalPlayerCount})` },
-    { id: "partners-section", label: "Đồng hành" },
-    { id: "join-us", label: "Gia nhập đội" },
-    { id: "gallery", label: "Khoảnh khắc" },
+    { id: "banner-hero", label: "Trang chủ", icon: Sparkles, badge: "CLB" },
+    { id: "match-center", label: "Trận đấu", icon: Trophy, badge: "Hot" },
+    { id: "activities", label: "Hoạt động", icon: Flame, badge: "Tin mới" },
+    { id: "squad-section", label: `Cầu thủ (${totalPlayerCount})`, icon: Users, badge: `${totalPlayerCount}+` },
+    { id: "join-us", label: "Gia nhập đội", icon: HeartHandshake, badge: "Đón nhận" },
+    { id: "fixtures-section", label: "Lịch đấu", icon: CalendarDays, badge: "Tuần này" },
+    { id: "gallery", label: "Khoảnh khắc", icon: Camera, badge: "Ảnh" },
+    { id: "partners-section", label: "Đồng hành", icon: Award, badge: "Tri ân" },
   ];
 
   const homeBanners = (data.sponsors || []).filter(
@@ -502,15 +517,110 @@ export function PublicGuestPortal({
             </a>
           </nav>
 
-          <button
-            type="button"
-            onClick={onOpenLogin}
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-5 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition"
-          >
-            <LogIn className="h-4 w-4" />
-            <span>Đăng nhập</span>
-          </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={onOpenLogin}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-3.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Đăng nhập</span>
+            </button>
+
+            {/* Nút Hamburger mở menu trên Mobile */}
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen((prev) => !prev)}
+              aria-label="Mở menu điều hướng"
+              aria-expanded={mobileNavOpen}
+              className="lg:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 transition cursor-pointer"
+            >
+              {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
+
+        {/* ===================== MOBILE NAVIGATION DRAWER ===================== */}
+        {mobileNavOpen && (
+          <div className="lg:hidden fixed inset-x-0 top-[60px] sm:top-[68px] bottom-0 bg-[#061730]/98 backdrop-blur-xl z-50 overflow-y-auto border-t border-[#d4af37]/30 shadow-2xl p-5 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-white/15">
+                <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700]">
+                  DANH MỤC TRANG CHỦ
+                </span>
+                <span className="text-xs text-sky-200">
+                  FC HĐH Gò Nổi
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                {navLinks.map((l) => {
+                  const Icon = l.icon;
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => go(l.id)}
+                      className="flex items-center justify-between p-3.5 rounded-xl bg-[#0b2447] hover:bg-[#123e7a] border border-white/10 text-left transition cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-[#071933] text-[#ffd700] border border-[#ffd700]/30 group-hover:scale-110 transition">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className="font-bold text-sm text-white group-hover:text-[#ffd700] transition">
+                          {l.label}
+                        </span>
+                      </div>
+                      {l.badge && (
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-[#ffd700]/15 text-[#ffd700] border border-[#ffd700]/30">
+                          {l.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                <a
+                  href={fanpageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-[#1877F2]/20 hover:bg-[#1877F2]/30 border border-[#1877F2]/50 text-left transition group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-[#1877F2] text-white">
+                      <ArrowUpRight className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-sm text-white block">
+                        Fanpage Facebook Chính Thức
+                      </span>
+                      <span className="text-[11px] text-sky-200 block">
+                        Cập nhật hình ảnh, video & tỉ số trận
+                      </span>
+                    </div>
+                  </div>
+                </a>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-white/15 mt-6 space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  onOpenLogin();
+                }}
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#d4af37] to-[#e6c466] text-slate-950 font-black py-3.5 rounded-xl uppercase text-xs tracking-wider shadow-lg"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Đăng Nhập Thành Viên & Ban Quản Lý</span>
+              </button>
+              <p className="text-center text-[11px] text-sky-200/70">
+                Xã Gò Nổi • TP. Đà Nẵng (Điện Quang - Điện Trung - Điện Phong cũ)
+              </p>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* ===================== HERO BANNER TOÀN MÀN HÌNH (ẢNH WEBP THẬT) ===================== */}
@@ -642,6 +752,45 @@ export function PublicGuestPortal({
           </div>
         </div>
       </section>
+
+      {/* ===================== THANH ĐIỀU HƯỚNG NHANH CÁC KHU VỰC (QUICK JUMP BAR) ===================== */}
+      <nav
+        aria-label="Thanh nhảy nhanh chuyên mục"
+        className="sticky top-[60px] sm:top-[68px] z-30 bg-[#061730]/95 backdrop-blur-md border-y border-[#ffd700]/30 shadow-lg py-2.5"
+      >
+        <div className={`${WRAP} flex items-center justify-between gap-3 overflow-x-auto gn-hide-scroll`}>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {navLinks.slice(1).map((l) => {
+              const Icon = l.icon;
+              return (
+                <button
+                  key={l.id}
+                  type="button"
+                  onClick={() => go(l.id)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0b2447] hover:bg-[#123e7a] border border-white/10 hover:border-[#ffd700]/60 text-xs font-bold text-sky-100 hover:text-white transition whitespace-nowrap cursor-pointer shrink-0 group"
+                >
+                  <Icon className="h-3.5 w-3.5 text-[#ffd700] group-hover:scale-110 transition" />
+                  <span>{l.label}</span>
+                  {l.badge && (
+                    <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#ffd700]/15 text-[#ffd700] border border-[#ffd700]/30">
+                      {l.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="hidden md:flex items-center gap-2 shrink-0 pl-3 border-l border-white/10 text-xs">
+            <span className="text-[10px] uppercase tracking-wider text-sky-300 font-bold">
+              FC HĐH Gò Nổi:
+            </span>
+            <span className="font-extrabold text-[#fde047]">
+              {totalPlayerCount}+ Cầu Thủ
+            </span>
+          </div>
+        </div>
+      </nav>
 
       {/* ===================== BANNER ĐƠN VỊ TÀI TRỢ & ĐỐI TÁC TRANG CHỦ ===================== */}
       {homeBanners.length > 0 && (
@@ -903,32 +1052,32 @@ export function PublicGuestPortal({
       {/* ===================== HOẠT ĐỘNG & BÀI VIẾT CLB (EDITORIAL MAGAZINE LAYOUT) ===================== */}
       <section
         id="activities"
-        className="bg-[#f8fafc] text-slate-900 py-20 sm:py-28 border-b border-slate-200"
+        className="relative bg-gradient-to-b from-[#0a2347] via-[#0e3164] to-[#0a2347] text-white py-20 sm:py-28 border-b border-white/15"
       >
         <div className={WRAP}>
           <Reveal>
             {/* Header Chuyên Mục Chuẩn Báo Chí Thể Thao */}
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 pb-8 border-b border-slate-200">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 pb-8 border-b border-white/15">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#17488c] bg-[#17488c]/10 px-2.5 py-1 rounded border border-[#17488c]/20">
+                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700] bg-[#ffd700]/15 px-2.5 py-1 rounded border border-[#ffd700]/40">
                     02 // BÀI VIẾT &amp; HOẠT ĐỘNG CLB
                   </span>
-                  <span className="text-xs uppercase font-extrabold tracking-widest text-slate-500">
+                  <span className="text-xs uppercase font-extrabold tracking-widest text-sky-200">
                     KHO TƯ LIỆU THỰC TẾ
                   </span>
                 </div>
-                <h2 className="mt-3 font-display font-black uppercase leading-tight text-4xl sm:text-6xl text-slate-900">
-                  Hoạt động &amp; <span className="text-[#17488c]">Ký ức sân cỏ</span>
+                <h2 className="mt-3 font-display font-black uppercase leading-tight text-4xl sm:text-6xl text-white">
+                  Hoạt động &amp; <span className="text-[#ffd700]">Ký ức sân cỏ</span>
                 </h2>
-                <p className="mt-3 max-w-2xl text-sm sm:text-base text-slate-600 leading-relaxed font-light">
+                <p className="mt-3 max-w-2xl text-sm sm:text-base text-sky-100/90 leading-relaxed font-light">
                   Nơi ghi dấu những trận cầu nảy lửa, giải đấu truyền thống, khoảnh khắc giao lưu anh em đồng hương Điện Quang, Điện Trung, Điện Phong và tình cảm của các nhà tài trợ.
                 </p>
               </div>
 
               <Link
                 href="/hoat-dong"
-                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-[#17488c] hover:text-[#103567] bg-white border border-slate-300 hover:border-[#17488c] px-4 py-2.5 rounded-lg transition shadow-sm w-fit shrink-0"
+                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-950 bg-gradient-to-r from-[#ffd700] to-[#f5c518] hover:from-[#f5c518] hover:to-[#ffd700] px-5 py-3 rounded-xl transition shadow-lg w-fit shrink-0 hover:scale-[1.02]"
               >
                 <BookOpen className="h-4 w-4" />
                 <span>Xem kho bài viết hoàn chỉnh</span>
@@ -940,8 +1089,8 @@ export function PublicGuestPortal({
             <div className="mt-6 space-y-3">
               {/* Dòng thời gian CLB theo năm */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-bold uppercase tracking-wider">
-                <span className="text-slate-400 font-extrabold text-[10px] uppercase mr-1 shrink-0 flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-[#17488c]" />
+                <span className="text-sky-300 font-extrabold text-[10px] uppercase mr-1 shrink-0 flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-[#ffd700]" />
                   <span>Niên khóa:</span>
                 </span>
                 {CLUB_TIMELINE_YEARS.map((y) => (
@@ -949,9 +1098,9 @@ export function PublicGuestPortal({
                     key={y.id}
                     type="button"
                     onClick={() => setSelectedTimelineYear(y.id)}
-                    className={`px-3 py-1.5 rounded-md whitespace-nowrap transition cursor-pointer border text-xs flex items-center gap-1.5 ${selectedTimelineYear === y.id
-                        ? "bg-[#17488c] text-white font-black border-[#17488c] shadow-sm"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900"
+                    className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer border text-xs flex items-center gap-1.5 ${selectedTimelineYear === y.id
+                        ? "bg-[#ffd700] text-slate-950 font-black border-[#ffd700] shadow-sm"
+                        : "bg-[#0b254a] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
                       }`}
                   >
                     <span>{y.label}</span>
@@ -967,13 +1116,13 @@ export function PublicGuestPortal({
                     key={cat.id}
                     type="button"
                     onClick={() => setActiveActivityCategory(cat.id)}
-                    className={`px-3.5 py-2 rounded-md whitespace-nowrap transition cursor-pointer border ${activeActivityCategory === cat.id
-                        ? "bg-[#092244] text-[#fde047] border-[#092244] shadow-sm"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900"
+                    className={`px-3.5 py-2 rounded-lg whitespace-nowrap transition cursor-pointer border ${activeActivityCategory === cat.id
+                        ? "bg-[#164ea0] text-[#ffd700] border-[#ffd700]/70 shadow-md font-black"
+                        : "bg-[#0b254a] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
                       }`}
                   >
                     {cat.label}
-                    <span className="ml-1 opacity-60 text-[11px]">
+                    <span className="ml-1 opacity-70 text-[11px]">
                       (
                       {cat.id === "all"
                         ? allActivityPosts.length
@@ -988,7 +1137,7 @@ export function PublicGuestPortal({
 
           {/* EDITORIAL MAGAZINE GRID (7 COLS BÀI TIÊU ĐIỂM + 5 COLS DÒNG TIN HOẠT ĐỘNG) */}
           {filteredActivityPosts.length === 0 ? (
-            <div className="mt-10 p-12 text-center rounded-xl bg-white border border-slate-200 text-slate-500 text-sm">
+            <div className="mt-10 p-12 text-center rounded-xl bg-[#0c2b55] border border-white/15 text-sky-200 text-sm">
               Chưa có bài viết nào trong chuyên mục hoặc năm đã chọn.
             </div>
           ) : (
@@ -1000,7 +1149,7 @@ export function PublicGuestPortal({
                   <div className="lg:col-span-7">
                     <Link
                       href={`/hoat-dong/${filteredActivityPosts[0].id}`}
-                      className="group block bg-white rounded-xl overflow-hidden border border-slate-200 hover:border-[#17488c] shadow-sm hover:shadow-xl transition-all duration-300"
+                      className="group block bg-[#0c2b55] rounded-xl overflow-hidden border border-white/15 hover:border-[#ffd700]/70 shadow-xl transition-all duration-300"
                     >
                       {/* Ảnh đại diện tỷ lệ 16:9 với overlay thông số */}
                       <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
@@ -1012,12 +1161,12 @@ export function PublicGuestPortal({
                         />
                         <div
                           aria-hidden="true"
-                          className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent"
+                          className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent"
                         />
 
                         {/* Badges chuyên mục và năm */}
                         <div className="absolute top-4 left-4 flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-[#17488c] text-white shadow-sm">
+                          <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-[#123e7a] text-[#ffd700] border border-[#ffd700]/40 shadow-sm">
                             TIÊU ĐIỂM // {filteredActivityPosts[0].categoryLabel}
                           </span>
                           {filteredActivityPosts[0].eventYear && (
@@ -1039,7 +1188,7 @@ export function PublicGuestPortal({
                               ảnh
                             </span>
                           </span>
-                          <span className="inline-flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded border border-white/15">
+                          <span className="inline-flex items-center gap-1 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded border border-white/15 text-sky-200">
                             <Clock className="h-3.5 w-3.5" />
                             <span>{filteredActivityPosts[0].readingTime}</span>
                           </span>
@@ -1048,23 +1197,23 @@ export function PublicGuestPortal({
 
                       {/* Thân bài viết tiêu điểm */}
                       <div className="p-6 sm:p-7 space-y-3.5">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                          <Calendar className="h-3.5 w-3.5 text-[#17488c]" />
+                        <div className="flex items-center gap-2 text-xs font-semibold text-sky-200">
+                          <Calendar className="h-3.5 w-3.5 text-[#ffd700]" />
                           <span>{filteredActivityPosts[0].publishedDate}</span>
                           <span>•</span>
                           <span>Tác giả: {filteredActivityPosts[0].author}</span>
                         </div>
 
-                        <h3 className="font-display font-black uppercase text-2xl sm:text-3xl text-slate-900 group-hover:text-[#17488c] transition leading-snug">
+                        <h3 className="font-display font-black uppercase text-2xl sm:text-3xl text-white group-hover:text-[#ffd700] transition leading-snug">
                           {filteredActivityPosts[0].title}
                         </h3>
 
-                        <p className="text-slate-600 text-sm leading-relaxed font-light">
+                        <p className="text-sky-100 text-sm leading-relaxed font-light">
                           {filteredActivityPosts[0].summary}
                         </p>
 
                         {filteredActivityPosts[0].quote && (
-                          <div className="p-3.5 rounded-lg bg-slate-50 border-l-4 border-[#17488c] text-xs italic text-slate-700">
+                          <div className="p-3.5 rounded-lg bg-[#092244] border-l-4 border-[#ffd700] text-xs italic text-sky-200">
                             &ldquo;{filteredActivityPosts[0].quote}&rdquo;
                           </div>
                         )}
@@ -1072,15 +1221,15 @@ export function PublicGuestPortal({
                         {filteredActivityPosts[0].taggedPlayerNames &&
                           filteredActivityPosts[0].taggedPlayerNames.length >
                           0 && (
-                            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 mr-1">
+                            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/10">
+                              <span className="text-[10px] uppercase font-bold text-sky-300 mr-1">
                                 Cầu thủ:
                               </span>
                               {filteredActivityPosts[0].taggedPlayerNames.map(
                                 (name) => (
                                   <span
                                     key={name}
-                                    className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold border border-slate-200"
+                                    className="px-2 py-0.5 rounded bg-[#092244] text-sky-200 text-[10px] font-semibold border border-white/15"
                                   >
                                     {name}
                                   </span>
@@ -1089,12 +1238,12 @@ export function PublicGuestPortal({
                             </div>
                           )}
 
-                        <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#17488c]">
+                        <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs font-bold text-[#ffd700]">
                           <span className="group-hover:translate-x-1 transition inline-flex items-center gap-1.5">
                             <span>Đọc bài viết chi tiết &amp; xem album ảnh</span>
-                            <ArrowRight className="h-4 w-4 text-[#d4af37]" />
+                            <ArrowRight className="h-4 w-4 text-[#ffd700]" />
                           </span>
-                          <span className="text-slate-400 group-hover:text-slate-700">
+                          <span className="text-sky-200/80 group-hover:text-white">
                             Chi tiết bài viết →
                           </span>
                         </div>
@@ -1104,25 +1253,25 @@ export function PublicGuestPortal({
                 )}
 
                 {/* 5 COLS: DÒNG TIN HOẠT ĐỘNG (SECONDARY EDITORIAL FEED) */}
-                <div className="lg:col-span-5 bg-white rounded-xl border border-slate-200 shadow-sm p-5 sm:p-6 space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                    <span className="text-xs uppercase font-extrabold tracking-widest text-[#17488c] flex items-center gap-1.5">
+                <div className="lg:col-span-5 bg-[#0c2b55] rounded-xl border border-white/15 shadow-xl p-5 sm:p-6 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-white/15">
+                    <span className="text-xs uppercase font-extrabold tracking-widest text-[#ffd700] flex items-center gap-1.5">
                       <BookOpen className="h-4 w-4" />
                       <span>Dòng tin hoạt động gần đây</span>
                     </span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-sky-200">
                       {filteredActivityPosts.length} bài viết
                     </span>
                   </div>
 
-                  <div className="divide-y divide-slate-100">
+                  <div className="divide-y divide-white/10">
                     {filteredActivityPosts.slice(1, 4).map((post) => (
                       <Link
                         key={post.id}
                         href={`/hoat-dong/${post.id}`}
                         className="group py-3.5 flex gap-3.5 items-center cursor-pointer"
                       >
-                        <div className="relative h-20 w-24 sm:h-22 sm:w-28 rounded-lg overflow-hidden shrink-0 bg-slate-100 border border-slate-200">
+                        <div className="relative h-20 w-24 sm:h-22 sm:w-28 rounded-lg overflow-hidden shrink-0 bg-[#092244] border border-white/15">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={post.featuredImage}
@@ -1130,26 +1279,26 @@ export function PublicGuestPortal({
                             className="h-full w-full object-cover group-hover:scale-105 transition duration-300"
                           />
                           {post.eventYear && (
-                            <span className="absolute bottom-1 right-1 text-[9px] font-black px-1.5 py-0.2 rounded bg-black/75 text-[#fde047]">
+                            <span className="absolute bottom-1 right-1 text-[9px] font-black px-1.5 py-0.2 rounded bg-black/85 text-[#fde047]">
                               {post.eventYear}
                             </span>
                           )}
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 text-[10px] text-slate-400 font-semibold mb-0.5">
-                            <span className="text-[#17488c] uppercase font-bold">
+                          <div className="flex items-center gap-2 text-[10px] text-sky-300 font-semibold mb-0.5">
+                            <span className="text-[#ffd700] uppercase font-bold">
                               {post.categoryLabel}
                             </span>
                             <span>•</span>
                             <span>{post.publishedDate}</span>
                           </div>
 
-                          <h4 className="font-display font-bold uppercase text-xs sm:text-sm text-slate-900 group-hover:text-[#17488c] transition line-clamp-2 leading-snug">
+                          <h4 className="font-display font-bold uppercase text-xs sm:text-sm text-white group-hover:text-[#ffd700] transition line-clamp-2 leading-snug">
                             {post.title}
                           </h4>
 
-                          <p className="mt-1 line-clamp-1 text-slate-500 font-light text-[11px]">
+                          <p className="mt-1 line-clamp-1 text-sky-200/80 font-light text-[11px]">
                             {post.summary}
                           </p>
                         </div>
@@ -1157,10 +1306,10 @@ export function PublicGuestPortal({
                     ))}
                   </div>
 
-                  <div className="pt-3 border-t border-slate-100 text-center">
+                  <div className="pt-3 border-t border-white/10 text-center">
                     <Link
                       href="/hoat-dong"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#17488c] hover:text-[#103567]"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#ffd700] hover:text-[#fde047]"
                     >
                       <span>Xem toàn bộ chuyên mục hoạt động</span>
                       <ArrowRight className="h-3.5 w-3.5" />
@@ -1171,8 +1320,8 @@ export function PublicGuestPortal({
 
               {/* CÁC BÀI VIẾT BỔ SUNG (NẾU CÒN) TRÌNH BÀY DẠNG 3 CỘT GỌN GÀNG */}
               {filteredActivityPosts.length > 4 && (
-                <div className="pt-6 border-t border-slate-200">
-                  <h4 className="text-xs uppercase font-extrabold tracking-widest text-slate-500 mb-4">
+                <div className="pt-6 border-t border-white/15">
+                  <h4 className="text-xs uppercase font-extrabold tracking-widest text-sky-300 mb-4">
                     Bài viết lưu trữ khác ({filteredActivityPosts.length - 4})
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1180,23 +1329,23 @@ export function PublicGuestPortal({
                       <Link
                         key={post.id}
                         href={`/hoat-dong/${post.id}`}
-                        className="group bg-white rounded-xl overflow-hidden border border-slate-200 hover:border-[#17488c] shadow-sm hover:shadow-md transition flex flex-col justify-between p-5"
+                        className="group bg-[#0c2b55] rounded-xl overflow-hidden border border-white/15 hover:border-[#ffd700]/70 shadow-lg hover:shadow-xl transition flex flex-col justify-between p-5"
                       >
                         <div>
-                          <div className="flex items-center justify-between text-[11px] text-slate-500 mb-2">
-                            <span className="font-bold uppercase text-[#17488c]">
+                          <div className="flex items-center justify-between text-[11px] text-sky-300 mb-2">
+                            <span className="font-bold uppercase text-[#ffd700]">
                               {post.categoryLabel}
                             </span>
                             <span>{post.publishedDate}</span>
                           </div>
-                          <h5 className="font-display font-bold uppercase text-sm sm:text-base text-slate-900 group-hover:text-[#17488c] transition line-clamp-2">
+                          <h5 className="font-display font-bold uppercase text-sm sm:text-base text-white group-hover:text-[#ffd700] transition line-clamp-2">
                             {post.title}
                           </h5>
-                          <p className="mt-2 text-xs text-slate-600 line-clamp-2 font-light">
+                          <p className="mt-2 text-xs text-sky-200/80 line-clamp-2 font-light">
                             {post.summary}
                           </p>
                         </div>
-                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#17488c]">
+                        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-bold text-[#ffd700]">
                           <span>Xem chi tiết</span>
                           <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition" />
                         </div>
@@ -1502,24 +1651,27 @@ export function PublicGuestPortal({
       </section>
 
       {/* ===================== LỊCH ĐẤU & KẾT QUẢ ===================== */}
-      <section className="bg-white text-slate-900 py-20 sm:py-28">
+      <section
+        id="fixtures-section"
+        className="relative bg-gradient-to-b from-[#071933] via-[#0a2347] to-[#071933] text-white py-20 sm:py-28 border-b border-white/15"
+      >
         <div className={WRAP}>
           <Reveal>
-            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 pb-6 border-b border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 pb-6 border-b border-white/15">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#17488c] bg-[#17488c]/10 px-2.5 py-1 rounded border border-[#17488c]/20">
+                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700] bg-[#ffd700]/15 px-2.5 py-1 rounded border border-[#ffd700]/40">
                     05 // KẾT QUẢ &amp; LỊCH THI ĐẤU
                   </span>
-                  <span className="text-xs uppercase font-extrabold tracking-widest text-slate-500">
+                  <span className="text-xs uppercase font-extrabold tracking-widest text-sky-200">
                     BÓNG LĂN MỖI TUẦN
                   </span>
                 </div>
-                <h2 className="mt-3 font-display font-black uppercase leading-tight text-4xl sm:text-6xl">
-                  Lịch đấu <span className="text-[#17488c]">&amp; kết quả</span>
+                <h2 className="mt-3 font-display font-black uppercase leading-tight text-4xl sm:text-6xl text-white">
+                  Lịch đấu <span className="text-[#ffd700]">&amp; kết quả</span>
                 </h2>
               </div>
-              <div className="flex gap-4 text-xs font-black uppercase tracking-wider">
+              <div className="flex gap-3 text-xs font-black uppercase tracking-wider">
                 {(
                   [
                     ["fixtures", `Sắp tới (${upcomingMatches.length})`],
@@ -1531,9 +1683,9 @@ export function PublicGuestPortal({
                     type="button"
                     onClick={() => setMatchTab(key)}
                     aria-pressed={matchTab === key}
-                    className={`px-4 py-2 rounded-md border transition cursor-pointer ${matchTab === key
-                        ? "bg-[#17488c] text-white border-[#17488c] shadow-sm"
-                        : "bg-white text-slate-600 border-slate-300 hover:text-slate-900"
+                    className={`px-4 py-2.5 rounded-lg border transition cursor-pointer ${matchTab === key
+                        ? "bg-[#ffd700] text-slate-950 font-black border-[#ffd700] shadow-md"
+                        : "bg-[#0b2447] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
                       }`}
                   >
                     {label}
@@ -1543,45 +1695,45 @@ export function PublicGuestPortal({
             </div>
           </Reveal>
 
-          <div className="mt-8 divide-y divide-slate-200 border-y border-slate-200">
+          <div className="mt-8 space-y-3">
             {matchRows.length === 0 && (
-              <p className="py-12 text-center text-slate-500 italic text-sm">
+              <div className="py-14 text-center rounded-xl bg-[#0c2b55] border border-white/15 text-sky-200 italic text-sm">
                 Chưa có lịch mới. Ban điều hành đang chốt kèo giao hữu tiếp theo!
-              </p>
+              </div>
             )}
             {matchRows.map((m) => (
               <div
                 key={m.id}
-                className="group grid grid-cols-1 md:grid-cols-[200px_1fr_auto] items-center gap-3 md:gap-8 py-5 hover:bg-slate-50 px-2 sm:px-4 transition-all rounded-lg"
+                className="group grid grid-cols-1 md:grid-cols-[220px_1fr_auto] items-center gap-3 md:gap-8 py-5 px-4 sm:px-6 rounded-xl bg-[#0c2b55]/60 hover:bg-[#0f3466] border border-white/10 hover:border-[#ffd700]/60 transition-all shadow-md"
               >
-                <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <div className="text-[#17488c] font-black">{m.label}</div>
-                  <div className="text-slate-400 mt-0.5">
+                <div className="text-xs font-bold text-sky-300 uppercase tracking-wider">
+                  <div className="text-[#ffd700] font-black">{m.label}</div>
+                  <div className="text-sky-200/80 mt-0.5">
                     {formatDateVN(m.match_date)}
                     {m.kickoff_time ? ` • ${m.kickoff_time}` : ""}
                   </div>
                 </div>
                 <div className="font-display font-black uppercase text-2xl sm:text-3xl leading-none flex flex-wrap items-center gap-x-3">
-                  <span className="text-slate-900">FC HĐH Gò Nổi</span>
+                  <span className="text-white">FC HĐH Gò Nổi</span>
                   {matchTab === "results" ? (
-                    <span className="text-[#17488c] px-2 py-0.5 rounded bg-slate-100 font-black">
+                    <span className="text-slate-950 px-2.5 py-1 rounded bg-[#ffd700] font-black shadow-sm text-xl sm:text-2xl">
                       {m.team_score ?? 0} - {m.opponent_score ?? 0}
                     </span>
                   ) : (
-                    <span className="text-slate-300 text-lg">vs</span>
+                    <span className="text-[#ffd700] text-lg font-black">VS</span>
                   )}
-                  <span className="text-slate-600">{m.opponent}</span>
+                  <span className="text-sky-100">{m.opponent}</span>
                 </div>
                 <div className="flex items-center gap-4 text-xs">
-                  <span className="inline-flex items-center gap-1.5 font-semibold text-slate-600">
-                    <MapPin className="h-3.5 w-3.5 text-[#d4af37]" />
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-sky-200">
+                    <MapPin className="h-3.5 w-3.5 text-[#ffd700]" />
                     {m.venue}
                   </span>
                   {matchTab === "fixtures" && (
                     <button
                       type="button"
                       onClick={onOpenLogin}
-                      className="font-bold uppercase tracking-wider text-[#17488c] hover:underline cursor-pointer inline-flex items-center gap-1"
+                      className="font-black uppercase tracking-wider text-slate-950 bg-gradient-to-r from-[#ffd700] to-[#f5c518] hover:from-[#f5c518] hover:to-[#ffd700] px-3.5 py-1.5 rounded-lg cursor-pointer inline-flex items-center gap-1.5 shadow-sm transition"
                     >
                       <span>Điểm danh</span>
                       <ArrowRight className="h-3 w-3" />

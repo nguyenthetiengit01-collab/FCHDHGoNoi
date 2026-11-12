@@ -20,6 +20,9 @@ import {
   X,
   Newspaper,
   Award,
+  Menu,
+  MoreHorizontal,
+  ChevronRight,
 } from "lucide-react";
 import type { FullAppData, AuthSession, Player } from "@/types/app";
 import { FANPAGE_URL, OFFICIAL_LOGO_URL } from "@/types/app";
@@ -89,6 +92,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
   // Login modal states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dismissSecurityBanner, setDismissSecurityBanner] = useState(false);
 
   // Tự động khôi phục phiên làm việc an toàn từ Server Cookie khi khởi tạo
@@ -486,6 +490,17 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 >
                   <LogOut className="h-4 w-4" />
                 </button>
+
+                {/* Nút mở Menu trên Mobile */}
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(true)}
+                  title="Mở toàn bộ menu chức năng"
+                  aria-label="Mở menu điều hướng"
+                  className="md:hidden inline-flex items-center justify-center h-9 w-9 rounded-xl bg-[#ffc933] hover:bg-[#ffd95e] text-slate-950 font-black shadow-xs transition cursor-pointer"
+                >
+                  <Menu className="h-4 w-4" />
+                </button>
               </div>
             </div>
 
@@ -505,8 +520,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                     aria-current={isActive ? "page" : undefined}
                     className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs lg:text-sm font-bold border-b-2 transition cursor-pointer whitespace-nowrap ${
                       isActive
-                        ? "border-[#ffc933] text-[#ffc933] bg-[#2f66dd] rounded-t-xl"
-                        : "border-transparent text-sky-100/80 hover:text-white hover:bg-[#2f66dd]/50 rounded-t-xl"
+                        ? "border-[#ffd700] text-[#ffd700] bg-[#10346a] rounded-t-xl font-extrabold shadow-sm"
+                        : "border-transparent text-sky-100/90 hover:text-white hover:bg-[#10346a]/50 rounded-t-xl"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -676,29 +691,254 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       {session.role !== "guest" && (
         <nav
           aria-label="Điều hướng di động"
-          className="md:hidden safe-bottom fixed bottom-0 inset-x-0 z-40 bg-[#1e4fc2] text-white border-t border-[#4a7fe8] grid grid-cols-5 shadow-md"
+          className="md:hidden safe-bottom fixed bottom-0 inset-x-0 z-40 bg-[#0a2347] text-white border-t border-[#4a7fe8]/60 grid grid-cols-5 shadow-2xl backdrop-blur-lg"
         >
-          {navItems.slice(0, 5).map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
+          {(() => {
+            const isManager = session.role === "manager";
+            const primaryTabs: Array<{
+              id: ActiveTab;
+              label: string;
+              icon: React.ComponentType<{ className?: string }>;
+            }> = isManager
+              ? [
+                  { id: "schedule", label: "Điểm danh", icon: CalendarDays },
+                  { id: "collection", label: "Thu tiền", icon: HandCoins },
+                  { id: "players", label: "Đội hình", icon: Users },
+                  { id: "finance", label: "Sổ quỹ", icon: Wallet },
+                ]
+              : [
+                  { id: "schedule", label: "Điểm danh", icon: CalendarDays },
+                  { id: "players", label: "Đội hình", icon: Users },
+                  { id: "personal", label: "Cá nhân", icon: UserCircle2 },
+                  { id: "dashboard", label: "Quỹ đội", icon: LayoutDashboard },
+                ];
+
+            const isMoreActive =
+              !primaryTabs.some((t) => t.id === activeTab) && activeTab !== "public";
+
             return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveTab(item.id)}
-                aria-current={isActive ? "page" : undefined}
-                className={`flex flex-col items-center justify-center py-2.5 px-1 text-[11px] font-bold transition cursor-pointer ${
-                  isActive
-                    ? "text-[#ffc933] bg-[#2f66dd] border-t-2 border-[#ffc933]"
-                    : "text-sky-200/80 hover:text-white"
-                }`}
-              >
-                <Icon className="h-5 w-5 mb-0.5" />
-                <span className="truncate max-w-full">{item.shortLabel}</span>
-              </button>
+              <>
+                {primaryTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`flex flex-col items-center justify-center py-2 px-1 text-[11px] font-bold transition cursor-pointer ${
+                        isActive
+                          ? "text-[#ffc933] bg-[#164ea0]/80 border-t-2 border-[#ffc933]"
+                          : "text-sky-200/80 hover:text-white"
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 mb-0.5" />
+                      <span className="truncate max-w-full">{tab.label}</span>
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(true)}
+                  aria-expanded={mobileMenuOpen}
+                  className={`flex flex-col items-center justify-center py-2 px-1 text-[11px] font-bold transition cursor-pointer relative ${
+                    isMoreActive
+                      ? "text-[#ffc933] bg-[#164ea0]/80 border-t-2 border-[#ffc933]"
+                      : "text-sky-200/80 hover:text-white"
+                  }`}
+                >
+                  <MoreHorizontal className="h-5 w-5 mb-0.5" />
+                  <span className="truncate max-w-full">Thêm</span>
+                  {isMoreActive && (
+                    <span className="absolute top-1.5 right-4 h-2 w-2 rounded-full bg-[#ffc933]" />
+                  )}
+                </button>
+              </>
             );
-          })}
+          })()}
         </nav>
+      )}
+
+      {/* ===================== MOBILE MORE MENU BOTTOM SHEET / DRAWER ===================== */}
+      {mobileMenuOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Tất cả chức năng ứng dụng"
+          className="md:hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col justify-end"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div
+            className="w-full max-h-[85vh] bg-gradient-to-b from-[#0a2752] via-[#081f42] to-[#05142b] border-t-2 border-[#ffd700] rounded-t-3xl p-5 overflow-y-auto space-y-5 shadow-2xl text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Drawer với Thông tin Thành Viên */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/15">
+              <div className="flex items-center gap-3">
+                {currentPlayerObj?.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={currentPlayerObj.avatar_url}
+                    alt={session.shortName}
+                    className="h-12 w-12 rounded-full object-cover border-2 border-[#ffd700] shadow"
+                  />
+                ) : (
+                  <div className="h-12 w-12 rounded-full bg-[#0b2b57] border-2 border-[#ffd700] flex items-center justify-center font-black text-sm text-[#ffd700]">
+                    #{session.jerseyNumber ?? "-"}
+                  </div>
+                )}
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-white">
+                      #{session.jerseyNumber ?? "-"} {session.fullName}
+                    </span>
+                    <span className="rounded bg-[#ffd700] px-1.5 py-0.2 text-[9px] font-black uppercase text-slate-950">
+                      {session.role === "manager" ? "BQL" : "Cầu thủ"}
+                    </span>
+                  </div>
+                  <div className="text-xs text-sky-200 mt-0.5">
+                    Quỹ đội:{" "}
+                    <strong className="text-[#ffd700]">
+                      {formatVND(data.summary.currentBalance)}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Danh sách tất cả các tab theo phân quyền */}
+            <div className="space-y-2">
+              <span className="text-[10px] uppercase font-black tracking-widest text-[#ffd700] block">
+                TẤT CẢ CHỨC NĂNG HỆ THỐNG
+              </span>
+              <div className="grid grid-cols-1 gap-2">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition cursor-pointer text-left ${
+                        isActive
+                          ? "bg-[#164ea0] border-[#ffd700] text-[#ffd700] shadow-md"
+                          : "bg-[#0c2e5c]/70 hover:bg-[#123e7a] border-white/10 text-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-2 rounded-lg ${
+                            isActive
+                              ? "bg-[#ffd700] text-slate-950"
+                              : "bg-[#071d3a] text-[#ffd700]"
+                          }`}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className="font-bold text-sm">{item.label}</span>
+                      </div>
+                      <ChevronRight className="h-4 w-4 opacity-60" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Công cụ thêm cho Ban Quản Lý (Nhập / Xuất Excel) */}
+            {session.role === "manager" && (
+              <div className="pt-2 border-t border-white/15 space-y-2">
+                <span className="text-[10px] uppercase font-black tracking-widest text-sky-300 block">
+                  DỮ LIỆU BẢNG TÍNH EXCEL
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex items-center justify-center gap-2 rounded-xl bg-[#0b2b57] hover:bg-[#123e7a] border border-white/15 p-3 text-xs font-bold text-white transition cursor-pointer">
+                    <Upload className="h-4 w-4 text-[#ffd700]" />
+                    <span>Nhập Excel</span>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={(e) => {
+                        handleUploadExcel(e);
+                        setMobileMenuOpen(false);
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+
+                  <a
+                    href="/api/export"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#0b2b57] hover:bg-[#123e7a] border border-white/15 p-3 text-xs font-bold text-white transition"
+                  >
+                    <Download className="h-4 w-4 text-[#ffd700]" />
+                    <span>Xuất Excel</span>
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Lối tắt hệ thống: Trang Khách, Đổi vai trò, Đăng xuất */}
+            <div className="pt-2 border-t border-white/15 space-y-2">
+              <span className="text-[10px] uppercase font-black tracking-widest text-slate-400 block">
+                HỆ THỐNG & ĐĂNG XUẤT
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleQuickSwitchRole(null);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 p-2.5 text-xs font-bold text-white transition cursor-pointer"
+                >
+                  <Globe className="h-4 w-4 text-sky-300" />
+                  <span>Trang Khách</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setLoginModalOpen(true);
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 p-2.5 text-xs font-bold text-white transition cursor-pointer"
+                >
+                  <KeyRound className="h-4 w-4 text-[#ffd700]" />
+                  <span>Đổi Tài Khoản</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handleQuickSwitchRole(null);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-900/60 hover:bg-rose-800 border border-rose-500/50 p-3 text-xs font-black uppercase tracking-wider text-white transition cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Đăng Xuất Khỏi Thiết Bị</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal Đăng Nhập Thành Viên & Ban Quản Lý Chuyên Nghiệp */}
