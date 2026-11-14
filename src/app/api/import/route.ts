@@ -61,6 +61,13 @@ export async function POST(req: NextRequest) {
           { status: 400, headers: { "Cache-Control": "no-store" } }
         );
       }
+      const ext = path.extname(file.name || "").toLowerCase();
+      if (![".xlsx", ".xls", ".xlsm"].includes(ext)) {
+        return NextResponse.json(
+          { error: "Chỉ hỗ trợ định dạng file Excel (.xlsx, .xls, .xlsm)." },
+          { status: 400, headers: { "Cache-Control": "no-store" } }
+        );
+      }
       if (file.size > MAX_IMPORT_SIZE_BYTES) {
         return NextResponse.json(
           {
