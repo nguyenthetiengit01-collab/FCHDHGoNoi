@@ -1873,6 +1873,15 @@ export function PublicGuestPortal({
               <p className="text-sm sm:text-base text-sky-100/90 font-light leading-relaxed">
                 Xin chân thành cảm ơn các cơ quan đoàn thể, doanh nghiệp, mạnh thường quân và những người con Gò Nổi xa quê đã chung tay tiếp lửa cho màu cờ sắc áo của đội bóng.
               </p>
+              <div className="pt-2">
+                <Link
+                  href="/nha-tai-tro"
+                  className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-[#d4af37] text-[#fde047] hover:text-slate-950 font-bold px-4 py-2 text-xs uppercase tracking-wider border border-[#d4af37]/40 transition"
+                >
+                  <span>Trang Nhà Tài Trợ & Đối Tác</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
             </div>
 
             {/* Phân tầng danh sách đơn vị tài trợ */}

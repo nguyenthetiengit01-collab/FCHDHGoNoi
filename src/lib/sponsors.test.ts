@@ -4,6 +4,9 @@ import {
   shouldShowBannerAt,
   getSponsorStatus,
   groupSponsorsByTier,
+  getPublicActiveSponsors,
+  splitSponsorsAndPartners,
+  sanitizeExternalUrl,
 } from "./sponsors";
 import type { Sponsor } from "@/types/app";
 
@@ -67,6 +70,30 @@ describe("sponsors helper", () => {
     expect(grouped.gold.length).toBe(2);
     expect(grouped.silver.length).toBe(0);
     expect(grouped.supporter.length).toBe(1);
+  });
+
+  it("lọc danh sách công khai theo is_active và tách đúng Nhà tài trợ / Đối tác đồng hành", () => {
+    const list: Sponsor[] = [
+      { ...baseSponsor, id: 1, tier: "partner", is_active: true, sort_order: 2 },
+      { ...baseSponsor, id: 2, tier: "title", is_active: true, sort_order: 1 },
+      { ...baseSponsor, id: 3, tier: "gold", is_active: false, sort_order: 1 },
+      { ...baseSponsor, id: 4, tier: "supporter", is_active: true, sort_order: 1 },
+    ];
+
+    const active = getPublicActiveSponsors(list);
+    expect(active.map((s) => s.id)).toEqual([2, 1, 4]);
+
+    const { financialSponsors, companionPartners } = splitSponsorsAndPartners(list);
+    expect(financialSponsors.map((s) => s.id)).toEqual([2]);
+    expect(companionPartners.map((s) => s.id)).toEqual([1, 4]);
+  });
+
+  it("chỉ chấp nhận URL http/https hợp lệ cho liên kết ngoài", () => {
+    expect(sanitizeExternalUrl("https://www.facebook.com/FCHDHGoNoi/")).toBe(
+      "https://www.facebook.com/FCHDHGoNoi/"
+    );
+    expect(sanitizeExternalUrl("javascript:alert(1)")).toBeNull();
+    expect(sanitizeExternalUrl("   ")).toBeNull();
   });
 });
 

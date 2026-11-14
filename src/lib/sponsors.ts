@@ -155,3 +155,53 @@ export function groupSponsorsByTier(
   return initial;
 }
 
+/**
+ * Lọc danh sách nhà tài trợ/đối tác đang bật hiển thị công khai và sắp xếp theo hạng.
+ */
+export function getPublicActiveSponsors(sponsors: Sponsor[]): Sponsor[] {
+  return sponsors
+    .filter((sp) => Boolean(sp.is_active))
+    .slice()
+    .sort((a, b) => {
+      const orderA = SPONSOR_TIERS[a.tier]?.order ?? 99;
+      const orderB = SPONSOR_TIERS[b.tier]?.order ?? 99;
+      if (orderA !== orderB) return orderA - orderB;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
+}
+
+/**
+ * Tách danh sách công khai thành 2 nhóm: Nhà tài trợ (title/gold/silver) và Đối tác đồng hành (partner/supporter).
+ */
+export function splitSponsorsAndPartners(sponsors: Sponsor[]): {
+  financialSponsors: Sponsor[];
+  companionPartners: Sponsor[];
+} {
+  const active = getPublicActiveSponsors(sponsors);
+  return {
+    financialSponsors: active.filter(
+      (sp) => sp.tier === "title" || sp.tier === "gold" || sp.tier === "silver"
+    ),
+    companionPartners: active.filter(
+      (sp) => sp.tier === "partner" || sp.tier === "supporter"
+    ),
+  };
+}
+
+/**
+ * Chỉ cho phép liên kết ngoài hợp lệ (http/https) để hiển thị an toàn.
+ */
+export function sanitizeExternalUrl(rawUrl?: string): string | null {
+  const trimmed = rawUrl?.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.toString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
