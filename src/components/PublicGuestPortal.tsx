@@ -237,9 +237,11 @@ function CompactPlayerRow({
   const hamlet = getPlayerHamlet(player);
 
   return (
-    <div
+    <button
+      type="button"
       onClick={onSelect}
-      className={`group flex items-center justify-between p-3 rounded-lg transition-all cursor-pointer border ${isSelected
+      aria-pressed={isSelected}
+      className={`group w-full text-left flex items-center justify-between p-3 rounded-lg transition-all border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d4af37] ${isSelected
           ? "bg-[#17488c] border-l-4 border-l-[#ffd700] border-y-[#ffd700]/70 border-r-[#ffd700]/70 shadow-[0_4px_25px_rgba(20,70,140,0.5)]"
           : "bg-[#0c2f5e] border border-white/15 hover:border-sky-300/40 hover:bg-[#123e7a]"
         }`}
@@ -255,6 +257,7 @@ function CompactPlayerRow({
             <img
               src={player.avatar_url}
               alt={player.full_name}
+              loading="lazy"
               className="h-full w-full object-cover object-top filter brightness-105 contrast-105"
             />
           ) : (
@@ -266,9 +269,9 @@ function CompactPlayerRow({
 
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 truncate">
-            <h4 className="font-display font-bold uppercase text-sm text-white truncate">
+            <span className="font-display font-bold uppercase text-sm text-white truncate">
               {player.full_name}
-            </h4>
+            </span>
             {player.nickname && (
               <span className="text-xs text-[#ffd700] font-semibold shrink-0">
                 ({player.nickname})
@@ -300,7 +303,7 @@ function CompactPlayerRow({
           </span>
         )}
       </div>
-    </div>
+    </button>
   );
 }
 

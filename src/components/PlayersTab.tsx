@@ -22,6 +22,9 @@ import {
   Crop,
   Image as ImageIcon,
   Check,
+  Users,
+  Activity,
+  X,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -33,6 +36,14 @@ import { OFFICIAL_LOGO_URL } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
 import { convertMultipleFilesToWebp } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
+import {
+  Badge,
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  PositionBadge,
+  StatCard,
+} from "./ui";
 import { ImageLightboxModal, type LightboxImage } from "./ImageLightboxModal";
 import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
 import { AvatarCropperModal } from "./AvatarCropperModal";
@@ -77,6 +88,11 @@ export function PlayersTab({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPosition, setFilterPosition] = useState<string>("Tất cả");
+  const [filterStatus, setFilterStatus] = useState<string>("Tất cả");
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    kind: "reset_pin" | "delete";
+    player: Player;
+  } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [detailPlayer, setDetailPlayer] = useState<Player | null>(null);
@@ -285,19 +301,9 @@ export function PlayersTab({
     setFormOpen(false);
   }
 
-  async function handleResetPassword(p: Player) {
+  function handleResetPassword(p: Player) {
     if (!isManager) return;
-    if (
-      !window.confirm(
-        `Ban Quản Lý xác nhận reset mật khẩu (PIN) của cầu thủ "${p.full_name}" về mặc định "1234"?`
-      )
-    ) {
-      return;
-    }
-    await onMutate("reset_player_password", {
-      player_id: p.id,
-      new_pin: "1234",
-    });
+    setPendingConfirm({ kind: "reset_pin", player: p });
   }
 
   async function handleChangeOwnPassword(e: React.FormEvent) {
@@ -317,16 +323,9 @@ export function PlayersTab({
     setNewPin("");
   }
 
-  async function handleDeletePlayer(p: Player) {
+  function handleDeletePlayer(p: Player) {
     if (!isManager) return;
-    if (
-      !window.confirm(
-        `Bạn có chắc muốn xoá hồ sơ cầu thủ "${p.full_name}" khỏi danh sách đội bóng?`
-      )
-    ) {
-      return;
-    }
-    await onMutate("delete_player", { id: p.id });
+    setPendingConfirm({ kind: "delete", player: p });
   }
 
   const toggleRosterPlayer = (id: number) => {
@@ -335,11 +334,14 @@ export function PlayersTab({
     );
   };
 
+  const completedMatches = matches.filter((m) => m.status === "Đã kết thúc");
+  const completedMatchIds = new Set(completedMatches.map((m) => m.id));
+
   const enrichedPlayers = players
     .map((p) => {
       const pAtt = attendances.filter((a) => a.player_id === p.id);
       const matchesPlayed = pAtt.filter(
-        (a) => a.attended === 1 || a.paid === 1
+        (a) => completedMatchIds.has(a.match_id) && a.attended === 1
       ).length;
       const totalPaid = pAtt
         .filter((a) => a.paid === 1)
@@ -348,8 +350,8 @@ export function PlayersTab({
         .filter((a) => a.attended === 1 && a.paid === 0)
         .reduce((s, a) => s + a.amount, 0);
       const rate =
-        matches.length > 0
-          ? Math.round((matchesPlayed / matches.length) * 100)
+        completedMatches.length > 0
+          ? Math.round((matchesPlayed / completedMatches.length) * 100)
           : 0;
       return {
         ...p,
@@ -363,11 +365,18 @@ export function PlayersTab({
       if (filterPosition !== "Tất cả" && p.position !== filterPosition) {
         return false;
       }
+      if (filterStatus === "Đang sinh hoạt" && p.status !== "Đang sinh hoạt") {
+        return false;
+      }
+      if (filterStatus === "Khác" && p.status === "Đang sinh hoạt") {
+        return false;
+      }
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
         p.full_name.toLowerCase().includes(q) ||
         p.short_name.toLowerCase().includes(q) ||
+        p.position.toLowerCase().includes(q) ||
         String(p.jersey_number ?? "").includes(q) ||
         (isManager && p.phone.includes(q))
       );
@@ -377,107 +386,199 @@ export function PlayersTab({
     selectedRosterIds.includes(p.id)
   );
 
+  // Thống kê tổng quan đội hình từ dữ liệu thật (chỉ tính trận đã kết thúc & cầu thủ đang sinh hoạt)
+  const activePlayers = players.filter((p) => p.status === "Đang sinh hoạt");
+  const activePlayersCount = activePlayers.length;
+  const activePlayerIds = new Set(activePlayers.map((p) => p.id));
+  const gkCount = players.filter((p) => p.position === "Thủ môn").length;
+  const dfCount = players.filter((p) => p.position === "Hậu vệ").length;
+  const mfCount = players.filter((p) => p.position === "Tiền vệ").length;
+  const fwCount = players.filter((p) => p.position === "Tiền đạo").length;
+  const dnCount = players.filter((p) => p.position === "Đa năng").length;
+  const totalCompletedAttended = attendances.filter(
+    (a) =>
+      activePlayerIds.has(a.player_id) &&
+      completedMatchIds.has(a.match_id) &&
+      a.attended === 1
+  ).length;
+  const avgAttendanceRate =
+    activePlayersCount > 0 && completedMatches.length > 0
+      ? Math.round(
+          (totalCompletedAttended /
+            (activePlayersCount * completedMatches.length)) *
+            100
+        )
+      : 0;
+  const customAvatarCount = players.filter(
+    (p) => Boolean(p.avatar_url) && !p.avatar_url.includes("/uploads/avatars/member-")
+  ).length;
+
   return (
     <div className="space-y-5">
       {/* Header & Chuyển đổi chế độ Hồ sơ / Lập danh sách thi đấu */}
-      <div className="rounded-xl bg-white p-4 sm:p-5 border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="rounded-xl bg-white p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-lg font-extrabold text-[#1e4fc2]">
-              Đội Hình & Hồ Sơ Cầu Thủ ({players.length} thành viên)
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-[#092244]">
+              Đội Hình & Hồ Sơ Cầu Thủ ({players.length})
             </h2>
-            <span className="rounded-full bg-[#1e4fc2]/10 px-2.5 py-0.5 text-xs font-bold text-[#1e4fc2]">
+            <Badge variant={isManager ? "navy" : "info"} size="md">
               {isManager
-                ? "Chế độ Ban Quản Lý (Thấy đầy đủ thông tin)"
-                : "Chế độ Cầu Thủ (Chỉ sửa thông tin của mình)"}
-            </span>
+                ? "Ban Quản Lý • Toàn quyền hồ sơ"
+                : "Cầu Thủ • Sửa hồ sơ cá nhân"}
+            </Badge>
           </div>
-          <p className="text-xs text-slate-600 mt-0.5">
-            Hình ảnh hồ sơ thật phục vụ lập danh sách đăng ký thi đấu. Trang
-            khách hoàn toàn không được thấy danh sách này.
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
+            Quản lý hồ sơ ảnh WebP, số áo, vị trí và lập danh sách đăng ký thi đấu cho CLB.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Nút chuyển đổi 2 chế độ: Thẻ đội hình vs Lập danh sách thi đấu */}
-          <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+          <div
+            role="group"
+            aria-label="Chế độ hiển thị đội hình"
+            className="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200"
+          >
             <button
               type="button"
+              aria-pressed={viewMode === "cards"}
               onClick={() => setViewMode("cards")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${viewMode === "cards"
-                  ? "bg-[#1e4fc2] text-[#ffc933] shadow-2xs"
+              className={`inline-flex items-center gap-1.5 min-h-11 sm:min-h-9 rounded-md px-3 py-1.5 text-xs font-bold transition ${viewMode === "cards"
+                  ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
                   : "text-slate-700 hover:text-slate-900"
                 }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              <span>Hồ Sơ Ảnh Đội Hình</span>
+              <span>Hồ Sơ Đội Hình</span>
             </button>
             <button
               type="button"
+              aria-pressed={viewMode === "roster"}
               onClick={() => setViewMode("roster")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${viewMode === "roster"
-                  ? "bg-[#1e4fc2] text-[#ffc933] shadow-2xs"
+              className={`inline-flex items-center gap-1.5 min-h-11 sm:min-h-9 rounded-md px-3 py-1.5 text-xs font-bold transition ${viewMode === "roster"
+                  ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
                   : "text-slate-700 hover:text-slate-900"
                 }`}
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              <span>Lập Danh Sách Thi Đấu ({rosterPlayers.length})</span>
+              <span>DS Thi Đấu ({rosterPlayers.length})</span>
             </button>
           </div>
 
           {isManager && (
-            <button
-              type="button"
+            <Button
+              variant="gold"
               onClick={openAddPlayer}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#1e4fc2] px-4 py-2 text-xs sm:text-sm font-bold text-[#ffc933] hover:bg-[#2f66dd] transition cursor-pointer"
+              leftIcon={<UserPlus className="h-4 w-4" />}
             >
-              <UserPlus className="h-4 w-4" />
-              <span>Thêm Cầu Thủ</span>
-            </button>
+              Thêm Cầu Thủ
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Thanh tìm kiếm & Bộ lọc vị trí */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {["Tất cả", ...POSITIONS].map((pos) => {
-            const count =
-              pos === "Tất cả"
-                ? players.length
-                : players.filter((p) => p.position === pos).length;
-            return (
-              <button
-                key={pos}
-                type="button"
-                onClick={() => setFilterPosition(pos)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${filterPosition === pos
-                    ? "bg-[#1e4fc2] text-[#ffc933] border-[#1e4fc2]"
-                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                  }`}
-              >
-                {pos} ({count})
-              </button>
-            );
-          })}
-        </div>
+      {/* Khu vực thống kê tổng quan đội hình (100% từ dữ liệu thực tế) */}
+      <section
+        aria-label="Thống kê tổng quan đội hình"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-3"
+      >
+        <StatCard
+          label="Tổng Quân Số"
+          value={players.length}
+          hint={`${activePlayersCount} đang sinh hoạt`}
+          icon={<Users className="h-4 w-4" />}
+          accent="navy"
+        />
+        <StatCard
+          label="Phân Bổ Tuyến"
+          value={`${gkCount} GK • ${dfCount} DF`}
+          hint={`${mfCount} MF • ${fwCount} FW${dnCount > 0 ? ` • ${dnCount} ĐN` : ""}`}
+          icon={<LayoutGrid className="h-4 w-4" />}
+          accent="sky"
+        />
+        <StatCard
+          label="Chuyên Cần TB"
+          value={`${avgAttendanceRate}%`}
+          hint={`Trên ${completedMatches.length} trận đã kết thúc • ${activePlayersCount} cầu thủ đang sinh hoạt`}
+          icon={<Activity className="h-4 w-4" />}
+          accent="emerald"
+        />
+        <StatCard
+          label="Ảnh Chân Dung"
+          value={`${customAvatarCount}/${players.length}`}
+          hint="Đã cập nhật ảnh riêng"
+          icon={<Camera className="h-4 w-4" />}
+          accent="gold"
+        />
+      </section>
 
-        <div className="relative min-w-[230px]">
-          <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="search"
-            aria-label="Tìm kiếm cầu thủ"
-            placeholder="Tìm tên, số áo, vị trí..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-2 text-xs sm:text-sm focus-visible:outline-2 focus-visible:outline-[#1e4fc2]"
-          />
+      {/* Thanh tìm kiếm & Bộ lọc vị trí + Trạng thái */}
+      <div className="rounded-xl bg-white p-3.5 border border-slate-200 shadow-xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Lọc theo vị trí">
+            {["Tất cả", ...POSITIONS].map((pos) => {
+              const count =
+                pos === "Tất cả"
+                  ? players.length
+                  : players.filter((p) => p.position === pos).length;
+              return (
+                <button
+                  key={pos}
+                  type="button"
+                  aria-pressed={filterPosition === pos}
+                  onClick={() => setFilterPosition(pos)}
+                  className={`min-h-11 sm:min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${filterPosition === pos
+                      ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                    }`}
+                >
+                  {pos} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <select
+              aria-label="Lọc theo trạng thái sinh hoạt"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-[#092244]"
+            >
+              <option value="Tất cả">Tất cả trạng thái</option>
+              <option value="Đang sinh hoạt">Đang sinh hoạt ({activePlayersCount})</option>
+              <option value="Khác">Tạm nghỉ / Khác ({players.length - activePlayersCount})</option>
+            </select>
+
+            <div className="relative min-w-[230px]">
+              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="search"
+                aria-label="Tìm kiếm cầu thủ"
+                placeholder="Tìm tên, số áo, vị trí..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-8 py-2 text-xs sm:text-sm text-[#092244] focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Xoá từ khoá tìm kiếm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-700"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* CHẾ ĐỘ 1: LẬP DANH SÁCH ĐĂNG KÝ THI ĐẤU (CÓ ẢNH HỒ SƠ THẬT) */}
       {viewMode === "roster" && (
-        <section className="rounded-xl bg-white border-2 border-[#1e4fc2] p-4 sm:p-6 space-y-5 shadow-xs">
+        <section className="rounded-xl bg-white border border-[#0d2e5b]/30 p-4 sm:p-6 space-y-5 shadow-xs">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
             <div className="flex items-center gap-3.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -486,16 +587,17 @@ export function PlayersTab({
                 alt="Logo FC HĐH Gò Nổi"
                 className="h-16 w-16 rounded-xl object-contain border border-slate-200 bg-white p-1 shrink-0"
               />
-              <div>
+              <div className="min-w-0">
                 <input
                   type="text"
+                  aria-label="Tiêu đề danh sách đăng ký thi đấu"
                   value={tournamentName}
                   onChange={(e) => setTournamentName(e.target.value)}
-                  className="text-base sm:text-lg font-extrabold text-[#1e4fc2] border-b border-dashed border-slate-300 focus:border-[#1e4fc2] focus:outline-none w-full sm:w-[420px]"
+                  className="text-base sm:text-lg font-extrabold text-[#092244] border-b border-dashed border-slate-300 focus:border-[#0d2e5b] focus:outline-none w-full sm:w-[420px]"
                 />
                 <p className="text-xs text-slate-600 mt-1">
                   Đơn vị: <strong>{settings.team_name}</strong> • Đã chọn:{" "}
-                  <strong className="text-[#1e4fc2]">
+                  <strong className="text-[#0d2e5b] tabular-nums">
                     {rosterPlayers.length}/{players.length} cầu thủ
                   </strong>
                 </p>
@@ -506,18 +608,25 @@ export function PlayersTab({
               <button
                 type="button"
                 onClick={() => setSelectedRosterIds(players.map((p) => p.id))}
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                className="min-h-9 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
               >
                 Chọn tất cả ({players.length})
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] px-4 py-2 text-xs font-bold text-[#ffc933] hover:bg-[#2f66dd] cursor-pointer"
+                onClick={() => setSelectedRosterIds([])}
+                className="min-h-9 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100"
               >
-                <Printer className="h-4 w-4" />
-                <span>In / Xuất PDF Danh Sách Thi Đấu</span>
+                Bỏ chọn
               </button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => window.print()}
+                leftIcon={<Printer className="h-4 w-4 text-[#fde047]" />}
+              >
+                In / Xuất PDF Danh Sách
+              </Button>
             </div>
           </div>
 
@@ -532,10 +641,11 @@ export function PlayersTab({
                 <button
                   key={p.id}
                   type="button"
+                  aria-pressed={checked}
                   onClick={() => toggleRosterPlayer(p.id)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${checked
-                      ? "bg-[#1e4fc2] text-white border-[#1e4fc2]"
-                      : "bg-white text-slate-500 border-slate-200"
+                  className={`min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${checked
+                      ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
                     }`}
                 >
                   #{p.jersey_number ?? "-"} {p.short_name}
@@ -545,48 +655,55 @@ export function PlayersTab({
           </div>
 
           {/* Bảng / Thẻ Danh Sách Thi Đấu Có Ảnh Chân Dung Thật */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {rosterPlayers.map((p, idx) => (
-              <div
-                key={p.id}
-                className="flex items-center gap-3.5 rounded-xl border border-slate-300 bg-white p-3 shadow-2xs"
-              >
-                <div className="relative shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={p.avatar_url || "/uploads/avatars/member-1.jpg"}
-                    alt={p.full_name}
-                    className="h-20 w-20 rounded-xl object-cover border-2 border-[#1e4fc2] bg-slate-100"
-                  />
-                  <span className="absolute -top-1.5 -left-1.5 h-6 w-6 rounded-full bg-[#1e4fc2] text-[#ffc933] text-[11px] font-extrabold flex items-center justify-center border border-white">
-                    {idx + 1}
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1 space-y-0.5 text-xs">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="font-extrabold text-sm text-[#1e4fc2] truncate">
-                      {p.full_name}
-                    </span>
-                    <span className="rounded bg-[#ffc933] px-1.5 py-0.5 text-xs font-extrabold text-slate-950 shrink-0">
-                      Số #{p.jersey_number ?? "-"}
+          {rosterPlayers.length === 0 ? (
+            <EmptyState
+              title="Chưa có cầu thủ nào trong danh sách thi đấu"
+              description="Hãy tích chọn cầu thủ ở phía trên hoặc nhấn Chọn tất cả để lập danh sách đăng ký."
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {rosterPlayers.map((p, idx) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3.5 rounded-xl border border-slate-200 bg-white p-3 shadow-xs"
+                >
+                  <div className="relative shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.avatar_url || "/uploads/avatars/member-1.jpg"}
+                      alt={p.full_name}
+                      loading="lazy"
+                      className="h-20 w-20 rounded-xl object-cover object-top border-2 border-[#0d2e5b] bg-slate-100"
+                    />
+                    <span className="absolute -top-1.5 -left-1.5 h-6 w-6 rounded-md bg-[#0d2e5b] text-[#fde047] text-[11px] font-extrabold flex items-center justify-center border border-white tabular-nums">
+                      {idx + 1}
                     </span>
                   </div>
-                  <p className="text-slate-600">
-                    Năm sinh: <strong>{formatBirthYear(p.birth_year) || "—"}</strong> • Vị trí:{" "}
-                    <strong className="text-[#0284c7]">{p.position}</strong>
-                  </p>
-                  <p className="text-slate-600">
-                    Vai trò: <strong>Thành viên</strong>
-                  </p>
-                  {isManager && p.phone && (
-                    <p className="text-slate-700 font-semibold">
-                      SĐT: {p.phone}
-                    </p>
-                  )}
+                  <div className="min-w-0 flex-1 space-y-1 text-xs">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-extrabold text-sm text-[#092244] truncate">
+                        {p.full_name}
+                      </span>
+                      <span className="rounded bg-[#d4af37] px-1.5 py-0.5 text-xs font-extrabold text-[#092244] shrink-0 tabular-nums">
+                        #{p.jersey_number ?? "-"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap text-slate-600">
+                      <span>
+                        NS: <strong>{formatBirthYear(p.birth_year) || "—"}</strong>
+                      </span>
+                      <PositionBadge position={p.position} />
+                    </div>
+                    {isManager && p.phone && (
+                      <p className="text-slate-700 font-semibold tabular-nums">
+                        SĐT: {p.phone}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -598,11 +715,11 @@ export function PlayersTab({
             const canSeePrivate = isManager || isSelf;
 
             return (
-              <div
+              <article
                 key={p.id}
-                className={`rounded-xl bg-white border p-4 flex flex-col justify-between transition shadow-2xs ${isSelf
-                    ? "border-2 border-[#ffc933] ring-2 ring-[#ffc933]/30"
-                    : "border-slate-200 hover:border-[#1e4fc2]/50"
+                className={`rounded-xl bg-white border p-4 flex flex-col justify-between transition shadow-xs ${isSelf
+                    ? "border-2 border-[#d4af37] ring-2 ring-[#d4af37]/25"
+                    : "border-slate-200 hover:border-[#0d2e5b]/40"
                   }`}
               >
                 <div>
@@ -613,41 +730,39 @@ export function PlayersTab({
                         <img
                           src={p.avatar_url || "/uploads/avatars/member-1.jpg"}
                           alt={p.full_name}
-                          className="h-16 w-16 rounded-xl object-cover border-2 border-[#1e4fc2] bg-slate-100"
+                          loading="lazy"
+                          className="h-16 w-16 rounded-xl object-cover object-top border-2 border-[#0d2e5b] bg-slate-100"
                         />
-                        <span className="absolute -bottom-1.5 -right-1.5 rounded-md bg-[#1e4fc2] text-[#ffc933] px-1.5 py-0.5 text-[11px] font-extrabold border border-white">
+                        <span className="absolute -bottom-1.5 -right-1.5 rounded-md bg-[#0d2e5b] text-[#fde047] px-1.5 py-0.5 text-[11px] font-extrabold border border-white tabular-nums">
                           #{p.jersey_number ?? "-"}
                         </span>
                       </div>
 
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="text-base font-extrabold text-slate-900 truncate">
+                          <h3 className="text-base font-extrabold text-[#092244] truncate">
                             {p.full_name}
                           </h3>
                           {isSelf && (
-                            <span className="rounded bg-[#ffc933] px-1.5 py-0.5 text-[10px] font-extrabold text-slate-950">
-                              Hồ sơ của bạn
-                            </span>
+                            <Badge variant="gold">Của bạn</Badge>
                           )}
                         </div>
-                        <p className="text-xs text-slate-600 mt-0.5">
-                          Tên sân:{" "}
-                          <strong className="text-slate-900">
-                            {p.short_name}
-                          </strong>{" "}
-                          •{" "}
-                          <span className="font-bold text-[#0284c7]">
-                            {p.position}
+                        <p className="text-xs text-slate-600 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                          <span>
+                            Tên sân:{" "}
+                            <strong className="text-[#092244]">
+                              {p.short_name}
+                            </strong>
                           </span>
+                          <PositionBadge position={p.position} />
                         </p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          Năm sinh: <strong>{formatBirthYear(p.birth_year) || "—"}</strong> •{" "}
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          NS: <strong className="tabular-nums">{formatBirthYear(p.birth_year) || "—"}</strong> •{" "}
                           <span className="text-slate-700 font-medium">
                             Xã {getPlayerHamlet(p)}
                           </span>
                           {p.nickname ? (
-                            <span className="text-[#1e4fc2] font-semibold">
+                            <span className="text-[#0d2e5b] font-semibold">
                               {" "}• &ldquo;{p.nickname}&rdquo;
                             </span>
                           ) : ""}
@@ -655,41 +770,57 @@ export function PlayersTab({
                       </div>
                     </div>
 
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold text-slate-500 bg-slate-100 shrink-0">
-                      Thành viên
-                    </span>
+                    <Badge
+                      variant={p.status === "Đang sinh hoạt" ? "success" : "neutral"}
+                      className="shrink-0"
+                    >
+                      {p.status}
+                    </Badge>
                   </div>
 
                   {/* Thống kê chuyên cần & quỹ */}
-                  <div className="mt-4 grid grid-cols-2 gap-2.5 rounded-xl bg-slate-50 p-3 border border-slate-100 text-xs">
-                    <div>
-                      <span className="text-slate-500 block">
-                        Số trận tham gia
-                      </span>
-                      <span className="font-extrabold text-sm text-slate-900">
-                        {p.matchesPlayed}/{matches.length} trận ({p.rate}%)
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-slate-500 block">
-                        {canSeePrivate ? "Tổng quỹ đã nộp" : "Trạng thái"}
-                      </span>
-                      {canSeePrivate ? (
-                        <span className="font-extrabold text-sm text-emerald-700">
-                          {formatVND(p.totalPaid)}
+                  <div className="mt-4 rounded-xl bg-slate-50 p-3 border border-slate-200/70 text-xs space-y-2">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <span className="text-slate-500 block">
+                          Chuyên cần
                         </span>
-                      ) : (
-                        <span className="font-bold text-xs text-slate-700">
-                          {p.status}
+                        <span className="font-extrabold text-sm text-[#092244] tabular-nums">
+                          {p.matchesPlayed}/{completedMatches.length} trận ({p.rate}%)
                         </span>
-                      )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-500 block">
+                          {canSeePrivate ? "Tổng quỹ đã nộp" : "Vai trò"}
+                        </span>
+                        {canSeePrivate ? (
+                          <span className="font-extrabold text-sm text-emerald-700 tabular-nums">
+                            {formatVND(p.totalPaid)}
+                          </span>
+                        ) : (
+                          <span className="font-bold text-xs text-slate-700">
+                            {p.role || "Thành viên"}
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[#0d2e5b] transition-all"
+                        style={{ width: `${Math.min(100, Math.max(0, p.rate))}%` }}
+                      />
+                    </div>
+                    {canSeePrivate && p.unpaid > 0 && (
+                      <p className="text-[11px] font-bold text-rose-600 tabular-nums">
+                        Còn thiếu quỹ trận: {formatVND(p.unpaid)}
+                      </p>
+                    )}
                   </div>
 
                   {/* Thông tin đầy đủ chỉ hiển thị cho Ban Quản Lý hoặc chính Cầu thủ đó */}
                   {canSeePrivate ? (
                     <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-                      <span className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1 tabular-nums">
                         <Phone className="h-3.5 w-3.5 text-slate-400" />
                         <span>{p.phone || "Chưa cập nhật SĐT"}</span>
                       </span>
@@ -697,7 +828,7 @@ export function PlayersTab({
                         <button
                           type="button"
                           onClick={() => handleResetPassword(p)}
-                          className="inline-flex items-center gap-1 rounded bg-slate-100 hover:bg-amber-100 border border-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-700 hover:text-amber-900 transition cursor-pointer"
+                          className="inline-flex items-center gap-1 min-h-8 rounded-md bg-slate-100 hover:bg-amber-100 border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:text-amber-900 transition"
                           title="Đặt lại mật khẩu mặc định (1234)"
                         >
                           <KeyRound className="h-3 w-3 text-slate-500" />
@@ -720,7 +851,7 @@ export function PlayersTab({
                   <button
                     type="button"
                     onClick={() => setDetailPlayer(p)}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-[#1e4fc2] hover:text-[#0284c7] cursor-pointer"
+                    className="inline-flex items-center gap-1 min-h-9 text-xs font-bold text-[#0d2e5b] hover:text-[#0284c7]"
                   >
                     <Eye className="h-3.5 w-3.5" />
                     <span>Lịch sử {p.matchesPlayed} trận</span>
@@ -732,7 +863,7 @@ export function PlayersTab({
                       <button
                         type="button"
                         onClick={() => openEditPlayer(p)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-[#1e4fc2] px-2.5 py-1 text-xs font-bold text-[#ffc933] hover:bg-[#2f66dd] cursor-pointer"
+                        className="inline-flex items-center gap-1 min-h-9 rounded-lg bg-[#0d2e5b] px-2.5 py-1 text-xs font-bold text-[#fde047] hover:bg-[#17488c]"
                       >
                         <Edit3 className="h-3 w-3" />
                         <span>Sửa hồ sơ của tôi</span>
@@ -743,7 +874,7 @@ export function PlayersTab({
                           setPwdError("");
                           setPwdModalOpen(true);
                         }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                        className="inline-flex items-center gap-1 min-h-9 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100"
                       >
                         <KeyRound className="h-3 w-3" />
                         <span>Đổi PIN</span>
@@ -783,9 +914,30 @@ export function PlayersTab({
                     </div>
                   )}
                 </div>
-              </div>
+              </article>
             );
           })}
+          {enrichedPlayers.length === 0 && (
+            <div className="col-span-full">
+              <EmptyState
+                title="Không tìm thấy cầu thủ phù hợp"
+                description="Thử xóa từ khóa tìm kiếm hoặc đặt lại bộ lọc vị trí / trạng thái."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setFilterPosition("Tất cả");
+                      setFilterStatus("Tất cả");
+                    }}
+                    className="min-h-9 rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Đặt lại bộ lọc
+                  </button>
+                }
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -1768,6 +1920,44 @@ export function PlayersTab({
         images={lightboxImages}
         currentIndex={lightboxIndex}
         onNavigate={setLightboxIndex}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingConfirm)}
+        onClose={() => {
+          if (!isSaving) setPendingConfirm(null);
+        }}
+        onConfirm={async () => {
+          if (!pendingConfirm || isSaving) return;
+          const target = pendingConfirm;
+          try {
+            if (target.kind === "reset_pin") {
+              await onMutate("reset_player_password", {
+                player_id: target.player.id,
+                new_pin: "1234",
+              });
+            } else {
+              await onMutate("delete_player", { id: target.player.id });
+            }
+          } finally {
+            setPendingConfirm(null);
+          }
+        }}
+        title={
+          pendingConfirm?.kind === "reset_pin"
+            ? "Xác nhận reset mã PIN"
+            : "Xác nhận xoá hồ sơ cầu thủ"
+        }
+        description={
+          pendingConfirm?.kind === "reset_pin"
+            ? `Ban Quản Lý xác nhận đặt lại mật khẩu (PIN) của cầu thủ "${pendingConfirm.player.full_name}" về mặc định "1234"?`
+            : pendingConfirm
+            ? `Bạn có chắc muốn xoá hồ sơ cầu thủ "${pendingConfirm.player.full_name}" khỏi danh sách đội bóng?`
+            : ""
+        }
+        confirmLabel={pendingConfirm?.kind === "reset_pin" ? "Reset PIN" : "Xoá hồ sơ"}
+        danger={pendingConfirm?.kind === "delete"}
+        loading={isSaving}
       />
     </div>
   );

@@ -223,6 +223,7 @@ describe("FINAL PRE-MERGE AUDIT SUITE", () => {
           totalMatchesCount: totalMatches,
           totalPlayersCount: 1,
           totalUnpaidAmount: 0,
+          categoryBreakdown: [],
         },
       };
 
@@ -347,6 +348,7 @@ describe("FINAL PRE-MERGE AUDIT SUITE", () => {
           totalMatchesCount: 1,
           totalPlayersCount: 2,
           totalUnpaidAmount: 0,
+          categoryBreakdown: [],
         },
       };
 
@@ -378,6 +380,7 @@ describe("FINAL PRE-MERGE AUDIT SUITE", () => {
           totalMatchesCount: 0,
           totalPlayersCount: 2,
           totalUnpaidAmount: 0,
+          categoryBreakdown: [],
         },
       };
 

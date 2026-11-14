@@ -10,8 +10,9 @@ export interface PositionBadgeInfo {
 export function getPlayerPositionBadge(
   player: Pick<Player, "position">
 ): PositionBadgeInfo {
-  const pos = player.position || "";
-  if (pos.includes("Thủ môn")) {
+  const pos = (player.position || "").trim();
+  const upper = pos.toUpperCase();
+  if (pos.includes("Thủ môn") || upper === "GK") {
     return {
       code: "GK",
       label: "THỦ MÔN",
@@ -19,7 +20,7 @@ export function getPlayerPositionBadge(
       tone: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
     };
   }
-  if (pos.includes("Hậu vệ")) {
+  if (pos.includes("Hậu vệ") || pos.includes("Trung vệ") || upper === "DF") {
     return {
       code: "DF",
       label: "HẬU VỆ",
@@ -27,7 +28,7 @@ export function getPlayerPositionBadge(
       tone: "bg-blue-500/20 text-blue-300 border-blue-500/40",
     };
   }
-  if (pos.includes("Tiền vệ")) {
+  if (pos.includes("Tiền vệ") || upper === "MF") {
     return {
       code: "MF",
       label: "TIỀN VỆ",
@@ -35,7 +36,7 @@ export function getPlayerPositionBadge(
       tone: "bg-amber-500/20 text-amber-300 border-amber-500/40",
     };
   }
-  if (pos.includes("Tiền đạo")) {
+  if (pos.includes("Tiền đạo") || upper === "FW") {
     return {
       code: "FW",
       label: "TIỀN ĐẠO",

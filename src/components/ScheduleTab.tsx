@@ -29,6 +29,7 @@ import {
   Crop,
   Image as ImageIcon,
   Check,
+  Search,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -43,6 +44,7 @@ import {
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
+import { Badge, EmptyState, PositionBadge } from "./ui";
 import { MatchdayRosterPosterModal } from "./MatchdayRosterPoster";
 import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
 import { AvatarCropperModal } from "./AvatarCropperModal";
@@ -106,6 +108,11 @@ export function ScheduleTab({
   );
   const [selectedFinishedMatch, setSelectedFinishedMatch] =
     useState<MatchRecord | null>(null);
+  const [rosterSearch, setRosterSearch] = useState("");
+  const [rosterRsvpFilter, setRosterRsvpFilter] = useState<
+    "all" | "registered" | "absent_notice" | "none"
+  >("all");
+  const [finishedSearch, setFinishedSearch] = useState("");
 
   // Chế độ mẫu thông báo Fanpage (không để quỹ)
   const [postTemplateMode, setPostTemplateMode] = useState<
@@ -518,13 +525,13 @@ export function ScheduleTab({
   return (
     <div className="space-y-5">
       {/* THANH CHUYỂN ĐỔI 2 KHÔNG GIAN RIÊNG BIỆT: LỊCH TUẦN HIỆN TẠI vs TRẬN ĐẤU ĐÃ KẾT THÚC */}
-      <div className="rounded-xl bg-white p-3.5 sm:p-4 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-        <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+      <div className="rounded-xl bg-white p-3.5 sm:p-4 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200">
           <button
             type="button"
             onClick={() => setSpaceMode("upcoming")}
-            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-extrabold transition cursor-pointer ${spaceMode === "upcoming"
-                ? "bg-[#1e4fc2] text-[#ffc933] shadow-xs"
+            className={`inline-flex items-center gap-2 min-h-11 sm:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "upcoming"
+                ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
               }`}
           >
@@ -535,8 +542,8 @@ export function ScheduleTab({
           <button
             type="button"
             onClick={() => setSpaceMode("finished")}
-            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs sm:text-sm font-extrabold transition cursor-pointer ${spaceMode === "finished"
-                ? "bg-[#1e4fc2] text-[#ffc933] shadow-xs"
+            className={`inline-flex items-center gap-2 min-h-11 sm:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "finished"
+                ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
               }`}
           >
@@ -550,7 +557,7 @@ export function ScheduleTab({
             <button
               type="button"
               onClick={onGoToCollection}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#1e4fc2] bg-slate-50 px-3.5 py-2 text-xs font-bold text-[#1e4fc2] hover:bg-slate-100 cursor-pointer"
+              className="inline-flex items-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg border border-[#0d2e5b]/30 bg-slate-50 px-3.5 py-2 text-xs font-bold text-[#0d2e5b] hover:bg-slate-100 transition"
             >
               <Wallet className="h-4 w-4 text-[#0284c7]" />
               <span>Sang Mục Thu Tiền Trận →</span>
@@ -560,7 +567,7 @@ export function ScheduleTab({
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1e4fc2] px-4 py-2 text-xs font-bold text-[#ffc933] hover:bg-[#2f66dd] transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg bg-[#0d2e5b] px-4 py-2 text-xs font-bold text-[#fde047] hover:bg-[#17488c] transition"
             >
               <Plus className="h-4 w-4" />
               <span>Tạo Lịch Tuần Mới</span>
@@ -568,6 +575,25 @@ export function ScheduleTab({
           )}
         </div>
       </div>
+
+      {spaceMode === "upcoming" && !activeMatch && (
+        <EmptyState
+          title="Chưa có lịch thi đấu tuần nào"
+          description="Khi Ban Quản Lý tạo lịch trận đấu mới, thông tin sân bãi và nút điểm danh RSVP sẽ hiển thị tại đây."
+          action={
+            isManager ? (
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-[#0d2e5b] px-4 py-2 text-xs font-bold text-[#fde047] hover:bg-[#17488c] transition"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Tạo Lịch Tuần Mới</span>
+              </button>
+            ) : undefined
+          }
+        />
+      )}
 
       {/* =====================================================================
           KHÔNG GIAN 1: LỊCH TUẦN HIỆN TẠI, BÀI ĐĂNG FANPAGE & ĐIỂM DANH
@@ -602,97 +628,98 @@ export function ScheduleTab({
             </div>
           )}
 
-          {/* HỘP ƯU TIÊN SỐ 1: THÔNG BÁO LỊCH TUẦN & ĐIỂM DANH 1-CHẠM (CỰC KỲ NỔI BẬT & DỄ THẤY) */}
+          {/* HỘP ƯU TIÊN SỐ 1: THÔNG BÁO LỊCH TUẦN & ĐIỂM DANH 1-CHẠM */}
           {session.playerId && (
-            <section className="rounded-2xl bg-gradient-to-br from-[#061530] via-[#0d2e5b] to-[#124285] text-white p-5 sm:p-7 border-2 border-[#ffc933] shadow-[0_12px_40px_rgba(13,46,91,0.5)] ring-2 ring-[#ffc933]/30 relative overflow-hidden">
-              {/* Vệt sáng trang trí hoàng gia */}
-              <div className="absolute top-0 right-0 w-80 h-80 bg-[#ffc933]/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-              <div className="absolute bottom-0 left-0 w-60 h-60 bg-[#38bdf8]/10 rounded-full blur-2xl pointer-events-none -ml-20 -mb-20" />
-
-              <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <section className="rounded-xl bg-gradient-to-br from-[#092244] via-[#0d2e5b] to-[#17488c] text-white p-5 sm:p-6 border border-[#d4af37]/60 shadow-sm">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                 <div className="space-y-3 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ffc933] text-slate-950 px-3.5 py-1 text-xs font-black uppercase tracking-wider shadow-sm">
-                      <BellRing className="h-4 w-4" />
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-[#d4af37] text-[#092244] px-3 py-1 text-xs font-extrabold uppercase tracking-wider">
+                      <BellRing className="h-3.5 w-3.5" />
                       <span>ĐIỂM DANH LỊCH TUẦN</span>
                     </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-extrabold text-[#ffc933] border border-white/20">
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1 text-xs font-bold text-[#fde047] border border-white/15">
                       <span>Cầu thủ:</span>
                       <strong className="text-white">
                         #{session.jerseyNumber ?? "-"} {session.fullName}
                       </strong>
                     </span>
+                    <span className="inline-flex items-center rounded-md bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-1 text-xs font-bold text-emerald-200">
+                      {activeMatch.status}
+                    </span>
                   </div>
 
-                  <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-sm">
+                  <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
                     {activeMatch.label} — {activeMatch.venue}
                   </h2>
 
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-sky-100">
-                    <span className="inline-flex items-center gap-1.5 font-bold bg-[#ffc933]/15 text-[#ffc933] px-3 py-1 rounded-lg border border-[#ffc933]/30">
+                  <div className="flex flex-wrap items-center gap-2.5 text-xs sm:text-sm text-sky-100">
+                    <span className="inline-flex items-center gap-1.5 font-bold bg-white/10 text-[#fde047] px-3 py-1.5 rounded-lg border border-white/15 tabular-nums">
                       <Clock className="h-4 w-4 shrink-0" />
                       <span>
-                        {activeMatch.kickoff_time} • Ngày {formatDateVN(activeMatch.match_date)}
+                        {activeMatch.kickoff_time} • {formatDateVN(activeMatch.match_date)}
                       </span>
                     </span>
-                    <span className="inline-flex items-center gap-1.5 font-bold bg-sky-500/15 text-sky-200 px-3 py-1 rounded-lg border border-sky-400/30">
-                      <MapPin className="h-4 w-4 shrink-0 text-[#5cc8ff]" />
+                    <span className="inline-flex items-center gap-1.5 font-semibold bg-white/10 text-sky-100 px-3 py-1.5 rounded-lg border border-white/15">
+                      <MapPin className="h-4 w-4 shrink-0 text-[#fde047]" />
                       <span>
                         {activeMatch.venue} ({activeMatch.opponent})
                       </span>
                     </span>
                   </div>
 
-                  {/* Banner trạng thái phản hồi của cầu thủ */}
-                  <div className="pt-1">
+                  {/* Banner trạng thái phản hồi RSVP của cầu thủ */}
+                  <div className="pt-0.5">
                     {myAttendance?.rsvp_status === "registered" ? (
-                      <div className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 text-white font-black text-sm sm:text-base px-4 py-2 border-2 border-emerald-300 shadow-md">
-                        <CheckCircle2 className="h-5 w-5 shrink-0 text-white" />
-                        <span>✅ BẠN ĐÃ ĐĂNG KÝ CÓ MẶT RA SÂN • CHÚC THI ĐẤU THĂNG HOA!</span>
+                      <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-600/90 text-white font-bold text-xs sm:text-sm px-3.5 py-2 border border-emerald-400/50">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" />
+                        <span>Bạn đã đăng ký Có Mặt ra sân trận này</span>
                       </div>
                     ) : myAttendance?.rsvp_status === "absent_notice" ? (
-                      <div className="inline-flex items-center gap-2 rounded-xl bg-rose-600 text-white font-black text-sm sm:text-base px-4 py-2 border-2 border-rose-300 shadow-md">
-                        <XCircle className="h-5 w-5 shrink-0 text-white" />
-                        <span>❌ BẠN ĐÃ BÁO VẮNG TRẬN NÀY (Hẹn gặp bạn trận kế tiếp)</span>
+                      <div className="inline-flex items-center gap-2 rounded-lg bg-rose-600/90 text-white font-bold text-xs sm:text-sm px-3.5 py-2 border border-rose-400/50">
+                        <XCircle className="h-4 w-4 shrink-0" />
+                        <span>Bạn đã Báo Vắng trận này</span>
                       </div>
                     ) : (
-                      <div className="inline-flex items-center gap-2 rounded-xl bg-[#ffc933] text-slate-950 font-black text-sm sm:text-base px-4 py-2 border-2 border-white shadow-lg animate-pulse">
-                        <span className="text-lg">⚡</span>
-                        <span>BẠN CHƯA ĐIỂM DANH! Vui lòng chọn Có Mặt hoặc Báo Vắng bên cạnh:</span>
+                      <div className="inline-flex items-center gap-2 rounded-lg bg-[#d4af37] text-[#092244] font-extrabold text-xs sm:text-sm px-3.5 py-2">
+                        <BellRing className="h-4 w-4 shrink-0" />
+                        <span>Bạn chưa điểm danh — Chọn Có Mặt hoặc Báo Vắng bên cạnh</span>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* 2 Nút Điểm Danh cực lớn, tương phản cao, nổi bật */}
-                <div className="grid grid-cols-2 sm:flex sm:items-center gap-3 shrink-0 pt-2 lg:pt-0">
+                {/* 2 Nút Điểm Danh RSVP độc lập, dễ thao tác trên mọi kích thước */}
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2.5 shrink-0 pt-1 lg:pt-0">
                   <button
                     type="button"
                     disabled={isSaving}
+                    aria-pressed={myAttendance?.rsvp_status === "registered"}
                     onClick={() =>
                       handleSetRsvp(session.playerId!, "registered")
                     }
-                    className={`min-h-[54px] inline-flex items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 text-base font-black transition cursor-pointer shadow-lg ${myAttendance?.rsvp_status === "registered"
-                        ? "bg-gradient-to-r from-emerald-500 to-green-600 text-white ring-4 ring-emerald-300 scale-105"
-                        : "bg-emerald-600 hover:bg-emerald-500 text-white hover:scale-102 border-2 border-emerald-400"
+                    className={`min-h-12 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm sm:text-base font-extrabold transition focus-visible:outline-2 focus-visible:outline-[#d4af37] ${myAttendance?.rsvp_status === "registered"
+                        ? "bg-emerald-500 text-white ring-2 ring-white shadow-sm"
+                        : "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/60"
                       }`}
                   >
-                    <CheckCircle2 className="h-6 w-6 shrink-0" />
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
                     <span>Có Mặt Ra Sân</span>
                   </button>
 
                   <button
                     type="button"
                     disabled={isSaving}
+                    aria-pressed={myAttendance?.rsvp_status === "absent_notice"}
                     onClick={() =>
                       handleSetRsvp(session.playerId!, "absent_notice")
                     }
-                    className={`min-h-[54px] inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-base font-black transition cursor-pointer shadow-md ${myAttendance?.rsvp_status === "absent_notice"
-                        ? "bg-gradient-to-r from-rose-600 to-red-700 text-white ring-4 ring-rose-300 scale-105"
-                        : "bg-slate-800/90 hover:bg-rose-600 text-white border-2 border-slate-600 hover:border-rose-400"
+                    className={`min-h-12 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm sm:text-base font-extrabold transition focus-visible:outline-2 focus-visible:outline-[#d4af37] ${myAttendance?.rsvp_status === "absent_notice"
+                        ? "bg-rose-600 text-white ring-2 ring-white shadow-sm"
+                        : "bg-white/10 hover:bg-rose-600 text-white border border-white/25 hover:border-rose-400"
                       }`}
                   >
-                    <XCircle className="h-6 w-6 shrink-0" />
+                    <XCircle className="h-5 w-5 shrink-0" />
                     <span>Báo Vắng</span>
                   </button>
                 </div>
@@ -897,13 +924,13 @@ export function ScheduleTab({
               </pre>
 
               {/* Nút Copy, Xuất Ảnh & Mở Fanpage */}
-              <div className="flex flex-col sm:flex-row items-stretch gap-2.5 pt-1">
+              <div className="flex flex-wrap items-stretch gap-2.5 pt-1">
                 <button
                   type="button"
                   onClick={handleCopyFanpagePost}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#1e4fc2] hover:bg-[#2f66dd] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-[#ffc933] transition cursor-pointer shadow-xs"
+                  className="w-full sm:w-auto sm:flex-1 sm:min-w-[172px] inline-flex items-center justify-center gap-2 rounded-xl bg-[#1e4fc2] hover:bg-[#2f66dd] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-[#ffc933] transition cursor-pointer shadow-xs"
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-4 w-4 shrink-0" aria-hidden="true" />
                   <span>
                     {copiedReminder
                       ? "Đã Copy Bài Đăng!"
@@ -914,10 +941,10 @@ export function ScheduleTab({
                 <button
                   type="button"
                   onClick={() => setPosterModalOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
+                  className="w-full sm:w-auto sm:flex-1 sm:min-w-[205px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
                   title="Tải trực tiếp ảnh bảng điểm danh cầu thủ chất lượng cao về máy để chia sẻ vào Zalo"
                 >
-                  <Camera className="h-4 w-4" />
+                  <Camera className="h-4 w-4 shrink-0" aria-hidden="true" />
                   <span>📸 Tải Ảnh Điểm Danh (PNG)</span>
                 </button>
 
@@ -925,10 +952,10 @@ export function ScheduleTab({
                   href={settings.fanpage_url || FANPAGE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] px-3.5 py-2.5 text-xs font-bold text-white transition"
+                  className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] px-3.5 py-2.5 text-xs font-bold text-white transition"
                 >
                   <span>Fanpage</span>
-                  <ExternalLink className="h-3.5 w-3.5" />
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 </a>
               </div>
             </section>
@@ -1221,107 +1248,193 @@ export function ScheduleTab({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[480px] overflow-y-auto pr-1">
-                    {players.map((p) => {
-                      const att = activeAttendances.find(
-                        (a) => a.player_id === p.id
-                      );
-                      const rsvp = att?.rsvp_status || "none";
-                      const isMe = session.playerId === p.id;
-                      const canToggle = isManager || isMe;
-
-                      return (
-                        <div
-                          key={p.id}
-                          className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition ${isMe
-                              ? "ring-2 ring-[#ffc933] border-[#1e4fc2] bg-amber-50 shadow-xs"
-                              : rsvp === "registered"
-                                ? "bg-emerald-50/80 border-emerald-300"
-                                : rsvp === "absent_notice"
-                                  ? "bg-rose-50/80 border-rose-300"
-                                  : "bg-white border-slate-200"
+                  {/* Bộ lọc & Tìm kiếm nhanh danh sách điểm danh */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+                    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Lọc theo trạng thái điểm danh">
+                      {[
+                        { key: "all", label: `Tất cả (${players.length})` },
+                        { key: "registered", label: `Có mặt (${registeredPlayers.length})` },
+                        { key: "absent_notice", label: `Vắng (${absentNoticePlayers.length})` },
+                        { key: "none", label: `Chờ (${pendingPlayers.length})` },
+                      ].map((opt) => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          aria-pressed={rosterRsvpFilter === opt.key}
+                          onClick={() =>
+                            setRosterRsvpFilter(
+                              opt.key as "all" | "registered" | "absent_notice" | "none"
+                            )
+                          }
+                          className={`min-h-11 sm:min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${rosterRsvpFilter === opt.key
+                              ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
                             }`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="relative shrink-0">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={
-                                  p.avatar_url || "/uploads/avatars/member-1.jpg"
-                                }
-                                alt={p.full_name}
-                                className="h-10 w-10 rounded-lg object-cover border border-[#1e4fc2]"
-                              />
-                              <span className="absolute -bottom-1 -right-1 rounded bg-[#1e4fc2] text-[#ffc933] px-1 text-[9px] font-extrabold">
-                                #{p.jersey_number ?? "-"}
-                              </span>
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                                  {p.full_name}
-                                </p>
-                                {isMe && (
-                                  <span className="text-[10px] font-black uppercase text-[#17488c] bg-[#ffc933] px-1.5 py-0.2 rounded">
-                                    BẠN
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[11px] text-slate-500 font-medium">
-                                {p.short_name} • {p.position}
-                              </p>
-                            </div>
-                          </div>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              disabled={!canToggle || isSaving}
-                              onClick={() =>
-                                handleSetRsvp(
-                                  p.id,
-                                  rsvp === "registered" ? "none" : "registered"
-                                )
-                              }
-                              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition ${!canToggle
-                                  ? "opacity-75 cursor-default"
-                                  : "cursor-pointer"
-                                } ${rsvp === "registered"
-                                  ? "bg-emerald-600 text-white"
-                                  : "bg-slate-100 text-slate-700 hover:bg-emerald-100 hover:text-emerald-800"
-                                }`}
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>Có mặt</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={!canToggle || isSaving}
-                              onClick={() =>
-                                handleSetRsvp(
-                                  p.id,
-                                  rsvp === "absent_notice"
-                                    ? "none"
-                                    : "absent_notice"
-                                )
-                              }
-                              title="Báo vắng trận này"
-                              className={`px-2 py-1.5 rounded-lg text-xs font-bold transition ${!canToggle
-                                  ? "opacity-75 cursor-default"
-                                  : "cursor-pointer"
-                                } ${rsvp === "absent_notice"
-                                  ? "bg-rose-600 text-white"
-                                  : "bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700"
-                                }`}
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    <div className="relative min-w-[190px]">
+                      <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="search"
+                        aria-label="Tìm cầu thủ trong danh sách điểm danh"
+                        placeholder="Tìm tên, số áo..."
+                        value={rosterSearch}
+                        onChange={(e) => setRosterSearch(e.target.value)}
+                        className="min-h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 py-1 text-xs text-[#092244] focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+                      />
+                    </div>
                   </div>
+
+                  {(() => {
+                    const filteredRosterPlayers = players.filter((p) => {
+                      const att = activeAttendances.find((a) => a.player_id === p.id);
+                      const rsvp = att?.rsvp_status || "none";
+                      if (rosterRsvpFilter !== "all" && rsvp !== rosterRsvpFilter) {
+                        return false;
+                      }
+                      if (!rosterSearch.trim()) return true;
+                      const q = rosterSearch.toLowerCase();
+                      return (
+                        p.full_name.toLowerCase().includes(q) ||
+                        p.short_name.toLowerCase().includes(q) ||
+                        String(p.jersey_number ?? "").includes(q)
+                      );
+                    });
+
+                    if (filteredRosterPlayers.length === 0) {
+                      return (
+                        <EmptyState
+                          title="Không có cầu thủ phù hợp"
+                          description="Thử thay đổi bộ lọc điểm danh hoặc từ khoá tìm kiếm."
+                        />
+                      );
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[480px] overflow-y-auto pr-1">
+                        {filteredRosterPlayers.map((p) => {
+                          const att = activeAttendances.find(
+                            (a) => a.player_id === p.id
+                          );
+                          const rsvp = att?.rsvp_status || "none";
+                          const isAttended = att?.attended === 1;
+                          const isPaid = att?.paid === 1;
+                          const isMe = session.playerId === p.id;
+                          const canToggle = isManager || isMe;
+
+                          return (
+                            <div
+                              key={p.id}
+                              className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition ${isMe
+                                  ? "ring-2 ring-[#d4af37] border-[#0d2e5b] bg-amber-50/70 shadow-xs"
+                                  : rsvp === "registered"
+                                    ? "bg-emerald-50/70 border-emerald-300"
+                                    : rsvp === "absent_notice"
+                                      ? "bg-rose-50/70 border-rose-300"
+                                      : "bg-white border-slate-200"
+                                }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="relative shrink-0">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={
+                                      p.avatar_url || "/uploads/avatars/member-1.jpg"
+                                    }
+                                    alt={p.full_name}
+                                    loading="lazy"
+                                    className="h-10 w-10 rounded-lg object-cover object-top border border-[#0d2e5b]"
+                                  />
+                                  <span className="absolute -bottom-1 -right-1 rounded bg-[#0d2e5b] text-[#fde047] px-1 text-[9px] font-extrabold tabular-nums">
+                                    #{p.jersey_number ?? "-"}
+                                  </span>
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <p className="text-xs sm:text-sm font-bold text-[#092244] truncate">
+                                      {p.full_name}
+                                    </p>
+                                    {isMe && (
+                                      <Badge variant="gold">BẠN</Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                    <span className="text-[11px] text-slate-600 font-medium">
+                                      {p.short_name}
+                                    </span>
+                                    <PositionBadge position={p.position} />
+                                    {/* Hiển thị tách biệt Attended & Paid (không gộp với RSVP) */}
+                                    {isAttended && (
+                                      <Badge variant="info">Đã ra sân</Badge>
+                                    )}
+                                    {isPaid ? (
+                                      <Badge variant="success">Đã nộp quỹ</Badge>
+                                    ) : isAttended ? (
+                                      <Badge variant="warning">Chưa nộp</Badge>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={!canToggle || isSaving}
+                                  aria-pressed={rsvp === "registered"}
+                                  aria-label={`Điểm danh Có mặt cho ${p.full_name}`}
+                                  onClick={() =>
+                                    handleSetRsvp(
+                                      p.id,
+                                      rsvp === "registered" ? "none" : "registered"
+                                    )
+                                  }
+                                  className={`min-h-11 sm:min-h-9 px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition ${!canToggle
+                                      ? "opacity-70 cursor-default"
+                                      : "cursor-pointer"
+                                    } ${rsvp === "registered"
+                                      ? "bg-emerald-600 text-white"
+                                      : "bg-slate-100 text-slate-700 hover:bg-emerald-100 hover:text-emerald-800"
+                                    }`}
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  <span>Có mặt</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  disabled={!canToggle || isSaving}
+                                  aria-pressed={rsvp === "absent_notice"}
+                                  aria-label={`Báo vắng cho ${p.full_name}`}
+                                  onClick={() =>
+                                    handleSetRsvp(
+                                      p.id,
+                                      rsvp === "absent_notice"
+                                        ? "none"
+                                        : "absent_notice"
+                                    )
+                                  }
+                                  title="Báo vắng trận này"
+                                  className={`min-h-11 min-w-11 sm:min-h-9 sm:min-w-9 inline-flex items-center justify-center px-2 py-1.5 rounded-lg text-xs font-bold transition ${!canToggle
+                                      ? "opacity-70 cursor-default"
+                                      : "cursor-pointer"
+                                    } ${rsvp === "absent_notice"
+                                      ? "bg-rose-600 text-white"
+                                      : "bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700"
+                                    }`}
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </>
               )}
             </section>
@@ -1333,127 +1446,172 @@ export function ScheduleTab({
           KHÔNG GIAN 2 (RIÊNG BIỆT): KHO LƯU TRỮ CÁC TRẬN ĐẤU ĐÃ KẾT THÚC
          ===================================================================== */}
       {spaceMode === "finished" && (
-        <section className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 space-y-5 shadow-2xs">
+        <section className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 space-y-5 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2.5">
-              <div className="h-10 w-10 rounded-xl bg-[#1e4fc2] text-[#ffc933] flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-xl bg-[#0d2e5b] text-[#fde047] flex items-center justify-center shrink-0">
                 <Trophy className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base sm:text-lg font-extrabold text-[#1e4fc2]">
-                  Không Gian Riêng: Lịch Sử Các Trận Đấu Đã Kết Thúc (
-                  {finishedMatches.length} trận)
+                <h3 className="text-base sm:text-lg font-extrabold text-[#092244]">
+                  Lịch Sử Các Trận Đấu Đã Kết Thúc ({finishedMatches.length} trận)
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Lưu trữ toàn bộ kết quả, sân bãi, chi phí sân và danh sách cầu
-                  thủ tham gia của các trận đã qua.
+                  Lưu trữ kết quả, sân bãi, chi phí sân và danh sách cầu thủ ra sân thực tế.
                 </p>
               </div>
             </div>
+
+            {finishedMatches.length > 0 && (
+              <div className="relative min-w-[220px]">
+                <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="search"
+                  aria-label="Tìm trận đấu đã kết thúc"
+                  placeholder="Tìm tên trận, sân đấu..."
+                  value={finishedSearch}
+                  onChange={(e) => setFinishedSearch(e.target.value)}
+                  className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-1.5 text-xs sm:text-sm text-[#092244] focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+                />
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {finishedMatches.map((m) => {
-              const mAtt = attendances.filter((a) => a.match_id === m.id);
-              const playedCount = mAtt.filter((a) => a.attended === 1).length;
-
+          {(() => {
+            const visibleFinished = finishedMatches.filter((m) => {
+              if (!finishedSearch.trim()) return true;
+              const q = finishedSearch.toLowerCase();
               return (
-                <div
-                  key={m.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-[#1e4fc2]/40 p-4 flex flex-col justify-between gap-3 transition shadow-2xs"
-                >
-                  <div>
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <span className="inline-block rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-700">
-                          Đã kết thúc • Trận #{m.match_number}
-                        </span>
-                        <h4 className="mt-1 text-base font-extrabold text-[#1e4fc2]">
-                          {m.label}
-                        </h4>
-                      </div>
-
-                      {m.team_score !== null && m.opponent_score !== null ? (
-                        <div className="rounded-lg bg-[#1e4fc2] text-[#ffc933] px-2.5 py-1 text-xs font-extrabold">
-                          {m.team_score} - {m.opponent_score}
-                        </div>
-                      ) : (
-                        <span className="text-xs font-semibold text-slate-500">
-                          {formatDateVN(m.match_date)}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mt-3 space-y-1.5 text-xs text-slate-600">
-                      <div className="flex items-center justify-between">
-                        <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
-                          <MapPin className="h-3.5 w-3.5 text-[#0284c7]" />
-                          {m.venue}
-                        </span>
-                        <span className="inline-flex items-center gap-1 font-bold text-emerald-700">
-                          <Users className="h-3.5 w-3.5" />
-                          {playedCount} cầu thủ ra sân
-                        </span>
-                      </div>
-                      {isManager && (
-                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/70">
-                          <span>
-                            Tiền sân:{" "}
-                            <strong className="text-rose-600">
-                              {formatVND(m.pitch_cost)}
-                            </strong>
-                          </span>
-                          <span>Người chi: {m.payer_name || "Tiếng"}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFinishedMatch(m)}
-                      className="text-xs font-bold text-[#1e4fc2] hover:text-[#0284c7] cursor-pointer"
-                    >
-                      Xem danh sách ra sân →
-                    </button>
-
-                    {isManager && (
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleMoveMatchStatus(m, "Sắp diễn ra")
-                          }
-                          title="Đưa trận này trở lại mục Lịch Tuần & Điểm Danh"
-                          className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          <span>Mở lại</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(m)}
-                          className="rounded border border-slate-300 bg-white p-1 text-slate-600 hover:bg-slate-100 cursor-pointer"
-                          title="Sửa trận đấu"
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteMatch(m.id, m.label)}
-                          className="rounded border border-rose-200 bg-rose-50 p-1 text-rose-600 hover:bg-rose-100 cursor-pointer"
-                          title="Xoá trận đấu"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                m.label.toLowerCase().includes(q) ||
+                m.venue.toLowerCase().includes(q) ||
+                m.opponent.toLowerCase().includes(q)
               );
-            })}
-          </div>
+            });
+
+            if (visibleFinished.length === 0) {
+              return (
+                <EmptyState
+                  title={
+                    finishedMatches.length === 0
+                      ? "Chưa có trận đấu nào kết thúc"
+                      : "Không tìm thấy trận đấu phù hợp"
+                  }
+                  description={
+                    finishedMatches.length === 0
+                      ? "Các trận đã hoàn thành sẽ tự động được lưu trữ vào không gian này để tra cứu lịch sử."
+                      : "Thử xóa từ khóa tìm kiếm để xem toàn bộ lịch sử trận đấu."
+                  }
+                />
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visibleFinished.map((m) => {
+                  const mAtt = attendances.filter((a) => a.match_id === m.id);
+                  const playedCount = mAtt.filter((a) => a.attended === 1).length;
+
+                  return (
+                    <div
+                      key={m.id}
+                      className="rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-[#0d2e5b]/40 p-4 flex flex-col justify-between gap-3 transition shadow-xs"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="inline-block rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-700">
+                              Đã kết thúc • Trận #{m.match_number}
+                            </span>
+                            <h4 className="mt-1 text-base font-extrabold text-[#092244]">
+                              {m.label}
+                            </h4>
+                          </div>
+
+                          {m.team_score !== null && m.opponent_score !== null ? (
+                            <div className="rounded-lg bg-[#0d2e5b] text-[#fde047] px-2.5 py-1 text-xs font-extrabold tabular-nums">
+                              {m.team_score} - {m.opponent_score}
+                            </div>
+                          ) : (
+                            <span className="text-xs font-semibold text-slate-500 tabular-nums">
+                              {formatDateVN(m.match_date)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-3 space-y-1.5 text-xs text-slate-600">
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
+                              <MapPin className="h-3.5 w-3.5 text-[#0284c7]" />
+                              {m.venue}
+                            </span>
+                            <span className="inline-flex items-center gap-1 font-bold text-emerald-700 tabular-nums">
+                              <Users className="h-3.5 w-3.5" />
+                              {playedCount} cầu thủ ra sân
+                            </span>
+                          </div>
+                          {isManager && (
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200/70 tabular-nums">
+                              <span>
+                                Tiền sân:{" "}
+                                <strong className="text-rose-600">
+                                  {formatVND(m.pitch_cost)}
+                                </strong>
+                              </span>
+                              <span>Người chi: {m.payer_name || "Tiếng"}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFinishedMatch(m)}
+                          className="text-xs font-bold text-[#0d2e5b] hover:text-[#0284c7]"
+                        >
+                          Xem danh sách ra sân →
+                        </button>
+
+                        {isManager && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleMoveMatchStatus(m, "Sắp diễn ra")
+                              }
+                              title="Đưa trận này trở lại mục Lịch Tuần & Điểm Danh"
+                              className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                              <span>Mở lại</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(m)}
+                              aria-label={`Sửa trận ${m.label}`}
+                              className="rounded border border-slate-300 bg-white p-1.5 text-slate-600 hover:bg-slate-100"
+                              title="Sửa trận đấu"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMatch(m.id, m.label)}
+                              aria-label={`Xoá trận ${m.label}`}
+                              className="rounded border border-rose-200 bg-rose-50 p-1.5 text-rose-600 hover:bg-rose-100"
+                              title="Xoá trận đấu"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </section>
       )}
 
@@ -2346,13 +2504,18 @@ export function ScheduleTab({
                 <button
                   type="button"
                   onClick={() => setPwdShowOldPin(!pwdShowOldPin)}
+                  aria-label={
+                    pwdShowOldPin
+                      ? "Ẩn mật khẩu hiện tại"
+                      : "Hiện mật khẩu hiện tại"
+                  }
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                   tabIndex={-1}
                 >
                   {pwdShowOldPin ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-4 w-4" aria-hidden="true" />
                   )}
                 </button>
               </div>
@@ -2374,13 +2537,16 @@ export function ScheduleTab({
                 <button
                   type="button"
                   onClick={() => setPwdShowNewPin(!pwdShowNewPin)}
+                  aria-label={
+                    pwdShowNewPin ? "Ẩn mật khẩu mới" : "Hiện mật khẩu mới"
+                  }
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                   tabIndex={-1}
                 >
                   {pwdShowNewPin ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-4 w-4" aria-hidden="true" />
                   )}
                 </button>
               </div>
@@ -2440,13 +2606,18 @@ export function ScheduleTab({
                 <button
                   type="button"
                   onClick={() => setPwdShowConfirmPin(!pwdShowConfirmPin)}
+                  aria-label={
+                    pwdShowConfirmPin
+                      ? "Ẩn xác nhận mật khẩu mới"
+                      : "Hiện xác nhận mật khẩu mới"
+                  }
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                   tabIndex={-1}
                 >
                   {pwdShowConfirmPin ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-4 w-4" aria-hidden="true" />
                   )}
                 </button>
               </div>

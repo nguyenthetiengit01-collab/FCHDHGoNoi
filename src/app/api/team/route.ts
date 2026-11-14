@@ -1153,37 +1153,86 @@ export async function POST(req: NextRequest) {
       }
 
       case "update_settings": {
-        const {
-          team_name,
-          short_name,
-          default_match_fee,
-          bank_bin,
-          bank_name,
-          bank_account_no,
-          bank_account_name,
-          tournament_fund_reserve,
-          tournament_fund_note,
-          fanpage_url,
-        } = payload;
-        await db.run(
-          `UPDATE team_settings
-          SET team_name = ?, short_name = ?, default_match_fee = ?,
-              bank_bin = ?, bank_name = ?, bank_account_no = ?, bank_account_name = ?,
-              tournament_fund_reserve = ?, tournament_fund_note = ?, fanpage_url = ?
-          WHERE id = 1`,
-          [
-            team_name || "Đội Bóng HĐH Gò Nổi",
-            short_name || "FC HĐH GÒ NỔI",
-            Number(default_match_fee) || 100000,
-            bank_bin || "970422",
-            bank_name || "MB Bank",
-            bank_account_no || "",
-            bank_account_name || "NGUYEN THE TIENG",
-            Number(tournament_fund_reserve) || 0,
-            tournament_fund_note || "",
-            fanpage_url || "https://www.facebook.com/FCHDHGoNoi/",
-          ]
-        );
+        const rawPayload =
+          payload && typeof payload === "object"
+            ? (payload as Record<string, unknown>)
+            : {};
+        const hasOwn = (key: string) =>
+          Object.prototype.hasOwnProperty.call(rawPayload, key) &&
+          rawPayload[key] !== undefined;
+
+        const SETTINGS_UPDATERS: ReadonlyArray<{
+          key: string;
+          column: string;
+          normalize: (val: unknown) => unknown;
+        }> = [
+          {
+            key: "team_name",
+            column: "team_name",
+            normalize: (v) => String(v ?? "").trim() || "Đội Bóng HĐH Gò Nổi",
+          },
+          {
+            key: "short_name",
+            column: "short_name",
+            normalize: (v) => String(v ?? "").trim() || "FC HĐH GÒ NỔI",
+          },
+          {
+            key: "default_match_fee",
+            column: "default_match_fee",
+            normalize: (v) => Number(v) || 100000,
+          },
+          {
+            key: "bank_bin",
+            column: "bank_bin",
+            normalize: (v) => String(v ?? "").trim() || "970422",
+          },
+          {
+            key: "bank_name",
+            column: "bank_name",
+            normalize: (v) => String(v ?? "").trim() || "MB Bank",
+          },
+          {
+            key: "bank_account_no",
+            column: "bank_account_no",
+            normalize: (v) => String(v ?? ""),
+          },
+          {
+            key: "bank_account_name",
+            column: "bank_account_name",
+            normalize: (v) => String(v ?? "").trim() || "NGUYEN THE TIENG",
+          },
+          {
+            key: "tournament_fund_reserve",
+            column: "tournament_fund_reserve",
+            normalize: (v) => Number(v) || 0,
+          },
+          {
+            key: "tournament_fund_note",
+            column: "tournament_fund_note",
+            normalize: (v) => String(v ?? ""),
+          },
+          {
+            key: "fanpage_url",
+            column: "fanpage_url",
+            normalize: (v) => String(v ?? ""),
+          },
+        ];
+
+        const setClauses: string[] = [];
+        const params: unknown[] = [];
+        for (const field of SETTINGS_UPDATERS) {
+          if (hasOwn(field.key)) {
+            setClauses.push(`${field.column} = ?`);
+            params.push(field.normalize(rawPayload[field.key]));
+          }
+        }
+
+        if (setClauses.length > 0) {
+          await db.run(
+            `UPDATE team_settings SET ${setClauses.join(", ")} WHERE id = 1`,
+            params
+          );
+        }
         break;
       }
 

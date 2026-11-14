@@ -33,14 +33,19 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
   const [lockoutSeconds, setLockoutSeconds] = useState<number | null>(null);
   const [showHelp, setShowHelp] = useState(false);
 
-  // Reset trạng thái khi modal mở lại
+  // Reset trạng thái khi modal mở lại + đóng khi nhấn Escape
   useEffect(() => {
-    if (isOpen) {
-      setErrorMessage("");
-      setShowHelp(false);
-      setIsLoading(false);
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
+    setErrorMessage("");
+    setShowHelp(false);
+    setIsLoading(false);
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [isOpen, onClose]);
 
   // Bộ đếm ngược thời gian khóa đăng nhập nếu bị rate-limited
   useEffect(() => {
@@ -117,13 +122,23 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in">
-      <div className="relative w-full max-w-md my-auto rounded-2xl bg-gradient-to-b from-[#0f3468] via-[#0d2e5b] to-[#092244] border-2 border-[#ffd700]/70 text-white shadow-[0_25px_60px_rgba(0,0,0,0.85)] overflow-hidden">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="login-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-md my-auto rounded-2xl bg-gradient-to-b from-[#0f3468] via-[#0d2e5b] to-[#092244] border-2 border-[#ffd700]/70 text-white shadow-[0_25px_60px_rgba(0,0,0,0.85)] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Nút đóng */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer z-10"
+          aria-label="Đóng cửa sổ đăng nhập"
+          className="absolute top-4 right-4 inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition z-10 focus-visible:outline-2 focus-visible:outline-[#d4af37]"
           title="Đóng cửa sổ"
         >
           <X className="h-5 w-5" />
@@ -142,7 +157,10 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#ffd700] block">
                 CỔNG XÁC THỰC THÀNH VIÊN
               </span>
-              <h2 className="font-display font-black text-lg sm:text-xl text-white uppercase tracking-tight truncate">
+              <h2
+                id="login-modal-title"
+                className="font-display font-black text-lg sm:text-xl text-white uppercase tracking-tight truncate"
+              >
                 FC HĐH GÒ NỔI
               </h2>
               <p className="text-xs text-sky-200 mt-0.5 truncate">
@@ -235,13 +253,14 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sky-300 hover:text-white p-1 cursor-pointer transition"
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sky-300 hover:text-white p-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffd700] cursor-pointer transition"
                   title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-4 w-4" aria-hidden="true" />
                   )}
                 </button>
               </div>

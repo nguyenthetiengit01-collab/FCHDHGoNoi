@@ -284,7 +284,8 @@ export function BroadcastAthleteCard({
                   onClick={() =>
                     handleImageClick(player.avatar_url ? idx + 1 : idx)
                   }
-                  className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group hover:border-[#ffd700] transition cursor-pointer"
+                  aria-label={`Xem ảnh ${player.full_name} — khoảnh khắc #${idx + 1}`}
+                  className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group hover:border-[#ffd700] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffd700] transition cursor-pointer"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -581,7 +582,8 @@ export function BroadcastAthleteCard({
                   key={i}
                   type="button"
                   onClick={() => handleImageClick(i + 1)}
-                  className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group hover:border-[#ffd700] transition cursor-pointer"
+                  aria-label={`Xem ảnh ${img.title || `${player.full_name} — khoảnh khắc #${i + 1}`}`}
+                  className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group hover:border-[#ffd700] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffd700] transition cursor-pointer"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -863,7 +865,8 @@ export function BroadcastAthleteCard({
                 key={i}
                 type="button"
                 onClick={() => handleImageClick(i + 1)}
-                className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group hover:border-[#ffd700] transition cursor-pointer"
+                aria-label={`Xem ảnh ${img.title || `${player.full_name} — khoảnh khắc #${i + 1}`}`}
+                className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group hover:border-[#ffd700] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffd700] transition cursor-pointer"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

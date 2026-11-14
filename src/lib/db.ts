@@ -20,15 +20,149 @@ import type {
   SponsorTier,
 } from "@/types/app";
 
-const TURSO_URL =
-  process.env.TURSO_DATABASE_URL ||
-  "libsql://fchdhgonoi-nguyenthetiengit01-collab.aws-ap-northeast-1.turso.io";
+export type DatabaseMode =
+  | { adapter: "local-sqlite-qa"; dbPath: string }
+  | { adapter: "turso"; url: string; authToken: string }
+  | { adapter: "local-sqlite-default"; dbPath: string };
 
-const TURSO_AUTH_TOKEN =
-  process.env.TURSO_AUTH_TOKEN ||
-  "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTM5NTUxNDUsImlkIjoiMDFhMWIwMGUtYjEwMS03YjJmLTlmZmItZmUwN2QwODQ1MDIzIiwia2lkIjoiTlpPbE1LZzNCOUZ5X3MtRGZDbmVJc185bHhKdzZtTFM3MUF2VFpmZ21uUSIsInJpZCI6IjJmMzA4NTY5LTgxNjctNGNjOS04ZGUxLWI0MmMzNzBiNmMyNSJ9.pgEePsNzElhgndZQ_DiPY-kjeraabSnnJPpuRq41c5Fnvu-ELF76FUs30wbSL1bXC8O4R5pn-GIGDTsWYX2CAA";
+function normalizePathForCompare(targetPath: string): string {
+  const resolved = path.resolve(targetPath);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
 
-export interface AsyncDb {
+export function resolveLocalSqliteQaPath(
+  env: NodeJS.ProcessEnv = process.env,
+  repoRoot: string = process.cwd()
+): string | null {
+  if (env.USE_LOCAL_SQLITE?.trim() !== "true") {
+    return null;
+  }
+
+  if (env.NODE_ENV === "production") {
+    throw new Error(
+      "Database configuration error: USE_LOCAL_SQLITE is forbidden in production."
+    );
+  }
+
+  if (env.NODE_ENV !== "development" && env.NODE_ENV !== "test") {
+    throw new Error(
+      "Database configuration error: USE_LOCAL_SQLITE is only allowed when NODE_ENV is 'development' or 'test'."
+    );
+  }
+
+  if (env.VERCEL) {
+    throw new Error(
+      "Database configuration error: USE_LOCAL_SQLITE is forbidden on Vercel."
+    );
+  }
+
+  const rawQaPath = env.SQLITE_DB_PATH?.trim() || "";
+  if (!rawQaPath) {
+    throw new Error(
+      "Database configuration error: SQLITE_DB_PATH is required when USE_LOCAL_SQLITE=true."
+    );
+  }
+
+  if (!path.isAbsolute(rawQaPath)) {
+    throw new Error(
+      "Database configuration error: SQLITE_DB_PATH must be an absolute path."
+    );
+  }
+
+  const resolvedQaPath = path.resolve(rawQaPath);
+  const defaultLocalDbPath = path.resolve(repoRoot, "data", "gonoifc.sqlite");
+  if (
+    normalizePathForCompare(resolvedQaPath) ===
+    normalizePathForCompare(defaultLocalDbPath)
+  ) {
+    throw new Error(
+      "Database configuration error: SQLITE_DB_PATH must not point to the default local database."
+    );
+  }
+
+  const relativeToRepo = path.relative(
+    normalizePathForCompare(repoRoot),
+    normalizePathForCompare(resolvedQaPath)
+  );
+  const isInsideRepo =
+    relativeToRepo === "" ||
+    (!relativeToRepo.startsWith("..") && !path.isAbsolute(relativeToRepo));
+  if (isInsideRepo) {
+    throw new Error(
+      "Database configuration error: SQLITE_DB_PATH must be outside the repository directory."
+    );
+  }
+
+  return resolvedQaPath;
+}
+
+export function resolveTursoConfig(
+  env: NodeJS.ProcessEnv = process.env
+): { url: string; authToken: string } | null {
+  // Local SQLite QA Mode takes precedence over Turso env vars (and throws if misconfigured)
+  if (resolveLocalSqliteQaPath(env) !== null) {
+    return null;
+  }
+
+  const hasUrlKey = env.TURSO_DATABASE_URL !== undefined;
+  const hasTokenKey = env.TURSO_AUTH_TOKEN !== undefined;
+  const envUrl = env.TURSO_DATABASE_URL?.trim() || "";
+  const envToken = env.TURSO_AUTH_TOKEN?.trim() || "";
+  const isProdOrVercel =
+    env.NODE_ENV === "production" || Boolean(env.VERCEL);
+
+  const tursoRequiredOrEnabled =
+    isProdOrVercel || hasUrlKey || hasTokenKey;
+
+  // Development/test without Turso env vars: allow Local SQLite
+  if (!tursoRequiredOrEnabled) {
+    return null;
+  }
+
+  if (!envUrl) {
+    throw new Error(
+      "Database configuration error: TURSO_DATABASE_URL is required when Turso is enabled."
+    );
+  }
+
+  if (!envToken) {
+    throw new Error(
+      "Database configuration error: TURSO_AUTH_TOKEN is required when Turso is enabled."
+    );
+  }
+
+  return {
+    url: envUrl,
+    authToken: envToken,
+  };
+}
+
+export function resolveDatabaseMode(
+  env: NodeJS.ProcessEnv = process.env,
+  repoRoot: string = process.cwd()
+): DatabaseMode {
+  const qaPath = resolveLocalSqliteQaPath(env, repoRoot);
+  if (qaPath !== null) {
+    return { adapter: "local-sqlite-qa", dbPath: qaPath };
+  }
+
+  const tursoConfig = resolveTursoConfig(env);
+  if (tursoConfig) {
+    return {
+      adapter: "turso",
+      url: tursoConfig.url,
+      authToken: tursoConfig.authToken,
+    };
+  }
+
+  const dataDir = env.VERCEL ? os.tmpdir() : path.join(repoRoot, "data");
+  return {
+    adapter: "local-sqlite-default",
+    dbPath: path.join(dataDir, "gonoifc.sqlite"),
+  };
+}
+
+export interface AsyncDbTx {
   query<T = Record<string, unknown>>(
     sql: string,
     params?: unknown[]
@@ -41,10 +175,14 @@ export interface AsyncDb {
     sql: string,
     params?: unknown[]
   ): Promise<{ lastInsertRowid: number; changes: number }>;
+  exec(sql: string): Promise<void>;
+}
+
+export interface AsyncDb extends AsyncDbTx {
   batch(
     statements: Array<{ sql: string; params?: unknown[] }>
   ): Promise<void>;
-  exec(sql: string): Promise<void>;
+  transaction<T>(fn: (tx: AsyncDbTx) => Promise<T>): Promise<T>;
 }
 
 export class TursoDbAdapter implements AsyncDb {
@@ -97,16 +235,78 @@ export class TursoDbAdapter implements AsyncDb {
   async exec(sql: string): Promise<void> {
     await this.client.executeMultiple(sql);
   }
+
+  async transaction<T>(fn: (tx: AsyncDbTx) => Promise<T>): Promise<T> {
+    const tx = await this.client.transaction("write");
+    const txAdapter: AsyncDbTx = {
+      query: async <R = Record<string, unknown>>(
+        sql: string,
+        params: unknown[] = []
+      ): Promise<R[]> => {
+        const res = await tx.execute({ sql, args: params as InArgs });
+        return res.rows as unknown as R[];
+      },
+      queryOne: async <R = Record<string, unknown>>(
+        sql: string,
+        params: unknown[] = []
+      ): Promise<R | null> => {
+        const res = await tx.execute({ sql, args: params as InArgs });
+        return (res.rows[0] as unknown as R) || null;
+      },
+      run: async (
+        sql: string,
+        params: unknown[] = []
+      ): Promise<{ lastInsertRowid: number; changes: number }> => {
+        const res = await tx.execute({ sql, args: params as InArgs });
+        return {
+          lastInsertRowid: Number(res.lastInsertRowid || 0),
+          changes: Number(res.rowsAffected || 0),
+        };
+      },
+      exec: async (sql: string): Promise<void> => {
+        await tx.executeMultiple(sql);
+      },
+    };
+
+    try {
+      const result = await fn(txAdapter);
+      await tx.commit();
+      return result;
+    } catch (err) {
+      try {
+        await tx.rollback();
+      } catch {
+        // rollback fail-safe
+      }
+      throw err;
+    } finally {
+      try {
+        tx.close();
+      } catch {
+        // close fail-safe
+      }
+    }
+  }
 }
 
 export class LocalSqliteAdapter implements AsyncDb {
   private db: DatabaseSyncType;
+  private lockQueue: Promise<void> = Promise.resolve();
 
   constructor(db: DatabaseSyncType) {
     this.db = db;
   }
 
-  async query<T = Record<string, unknown>>(
+  private withLock<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.lockQueue.then(fn, fn);
+    this.lockQueue = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }
+
+  private async rawQuery<T = Record<string, unknown>>(
     sql: string,
     params: unknown[] = []
   ): Promise<T[]> {
@@ -114,7 +314,7 @@ export class LocalSqliteAdapter implements AsyncDb {
     return (this.db.prepare(sql).all as QueryFn)(...params) as T[];
   }
 
-  async queryOne<T = Record<string, unknown>>(
+  private async rawQueryOne<T = Record<string, unknown>>(
     sql: string,
     params: unknown[] = []
   ): Promise<T | null> {
@@ -122,7 +322,7 @@ export class LocalSqliteAdapter implements AsyncDb {
     return ((this.db.prepare(sql).get as QueryOneFn)(...params) as T) || null;
   }
 
-  async run(
+  private async rawRun(
     sql: string,
     params: unknown[] = []
   ): Promise<{ lastInsertRowid: number; changes: number }> {
@@ -137,30 +337,81 @@ export class LocalSqliteAdapter implements AsyncDb {
     };
   }
 
+  private async rawExec(sql: string): Promise<void> {
+    this.db.exec(sql);
+  }
+
+  async query<T = Record<string, unknown>>(
+    sql: string,
+    params: unknown[] = []
+  ): Promise<T[]> {
+    return this.withLock(() => this.rawQuery<T>(sql, params));
+  }
+
+  async queryOne<T = Record<string, unknown>>(
+    sql: string,
+    params: unknown[] = []
+  ): Promise<T | null> {
+    return this.withLock(() => this.rawQueryOne<T>(sql, params));
+  }
+
+  async run(
+    sql: string,
+    params: unknown[] = []
+  ): Promise<{ lastInsertRowid: number; changes: number }> {
+    return this.withLock(() => this.rawRun(sql, params));
+  }
+
   async batch(
     statements: Array<{ sql: string; params?: unknown[] }>
   ): Promise<void> {
     if (statements.length === 0) return;
-    type RunFn = (...args: unknown[]) => void;
-    this.db.exec("BEGIN TRANSACTION;");
-    try {
-      for (const s of statements) {
-        const stmt = this.db.prepare(s.sql);
-        (stmt.run as RunFn)(...(s.params || []));
-      }
-      this.db.exec("COMMIT;");
-    } catch (err) {
+    return this.withLock(async () => {
+      type RunFn = (...args: unknown[]) => void;
+      this.db.exec("BEGIN TRANSACTION;");
       try {
-        this.db.exec("ROLLBACK;");
-      } catch {
-        // rollback fail safe
+        for (const s of statements) {
+          const stmt = this.db.prepare(s.sql);
+          (stmt.run as RunFn)(...(s.params || []));
+        }
+        this.db.exec("COMMIT;");
+      } catch (err) {
+        try {
+          this.db.exec("ROLLBACK;");
+        } catch {
+          // rollback fail safe, preserve original error
+        }
+        throw err;
       }
-      throw err;
-    }
+    });
   }
 
   async exec(sql: string): Promise<void> {
-    this.db.exec(sql);
+    return this.withLock(() => this.rawExec(sql));
+  }
+
+  async transaction<T>(fn: (tx: AsyncDbTx) => Promise<T>): Promise<T> {
+    return this.withLock(async () => {
+      this.db.exec("BEGIN TRANSACTION;");
+      const txAdapter: AsyncDbTx = {
+        query: this.rawQuery.bind(this),
+        queryOne: this.rawQueryOne.bind(this),
+        run: this.rawRun.bind(this),
+        exec: this.rawExec.bind(this),
+      };
+      try {
+        const result = await fn(txAdapter);
+        this.db.exec("COMMIT;");
+        return result;
+      } catch (err) {
+        try {
+          this.db.exec("ROLLBACK;");
+        } catch {
+          // rollback fail-safe, preserve original error
+        }
+        throw err;
+      }
+    });
   }
 }
 
@@ -170,18 +421,26 @@ let tursoClientInstance: Client | null = null;
 export function getAsyncDb(): AsyncDb {
   if (asyncDbInstance) return asyncDbInstance;
 
-  if (TURSO_URL && TURSO_AUTH_TOKEN) {
+  const mode = resolveDatabaseMode(process.env);
+  if (mode.adapter === "local-sqlite-qa") {
+    console.info("Database adapter selected: Local SQLite QA");
+    const local = getDb(mode.dbPath);
+    asyncDbInstance = new LocalSqliteAdapter(local);
+    return asyncDbInstance;
+  }
+
+  if (mode.adapter === "turso") {
     if (!tursoClientInstance) {
       tursoClientInstance = createClient({
-        url: TURSO_URL,
-        authToken: TURSO_AUTH_TOKEN,
+        url: mode.url,
+        authToken: mode.authToken,
       });
     }
     asyncDbInstance = new TursoDbAdapter(tursoClientInstance);
     return asyncDbInstance;
   }
 
-  const local = getDb();
+  const local = getDb(mode.dbPath);
   asyncDbInstance = new LocalSqliteAdapter(local);
   return asyncDbInstance;
 }
@@ -204,17 +463,26 @@ export {
   type ExpenseRecord,
 };
 
-export function getDb(): DatabaseSyncType {
+export function getDb(customDbPath?: string): DatabaseSyncType {
   if (dbInstance) return dbInstance;
 
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  const qaPath = customDbPath ? null : resolveLocalSqliteQaPath(process.env);
+  const resolvedPath = customDbPath ?? qaPath ?? DB_PATH;
+  const targetDir = path.dirname(resolvedPath);
+
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
   }
 
   // Trên môi trường Serverless (Vercel), thư mục gốc là chỉ-đọc nên ta sao chép DB mẫu sang /tmp để đọc/ghi
   // LƯU Ý QUAN TRỌNG: Chỉ copy một lần khi DB chưa tồn tại ở /tmp. Tuyệt đối không kiểm tra kích thước file
   // vì khi người dùng cập nhật dữ liệu (ghi thêm trận, điểm danh, thu tiền), kích thước file sẽ thay đổi!
-  if (IS_VERCEL && !fs.existsSync(DB_PATH) && fs.existsSync(BUNDLED_DB_PATH)) {
+  if (
+    IS_VERCEL &&
+    resolvedPath === DB_PATH &&
+    !fs.existsSync(DB_PATH) &&
+    fs.existsSync(BUNDLED_DB_PATH)
+  ) {
     try {
       fs.copyFileSync(BUNDLED_DB_PATH, DB_PATH);
     } catch (err) {
@@ -225,7 +493,7 @@ export function getDb(): DatabaseSyncType {
   const sqlite = process.getBuiltinModule(
     "node:sqlite"
   ) as typeof import("node:sqlite");
-  const db = new sqlite.DatabaseSync(DB_PATH);
+  const db = new sqlite.DatabaseSync(resolvedPath);
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
 
@@ -865,173 +1133,165 @@ export async function seedAsyncInitialDataIfNeeded(
   db: AsyncDb,
   forceReset = false
 ) {
-  if (forceReset) {
-    await db.exec(`
-      DELETE FROM match_attendances;
-      DELETE FROM expenses;
-      DELETE FROM other_incomes;
-      DELETE FROM matches;
-      DELETE FROM players;
-      DELETE FROM team_settings;
-    `);
-  } else {
-    const countRow = await db.queryOne<{ cnt: number }>(
-      "SELECT COUNT(*) as cnt FROM players"
-    );
-    if (countRow && countRow.cnt > 0) {
-      return;
+  await db.transaction(async (tx) => {
+    if (forceReset) {
+      await tx.exec(`
+        DELETE FROM match_attendances;
+        DELETE FROM expenses;
+        DELETE FROM other_incomes;
+        DELETE FROM matches;
+        DELETE FROM players;
+        DELETE FROM team_settings;
+      `);
+    } else {
+      const countRow = await tx.queryOne<{ cnt: number }>(
+        "SELECT COUNT(*) as cnt FROM players"
+      );
+      if (countRow && countRow.cnt > 0) {
+        return;
+      }
     }
-  }
 
-  await db.run(
-    `INSERT INTO team_settings (
-      id, team_name, short_name, default_match_fee,
-      bank_bin, bank_name, bank_account_no, bank_account_name,
-      tournament_fund_reserve, tournament_fund_note, fanpage_url
-    ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      "Đội Bóng HĐH Gò Nổi",
-      "FC HĐH GÒ NỔI",
-      100000,
-      "970422",
-      "MB Bank",
-      "0905123456",
-      "NGUYEN THE TIENG",
-      2301700,
-      "Còn giải trước: 2,876,700đ | Trừ 2 áo TM, 1 balo (575,000đ) còn: 2,301,700đ",
-      FANPAGE_URL,
-    ]
-  );
-
-  const playerIdByName = new Map<string, number>();
-  for (let idx = 0; idx < INITIAL_PLAYERS.length; idx++) {
-    const p = INITIAL_PLAYERS[idx];
-    const picIdx = (idx % 14) + 1;
-    const res = await db.run(
-      `INSERT INTO players (code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes)
-       VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', '')`,
+    await tx.run(
+      `INSERT INTO team_settings (
+        id, team_name, short_name, default_match_fee,
+        bank_bin, bank_name, bank_account_no, bank_account_name,
+        tournament_fund_reserve, tournament_fund_note, fanpage_url
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        p.code_order,
-        p.full_name,
-        p.short_name,
-        p.jersey_number,
-        p.position,
-        p.birth_year,
-        `/uploads/avatars/member-${picIdx}.jpg`,
-        p.bio,
-        p.role,
-        p.access_role,
+        "Đội Bóng HĐH Gò Nổi",
+        "FC HĐH GÒ NỔI",
+        100000,
+        "970422",
+        "MB Bank",
+        "0905123456",
+        "NGUYEN THE TIENG",
+        2301700,
+        "Còn giải trước: 2,876,700đ | Trừ 2 áo TM, 1 balo (575,000đ) còn: 2,301,700đ",
+        FANPAGE_URL,
       ]
     );
-    playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
-  }
 
-  const matchIds: number[] = [];
-  for (const m of INITIAL_MATCHES) {
-    const res = await db.run(
-      `INSERT INTO matches (
-        match_number, label, match_date, kickoff_time, venue,
-        opponent, fee_per_player, pitch_cost, payer_name, status, notes
-      ) VALUES (?, ?, ?, '19:00', ?, 'Sinh hoạt / Giao hữu tuần', 100000, ?, ?, 'Đã kết thúc', '')`,
-      [
-        m.match_number,
-        m.label,
-        m.match_date,
-        m.venue,
-        m.pitch_cost,
-        m.payer_name,
-      ]
-    );
-    matchIds.push(Number(res.lastInsertRowid));
-  }
-
-  for (const [fullName, flags] of Object.entries(ATTENDANCE_MATRIX)) {
-    const playerId = playerIdByName.get(fullName);
-    if (!playerId) continue;
-    for (let i = 0; i < matchIds.length; i++) {
-      const isPaid = flags[i] === 1 ? 1 : 0;
-      const rsvp: RsvpStatus = isPaid ? "registered" : "none";
-      await db.run(
-        `INSERT INTO match_attendances (match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note)
-         VALUES (?, ?, ?, 0, ?, ?, ?, 'Tiếng', '')`,
+    const playerIdByName = new Map<string, number>();
+    for (let idx = 0; idx < INITIAL_PLAYERS.length; idx++) {
+      const p = INITIAL_PLAYERS[idx];
+      const picIdx = (idx % 14) + 1;
+      const res = await tx.run(
+        `INSERT INTO players (code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes)
+         VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', '')`,
         [
-          matchIds[i],
-          playerId,
-          rsvp,
-          isPaid,
-          isPaid,
-          isPaid ? 100000 : 0,
+          p.code_order,
+          p.full_name,
+          p.short_name,
+          p.jersey_number,
+          p.position,
+          p.birth_year,
+          `/uploads/avatars/member-${picIdx}.jpg`,
+          p.bio,
+          p.role,
+          p.access_role,
         ]
       );
+      playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
     }
-  }
 
-  await db.run(
-    `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
-     VALUES (?, ?, ?, ?, ?)`,
-    [
-      "2026-06-15",
-      "Nguyễn Thế Tiếng",
-      0,
-      "Ghi chú Quỹ giải",
-      "Còn giải trước: 2,876,700đ",
-    ]
-  );
-  await db.run(
-    `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
-     VALUES (?, ?, ?, ?, ?)`,
-    [
-      "2026-10-16",
-      "Quỹ giải đội bóng",
-      0,
-      "Ghi chú Quỹ giải",
-      "Trừ 2 áo TM, 1 balo còn: 2,301,700đ",
-    ]
-  );
+    const matchIds: number[] = [];
+    for (const m of INITIAL_MATCHES) {
+      const res = await tx.run(
+        `INSERT INTO matches (
+          match_number, label, match_date, kickoff_time, venue,
+          opponent, fee_per_player, pitch_cost, payer_name, status, notes
+        ) VALUES (?, ?, ?, '19:00', ?, 'Sinh hoạt / Giao hữu tuần', 100000, ?, ?, 'Đã kết thúc', '')`,
+        [
+          m.match_number,
+          m.label,
+          m.match_date,
+          m.venue,
+          m.pitch_cost,
+          m.payer_name,
+        ]
+      );
+      matchIds.push(Number(res.lastInsertRowid));
+    }
 
-  for (let i = 0; i < INITIAL_MATCHES.length; i++) {
-    const m = INITIAL_MATCHES[i];
-    await db.run(
-      `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+    for (const [fullName, flags] of Object.entries(ATTENDANCE_MATRIX)) {
+      const playerId = playerIdByName.get(fullName);
+      if (!playerId) continue;
+      for (let i = 0; i < matchIds.length; i++) {
+        const isPaid = flags[i] === 1 ? 1 : 0;
+        const rsvp: RsvpStatus = isPaid ? "registered" : "none";
+        await tx.run(
+          `INSERT INTO match_attendances (match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note)
+           VALUES (?, ?, ?, 0, ?, ?, ?, 'Tiếng', '')`,
+          [
+            matchIds[i],
+            playerId,
+            rsvp,
+            isPaid,
+            isPaid,
+            isPaid ? 100000 : 0,
+          ]
+        );
+      }
+    }
+
+    await tx.run(
+      `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
+       VALUES (?, ?, ?, ?, ?)`,
       [
-        m.match_date,
-        "Tiền sân",
-        m.desc,
-        m.pitch_cost,
-        m.payer_name,
-        matchIds[i],
+        "2026-06-15",
+        "Nguyễn Thế Tiếng",
+        0,
+        "Ghi chú Quỹ giải",
+        "Còn giải trước: 2,876,700đ",
       ]
     );
-    if (m.match_number === 11) {
-      await db.run(
+    await tx.run(
+      `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        "2026-10-16",
+        "Quỹ giải đội bóng",
+        0,
+        "Ghi chú Quỹ giải",
+        "Trừ 2 áo TM, 1 balo còn: 2,301,700đ",
+      ]
+    );
+
+    for (let i = 0; i < INITIAL_MATCHES.length; i++) {
+      const m = INITIAL_MATCHES[i];
+      await tx.run(
         `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
-          "2026-09-23",
-          "Áo đấu/Phụ kiện",
-          "giặt đồ",
-          110000,
-          "anh Sơn 1 lần + Vương lâm 3 lần; 160k - 50k dư trận trước",
+          m.match_date,
+          "Tiền sân",
+          m.desc,
+          m.pitch_cost,
+          m.payer_name,
           matchIds[i],
         ]
       );
+      if (m.match_number === 11) {
+        await tx.run(
+          `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            "2026-09-23",
+            "Áo đấu/Phụ kiện",
+            "giặt đồ",
+            110000,
+            "anh Sơn 1 lần + Vương lâm 3 lần; 160k - 50k dư trận trước",
+            matchIds[i],
+          ]
+        );
+      }
     }
-  }
+  });
 }
 
 export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false) {
-  if (forceReset) {
-    db.exec(`
-      DELETE FROM match_attendances;
-      DELETE FROM expenses;
-      DELETE FROM other_incomes;
-      DELETE FROM matches;
-      DELETE FROM players;
-      DELETE FROM team_settings;
-      DELETE FROM sqlite_sequence;
-    `);
-  } else {
+  if (!forceReset) {
     const countRow = db.prepare("SELECT COUNT(*) as cnt FROM players").get() as {
       cnt: number;
     };
@@ -1042,6 +1302,17 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
 
   db.exec("BEGIN TRANSACTION;");
   try {
+    if (forceReset) {
+      db.exec(`
+        DELETE FROM match_attendances;
+        DELETE FROM expenses;
+        DELETE FROM other_incomes;
+        DELETE FROM matches;
+        DELETE FROM players;
+        DELETE FROM team_settings;
+        DELETE FROM sqlite_sequence;
+      `);
+    }
     db.prepare(`
       INSERT INTO team_settings (
         id, team_name, short_name, default_match_fee,

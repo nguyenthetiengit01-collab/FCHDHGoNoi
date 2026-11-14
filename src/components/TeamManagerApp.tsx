@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -23,10 +23,15 @@ import {
   Menu,
   MoreHorizontal,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import type { FullAppData, AuthSession, Player } from "@/types/app";
 import { FANPAGE_URL, OFFICIAL_LOGO_URL } from "@/types/app";
 import { formatVND } from "@/lib/format";
+import {
+  createTransitionSafeData,
+  executeSessionHydration,
+} from "@/lib/sessionHydration";
 import { DashboardTab } from "./DashboardTab";
 import { ScheduleTab } from "./ScheduleTab";
 import { CollectionTab } from "./CollectionTab";
@@ -90,10 +95,89 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Login modal states
+  // Login modal & session hydration states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dismissSecurityBanner, setDismissSecurityBanner] = useState(false);
+  const [isHydratingSession, setIsHydratingSession] = useState(false);
+  const [hydrationError, setHydrationError] = useState<string | null>(null);
+
+  const isMountedRef = useRef(true);
+  const hydrationEpochRef = useRef(0);
+  const hydrationAbortRef = useRef<AbortController | null>(null);
+  const drawerCloseBtnRef = useRef<HTMLButtonElement>(null);
+  const lastFocusedBeforeDrawerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      hydrationAbortRef.current?.abort();
+    };
+  }, []);
+
+  const hydrateForSession = async (
+    nextSession: AuthSession,
+    nextTab: ActiveTab
+  ): Promise<boolean> => {
+    hydrationEpochRef.current += 1;
+    const epoch = hydrationEpochRef.current;
+    hydrationAbortRef.current?.abort();
+    const controller = new AbortController();
+    hydrationAbortRef.current = controller;
+
+    return executeSessionHydration<ActiveTab>({
+      epoch,
+      getCurrentEpoch: () => hydrationEpochRef.current,
+      isMounted: () => isMountedRef.current,
+      nextSession,
+      nextTab,
+      signal: controller.signal,
+      onStartTransition: () => {
+        setIsHydratingSession(true);
+        setHydrationError(null);
+        setData((prev) => createTransitionSafeData(prev));
+      },
+      onSuccess: (freshData, resolvedSession, resolvedTab) => {
+        setData(freshData);
+        setSession(resolvedSession);
+        setActiveTab(resolvedTab);
+        setHydrationError(null);
+        setIsHydratingSession(false);
+      },
+      onError: (message, failedSession) => {
+        setSession(failedSession);
+        setHydrationError(message);
+        setIsHydratingSession(false);
+      },
+    });
+  };
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    lastFocusedBeforeDrawerRef.current =
+      document.activeElement as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusTimer = window.setTimeout(() => {
+      drawerCloseBtnRef.current?.focus();
+    }, 10);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = prevOverflow;
+      lastFocusedBeforeDrawerRef.current?.focus?.();
+    };
+  }, [mobileMenuOpen]);
 
   // Tự động khôi phục phiên làm việc an toàn từ Server Cookie khi khởi tạo
   useEffect(() => {
@@ -107,7 +191,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
             res.player,
             res.mustChangePassword
           );
-          setSession(restoredSession);
+          void hydrateForSession(restoredSession, "public");
         }
       })
       .catch(() => {});
@@ -220,10 +304,9 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       } catch {
         // ignore
       }
-      setSession(GUEST_SESSION);
-      setActiveTab("public");
-      showToast("Đã đăng xuất về Trang Khách");
       setLoginModalOpen(false);
+      await hydrateForSession(GUEST_SESSION, "public");
+      showToast("Đã đăng xuất về Trang Khách");
       return;
     }
 
@@ -243,15 +326,16 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       }
       const safePlayer: Player = json.player || targetPlayer;
       const newSession = buildSessionFromPlayer(safePlayer);
-      setSession(newSession);
-      // Khi cầu thủ đăng nhập -> ưu tiên hiện Lịch, Thông báo & Điểm danh tuần
-      setActiveTab("schedule");
-      showToast(
-        `Đã đăng nhập: ${safePlayer.full_name} (${
-          newSession.role === "manager" ? "Ban Quản Lý" : "Cầu thủ"
-        })`
-      );
       setLoginModalOpen(false);
+      // Đồng bộ toàn bộ dữ liệu theo quyền mới trước khi mở giao diện điều hành
+      const ok = await hydrateForSession(newSession, "schedule");
+      if (ok) {
+        showToast(
+          `Đã đăng nhập: ${safePlayer.full_name} (${
+            newSession.role === "manager" ? "Ban Quản Lý" : "Cầu thủ"
+          })`
+        );
+      }
     } catch (err) {
       console.error("switch_role error:", err);
       showToast("Lỗi kết nối phiên làm việc máy chủ");
@@ -384,7 +468,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       <a href="#main-content" className="skip-link">Bỏ qua điều hướng, tới nội dung chính</a>
       {/* Top Navigation Bar — Khi đã đăng nhập (Cầu thủ / Quản lý) hiển thị App Header; khi là Khách hiển thị thanh công khai */}
       {session.role !== "guest" ? (
-        <header className="sticky top-0 z-40 app-header text-white border-b border-[#4a7fe8] shadow-md">
+        <header className="sticky top-0 z-40 app-header text-white border-b border-white/15 shadow-md">
           <div className="mx-auto max-w-7xl px-3 sm:px-6">
             <div className="flex h-16 items-center justify-between gap-2.5">
               {/* Logo Chính Thức & Tên Đội */}
@@ -393,7 +477,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 <img
                   src={OFFICIAL_LOGO_URL}
                   alt="Logo FC HĐH Gò Nổi"
-                  className="h-11 w-11 shrink-0 rounded-xl object-contain bg-white p-0.5 border-2 border-[#ffc933] shadow-xs"
+                  className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 rounded-lg object-contain bg-white p-0.5 border border-[#d4af37] shadow-xs"
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -404,25 +488,25 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                       href={fanpageUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hidden lg:inline-flex items-center gap-1 rounded-full bg-[#1877F2] hover:bg-[#166fe5] px-2.5 py-0.5 text-[11px] font-bold text-white transition"
+                      className="hidden lg:inline-flex items-center gap-1 rounded-md bg-[#1877F2] hover:bg-[#166fe5] px-2 py-0.5 text-[11px] font-bold text-white transition"
                     >
-                      <span>Fanpage Chính Thức</span>
+                      <span>Fanpage</span>
                       <ExternalLink className="h-2.5 w-2.5" />
                     </a>
                   </div>
-                  <p className="text-[11px] text-[#ffc933] font-semibold truncate">
-                    Tại TP. Hồ Chí Minh
+                  <p className="text-[11px] text-[#fde047] font-semibold truncate">
+                    Xã Gò Nổi • TP. Đà Nẵng — Tại TP.HCM
                   </p>
                 </div>
               </div>
 
               {/* Khu vực Tài khoản đang đăng nhập & Công cụ */}
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="hidden sm:block rounded-xl bg-[#2f66dd] border border-[#4a7fe8] px-3 py-1 text-right">
-                  <span className="block text-[10px] uppercase tracking-wider text-sky-300 font-bold">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <div className="hidden sm:block rounded-lg bg-[#092244]/70 border border-white/15 px-3 py-1 text-right">
+                  <span className="block text-[10px] uppercase tracking-wider text-sky-200 font-bold">
                     Tồn Quỹ Đội
                   </span>
-                  <span className="text-sm font-extrabold text-[#ffc933]">
+                  <span className="text-sm font-extrabold tabular-nums text-[#fde047]">
                     {formatVND(data.summary.currentBalance)}
                   </span>
                 </div>
@@ -430,11 +514,12 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 {session.role === "manager" && (
                   <>
                     <label
-                      className="hidden xl:inline-flex items-center gap-1.5 rounded-xl bg-[#2f66dd] hover:bg-[#4a7fe8] border border-sky-700/60 px-3 py-2 text-xs font-bold text-white transition cursor-pointer"
+                      className="hidden md:inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 lg:px-3 py-2 text-xs font-bold text-white transition cursor-pointer focus-within:outline-2 focus-within:outline-[#d4af37]"
                       title="Nhập dữ liệu từ file Excel (.xlsx)"
                     >
-                      <Upload className="h-3.5 w-3.5 text-[#ffc933]" />
-                      <span>Nhập Excel</span>
+                      <Upload className="h-3.5 w-3.5 text-[#fde047] shrink-0" />
+                      <span className="hidden lg:inline">Nhập Excel</span>
+                      <span className="lg:hidden">Nhập</span>
                       <input
                         type="file"
                         accept=".xlsx,.xls"
@@ -445,11 +530,12 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
                     <a
                       href="/api/export"
-                      className="hidden xl:inline-flex items-center gap-1.5 rounded-xl bg-[#2f66dd] hover:bg-[#4a7fe8] border border-sky-700/60 px-3 py-2 text-xs font-bold text-white transition"
+                      className="hidden md:inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 lg:px-3 py-2 text-xs font-bold text-white transition focus-visible:outline-2 focus-visible:outline-[#d4af37]"
                       title="Tải file Excel 5 sheets chuẩn GONOIFC"
                     >
-                      <Download className="h-3.5 w-3.5 text-[#ffc933]" />
-                      <span>Xuất Excel</span>
+                      <Download className="h-3.5 w-3.5 text-[#fde047] shrink-0" />
+                      <span className="hidden lg:inline">Xuất Excel</span>
+                      <span className="lg:hidden">Xuất</span>
                     </a>
                   </>
                 )}
@@ -458,20 +544,20 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 <button
                   type="button"
                   onClick={() => setLoginModalOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#ffc933] hover:bg-[#ffd95e] px-3 py-1.5 text-xs font-extrabold text-slate-950 transition cursor-pointer shadow-xs"
+                  className="inline-flex items-center gap-2 min-h-10 rounded-lg bg-[#d4af37] hover:bg-[#e5c14d] px-2.5 sm:px-3 py-1.5 text-xs font-extrabold text-[#092244] transition shadow-xs focus-visible:outline-2 focus-visible:outline-white"
                 >
                   {currentPlayerObj?.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={currentPlayerObj.avatar_url}
                       alt={session.shortName}
-                      className="h-6 w-6 rounded-full object-cover border border-slate-900"
+                      className="h-6 w-6 rounded-full object-cover border border-[#092244]"
                     />
                   ) : (
-                    <ShieldCheck className="h-4 w-4 text-slate-950" />
+                    <ShieldCheck className="h-4 w-4 text-[#092244]" />
                   )}
                   <div className="text-left leading-tight">
-                    <div className="text-[9px] uppercase font-extrabold text-slate-800">
+                    <div className="text-[9px] uppercase font-extrabold text-[#092244]/80">
                       {session.role === "manager"
                         ? "Ban Quản Lý"
                         : "Cầu Thủ"}
@@ -486,7 +572,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   type="button"
                   onClick={() => handleQuickSwitchRole(null)}
                   title="Đăng xuất về Trang Khách công khai"
-                  className="inline-flex items-center justify-center h-9 w-9 rounded-xl bg-[#2f66dd] hover:bg-rose-700 text-sky-200 hover:text-white border border-[#4a7fe8] transition cursor-pointer"
+                  aria-label="Đăng xuất về Trang Khách"
+                  className="inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg bg-white/10 hover:bg-rose-600 text-sky-100 hover:text-white border border-white/15 transition focus-visible:outline-2 focus-visible:outline-[#d4af37]"
                 >
                   <LogOut className="h-4 w-4" />
                 </button>
@@ -497,7 +584,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   onClick={() => setMobileMenuOpen(true)}
                   title="Mở toàn bộ menu chức năng"
                   aria-label="Mở menu điều hướng"
-                  className="md:hidden inline-flex items-center justify-center h-9 w-9 rounded-xl bg-[#ffc933] hover:bg-[#ffd95e] text-slate-950 font-black shadow-xs transition cursor-pointer"
+                  aria-expanded={mobileMenuOpen}
+                  className="md:hidden inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg bg-[#d4af37] hover:bg-[#e5c14d] text-[#092244] font-black shadow-xs transition focus-visible:outline-2 focus-visible:outline-white"
                 >
                   <Menu className="h-4 w-4" />
                 </button>
@@ -507,7 +595,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
             {/* Desktop Navigation Tabs */}
             <nav
               aria-label="Điều hướng chính"
-              className="hidden md:flex items-center gap-1 pt-1 -mb-px overflow-x-auto"
+              className="hidden md:flex items-center gap-1 pt-1 -mb-px overflow-x-auto gn-hide-scroll"
             >
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -518,13 +606,13 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                     type="button"
                     onClick={() => setActiveTab(item.id)}
                     aria-current={isActive ? "page" : undefined}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs lg:text-sm font-bold border-b-2 transition cursor-pointer whitespace-nowrap ${
+                    className={`inline-flex items-center gap-1.5 min-h-10 px-3 py-2 text-xs lg:text-sm font-bold border-b-2 transition whitespace-nowrap focus-visible:outline-2 focus-visible:outline-[#d4af37] ${
                       isActive
-                        ? "border-[#ffd700] text-[#ffd700] bg-[#10346a] rounded-t-xl font-extrabold shadow-sm"
-                        : "border-transparent text-sky-100/90 hover:text-white hover:bg-[#10346a]/50 rounded-t-xl"
+                        ? "border-[#d4af37] text-[#fde047] bg-[#092244]/75 rounded-t-lg font-extrabold"
+                        : "border-transparent text-sky-100/85 hover:text-white hover:bg-white/10 rounded-t-lg"
                     }`}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4 shrink-0" />
                     <span>{item.label}</span>
                   </button>
                 );
@@ -539,9 +627,9 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-20 md:bottom-6 right-4 z-50 rounded-xl bg-[#1e4fc2] text-white px-4 py-3 text-sm font-bold shadow-md border-2 border-[#ffc933] flex items-center gap-2"
+          className="fixed bottom-20 md:bottom-6 right-4 z-50 rounded-xl bg-[#092244] text-white px-4 py-3 text-sm font-bold shadow-lg border border-[#d4af37] flex items-center gap-2.5"
         >
-          <span className="h-2.5 w-2.5 rounded-full bg-[#ffc933]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#d4af37] shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -551,16 +639,16 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         session.mustChangePassword &&
         !dismissSecurityBanner && (
           <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 pt-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 border border-amber-500/40 shadow-sm backdrop-blur-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-amber-50 border border-amber-300 shadow-xs">
               <div className="flex items-start sm:items-center gap-3">
-                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+                <div className="p-2 rounded-lg bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
                   <ShieldAlert className="h-5 w-5" />
                 </div>
                 <div className="text-xs sm:text-sm">
-                  <p className="font-bold text-amber-200">
+                  <p className="font-bold text-amber-950">
                     Cảnh báo bảo mật tài khoản
                   </p>
-                  <p className="text-slate-300 text-xs mt-0.5">
+                  <p className="text-amber-800 text-xs mt-0.5">
                     Tài khoản của bạn đang dùng mật khẩu mặc định (1234). Vui
                     lòng đổi mật khẩu cá nhân mới để bảo vệ thông tin.
                   </p>
@@ -570,7 +658,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 <button
                   type="button"
                   onClick={() => setActiveTab("personal")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-bold text-xs shadow-sm transition cursor-pointer"
+                  className="inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition"
                 >
                   <KeyRound className="h-3.5 w-3.5" />
                   <span>Đổi mật khẩu ngay</span>
@@ -578,7 +666,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 <button
                   type="button"
                   onClick={() => setDismissSecurityBanner(true)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                  aria-label="Đóng cảnh báo bảo mật"
+                  className="inline-flex items-center justify-center min-h-9 min-w-9 rounded-lg text-amber-700 hover:text-amber-950 hover:bg-amber-200/60 transition"
                   title="Bỏ qua nhắc nhở"
                 >
                   <X className="h-4 w-4" />
@@ -594,6 +683,49 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
             ? "tab-enter w-full flex-1"
             : "tab-enter mx-auto w-full max-w-7xl flex-1 px-3 sm:px-6 py-4 sm:py-5"
         }>
+        {isHydratingSession ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="mx-auto my-12 max-w-md rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm"
+          >
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#1e4fc2]" aria-hidden="true" />
+            <p className="mt-3 text-sm font-bold text-slate-900">
+              Đang đồng bộ dữ liệu theo phiên làm việc...
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Vui lòng chờ trong giây lát để tải đầy đủ sổ quỹ và thông tin đội bóng.
+            </p>
+          </div>
+        ) : hydrationError && session.role !== "guest" ? (
+          <div
+            role="alert"
+            className="mx-auto my-12 max-w-lg rounded-xl border border-rose-200 bg-white p-6 text-center shadow-sm space-y-3"
+          >
+            <ShieldAlert className="mx-auto h-8 w-8 text-rose-600" aria-hidden="true" />
+            <h2 className="text-base font-extrabold text-slate-900">
+              Không thể tải dữ liệu phiên làm việc
+            </h2>
+            <p className="text-xs text-slate-600">{hydrationError}</p>
+            <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => void hydrateForSession(session, activeTab)}
+                className="rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-4 py-2 text-xs font-bold text-[#ffc933] cursor-pointer"
+              >
+                Thử tải lại dữ liệu
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleQuickSwitchRole(null)}
+                className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 px-4 py-2 text-xs font-bold text-slate-700 cursor-pointer"
+              >
+                Đăng xuất về Trang Khách
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
         {session.role === "guest" && (
           <PublicGuestPortal
             data={data}
@@ -614,6 +746,11 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
           <DashboardTab
             data={data}
             onNavigateTab={(tab) => setActiveTab(tab)}
+            onGoToCollection={
+              session.role === "manager"
+                ? () => setActiveTab("collection")
+                : undefined
+            }
           />
         )}
 
@@ -684,6 +821,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
             onMutate={handleMutate}
             isSaving={isSaving}
           />
+        )}
+          </>
         )}
       </main>
 
@@ -811,9 +950,11 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
               </div>
 
               <button
+                ref={drawerCloseBtnRef}
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"
+                aria-label="Đóng menu điều hướng"
+                className="inline-flex items-center justify-center min-h-11 min-w-11 rounded-xl bg-white/10 hover:bg-white/20 text-white transition focus-visible:outline-2 focus-visible:outline-[#d4af37]"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -945,14 +1086,15 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       <LoginModal
         isOpen={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
-        onSuccess={(player, mustChangePassword) => {
+        onSuccess={async (player, mustChangePassword) => {
           const newSession = buildSessionFromPlayer(player, mustChangePassword);
-          setSession(newSession);
           setLoginModalOpen(false);
-          setActiveTab("schedule");
-          showToast(
-            `Xin chào ${player.full_name} (#${player.jersey_number ?? "-"})!`
-          );
+          const ok = await hydrateForSession(newSession, "schedule");
+          if (ok) {
+            showToast(
+              `Xin chào ${player.full_name} (#${player.jersey_number ?? "-"})!`
+            );
+          }
         }}
       />
     </div>

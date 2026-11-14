@@ -13,11 +13,11 @@ import type { Player } from "@/types/app";
 
 describe("BroadcastAthleteCard - Deep Module Domain Logic", () => {
   it("determines correct athletic position badges", () => {
-    expect(getPlayerPositionBadge({ position: "Thủ môn xuất sắc", access_role: "player" }).code).toBe("GK");
-    expect(getPlayerPositionBadge({ position: "Hậu vệ cánh", access_role: "player" }).code).toBe("DF");
-    expect(getPlayerPositionBadge({ position: "Tiền vệ trung tâm", access_role: "player" }).code).toBe("MF");
-    expect(getPlayerPositionBadge({ position: "Tiền đạo cắm", access_role: "player" }).code).toBe("FW");
-    expect(getPlayerPositionBadge({ position: "Đa năng", access_role: "manager" }).code).toBe("ĐN");
+    expect(getPlayerPositionBadge({ position: "Thủ môn xuất sắc" }).code).toBe("GK");
+    expect(getPlayerPositionBadge({ position: "Hậu vệ cánh" }).code).toBe("DF");
+    expect(getPlayerPositionBadge({ position: "Tiền vệ trung tâm" }).code).toBe("MF");
+    expect(getPlayerPositionBadge({ position: "Tiền đạo cắm" }).code).toBe("FW");
+    expect(getPlayerPositionBadge({ position: "Đa năng" }).code).toBe("ĐN");
   });
 
   it("extracts canonical hometown / hamlet accurately", () => {
@@ -54,10 +54,13 @@ describe("BroadcastAthleteCard - Deep Module Domain Logic", () => {
   it("builds lightbox image list with avatar and gallery items", () => {
     const mockPlayer: Player = {
       id: 1,
+      code_order: 1,
       full_name: "Nguyễn Thế Tiếng",
       short_name: "Tiếng",
       jersey_number: 12,
       position: "Tiền vệ",
+      phone: "",
+      birth_year: "1990",
       role: "Đội trưởng",
       status: "Đang sinh hoạt",
       avatar_url: "/uploads/avatars/tieng.webp",
@@ -68,6 +71,8 @@ describe("BroadcastAthleteCard - Deep Module Domain Logic", () => {
         "/uploads/gallery/match-2.webp",
       ],
       access_role: "manager",
+      pin_code: "",
+      notes: "",
     };
 
     const images = buildAthleteLightboxImages(mockPlayer);

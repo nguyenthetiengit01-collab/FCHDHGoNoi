@@ -106,6 +106,8 @@ const mockFullAppData: FullAppData = {
       pitch_cost: 600000,
       payer_name: "Tiếng",
       status: "Đã kết thúc",
+      team_score: 0,
+      opponent_score: 0,
       notes: "",
     },
   ],
@@ -136,6 +138,7 @@ const mockFullAppData: FullAppData = {
   expenses: [
     {
       id: 1,
+      match_id: 1,
       expense_date: "2026-03-01",
       category: "Tiền sân",
       description: "Thanh toán sân số 1",
@@ -149,8 +152,9 @@ const mockFullAppData: FullAppData = {
     totalIncome: 5100000,
     totalExpense: 600000,
     currentBalance: 4500000,
-    totalMatches: 1,
-    activePlayersCount: 3,
+    totalMatchesCount: 1,
+    totalPlayersCount: 3,
+    totalUnpaidAmount: 0,
     categoryBreakdown: [],
   },
 };
@@ -158,12 +162,11 @@ const mockFullAppData: FullAppData = {
 describe("Phase 1 – Security Hardening Suite", () => {
   describe("Pillar A: Credential Security & Secret Validation", () => {
     it("fails fast in production when APP_SECRET / AUTH_SECRET is missing or < 32 chars", () => {
-      const originalEnv = process.env.NODE_ENV;
       const originalSecret = process.env.AUTH_SECRET;
       const originalAppSecret = process.env.APP_SECRET;
 
       try {
-        process.env.NODE_ENV = "production";
+        vi.stubEnv("NODE_ENV", "production");
         delete process.env.AUTH_SECRET;
         delete process.env.APP_SECRET;
         delete process.env.NEXTAUTH_SECRET;
@@ -174,7 +177,7 @@ describe("Phase 1 – Security Hardening Suite", () => {
         process.env.AUTH_SECRET = "too-short";
         expect(() => getAuthSecret()).toThrowError(/FATAL/);
       } finally {
-        process.env.NODE_ENV = originalEnv;
+        vi.unstubAllEnvs();
         if (originalSecret) process.env.AUTH_SECRET = originalSecret;
         if (originalAppSecret) process.env.APP_SECRET = originalAppSecret;
       }

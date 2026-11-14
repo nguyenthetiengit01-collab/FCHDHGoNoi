@@ -404,6 +404,7 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
         totalMatchesCount: 1,
         totalPlayersCount: 1,
         totalUnpaidAmount: 0,
+        categoryBreakdown: [],
       },
     });
 
@@ -559,6 +560,7 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
         totalMatchesCount: 1,
         totalPlayersCount: 2,
         totalUnpaidAmount: 0,
+        categoryBreakdown: [],
       },
     };
 
@@ -610,6 +612,7 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
         totalMatchesCount: 0,
         totalPlayersCount: 2,
         totalUnpaidAmount: 0,
+        categoryBreakdown: [],
       },
     };
 
