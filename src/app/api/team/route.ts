@@ -21,16 +21,19 @@ import {
 } from "@/lib/auth";
 import { ensureWebpDataUrlServer } from "@/lib/serverWebp";
 import { formatBirthYear } from "@/lib/athleteProfile";
+import { getTeamStatistics } from "@/lib/teamStatistics";
 import type { FullAppData } from "@/types/app";
 
 export async function GET(req: NextRequest) {
   try {
     const data = await getFullAppData();
     const session = getAuthSession(req);
+    // Tính thống kê từ nguồn canonical trước khi sanitize theo vai trò
+    const statistics = getTeamStatistics(data);
 
     let sanitizedData: FullAppData;
     if (session && session.accessRole === "manager") {
-      // Ban Quản Lý: Được xem toàn bộ dữ liệu (mã PIN vẫn luôn để trống vì lý do an ninh)
+      // Ban Quản Lý: Được xem toàn bộ dữ liệu (loại bỏ hoàn toàn pin_code khỏi JSON)
       sanitizedData = {
         ...data,
         players: data.players.map((p) => ({ ...p, pin_code: "" })),
@@ -43,11 +46,24 @@ export async function GET(req: NextRequest) {
       sanitizedData = sanitizeDataForPublic(data);
     }
 
-    return NextResponse.json(sanitizedData, {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
+    const safePlayers = sanitizedData.players.map((player) => {
+      const { pin_code: _omittedPinCode, ...safePlayer } = player;
+      void _omittedPinCode;
+      return safePlayer;
     });
+
+    return NextResponse.json(
+      {
+        ...sanitizedData,
+        players: safePlayers,
+        statistics,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
+    );
   } catch (error) {
     console.error("GET /api/team error:", error);
     return NextResponse.json(

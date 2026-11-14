@@ -24,6 +24,12 @@ import type { FullAppData } from "@/types/app";
 import { OFFICIAL_LOGO_URL, OFFICIAL_QR_URL } from "@/types/app";
 import { formatVND, formatShortVND, formatDateVN } from "@/lib/format";
 import {
+  calculatePlayerAttendanceStats,
+  formatAttendanceRate,
+  getMatchStatistics,
+  getPlayerStatistics,
+} from "@/lib/teamStatistics";
+import {
   buildCashflowSeries,
   buildCollectionIntelligence,
   buildManagementInsights,
@@ -54,6 +60,14 @@ export function DashboardTab({
   onGoToCollection,
 }: DashboardTabProps) {
   const { settings, summary, players, matches, attendances, expenses } = data;
+  const playerStats = useMemo(
+    () => data.statistics?.players ?? getPlayerStatistics(players),
+    [data.statistics?.players, players]
+  );
+  const matchStats = useMemo(
+    () => data.statistics?.matches ?? getMatchStatistics(matches),
+    [data.statistics?.matches, matches]
+  );
 
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>("");
@@ -118,7 +132,7 @@ export function DashboardTab({
     return players
       .map((p) => {
         const pAtt = attendances.filter((a) => a.player_id === p.id);
-        const matchesPlayed = pAtt.filter((a) => a.attended === 1).length;
+        const attStats = calculatePlayerAttendanceStats(p.id, matches, attendances);
         const totalPaid = pAtt
           .filter((a) => a.paid === 1)
           .reduce((s, a) => s + a.amount, 0);
@@ -130,20 +144,18 @@ export function DashboardTab({
           .reduce((s, a) => s + a.amount, 0);
         return {
           ...p,
-          matchesPlayed,
+          matchesPlayed: attStats.matchesPlayed,
+          eligibleMatchesCount: attStats.eligibleMatchesCount,
           totalPaid,
           unpaid,
           voluntaryContributions,
-          attendanceRate:
-            matches.length > 0
-              ? Math.round((matchesPlayed / matches.length) * 100)
-              : 0,
+          attendanceRate: attStats.attendanceRate,
         };
       })
       .sort(
         (a, b) => b.totalPaid - a.totalPaid || b.matchesPlayed - a.matchesPlayed
       );
-  }, [players, attendances, matches.length]);
+  }, [players, attendances, matches]);
 
   const selectedPlayer = players.find(
     (p) => String(p.id) === selectedPlayerId
@@ -186,9 +198,9 @@ export function DashboardTab({
                 <span className="text-white/40">•</span>
                 <span>Xã Gò Nổi • TP. Đà Nẵng</span>
                 <span className="text-white/40">•</span>
-                <span className="tabular-nums">{players.length} Thành viên</span>
+                <span className="tabular-nums">{playerStats.total} Thành viên</span>
                 <span className="text-white/40">•</span>
-                <span className="tabular-nums">{matches.length} Trận</span>
+                <span className="tabular-nums">{matchStats.total} Trận</span>
               </div>
               <h2 className="mt-2 text-xl sm:text-2xl font-extrabold tracking-tight text-white">
                 {settings.team_name}{" "}
@@ -279,11 +291,10 @@ export function DashboardTab({
               <div
                 key={item.id}
                 role={item.severity === "warning" ? "status" : undefined}
-                className={`rounded-xl border p-3.5 flex items-start justify-between gap-3 ${
-                  item.severity === "warning"
+                className={`rounded-xl border p-3.5 flex items-start justify-between gap-3 ${item.severity === "warning"
                     ? "bg-amber-50/90 border-amber-300 text-amber-950"
                     : "bg-sky-50/80 border-sky-200 text-slate-900"
-                }`}
+                  }`}
               >
                 <div className="flex items-start gap-2.5 min-w-0">
                   {item.severity === "warning" ? (
@@ -338,11 +349,10 @@ export function DashboardTab({
                     setChartMode("match");
                     setSelectedPointKey(null);
                   }}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
-                    chartMode === "match"
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${chartMode === "match"
                       ? "bg-[#0d2e5b] text-white"
                       : "text-slate-600 hover:text-[#092244]"
-                  }`}
+                    }`}
                 >
                   Theo trận
                 </button>
@@ -352,11 +362,10 @@ export function DashboardTab({
                     setChartMode("month");
                     setSelectedPointKey(null);
                   }}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${
-                    chartMode === "month"
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${chartMode === "month"
                       ? "bg-[#0d2e5b] text-white"
                       : "text-slate-600 hover:text-[#092244]"
-                  }`}
+                    }`}
                 >
                   Theo tháng
                 </button>
@@ -438,11 +447,10 @@ export function DashboardTab({
                         onFocus={() => setSelectedPointKey(pt.key)}
                         onClick={() => setSelectedPointKey(pt.key)}
                         aria-label={`${pt.fullLabel}: Thực thu ${formatVND(pt.actualIncome)}, Chi ${formatVND(pt.expense)}, Chưa thu ${formatVND(pt.unpaidDebt)}`}
-                        className={`flex-1 min-w-[38px] flex flex-col items-center h-full justify-end rounded-lg px-1 py-1 transition cursor-pointer ${
-                          isSelected
+                        className={`flex-1 min-w-[38px] flex flex-col items-center h-full justify-end rounded-lg px-1 py-1 transition cursor-pointer ${isSelected
                             ? "bg-[#0d2e5b]/[0.06] ring-1 ring-[#0d2e5b]/25"
                             : "hover:bg-slate-50"
-                        }`}
+                          }`}
                       >
                         <div className="w-full flex items-end justify-center gap-0.5 h-36 border-b border-slate-200 px-0.5">
                           <div
@@ -468,9 +476,8 @@ export function DashboardTab({
                           {pt.label}
                         </div>
                         <div
-                          className={`text-[10px] font-semibold tabular-nums whitespace-nowrap ${
-                            pt.net >= 0 ? "text-emerald-700" : "text-rose-600"
-                          }`}
+                          className={`text-[10px] font-semibold tabular-nums whitespace-nowrap ${pt.net >= 0 ? "text-emerald-700" : "text-rose-600"
+                            }`}
                         >
                           {pt.net >= 0
                             ? `+${formatShortVND(pt.net)}`
@@ -498,11 +505,10 @@ export function DashboardTab({
                       Chưa thu: {formatVND(activePoint.unpaidDebt)}
                     </span>
                     <span
-                      className={`font-extrabold ${
-                        activePoint.net >= 0
+                      className={`font-extrabold ${activePoint.net >= 0
                           ? "text-emerald-700"
                           : "text-rose-600"
-                      }`}
+                        }`}
                     >
                       Ròng: {activePoint.net >= 0 ? "+" : ""}
                       {formatVND(activePoint.net)}
@@ -557,13 +563,12 @@ export function DashboardTab({
                   </div>
                   <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all ${
-                        item.category === "Tiền sân"
+                      className={`h-full rounded-full transition-all ${item.category === "Tiền sân"
                           ? "bg-[#0d2e5b]"
                           : item.amount > 0
-                          ? "bg-[#d4af37]"
-                          : "bg-slate-200"
-                      }`}
+                            ? "bg-[#d4af37]"
+                            : "bg-slate-200"
+                        }`}
                       style={{
                         width: `${Math.max(
                           item.amount > 0 ? 4 : 0,
@@ -770,8 +775,8 @@ export function DashboardTab({
                           tx.type === "expense"
                             ? "danger"
                             : tx.type === "other_income"
-                            ? "info"
-                            : "success"
+                              ? "info"
+                              : "success"
                         }
                       >
                         {tx.category}
@@ -790,9 +795,8 @@ export function DashboardTab({
                     </p>
                   </div>
                   <div
-                    className={`shrink-0 font-extrabold tabular-nums text-right ${
-                      tx.isPositive ? "text-emerald-700" : "text-rose-600"
-                    }`}
+                    className={`shrink-0 font-extrabold tabular-nums text-right ${tx.isPositive ? "text-emerald-700" : "text-rose-600"
+                      }`}
                   >
                     {tx.isPositive ? "+" : "-"}
                     {formatVND(tx.amount)}
@@ -842,15 +846,14 @@ export function DashboardTab({
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span
-                      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-extrabold tabular-nums ${
-                        index === 0
+                      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-extrabold tabular-nums ${index === 0
                           ? "bg-[#d4af37] text-[#092244]"
                           : index === 1
-                          ? "bg-slate-200 text-slate-800"
-                          : index === 2
-                          ? "bg-amber-100 text-amber-900"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
+                            ? "bg-slate-200 text-slate-800"
+                            : index === 2
+                              ? "bg-amber-100 text-amber-900"
+                              : "bg-slate-100 text-slate-600"
+                        }`}
                     >
                       {index + 1}
                     </span>
@@ -876,9 +879,9 @@ export function DashboardTab({
                       <p className="text-xs text-slate-500 mt-0.5">
                         Tham gia{" "}
                         <strong className="text-slate-700 tabular-nums">
-                          {p.matchesPlayed}/{matches.length} trận
+                          {p.matchesPlayed}/{p.eligibleMatchesCount} trận
                         </strong>{" "}
-                        ({p.attendanceRate}%)
+                        ({formatAttendanceRate(p.attendanceRate)})
                       </p>
                     </div>
                   </div>
@@ -972,8 +975,8 @@ export function DashboardTab({
                           m.status === "Đã kết thúc"
                             ? "success"
                             : m.status === "Đã hủy"
-                            ? "danger"
-                            : "info"
+                              ? "danger"
+                              : "info"
                         }
                       >
                         {m.status}
@@ -1000,11 +1003,10 @@ export function DashboardTab({
                       Sân: {formatVND(m.expense)}
                     </span>
                     <span
-                      className={`font-bold px-2 py-0.5 rounded ${
-                        m.net >= 0
+                      className={`font-bold px-2 py-0.5 rounded ${m.net >= 0
                           ? "bg-emerald-50 text-emerald-800"
                           : "bg-rose-50 text-rose-700"
-                      }`}
+                        }`}
                     >
                       {m.net >= 0
                         ? `Dư +${formatShortVND(m.net)}`

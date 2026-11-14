@@ -49,6 +49,10 @@ import { MatchdayRosterPosterModal } from "./MatchdayRosterPoster";
 import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
 import { AvatarCropperModal } from "./AvatarCropperModal";
 import { formatBirthYear, BIRTH_YEAR_OPTIONS } from "@/lib/athleteProfile";
+import {
+  calculatePlayerAttendanceStats,
+  formatAttendanceRate,
+} from "@/lib/teamStatistics";
 
 interface ScheduleTabProps {
   data: FullAppData;
@@ -338,17 +342,18 @@ export function ScheduleTab({
 
   const me = players.find((p) => p.id === session.playerId);
   const myAtts = me ? attendances.filter((a) => a.player_id === me.id) : [];
-  const myMatchesPlayed = myAtts.filter((a) => a.attended === 1).length;
+  const myAttStats = me
+    ? calculatePlayerAttendanceStats(me.id, matches, attendances)
+    : { matchesPlayed: 0, eligibleMatchesCount: 0, attendanceRate: null };
+  const myMatchesPlayed = myAttStats.matchesPlayed;
+  const myEligibleMatchesCount = myAttStats.eligibleMatchesCount;
   const myTotalPaid = myAtts
     .filter((a) => a.paid === 1)
     .reduce((s, a) => s + a.amount, 0);
   const myTotalUnpaid = myAtts
     .filter((a) => a.attended === 1 && a.paid === 0)
     .reduce((s, a) => s + a.amount, 0);
-  const myRate =
-    matches.length > 0
-      ? Math.round((myMatchesPlayed / matches.length) * 100)
-      : 0;
+  const myRate = myAttStats.attendanceRate;
 
   // Chế độ xem: "my_profile" (Mặc định: thông tin đầy đủ & bài viết của bạn) hoặc "team_roster" (Danh sách điểm danh cả đội)
   const [rosterViewMode, setRosterViewMode] = useState<"my_profile" | "team_roster">("my_profile");
@@ -1108,7 +1113,7 @@ export function ScheduleTab({
                           {formatVND(myTotalPaid)}
                         </span>
                         <span className="text-[9px] text-sky-200/70 mt-0.5">
-                          {myMatchesPlayed}/{matches.length} trận ({myRate}%)
+                          {myMatchesPlayed}/{myEligibleMatchesCount} trận ({formatAttendanceRate(myRate)})
                         </span>
                       </div>
                       <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-3 border border-sky-300/30 flex flex-col justify-center">

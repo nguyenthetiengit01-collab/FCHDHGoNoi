@@ -32,6 +32,13 @@ import {
 } from "@/types/app";
 import { formatDateVN } from "@/lib/format";
 import {
+  getMatchStatistics,
+  getPlayerStatistics,
+  isActivePlayer,
+  isCompletedMatch,
+  isUpcomingMatch,
+} from "@/lib/teamStatistics";
+import {
   shouldShowBannerAt,
   groupSponsorsByTier,
   SPONSOR_TIERS,
@@ -172,8 +179,8 @@ function Reveal({
       ref={ref}
       style={{ transitionDelay: `${delay}ms` }}
       className={`transition-all duration-1000 ease-out motion-reduce:transition-none ${shown
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 translate-y-10 motion-reduce:opacity-100 motion-reduce:translate-y-0"
+        ? "opacity-100 translate-y-0"
+        : "opacity-0 translate-y-10 motion-reduce:opacity-100 motion-reduce:translate-y-0"
         } ${className}`}
     >
       {children}
@@ -242,8 +249,8 @@ function CompactPlayerRow({
       onClick={onSelect}
       aria-pressed={isSelected}
       className={`group w-full text-left flex items-center justify-between p-3 rounded-lg transition-all border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d4af37] ${isSelected
-          ? "bg-[#17488c] border-l-4 border-l-[#ffd700] border-y-[#ffd700]/70 border-r-[#ffd700]/70 shadow-[0_4px_25px_rgba(20,70,140,0.5)]"
-          : "bg-[#0c2f5e] border border-white/15 hover:border-sky-300/40 hover:bg-[#123e7a]"
+        ? "bg-[#17488c] border-l-4 border-l-[#ffd700] border-y-[#ffd700]/70 border-r-[#ffd700]/70 shadow-[0_4px_25px_rgba(20,70,140,0.5)]"
+        : "bg-[#0c2f5e] border border-white/15 hover:border-sky-300/40 hover:bg-[#123e7a]"
         }`}
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -360,9 +367,11 @@ export function PublicGuestPortal({
     return () => clearInterval(interval);
   }, []);
 
-  const upcomingMatches = matches.filter((m) => m.status === "Sắp diễn ra");
+  const playerStats = data.statistics?.players ?? getPlayerStatistics(players);
+  const matchStats = data.statistics?.matches ?? getMatchStatistics(matches);
+  const upcomingMatches = matches.filter(isUpcomingMatch);
   const pastMatches = matches
-    .filter((m) => m.status === "Đã kết thúc")
+    .filter(isCompletedMatch)
     .slice()
     .reverse();
   const nextMatch = upcomingMatches[0] || matches[matches.length - 1];
@@ -374,9 +383,7 @@ export function PublicGuestPortal({
       m.team_score > m.opponent_score
   ).length;
 
-  const activePlayers: Player[] = players.filter(
-    (p) => !/nghỉ|rời|ngưng/i.test(p.status || "")
-  );
+  const activePlayers: Player[] = players.filter(isActivePlayer);
   const squad = activePlayers
     .filter((p) => {
       if (squadFilter === "all") return true;
@@ -427,7 +434,7 @@ export function PublicGuestPortal({
     }
   };
 
-  const totalPlayerCount = players.length;
+  const totalPlayerCount = playerStats.total;
 
   const navLinks = [
     { id: "banner-hero", label: "Trang chủ", icon: Sparkles, badge: "CLB" },
@@ -469,8 +476,8 @@ export function PublicGuestPortal({
       {/* ===================== HEADER XANH LAM HOÀNG GIA ===================== */}
       <header
         className={`fixed inset-x-0 top-0 z-40 transition-all duration-500 ${scrolled
-            ? "bg-[#0a274e]/90 backdrop-blur-lg py-3 border-b border-[#d4af37]/30 shadow-lg"
-            : "bg-gradient-to-b from-[#061730]/80 via-[#061730]/40 to-transparent py-5"
+          ? "bg-[#0a274e]/90 backdrop-blur-lg py-3 border-b border-[#d4af37]/30 shadow-lg"
+          : "bg-gradient-to-b from-[#061730]/80 via-[#061730]/40 to-transparent py-5"
           }`}
       >
         <div className={`${WRAP} flex items-center justify-between gap-4`}>
@@ -718,7 +725,7 @@ export function PublicGuestPortal({
           <dl className="mt-14 flex flex-wrap gap-x-14 gap-y-6 border-t border-white/20 pt-8">
             {[
               { n: `${totalPlayerCount}+`, l: "Cầu thủ tham gia" },
-              { n: matches.length, l: "Trận đã lên lịch" },
+              { n: matchStats.total, l: "Trận đã lên lịch" },
               { n: wins, l: "Trận thắng" },
             ].map((s) => (
               <div key={s.l}>
@@ -809,11 +816,10 @@ export function PublicGuestPortal({
                   return (
                     <div
                       key={sp.id}
-                      className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                        isActive
+                      className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${isActive
                           ? "opacity-100 z-10 pointer-events-auto"
                           : "opacity-0 pointer-events-none z-0"
-                      }`}
+                        }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -903,11 +909,10 @@ export function PublicGuestPortal({
                         key={i}
                         type="button"
                         onClick={() => setActiveBannerIdx(i)}
-                        className={`h-2 rounded-full transition-all cursor-pointer ${
-                          i === activeBannerIdx
+                        className={`h-2 rounded-full transition-all cursor-pointer ${i === activeBannerIdx
                             ? "w-6 bg-[#d4af37]"
                             : "w-2 bg-white/40 hover:bg-white/70"
-                        }`}
+                          }`}
                         aria-label={`Tới banner ${i + 1}`}
                       />
                     ))}
@@ -1102,8 +1107,8 @@ export function PublicGuestPortal({
                     type="button"
                     onClick={() => setSelectedTimelineYear(y.id)}
                     className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer border text-xs flex items-center gap-1.5 ${selectedTimelineYear === y.id
-                        ? "bg-[#ffd700] text-slate-950 font-black border-[#ffd700] shadow-sm"
-                        : "bg-[#0b254a] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
+                      ? "bg-[#ffd700] text-slate-950 font-black border-[#ffd700] shadow-sm"
+                      : "bg-[#0b254a] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
                       }`}
                   >
                     <span>{y.label}</span>
@@ -1120,8 +1125,8 @@ export function PublicGuestPortal({
                     type="button"
                     onClick={() => setActiveActivityCategory(cat.id)}
                     className={`px-3.5 py-2 rounded-lg whitespace-nowrap transition cursor-pointer border ${activeActivityCategory === cat.id
-                        ? "bg-[#164ea0] text-[#ffd700] border-[#ffd700]/70 shadow-md font-black"
-                        : "bg-[#0b254a] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
+                      ? "bg-[#164ea0] text-[#ffd700] border-[#ffd700]/70 shadow-md font-black"
+                      : "bg-[#0b254a] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
                       }`}
                   >
                     {cat.label}
@@ -1457,8 +1462,8 @@ export function PublicGuestPortal({
                         type="button"
                         onClick={() => setSquadFilter(key)}
                         className={`px-2.5 py-1.5 rounded transition cursor-pointer text-[11px] shrink-0 ${squadFilter === key
-                            ? "bg-[#ffd700] text-slate-950 font-black shadow-sm"
-                            : "text-sky-200 hover:text-white"
+                          ? "bg-[#ffd700] text-slate-950 font-black shadow-sm"
+                          : "text-sky-200 hover:text-white"
                           }`}
                       >
                         {label}
@@ -1687,8 +1692,8 @@ export function PublicGuestPortal({
                     onClick={() => setMatchTab(key)}
                     aria-pressed={matchTab === key}
                     className={`px-4 py-2.5 rounded-lg border transition cursor-pointer ${matchTab === key
-                        ? "bg-[#ffd700] text-slate-950 font-black border-[#ffd700] shadow-md"
-                        : "bg-[#0b2447] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
+                      ? "bg-[#ffd700] text-slate-950 font-black border-[#ffd700] shadow-md"
+                      : "bg-[#0b2447] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
                       }`}
                   >
                     {label}
@@ -1962,9 +1967,8 @@ export function PublicGuestPortal({
                             )}
                             <div className="min-w-0">
                               <span
-                                className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase border ${
-                                  (SPONSOR_TIERS[sp.tier] || SPONSOR_TIERS.gold).badgeClass
-                                }`}
+                                className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase border ${(SPONSOR_TIERS[sp.tier] || SPONSOR_TIERS.gold).badgeClass
+                                  }`}
                               >
                                 {(SPONSOR_TIERS[sp.tier] || SPONSOR_TIERS.gold).label}
                               </span>

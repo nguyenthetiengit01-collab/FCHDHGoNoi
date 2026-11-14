@@ -385,10 +385,10 @@ describe("Phase 1 – Security Hardening Suite", () => {
       expect(res.headers.get("cache-control")).toContain("no-store");
       const data = await res.json();
 
-      // Check all returned players have masked phone, no pin_code, no notes
+      // Check all returned players have masked phone, no pin_code property, no notes
       for (const p of data.players) {
         expect(p.phone).toBe("");
-        expect(p.pin_code).toBe("");
+        expect(p).not.toHaveProperty("pin_code");
         expect(p.notes).toBe("");
       }
       // Check private ledger is masked

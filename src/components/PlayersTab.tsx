@@ -33,6 +33,13 @@ import type {
   AuthSession,
 } from "@/types/app";
 import { OFFICIAL_LOGO_URL } from "@/types/app";
+import {
+  calculatePlayerAttendanceStats,
+  calculateTeamAvgAttendanceRate,
+  formatAttendanceRate,
+  isActivePlayer,
+  isCompletedMatch,
+} from "@/lib/teamStatistics";
 import { formatVND, formatDateVN } from "@/lib/format";
 import { convertMultipleFilesToWebp } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
@@ -334,41 +341,34 @@ export function PlayersTab({
     );
   };
 
-  const completedMatches = matches.filter((m) => m.status === "Đã kết thúc");
-  const completedMatchIds = new Set(completedMatches.map((m) => m.id));
+  const completedMatches = matches.filter(isCompletedMatch);
 
   const enrichedPlayers = players
     .map((p) => {
       const pAtt = attendances.filter((a) => a.player_id === p.id);
-      const matchesPlayed = pAtt.filter(
-        (a) => completedMatchIds.has(a.match_id) && a.attended === 1
-      ).length;
+      const attStats = calculatePlayerAttendanceStats(p.id, matches, attendances);
       const totalPaid = pAtt
         .filter((a) => a.paid === 1)
         .reduce((s, a) => s + a.amount, 0);
       const unpaid = pAtt
         .filter((a) => a.attended === 1 && a.paid === 0)
         .reduce((s, a) => s + a.amount, 0);
-      const rate =
-        completedMatches.length > 0
-          ? Math.round((matchesPlayed / completedMatches.length) * 100)
-          : 0;
       return {
         ...p,
-        matchesPlayed,
+        matchesPlayed: attStats.matchesPlayed,
         totalPaid,
         unpaid,
-        rate,
+        rate: attStats.attendanceRate,
       };
     })
     .filter((p) => {
       if (filterPosition !== "Tất cả" && p.position !== filterPosition) {
         return false;
       }
-      if (filterStatus === "Đang sinh hoạt" && p.status !== "Đang sinh hoạt") {
+      if (filterStatus === "Đang sinh hoạt" && !isActivePlayer(p)) {
         return false;
       }
-      if (filterStatus === "Khác" && p.status === "Đang sinh hoạt") {
+      if (filterStatus === "Khác" && isActivePlayer(p)) {
         return false;
       }
       if (!searchQuery.trim()) return true;
@@ -387,28 +387,18 @@ export function PlayersTab({
   );
 
   // Thống kê tổng quan đội hình từ dữ liệu thật (chỉ tính trận đã kết thúc & cầu thủ đang sinh hoạt)
-  const activePlayers = players.filter((p) => p.status === "Đang sinh hoạt");
+  const activePlayers = players.filter(isActivePlayer);
   const activePlayersCount = activePlayers.length;
-  const activePlayerIds = new Set(activePlayers.map((p) => p.id));
   const gkCount = players.filter((p) => p.position === "Thủ môn").length;
   const dfCount = players.filter((p) => p.position === "Hậu vệ").length;
   const mfCount = players.filter((p) => p.position === "Tiền vệ").length;
   const fwCount = players.filter((p) => p.position === "Tiền đạo").length;
   const dnCount = players.filter((p) => p.position === "Đa năng").length;
-  const totalCompletedAttended = attendances.filter(
-    (a) =>
-      activePlayerIds.has(a.player_id) &&
-      completedMatchIds.has(a.match_id) &&
-      a.attended === 1
-  ).length;
-  const avgAttendanceRate =
-    activePlayersCount > 0 && completedMatches.length > 0
-      ? Math.round(
-          (totalCompletedAttended /
-            (activePlayersCount * completedMatches.length)) *
-            100
-        )
-      : 0;
+  const avgAttendanceRate = calculateTeamAvgAttendanceRate(
+    players,
+    matches,
+    attendances
+  );
   const customAvatarCount = players.filter(
     (p) => Boolean(p.avatar_url) && !p.avatar_url.includes("/uploads/avatars/member-")
   ).length;
@@ -445,8 +435,8 @@ export function PlayersTab({
               aria-pressed={viewMode === "cards"}
               onClick={() => setViewMode("cards")}
               className={`inline-flex items-center gap-1.5 min-h-11 sm:min-h-9 rounded-md px-3 py-1.5 text-xs font-bold transition ${viewMode === "cards"
-                  ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
-                  : "text-slate-700 hover:text-slate-900"
+                ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
+                : "text-slate-700 hover:text-slate-900"
                 }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
@@ -457,8 +447,8 @@ export function PlayersTab({
               aria-pressed={viewMode === "roster"}
               onClick={() => setViewMode("roster")}
               className={`inline-flex items-center gap-1.5 min-h-11 sm:min-h-9 rounded-md px-3 py-1.5 text-xs font-bold transition ${viewMode === "roster"
-                  ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
-                  : "text-slate-700 hover:text-slate-900"
+                ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
+                : "text-slate-700 hover:text-slate-900"
                 }`}
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
@@ -499,7 +489,7 @@ export function PlayersTab({
         />
         <StatCard
           label="Chuyên Cần TB"
-          value={`${avgAttendanceRate}%`}
+          value={formatAttendanceRate(avgAttendanceRate)}
           hint={`Trên ${completedMatches.length} trận đã kết thúc • ${activePlayersCount} cầu thủ đang sinh hoạt`}
           icon={<Activity className="h-4 w-4" />}
           accent="emerald"
@@ -529,8 +519,8 @@ export function PlayersTab({
                   aria-pressed={filterPosition === pos}
                   onClick={() => setFilterPosition(pos)}
                   className={`min-h-11 sm:min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${filterPosition === pos
-                      ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
-                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                    ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                    : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                     }`}
                 >
                   {pos} ({count})
@@ -644,8 +634,8 @@ export function PlayersTab({
                   aria-pressed={checked}
                   onClick={() => toggleRosterPlayer(p.id)}
                   className={`min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${checked
-                      ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
-                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                    ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
                     }`}
                 >
                   #{p.jersey_number ?? "-"} {p.short_name}
@@ -718,8 +708,8 @@ export function PlayersTab({
               <article
                 key={p.id}
                 className={`rounded-xl bg-white border p-4 flex flex-col justify-between transition shadow-xs ${isSelf
-                    ? "border-2 border-[#d4af37] ring-2 ring-[#d4af37]/25"
-                    : "border-slate-200 hover:border-[#0d2e5b]/40"
+                  ? "border-2 border-[#d4af37] ring-2 ring-[#d4af37]/25"
+                  : "border-slate-200 hover:border-[#0d2e5b]/40"
                   }`}
               >
                 <div>
@@ -786,7 +776,7 @@ export function PlayersTab({
                           Chuyên cần
                         </span>
                         <span className="font-extrabold text-sm text-[#092244] tabular-nums">
-                          {p.matchesPlayed}/{completedMatches.length} trận ({p.rate}%)
+                          {p.matchesPlayed}/{completedMatches.length} trận ({formatAttendanceRate(p.rate)})
                         </span>
                       </div>
                       <div className="text-right">
@@ -807,7 +797,7 @@ export function PlayersTab({
                     <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-[#0d2e5b] transition-all"
-                        style={{ width: `${Math.min(100, Math.max(0, p.rate))}%` }}
+                        style={{ width: `${Math.min(100, Math.max(0, p.rate ?? 0))}%` }}
                       />
                     </div>
                     {canSeePrivate && p.unpaid > 0 && (
@@ -1153,8 +1143,8 @@ export function PlayersTab({
                         setWebpInfo("");
                       }}
                       className={`h-8 w-8 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${avatarUrl === url
-                          ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
-                          : "border-transparent opacity-70 hover:opacity-100"
+                        ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
+                        : "border-transparent opacity-70 hover:opacity-100"
                         }`}
                       title={`Ảnh thành viên #${idx + 1}`}
                     >
@@ -1277,11 +1267,10 @@ export function PlayersTab({
                             setProfileImageUrl(url);
                             setProfileWebpInfo(`✅ Đã chọn ảnh hoạt động #${idx + 1} làm ảnh Profile!`);
                           }}
-                          className={`relative h-14 w-24 rounded-lg overflow-hidden border-2 transition cursor-pointer ${
-                            isSelected
+                          className={`relative h-14 w-24 rounded-lg overflow-hidden border-2 transition cursor-pointer ${isSelected
                               ? "border-[#ffd700] ring-2 ring-[#1e4fc2] shadow-md"
                               : "border-slate-300 opacity-80 hover:opacity-100 hover:border-sky-500"
-                          }`}
+                            }`}
                           title={`Chọn ảnh hoạt động #${idx + 1} làm ảnh Profile`}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1568,11 +1557,10 @@ export function PlayersTab({
                   return (
                     <div
                       key={idx}
-                      className={`relative aspect-square rounded-xl overflow-hidden border-2 group bg-slate-900 transition ${
-                        isProfile
+                      className={`relative aspect-square rounded-xl overflow-hidden border-2 group bg-slate-900 transition ${isProfile
                           ? "border-[#ffd700] ring-2 ring-sky-500 shadow-md"
                           : "border-slate-300"
-                      }`}
+                        }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -1813,102 +1801,102 @@ export function PlayersTab({
         onDirectSave={
           editingPlayer
             ? async (res) => {
-                if (cropperMode === "profile") {
-                  if (!isManager && editingPlayer.id === session.playerId) {
-                    await onMutate("update_own_profile", {
-                      player_id: editingPlayer.id,
-                      full_name: fullName,
-                      short_name: shortName,
-                      jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
-                      position,
-                      phone,
-                      birth_year: birthYear === "" ? null : Number(birthYear),
-                      avatar_url: avatarUrl || editingPlayer.avatar_url,
-                      profile_image_url: res.dataUrl,
-                      notes,
-                      hometown,
-                      nickname,
-                      playing_style: playingStyle,
-                      bio,
-                      gallery_urls: galleryUrls,
-                    });
-                  } else if (isManager) {
-                    await onMutate("upsert_player", {
-                      id: editingPlayer.id,
-                      code_order: editingPlayer.code_order,
-                      full_name: fullName,
-                      short_name: shortName,
-                      jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
-                      position,
-                      phone,
-                      birth_year: birthYear === "" ? null : Number(birthYear),
-                      avatar_url: avatarUrl || editingPlayer.avatar_url,
-                      profile_image_url: res.dataUrl,
-                      role,
-                      access_role: accessRole,
-                      pin_code: pinCode,
-                      status,
-                      notes,
-                      hometown,
-                      nickname,
-                      playing_style: playingStyle,
-                      bio,
-                      gallery_urls: galleryUrls,
-                    });
-                  }
-                  setProfileImageUrl(res.dataUrl);
-                  setProfileWebpInfo(
-                    `✅ Đã lưu trực tiếp ảnh Profile rộng (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
-                  );
-                } else {
-                  if (!isManager && editingPlayer.id === session.playerId) {
-                    await onMutate("update_own_profile", {
-                      player_id: editingPlayer.id,
-                      full_name: fullName,
-                      short_name: shortName,
-                      jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
-                      position,
-                      phone,
-                      birth_year: birthYear === "" ? null : Number(birthYear),
-                      avatar_url: res.dataUrl,
-                      profile_image_url: profileImageUrl || editingPlayer.profile_image_url,
-                      notes,
-                      hometown,
-                      nickname,
-                      playing_style: playingStyle,
-                      bio,
-                      gallery_urls: galleryUrls,
-                    });
-                  } else if (isManager) {
-                    await onMutate("upsert_player", {
-                      id: editingPlayer.id,
-                      code_order: editingPlayer.code_order,
-                      full_name: fullName,
-                      short_name: shortName,
-                      jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
-                      position,
-                      phone,
-                      birth_year: birthYear === "" ? null : Number(birthYear),
-                      avatar_url: res.dataUrl,
-                      profile_image_url: profileImageUrl || editingPlayer.profile_image_url,
-                      role,
-                      access_role: accessRole,
-                      pin_code: pinCode,
-                      status,
-                      notes,
-                      hometown,
-                      nickname,
-                      playing_style: playingStyle,
-                      bio,
-                      gallery_urls: galleryUrls,
-                    });
-                  }
-                  setAvatarUrl(res.dataUrl);
-                  setWebpInfo(
-                    `✅ Đã lưu trực tiếp ảnh Avatar 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
-                  );
+              if (cropperMode === "profile") {
+                if (!isManager && editingPlayer.id === session.playerId) {
+                  await onMutate("update_own_profile", {
+                    player_id: editingPlayer.id,
+                    full_name: fullName,
+                    short_name: shortName,
+                    jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+                    position,
+                    phone,
+                    birth_year: birthYear === "" ? null : Number(birthYear),
+                    avatar_url: avatarUrl || editingPlayer.avatar_url,
+                    profile_image_url: res.dataUrl,
+                    notes,
+                    hometown,
+                    nickname,
+                    playing_style: playingStyle,
+                    bio,
+                    gallery_urls: galleryUrls,
+                  });
+                } else if (isManager) {
+                  await onMutate("upsert_player", {
+                    id: editingPlayer.id,
+                    code_order: editingPlayer.code_order,
+                    full_name: fullName,
+                    short_name: shortName,
+                    jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+                    position,
+                    phone,
+                    birth_year: birthYear === "" ? null : Number(birthYear),
+                    avatar_url: avatarUrl || editingPlayer.avatar_url,
+                    profile_image_url: res.dataUrl,
+                    role,
+                    access_role: accessRole,
+                    pin_code: pinCode,
+                    status,
+                    notes,
+                    hometown,
+                    nickname,
+                    playing_style: playingStyle,
+                    bio,
+                    gallery_urls: galleryUrls,
+                  });
                 }
+                setProfileImageUrl(res.dataUrl);
+                setProfileWebpInfo(
+                  `✅ Đã lưu trực tiếp ảnh Profile rộng (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+                );
+              } else {
+                if (!isManager && editingPlayer.id === session.playerId) {
+                  await onMutate("update_own_profile", {
+                    player_id: editingPlayer.id,
+                    full_name: fullName,
+                    short_name: shortName,
+                    jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+                    position,
+                    phone,
+                    birth_year: birthYear === "" ? null : Number(birthYear),
+                    avatar_url: res.dataUrl,
+                    profile_image_url: profileImageUrl || editingPlayer.profile_image_url,
+                    notes,
+                    hometown,
+                    nickname,
+                    playing_style: playingStyle,
+                    bio,
+                    gallery_urls: galleryUrls,
+                  });
+                } else if (isManager) {
+                  await onMutate("upsert_player", {
+                    id: editingPlayer.id,
+                    code_order: editingPlayer.code_order,
+                    full_name: fullName,
+                    short_name: shortName,
+                    jersey_number: jerseyNumber === "" ? null : Number(jerseyNumber),
+                    position,
+                    phone,
+                    birth_year: birthYear === "" ? null : Number(birthYear),
+                    avatar_url: res.dataUrl,
+                    profile_image_url: profileImageUrl || editingPlayer.profile_image_url,
+                    role,
+                    access_role: accessRole,
+                    pin_code: pinCode,
+                    status,
+                    notes,
+                    hometown,
+                    nickname,
+                    playing_style: playingStyle,
+                    bio,
+                    gallery_urls: galleryUrls,
+                  });
+                }
+                setAvatarUrl(res.dataUrl);
+                setWebpInfo(
+                  `✅ Đã lưu trực tiếp ảnh Avatar 3:4 (${res.width}x${res.height} • ${res.webpSizeKB}KB)!`
+                );
               }
+            }
             : undefined
         }
       />
@@ -1952,8 +1940,8 @@ export function PlayersTab({
           pendingConfirm?.kind === "reset_pin"
             ? `Ban Quản Lý xác nhận đặt lại mật khẩu (PIN) của cầu thủ "${pendingConfirm.player.full_name}" về mặc định "1234"?`
             : pendingConfirm
-            ? `Bạn có chắc muốn xoá hồ sơ cầu thủ "${pendingConfirm.player.full_name}" khỏi danh sách đội bóng?`
-            : ""
+              ? `Bạn có chắc muốn xoá hồ sơ cầu thủ "${pendingConfirm.player.full_name}" khỏi danh sách đội bóng?`
+              : ""
         }
         confirmLabel={pendingConfirm?.kind === "reset_pin" ? "Reset PIN" : "Xoá hồ sơ"}
         danger={pendingConfirm?.kind === "delete"}

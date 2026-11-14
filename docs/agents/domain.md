@@ -10,6 +10,6 @@ Quy tắc tiêu thụ và cập nhật tài liệu nghiệp vụ cho FC HĐH Gò
 ## Core Club Story & Brand Standards
 
 - **Đội bóng**: **FC HĐH Gò Nổi tại TP.HCM** — đại diện cho **xã Gò Nổi** sau sáp nhập thuộc **TP. Đà Nẵng**.
-- **Cội nguồn quê quán**: Giữ nguyên tên **3 xã cũ (Điện Quang, Điện Trung, Điện Phong thuộc TX. Điện Bàn, tỉnh Quảng Nam cũ)** để anh em đồng hương biết rõ về nhau và nhớ về nguồn gốc.
-- **Nhãn hiển thị địa phương của CLB**: `Xã Gò Nổi • TP. Đà Nẵng` (thay vì ghi cứng Điện Bàn • Quảng Nam).
+- **Cội nguồn quê quán (ngữ cảnh lịch sử)**: **Gò Nổi – Điện Bàn – Quảng Nam (cũ)** — giữ nguyên tên **3 xã cũ (Điện Quang, Điện Trung, Điện Phong)** để anh em đồng hương biết rõ về nhau và nhớ về nguồn gốc.
+- **Nhãn hiển thị địa phương hiện tại của CLB**: `Xã Gò Nổi • TP. Đà Nẵng` (thay vì ghi cứng Điện Bàn • Quảng Nam).
 

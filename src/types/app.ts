@@ -185,6 +185,42 @@ export interface BatchCollectFeeItem {
   remove?: boolean;
 }
 
+export type PlayerLifecycleCategory = "active" | "paused" | "stopped" | "unknown";
+
+export type MatchLifecycleCategory =
+  | "upcoming"
+  | "completed"
+  | "cancelled"
+  | "inProgress"
+  | "unknown";
+
+export interface PlayerStatistics {
+  total: number;
+  active: number;
+  paused: number;
+  stopped: number;
+  unknown: number;
+}
+
+export interface MatchStatistics {
+  total: number;
+  upcoming: number;
+  completed: number;
+  cancelled: number;
+  inProgress: number;
+  unknown: number;
+}
+
+export interface TeamStatistics {
+  players: PlayerStatistics;
+  matches: MatchStatistics;
+}
+
+export interface ApiErrorResponse {
+  error: string;
+  code?: string;
+}
+
 export interface FullAppData {
   settings: TeamSettings;
   players: Player[];
@@ -195,7 +231,22 @@ export interface FullAppData {
   summary: FinancialSummary;
   posts?: ClubActivityPost[];
   sponsors?: Sponsor[];
+  statistics?: TeamStatistics;
 }
+
+/** Cầu thủ đã loại bỏ hoàn toàn thuộc tính pin_code trước khi trả về client */
+export type SafePlayerPayload = Omit<Player, "pin_code">;
+
+/** Hợp đồng dữ liệu trả về từ GET /api/team theo 3 cấp quyền */
+export type PublicTeamPayload = Omit<FullAppData, "players"> & {
+  players: SafePlayerPayload[];
+};
+export type PlayerTeamPayload = Omit<FullAppData, "players"> & {
+  players: SafePlayerPayload[];
+};
+export type ManagerTeamPayload = Omit<FullAppData, "players"> & {
+  players: SafePlayerPayload[];
+};
 
 /**
  * Data Transfer Object (DTO) công khai cho cầu thủ dành cho Khách (Guest)
