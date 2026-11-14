@@ -223,6 +223,8 @@ export function ImageLightboxModal({
                   <img
                     src={img.src}
                     alt={`Thumbnail ${idx + 1}`}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover"
                   />
                 </button>

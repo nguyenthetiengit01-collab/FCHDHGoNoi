@@ -9,6 +9,14 @@ import {
   ActivityCategory,
   ClubActivityPost,
 } from "@/data/clubActivities";
+import {
+  buildClubGalleryPhotos,
+  buildClubGalleryAlbums,
+  filterClubGalleryPhotos,
+  INITIAL_GALLERY_LIMIT,
+  GALLERY_LOAD_STEP,
+  type ClubGalleryPhoto,
+} from "@/data/clubPhotoGallery";
 import { OFFICIAL_LOGO_URL, FANPAGE_URL } from "@/types/app";
 import {
   ImageLightboxModal,
@@ -27,6 +35,9 @@ import {
   Camera,
   Flame,
   ExternalLink,
+  Images,
+  ZoomIn,
+  BookOpen,
 } from "lucide-react";
 
 export default function HoatDongPage() {
@@ -34,6 +45,8 @@ export default function HoatDongPage() {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [posts, setPosts] = useState<ClubActivityPost[]>(CLUB_ACTIVITIES_POSTS);
+  const [galleryCategory, setGalleryCategory] = useState<ActivityCategory>("all");
+  const [visiblePhotoCount, setVisiblePhotoCount] = useState<number>(INITIAL_GALLERY_LIMIT);
 
   // Lightbox
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -78,6 +91,39 @@ export default function HoatDongPage() {
     });
   }, [posts, selectedCategory, selectedYear, searchQuery]);
 
+  const allGalleryPhotos = useMemo(
+    () => buildClubGalleryPhotos(posts, true),
+    [posts]
+  );
+
+  const galleryAlbums = useMemo(
+    () => buildClubGalleryAlbums(allGalleryPhotos),
+    [allGalleryPhotos]
+  );
+
+  const filteredGalleryPhotos = useMemo(
+    () =>
+      filterClubGalleryPhotos(allGalleryPhotos, {
+        category: galleryCategory,
+        year: selectedYear,
+        query: searchQuery,
+      }),
+    [allGalleryPhotos, galleryCategory, selectedYear, searchQuery]
+  );
+
+  const visibleGalleryPhotos = useMemo(
+    () => filteredGalleryPhotos.slice(0, visiblePhotoCount),
+    [filteredGalleryPhotos, visiblePhotoCount]
+  );
+
+  const toGalleryLightboxItems = (items: ClubGalleryPhoto[]): LightboxImage[] =>
+    items.map((photo) => ({
+      src: photo.src,
+      title: photo.title,
+      caption: photo.caption,
+      tag: photo.categoryLabel,
+    }));
+
   const getCategoryIcon = (id: ActivityCategory) => {
     switch (id) {
       case "giaidau":
@@ -121,6 +167,14 @@ export default function HoatDongPage() {
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/cau-chuyen-go-noi"
+              className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-sky-200 hover:text-[#d4af37] transition"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              <span>Câu chuyện Gò Nổi</span>
+            </Link>
+
             <a
               href={FANPAGE_URL}
               target="_blank"
@@ -189,6 +243,23 @@ export default function HoatDongPage() {
               )}
             </div>
           </div>
+
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5 text-xs font-bold">
+            <a
+              href="#hoat-dong-cong-dong"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 px-3.5 py-2 text-sky-100 transition"
+            >
+              <Flame className="h-3.5 w-3.5 text-[#d4af37]" />
+              <span>Hoạt động cộng đồng ({posts.length})</span>
+            </a>
+            <a
+              href="#thu-vien-hinh-anh"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#d4af37]/15 hover:bg-[#d4af37]/25 border border-[#d4af37]/40 px-3.5 py-2 text-[#fde047] transition"
+            >
+              <Images className="h-3.5 w-3.5 text-[#d4af37]" />
+              <span>Thư viện hình ảnh ({allGalleryPhotos.length} ảnh)</span>
+            </a>
+          </div>
         </div>
       </section>
 
@@ -240,7 +311,7 @@ export default function HoatDongPage() {
         </div>
 
         {/* ==================== DANH SÁCH BÀI VIẾT ==================== */}
-        <div className="mt-8">
+        <div id="hoat-dong-cong-dong" className="mt-8 scroll-mt-24">
           {filteredPosts.length === 0 ? (
             <div className="text-center py-20 bg-[#092244]/40 rounded-3xl border border-white/10 p-8">
               <p className="text-lg text-slate-400">Không tìm thấy bài viết nào phù hợp.</p>
@@ -285,6 +356,8 @@ export default function HoatDongPage() {
                       <img
                         src={post.featuredImage}
                         alt={post.title}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#071933] via-transparent to-transparent opacity-80" />
@@ -375,6 +448,212 @@ export default function HoatDongPage() {
             </div>
           )}
         </div>
+
+        {/* ==================== THƯ VIỆN HÌNH ẢNH FC HĐH GÒ NỔI ==================== */}
+        <section
+          id="thu-vien-hinh-anh"
+          className="mt-16 pt-12 border-t border-[#d4af37]/25 scroll-mt-24 space-y-6"
+        >
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#d4af37]/15 border border-[#d4af37]/40 px-3.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#fde047]">
+                <Images className="h-3.5 w-3.5 text-[#d4af37]" />
+                <span>Kho Tư Liệu Nội Bộ</span>
+              </div>
+              <h2 className="font-display font-extrabold uppercase text-2xl sm:text-4xl text-white tracking-tight">
+                Thư Viện Hình Ảnh <span className="text-[#d4af37]">Gò Nổi</span>
+              </h2>
+              <p className="text-sm text-sky-200/80 max-w-2xl font-light">
+                Tổng hợp hình ảnh sinh hoạt, giải đấu, giao lưu và đồng hành cùng FC HĐH Gò Nổi tại TP.HCM. Nhấn vào từng ảnh để xem kích thước lớn.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-semibold text-sky-200 bg-[#092244]/80 border border-white/10 rounded-xl px-4 py-2.5 self-start md:self-auto">
+              <Camera className="h-4 w-4 text-[#d4af37]" />
+              <span>
+                Đang hiển thị{" "}
+                <strong className="text-white">{visibleGalleryPhotos.length}</strong> /{" "}
+                <strong className="text-[#fde047]">{filteredGalleryPhotos.length}</strong> ảnh
+              </span>
+            </div>
+          </div>
+
+          {/* Album đại diện theo nhóm hoạt động */}
+          {galleryAlbums.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+              {galleryAlbums.map((album) => {
+                const isSelectedAlbum = galleryCategory === album.id;
+                return (
+                  <button
+                    key={album.id}
+                    type="button"
+                    onClick={() => {
+                      setGalleryCategory(isSelectedAlbum ? "all" : album.id);
+                      setVisiblePhotoCount(INITIAL_GALLERY_LIMIT);
+                    }}
+                    className={`group text-left rounded-2xl overflow-hidden border transition cursor-pointer bg-[#092244]/70 ${
+                      isSelectedAlbum
+                        ? "border-[#d4af37] ring-2 ring-[#d4af37]/40"
+                        : "border-white/10 hover:border-[#d4af37]/60"
+                    }`}
+                  >
+                    <div className="relative aspect-[16/10] overflow-hidden bg-[#040e1e]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={album.coverImage}
+                        alt={`Album ${album.label} - FC HĐH Gò Nổi`}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#040e1e] via-[#040e1e]/20 to-transparent" />
+                      <span className="absolute top-2 right-2 rounded-full bg-black/70 border border-white/15 px-2.5 py-0.5 text-[10px] font-bold text-[#fde047]">
+                        {album.photoCount} ảnh
+                      </span>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-xs font-extrabold uppercase tracking-wide text-white group-hover:text-[#fde047] transition line-clamp-1">
+                        {album.label}
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-400 line-clamp-2 leading-snug">
+                        {album.description}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Bộ lọc album cho thư viện ảnh */}
+          <div className="flex flex-wrap items-center gap-2">
+            {ACTIVITY_CATEGORIES.map((cat) => {
+              const isSelected = galleryCategory === cat.id;
+              return (
+                <button
+                  key={`gallery-filter-${cat.id}`}
+                  type="button"
+                  onClick={() => {
+                    setGalleryCategory(cat.id);
+                    setVisiblePhotoCount(INITIAL_GALLERY_LIMIT);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition cursor-pointer border ${
+                    isSelected
+                      ? "bg-[#d4af37] text-slate-950 border-[#d4af37]"
+                      : "bg-[#092244]/70 text-sky-200 hover:bg-[#123e7a] hover:text-white border-white/10"
+                  }`}
+                >
+                  {getCategoryIcon(cat.id)}
+                  <span>{cat.id === "all" ? "Tất cả ảnh" : cat.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Lưới ảnh thư viện */}
+          {visibleGalleryPhotos.length === 0 ? (
+            <div className="text-center py-14 bg-[#092244]/40 rounded-3xl border border-white/10 p-6">
+              <p className="text-base text-slate-300">
+                Chưa có hình ảnh phù hợp với bộ lọc hiện tại.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setGalleryCategory("all");
+                  setSelectedYear("all");
+                  setSearchQuery("");
+                  setVisiblePhotoCount(INITIAL_GALLERY_LIMIT);
+                }}
+                className="mt-4 px-4 py-2 rounded-xl bg-[#d4af37] text-slate-950 font-bold text-xs uppercase cursor-pointer"
+              >
+                Xem toàn bộ thư viện ảnh
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                {visibleGalleryPhotos.map((photo, idx) => (
+                  <button
+                    key={photo.id}
+                    type="button"
+                    onClick={() =>
+                      openLightbox(
+                        toGalleryLightboxItems(filteredGalleryPhotos),
+                        idx
+                      )
+                    }
+                    className="group relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#092244] border border-white/10 hover:border-[#d4af37] transition text-left cursor-pointer shadow-lg"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo.src}
+                      alt={photo.alt}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#040e1e]/95 via-[#040e1e]/25 to-transparent opacity-80 group-hover:opacity-95 transition" />
+
+                    <div className="absolute inset-x-2 sm:inset-x-2.5 top-2 sm:top-2.5 flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate px-2 sm:px-2.5 py-0.5 rounded-full bg-black/65 border border-white/15 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide sm:tracking-wider text-[#fde047] backdrop-blur-sm">
+                        {photo.categoryLabel}
+                      </span>
+
+                      <span className="shrink-0 p-1.5 rounded-full bg-black/60 text-white opacity-80 group-hover:opacity-100 group-hover:bg-[#d4af37] group-hover:text-slate-950 transition">
+                        <ZoomIn className="h-3.5 w-3.5" />
+                      </span>
+                    </div>
+
+                    <div className="absolute inset-x-0 bottom-0 p-3 space-y-0.5">
+                      <p className="text-xs font-bold text-white line-clamp-1 group-hover:text-[#fde047] transition">
+                        {photo.title}
+                      </p>
+                      <p className="text-[11px] text-slate-300 line-clamp-1 font-light">
+                        {photo.caption}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Điều khiển tải thêm ảnh để tránh tải thừa */}
+              {filteredGalleryPhotos.length > INITIAL_GALLERY_LIMIT && (
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  {visiblePhotoCount < filteredGalleryPhotos.length && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisiblePhotoCount((prev) =>
+                          Math.min(
+                            prev + GALLERY_LOAD_STEP,
+                            filteredGalleryPhotos.length
+                          )
+                        )
+                      }
+                      className="inline-flex items-center gap-2 rounded-xl bg-[#d4af37] hover:bg-[#fde047] text-slate-950 font-extrabold px-5 py-2.5 text-xs uppercase tracking-wider transition shadow-md cursor-pointer"
+                    >
+                      <Images className="h-4 w-4" />
+                      <span>
+                        Xem thêm ảnh (còn{" "}
+                        {filteredGalleryPhotos.length - visiblePhotoCount} ảnh)
+                      </span>
+                    </button>
+                  )}
+
+                  {visiblePhotoCount > INITIAL_GALLERY_LIMIT && (
+                    <button
+                      type="button"
+                      onClick={() => setVisiblePhotoCount(INITIAL_GALLERY_LIMIT)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 font-bold px-4 py-2.5 text-xs uppercase tracking-wider border border-white/15 transition cursor-pointer"
+                    >
+                      Thu gọn
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </section>
       </div>
 
       {/* Lightbox Modal */}
