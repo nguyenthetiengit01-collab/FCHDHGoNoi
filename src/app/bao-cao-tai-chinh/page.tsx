@@ -302,7 +302,11 @@ export default function PublicFinancialReportPage() {
 
                 <div className="rounded-xl bg-[#081a33]/90 border border-sky-400/35 p-5 space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-sky-300">
-                    <span>Số dư hoạt động</span>
+                    <span>
+                      {report.filter.year !== "all" || report.filter.month !== "all"
+                        ? "Số dư hoạt động trong kỳ"
+                        : "Số dư hoạt động"}
+                    </span>
                     <Wallet className="h-4 w-4 text-sky-400" />
                   </div>
                   <div
@@ -315,7 +319,9 @@ export default function PublicFinancialReportPage() {
                     {formatVND(report.summary.currentBalance)}
                   </div>
                   <div className="text-xs text-slate-400">
-                    Tổng thu − Tổng chi
+                    {report.filter.year !== "all" || report.filter.month !== "all"
+                      ? "Tổng thu − Tổng chi trong kỳ"
+                      : "Tổng thu − Tổng chi"}
                   </div>
                 </div>
 
@@ -328,7 +334,7 @@ export default function PublicFinancialReportPage() {
                     {formatVND(report.tournamentReserve)}
                   </div>
                   <div className="text-xs text-slate-300">
-                    Theo dõi tách riêng, không gộp số dư tuần
+                    Quỹ giải hiện tại của toàn CLB, được theo dõi độc lập và không thay đổi theo bộ lọc tháng/năm.
                   </div>
                 </div>
               </div>

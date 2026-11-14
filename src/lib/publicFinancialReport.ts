@@ -240,11 +240,15 @@ export function buildPublicFinancialReport(
       };
     });
 
+  const hasMatchIncomeRecords = filteredAttendances.some((a) => a.paid === 1);
+  const hasOtherIncomeRecords = filteredOtherIncomes.some((inc) =>
+    isCountableOtherIncome(inc)
+  );
+  const hasExpenseRecords = filteredExpenses.some((exp) =>
+    isCountableExpense(exp)
+  );
   const hasData =
-    canonical.totalIncome !== 0 ||
-    canonical.totalExpense !== 0 ||
-    tournamentReserve !== 0 ||
-    monthlyTrend.length > 0;
+    hasMatchIncomeRecords || hasOtherIncomeRecords || hasExpenseRecords;
 
   return {
     teamName: data.settings?.team_name || "FC HĐH Gò Nổi tại TP.HCM",

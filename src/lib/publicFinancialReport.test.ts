@@ -266,15 +266,60 @@ describe("publicFinancialReport", () => {
     expect("matches" in report).toBe(false);
   });
 
-  it("returns hasData: false when filtered period has no financial activity", () => {
+  it("returns hasData: false when filtered period has no transactions, even if tournamentReserve > 0", () => {
     const data = createSampleData();
-    data.settings.tournament_fund_reserve = 0;
     const report = buildPublicFinancialReport(data, { month: "2025-01" });
 
     expect(report.summary.totalIncome).toBe(0);
     expect(report.summary.totalExpense).toBe(0);
     expect(report.summary.currentBalance).toBe(0);
+    expect(report.tournamentReserve).toBe(2301700);
     expect(report.hasData).toBe(false);
+  });
+
+  it("supports year filtering and keeps tournamentReserve unchanged across filters", () => {
+    const data = createSampleData();
+    const allReport = buildPublicFinancialReport(data);
+    const yearReport = buildPublicFinancialReport(data, { year: "2026" });
+    const monthReport = buildPublicFinancialReport(data, { month: "2026-10" });
+
+    expect(yearReport.filter).toEqual({ year: "2026", month: "all" });
+    expect(yearReport.summary.totalIncome).toBe(allReport.summary.totalIncome);
+    expect(yearReport.summary.totalExpense).toBe(allReport.summary.totalExpense);
+    expect(yearReport.hasData).toBe(true);
+    expect(allReport.tournamentReserve).toBe(2301700);
+    expect(yearReport.tournamentReserve).toBe(2301700);
+    expect(monthReport.tournamentReserve).toBe(2301700);
+  });
+
+  it("returns hasData: true when a period has valid transactions whose net total is 0", () => {
+    const data = createSampleData();
+    data.expenses.push(
+      {
+        id: 10,
+        expense_date: "2026-12-05",
+        category: "Khác",
+        description: "Tạm ứng",
+        amount: 100000,
+        payer: "A",
+        match_id: null,
+      },
+      {
+        id: 11,
+        expense_date: "2026-12-06",
+        category: "Khác",
+        description: "Hoàn ứng",
+        amount: -100000,
+        payer: "A",
+        match_id: null,
+      }
+    );
+
+    const report = buildPublicFinancialReport(data, { month: "2026-12" });
+    expect(report.summary.totalIncome).toBe(0);
+    expect(report.summary.totalExpense).toBe(0);
+    expect(report.summary.currentBalance).toBe(0);
+    expect(report.hasData).toBe(true);
   });
 
   it("GET /api/public/financial-report returns HTTP 200 with no-store and filtered totals", async () => {
