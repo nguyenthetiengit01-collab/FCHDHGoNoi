@@ -1612,6 +1612,14 @@ export function PublicGuestPortal({
                 <p className="text-xs sm:text-sm text-sky-100 leading-relaxed font-light">
                   Hệ thống website quản lý hiện đại: quỹ thu chi công khai từng đồng, điểm danh trực tuyến và thông báo lịch đấu rõ ràng hàng tuần.
                 </p>
+                <div className="mt-3">
+                  <Link
+                    href="/bao-cao-tai-chinh"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#fde047] hover:text-white transition"
+                  >
+                    Xem báo cáo tài chính <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
               </div>
             </div>
 
