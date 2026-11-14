@@ -12,6 +12,7 @@ import {
   Users,
   Waves,
 } from "lucide-react";
+import { buildPageMetadata } from "@/lib/seo";
 import {
   GO_NOI_GALLERY,
   GO_NOI_IDENTITY,
@@ -19,11 +20,12 @@ import {
   GO_NOI_VILLAGES,
 } from "@/data/goNoiStory";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Câu Chuyện Gò Nổi | FC HĐH Gò Nổi tại TP.HCM",
   description:
     "Tìm hiểu vùng đất Gò Nổi bên dòng sông Thu Bồn — Xã Gò Nổi • TP. Đà Nẵng (Gò Nổi – Điện Bàn – Quảng Nam cũ gồm Điện Quang, Điện Trung, Điện Phong) và hành trình kết nối cộng đồng FC HĐH Gò Nổi tại TP.HCM.",
-};
+  path: "/cau-chuyen-go-noi",
+});
 
 export default function CauChuyenGoNoiPage() {
   return (
