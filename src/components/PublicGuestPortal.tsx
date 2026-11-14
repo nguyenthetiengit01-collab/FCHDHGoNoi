@@ -718,6 +718,13 @@ export function PublicGuestPortal({
                 <HeartHandshake className="h-5 w-5" />
                 <span>Gia nhập đội bóng</span>
               </button>
+              <Link
+                href="/cau-chuyen-go-noi"
+                className="inline-flex items-center gap-2 border border-white/25 bg-white/10 hover:bg-white/15 hover:border-[#d4af37]/60 text-white font-bold px-6 py-[14px] sm:py-[18px] text-sm uppercase tracking-wider rounded-xl transition"
+              >
+                <BookOpen className="h-4 w-4 text-[#fde047]" />
+                <span>Câu chuyện Gò Nổi</span>
+              </Link>
             </div>
           </div>
 
