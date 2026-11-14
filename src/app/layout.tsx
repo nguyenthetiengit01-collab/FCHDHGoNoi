@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed } from "next/font/google";
+import { PwaManager } from "@/components/PwaManager";
 import {
   buildSportsOrganizationJsonLd,
   DEFAULT_OG_IMAGE,
@@ -20,10 +21,20 @@ export const metadata: Metadata = {
   title: "FC HĐH Gò Nổi | Quản Lý Hồ Sơ, Quỹ & Lịch Thi Đấu Tại TP.HCM",
   description:
     "Cổng thông tin và ứng dụng quản lý Hồ sơ cầu thủ, Quỹ đội bóng, Điểm danh & Lịch thi đấu của Đội bóng FC HĐH Gò Nổi tại TP. Hồ Chí Minh.",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FC Gò Nổi",
+  },
   icons: {
-    icon: "/images/logo.jpg",
-    apple: "/images/logo.jpg",
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   openGraph: {
     type: "website",
@@ -50,7 +61,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1e4fc2",
+  themeColor: "#040e1a",
   width: "device-width",
   initialScale: 1,
 };
@@ -70,6 +81,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
         />
         {children}
+        <PwaManager />
       </body>
     </html>
   );
