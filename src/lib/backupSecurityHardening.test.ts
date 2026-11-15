@@ -94,7 +94,14 @@ describe("Final Backup Security Hardening – Encryption & Workflow Validation",
     expect(encRaw).not.toContain("scrypt$salt$hashsecret999");
     expect(encRaw).not.toContain("Nguyen Van A");
 
-    // 5. Reject wrong private key
+    const encJson = JSON.parse(encRaw) as {
+      keyId: string;
+      ciphertext: string;
+      tag: string;
+    };
+    expect(encJson.keyId).toMatch(/^k1-[0-9a-f]{16}$/);
+
+    // 5. Reject wrong private key (with keyId mismatch)
     const wrongKeygen = JSON.parse(
       spawnSync(process.execPath, ["scripts/backup-crypto.mjs", "keygen"], {
         cwd: process.cwd(),
@@ -112,14 +119,69 @@ describe("Final Backup Security Hardening – Encryption & Workflow Validation",
       }
     );
     expect(wrongDec.status).toBe(1);
+    expect(wrongDec.stderr).toContain("keyId mismatch");
+    expect(fs.existsSync(decryptedBackupPath)).toBe(false);
 
-    // 6. Decrypt with real private key & restore
-    const decRes = spawnSync(
+    // 5b. Reject 1-byte ciphertext tampering & 1-byte GCM tag tampering
+    const tamperedCipherPath = path.join(tmpDir, "tampered-cipher.enc");
+    const tamperedTagPath = path.join(tmpDir, "tampered-tag.enc");
+    const tamperedOutPath = path.join(tmpDir, "should-not-exist.json");
+
+    const cipherBuf = Buffer.from(encJson.ciphertext, "base64");
+    cipherBuf[0] ^= 0xff;
+    fs.writeFileSync(
+      tamperedCipherPath,
+      JSON.stringify({ ...encJson, ciphertext: cipherBuf.toString("base64") }),
+      "utf8"
+    );
+    const cipherTamperRes = spawnSync(
       process.execPath,
-      ["scripts/backup-crypto.mjs", "decrypt", "--in", encBackupPath, "--out", decryptedBackupPath],
+      ["scripts/backup-crypto.mjs", "decrypt", "--in", tamperedCipherPath, "--out", tamperedOutPath],
       {
         cwd: process.cwd(),
         env: { ...process.env, BACKUP_DECRYPTION_PRIVATE_KEY: privateKey },
+        encoding: "utf8",
+      }
+    );
+    expect(cipherTamperRes.status).not.toBe(0);
+    expect(fs.existsSync(tamperedOutPath)).toBe(false);
+
+    const tagBuf = Buffer.from(encJson.tag, "base64");
+    tagBuf[0] ^= 0xff;
+    fs.writeFileSync(
+      tamperedTagPath,
+      JSON.stringify({ ...encJson, tag: tagBuf.toString("base64") }),
+      "utf8"
+    );
+    const tagTamperRes = spawnSync(
+      process.execPath,
+      ["scripts/backup-crypto.mjs", "decrypt", "--in", tamperedTagPath, "--out", tamperedOutPath],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, BACKUP_DECRYPTION_PRIVATE_KEY: privateKey },
+        encoding: "utf8",
+      }
+    );
+    expect(tagTamperRes.status).not.toBe(0);
+    expect(fs.existsSync(tamperedOutPath)).toBe(false);
+
+    // 6. Decrypt via --private-key-file & restore
+    const privKeyFile = path.join(tmpDir, "priv.key");
+    fs.writeFileSync(privKeyFile, privateKey, { mode: 0o600 });
+    const decRes = spawnSync(
+      process.execPath,
+      [
+        "scripts/backup-crypto.mjs",
+        "decrypt",
+        "--in",
+        encBackupPath,
+        "--out",
+        decryptedBackupPath,
+        "--private-key-file",
+        privKeyFile,
+      ],
+      {
+        cwd: process.cwd(),
         encoding: "utf8",
       }
     );
@@ -182,5 +244,52 @@ describe("Final Backup Security Hardening – Encryption & Workflow Validation",
 
     // No step echoes secret values
     expect(yml).not.toMatch(/echo\s+.*(TURSO_AUTH_TOKEN|TURSO_DATABASE_URL|BACKUP_ENCRYPTION_PUBLIC_KEY)/);
+  });
+
+  it("captures a consistent point-in-time snapshot inside client.transaction('read') during concurrent writes", async () => {
+    const snapDbPath = path.join(tmpDir, "snapshot-concurrent.sqlite");
+    const setupDb = new DatabaseSync(snapDbPath);
+    try {
+      setupDb.exec(`
+        PRAGMA journal_mode = WAL;
+        CREATE TABLE parent_a (id INTEGER PRIMARY KEY AUTOINCREMENT, label TEXT NOT NULL);
+        CREATE TABLE child_b (id INTEGER PRIMARY KEY AUTOINCREMENT, parent_id INTEGER NOT NULL REFERENCES parent_a(id));
+        INSERT INTO parent_a (id, label) VALUES (1, 'initial-parent');
+        INSERT INTO child_b (id, parent_id) VALUES (10, 1);
+      `);
+    } finally {
+      setupDb.close();
+    }
+
+    const { backupFromTurso } = await import("../../scripts/db-backup.mjs");
+    const fileUrl = `file:${snapDbPath.replace(/\\/g, "/")}`;
+
+    const writerDb = new DatabaseSync(snapDbPath);
+    let wroteConcurrently = false;
+    try {
+      const result = (await backupFromTurso(fileUrl, undefined, {
+        onBeforeTableRead: async (tableName: string) => {
+          if (tableName === "child_b" && !wroteConcurrently) {
+            wroteConcurrently = true;
+            // Concurrent write committed after read transaction already started and read parent_a
+            writerDb.exec("INSERT INTO parent_a (id, label) VALUES (2, 'concurrent-parent');");
+            writerDb.exec("INSERT INTO child_b (id, parent_id) VALUES (20, 2);");
+          }
+        },
+      })) as unknown as {
+        rowCounts: Record<string, number>;
+        sequences: Array<{ name: string; seq: number }>;
+      };
+
+      expect(wroteConcurrently).toBe(true);
+      expect(result.rowCounts.parent_a).toBe(1);
+      expect(result.rowCounts.child_b).toBe(1);
+      expect(result.sequences).toEqual([
+        { name: "child_b", seq: 10 },
+        { name: "parent_a", seq: 1 },
+      ]);
+    } finally {
+      writerDb.close();
+    }
   });
 });

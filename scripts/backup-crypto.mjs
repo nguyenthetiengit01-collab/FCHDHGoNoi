@@ -25,12 +25,20 @@ function getArg(flag) {
   return null;
 }
 
+export function computeKeyIdFromPublicKey(publicKeyObj) {
+  const spkiDer = publicKeyObj.export({ type: "spki", format: "der" });
+  const digest = crypto.createHash("sha256").update(spkiDer).digest("hex");
+  return `k1-${digest.slice(0, 16)}`;
+}
+
 export function generateBackupKeypair() {
   const { publicKey, privateKey } = crypto.generateKeyPairSync("x25519", {
     publicKeyEncoding: { type: "spki", format: "der" },
     privateKeyEncoding: { type: "pkcs8", format: "der" },
   });
+  const pubKeyObj = crypto.createPublicKey({ key: publicKey, format: "der", type: "spki" });
   return {
+    keyId: computeKeyIdFromPublicKey(pubKeyObj),
     publicKey: `${PUB_PREFIX}${Buffer.from(publicKey).toString("base64")}`,
     privateKey: `${PRIV_PREFIX}${Buffer.from(privateKey).toString("base64")}`,
   };
@@ -72,11 +80,13 @@ export function encryptBufferWithPublicKey(plaintextBuf, publicKeyStr) {
   const ciphertext = Buffer.concat([cipher.update(plaintextBuf), cipher.final()]);
   const tag = cipher.getAuthTag();
   const epkDer = ephemeral.publicKey.export({ type: "spki", format: "der" });
+  const keyId = computeKeyIdFromPublicKey(recipientPub);
 
   return JSON.stringify(
     {
       version: 1,
       alg: ENVELOPE_ALG,
+      keyId,
       epk: Buffer.from(epkDer).toString("base64"),
       salt: salt.toString("base64"),
       iv: iv.toString("base64"),
@@ -100,6 +110,14 @@ export function decryptEnvelopeWithPrivateKey(envelopeJsonStr, privateKeyStr) {
   }
 
   const recipientPriv = parsePrivateKey(privateKeyStr);
+  if (typeof envelope.keyId === "string" && envelope.keyId) {
+    const actualKeyId = computeKeyIdFromPublicKey(crypto.createPublicKey(recipientPriv));
+    if (actualKeyId !== envelope.keyId) {
+      throw new Error(
+        `Backup keyId mismatch: artifact encrypted for "${envelope.keyId}", provided private key is "${actualKeyId}".`
+      );
+    }
+  }
   const epkDer = Buffer.from(String(envelope.epk || ""), "base64");
   const epkPub = crypto.createPublicKey({ key: epkDer, format: "der", type: "spki" });
 
@@ -183,7 +201,7 @@ function main() {
     const envelopeStr = fs.readFileSync(resolvedIn, "utf8");
     const plaintext = decryptEnvelopeWithPrivateKey(envelopeStr, privKey);
     fs.mkdirSync(path.dirname(resolvedOut), { recursive: true });
-    fs.writeFileSync(resolvedOut, plaintext);
+    fs.writeFileSync(resolvedOut, plaintext, { mode: 0o600 });
     console.log(JSON.stringify({ status: "ok", mode: "decrypt", out: resolvedOut }));
     return;
   }

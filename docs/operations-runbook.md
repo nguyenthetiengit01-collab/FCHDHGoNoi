@@ -38,14 +38,23 @@ Workflow [turso-backup.yml](../.github/workflows/turso-backup.yml) chỉ kích h
   - `concurrency: turso-production-backup` (`cancel-in-progress: false`), `timeout-minutes: 15`, `permissions: contents: read`, mọi action đều pin bằng full 40-char commit SHA, không có `continue-on-error`.
   - Artifact `turso-prod-backup-<run_id>.enc` lưu với `retention-days: 30`, `if-no-files-found: error`. Đề xuất chủ sở hữu tải định kỳ bản `.enc` sang kho lưu trữ độc lập thứ hai (ví dụ Google Drive / ổ cứng mã hóa ngoại tuyến).
 - **Giải mã & Kiểm chứng Restore (Chỉ trên SQLite tạm hoặc Staging riêng)**:
+  - Ưu tiên dùng `--private-key-file` (file quyền `600`, không dán private key trực tiếp vào shell history):
   ```bash
-  BACKUP_DECRYPTION_PRIVATE_KEY="gonoi-priv-v1:..." \
-    node scripts/backup-crypto.mjs decrypt --in ../backups/gonoi-prod-backup.json.enc --out ../backups/decrypted.json
+  chmod 600 ~/.secrets/gonoi-backup-priv.key
+  node scripts/backup-crypto.mjs decrypt \
+    --in ../backups/gonoi-prod-backup.json.enc \
+    --out ../backups/decrypted.json \
+    --private-key-file ~/.secrets/gonoi-backup-priv.key
+  chmod 600 ../backups/decrypted.json
   node scripts/db-restore.mjs --in ../backups/decrypted.json --target ../backups/verify.sqlite --confirm
   # Hoặc kiểm chứng lên Turso Staging riêng (fchdhgonoi-staging-restore):
   node scripts/db-restore.mjs --env staging --in ../backups/decrypted.json --confirm
+  rm -f ../backups/decrypted.json ../backups/verify.sqlite
   ```
-  - Không tự động xóa database Staging sau kiểm thử; xóa file `decrypted.json` sau khi kiểm tra xong.
+  - Không tự động xóa database Staging sau kiểm thử; luôn xóa file `decrypted.json` ngay sau khi kiểm tra xong.
+- **Lưu trữ Dự Phòng & Xoay Vòng Khóa (Key Recovery & Rotation)**:
+  - Lưu **hai bản sao độc lập** của `privateKey` (ví dụ: Password Manager được mã hóa + USB/Vault ngoại tuyến) và định kỳ kiểm tra giải mã thử từ bản sao dự phòng để chắc chắn khóa phục hồi hoạt động.
+  - Mỗi file `.json.enc` mang trường `keyId` (`k1-<fingerprint>`). Khi xoay vòng khóa (cập nhật `TURSO_BACKUP_PUBLIC_KEY` mới trên GitHub), **giữ lại private key cũ tối thiểu 30 ngày** cho tới khi toàn bộ artifact cũ hết hạn retention.
 - **Hướng dẫn Staging chi tiết**: Xem [turso-staging-guide.md](turso-staging-guide.md).
 
 ---
