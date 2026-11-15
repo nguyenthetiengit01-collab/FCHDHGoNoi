@@ -32,18 +32,20 @@ Workflow [turso-backup.yml](../.github/workflows/turso-backup.yml) chỉ kích h
 - **Repository Secrets bắt buộc** (cấu hình trong **GitHub → Settings → Secrets and variables → Actions**):
   - `TURSO_PROD_DATABASE_URL`: URL Production Turso DB (ánh xạ vào `TURSO_DATABASE_URL`).
   - `TURSO_PROD_AUTH_TOKEN_RO`: Token **chỉ đọc (`--read-only`)** (ánh xạ vào `TURSO_AUTH_TOKEN`). Tuyệt đối không dùng token có quyền ghi Production trong workflow backup.
-- **Bảo vệ & Kiểm tra Artifact**:
-  - `concurrency: turso-production-backup` (`cancel-in-progress: false`), `timeout-minutes: 15`, `permissions: contents: read`, không có `continue-on-error`.
-  - Xác minh file backup v3 khác rỗng, đủ `schema`, `objects.tables`, `sequences`, `rowCounts` và chạy thử restore cục bộ (`db-restore.mjs --target /tmp/verify-restore.sqlite --confirm`).
-  - Artifact `turso-prod-backup-<run_id>` lưu với `retention-days: 30`, `if-no-files-found: error`. Chỉ thành viên có quyền đọc repository mới tải được artifact; đối với repository public không nên lưu dữ liệu nhạy cảm chưa mã hóa trên GitHub Artifacts.
-- **Cảnh báo thất bại (Failure Alert)**:
-  - Bật **GitHub Settings → Notifications → Actions → Send notifications for failed workflows** để nhận email/thông báo ngay khi bước backup, validation, local restore hoặc upload artifact thất bại.
-- **Kiểm chứng Restore trên Staging riêng (tùy chọn thủ công)**:
-  - Tải artifact backup về máy vận hành hoặc dùng runner có sẵn `TURSO_STAGING_RESTORE_DATABASE_URL` + `TURSO_STAGING_RESTORE_AUTH_TOKEN` (tách biệt hoàn toàn khỏi Production) và chạy:
-    ```bash
-    node scripts/db-restore.mjs --env staging --in ../backups/gonoi-prod-backup.json --confirm
-    ```
-  - Không tự động xóa database Staging sau kiểm thử.
+  - `TURSO_BACKUP_PUBLIC_KEY`: Khóa công khai (`gonoi-pub-v1:...`) sinh ngoại tuyến bằng `node scripts/backup-crypto.mjs keygen`. **Tuyệt đối không** lưu private key (`gonoi-priv-v1:...`) trên GitHub repository.
+- **Bảo vệ & Mã hóa Artifact (X25519 + HKDF-SHA256 + AES-256-GCM)**:
+  - File backup chứa dữ liệu nhạy cảm (`players.phone`, `players.pin_code`, giao dịch tài chính, `audit_logs`), do đó workflow mã hóa thành `.json.enc` và xóa file plaintext trước khi upload.
+  - `concurrency: turso-production-backup` (`cancel-in-progress: false`), `timeout-minutes: 15`, `permissions: contents: read`, mọi action đều pin bằng full 40-char commit SHA, không có `continue-on-error`.
+  - Artifact `turso-prod-backup-<run_id>.enc` lưu với `retention-days: 30`, `if-no-files-found: error`. Đề xuất chủ sở hữu tải định kỳ bản `.enc` sang kho lưu trữ độc lập thứ hai (ví dụ Google Drive / ổ cứng mã hóa ngoại tuyến).
+- **Giải mã & Kiểm chứng Restore (Chỉ trên SQLite tạm hoặc Staging riêng)**:
+  ```bash
+  BACKUP_DECRYPTION_PRIVATE_KEY="gonoi-priv-v1:..." \
+    node scripts/backup-crypto.mjs decrypt --in ../backups/gonoi-prod-backup.json.enc --out ../backups/decrypted.json
+  node scripts/db-restore.mjs --in ../backups/decrypted.json --target ../backups/verify.sqlite --confirm
+  # Hoặc kiểm chứng lên Turso Staging riêng (fchdhgonoi-staging-restore):
+  node scripts/db-restore.mjs --env staging --in ../backups/decrypted.json --confirm
+  ```
+  - Không tự động xóa database Staging sau kiểm thử; xóa file `decrypted.json` sau khi kiểm tra xong.
 - **Hướng dẫn Staging chi tiết**: Xem [turso-staging-guide.md](turso-staging-guide.md).
 
 ---

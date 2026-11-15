@@ -15,17 +15,17 @@ concurrency:
 
 jobs:
   backup:
-    name: Backup Turso Production (v3 Read-Only)
+    name: Backup Turso Production (v3 Read-Only Encrypted)
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 15
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: "npm"
@@ -33,13 +33,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Verify Production read-only secrets are configured
+      - name: Verify Production read-only and encryption public-key secrets
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_PROD_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_PROD_AUTH_TOKEN_RO }}
+          BACKUP_ENCRYPTION_PUBLIC_KEY: ${{ secrets.TURSO_BACKUP_PUBLIC_KEY }}
         run: |
-          if [ -z "$TURSO_DATABASE_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
-            echo "::error::Missing required GitHub Repository Secrets: TURSO_PROD_DATABASE_URL or TURSO_PROD_AUTH_TOKEN_RO."
+          if [ -z "$TURSO_DATABASE_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ] || [ -z "$BACKUP_ENCRYPTION_PUBLIC_KEY" ]; then
+            echo "::error::Missing required secrets: TURSO_PROD_DATABASE_URL, TURSO_PROD_AUTH_TOKEN_RO, or TURSO_BACKUP_PUBLIC_KEY."
             exit 1
           fi
 
@@ -55,7 +56,7 @@ jobs:
             console.log(JSON.stringify({ status: s.status, version: s.version, objectCounts: s.objectCounts, rowCounts: s.rowCounts }, null, 2));
           '
 
-      - name: Validate backup v3 structure, schema, sequences, and local restore integrity
+      - name: Validate backup v3 structure, sequences, and local restore integrity
         run: |
           if [ ! -s /tmp/gonoi-prod-backup.json ]; then
             echo "::error::Backup file is missing or empty."
@@ -90,14 +91,25 @@ jobs:
           node scripts/db-restore.mjs --in /tmp/gonoi-prod-backup.json --target /tmp/verify-restore.sqlite --confirm >/dev/null
           echo "Local SQLite restore integrity check OK."
 
-      - name: Upload private backup artifact
-        uses: actions/upload-artifact@v4
+      - name: Encrypt backup artifact with public key and purge plaintext
+        env:
+          BACKUP_ENCRYPTION_PUBLIC_KEY: ${{ secrets.TURSO_BACKUP_PUBLIC_KEY }}
+        run: |
+          node scripts/backup-crypto.mjs encrypt --in /tmp/gonoi-prod-backup.json --out /tmp/gonoi-prod-backup.json.enc
+          rm -f /tmp/gonoi-prod-backup.json /tmp/verify-restore.sqlite
+          if [ ! -s /tmp/gonoi-prod-backup.json.enc ]; then
+            echo "::error::Encrypted backup artifact is missing or empty."
+            exit 1
+          fi
+
+      - name: Upload encrypted backup artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: turso-prod-backup-${{ github.run_id }}
-          path: /tmp/gonoi-prod-backup.json
+          name: turso-prod-backup-${{ github.run_id }}.enc
+          path: /tmp/gonoi-prod-backup.json.enc
           retention-days: 30
           if-no-files-found: error
 
       - name: Cleanup temporary backup files
         if: always()
-        run: rm -f /tmp/gonoi-prod-backup.json /tmp/backup-summary.json /tmp/verify-restore.sqlite
+        run: rm -f /tmp/gonoi-prod-backup.json /tmp/gonoi-prod-backup.json.enc /tmp/backup-summary.json /tmp/verify-restore.sqlite
