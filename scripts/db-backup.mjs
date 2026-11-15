@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * Read-only backup utility for FC HĐH Gò Nổi database (Local SQLite or Turso LibSQL).
+ * Exports exact table DDL schema + all row data as JSON.
  * Usage:
  *   node scripts/db-backup.mjs --out backups/backup.json [--sqlite data/gonoifc.sqlite]
  */
@@ -39,12 +40,22 @@ async function main() {
   const tursoUrl = process.env.TURSO_DATABASE_URL;
   const tursoToken = process.env.TURSO_AUTH_TOKEN;
 
+  const schema = {};
   const tablesData = {};
   const rowCounts = {};
 
   if (!sqlitePath && tursoUrl && tursoToken) {
     const client = createClient({ url: tursoUrl, authToken: tursoToken });
     try {
+      const schemaRes = await client.execute(
+        "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name ASC"
+      );
+      for (const row of schemaRes.rows) {
+        if (row.name && row.sql) {
+          schema[String(row.name)] = String(row.sql);
+        }
+      }
+
       for (const table of TABLES) {
         try {
           const res = await client.execute(`SELECT * FROM ${table}`);
@@ -67,6 +78,17 @@ async function main() {
     }
     const db = new DatabaseSync(targetFile, { readOnly: true });
     try {
+      const schemaRows = db
+        .prepare(
+          "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name ASC"
+        )
+        .all();
+      for (const row of schemaRows) {
+        if (row.name && row.sql) {
+          schema[String(row.name)] = String(row.sql);
+        }
+      }
+
       for (const table of TABLES) {
         try {
           const rows = db.prepare(`SELECT * FROM ${table}`).all();
@@ -83,8 +105,9 @@ async function main() {
   }
 
   const payload = {
-    version: 1,
+    version: 2,
     createdAt: new Date().toISOString(),
+    schema,
     rowCounts,
     tables: tablesData,
   };
@@ -92,7 +115,7 @@ async function main() {
   const resolvedOut = path.resolve(outPath);
   fs.mkdirSync(path.dirname(resolvedOut), { recursive: true });
   fs.writeFileSync(resolvedOut, JSON.stringify(payload, null, 2), "utf8");
-  console.log(JSON.stringify({ status: "ok", out: resolvedOut, rowCounts }, null, 2));
+  console.log(JSON.stringify({ status: "ok", out: resolvedOut, schemaTables: Object.keys(schema).length, rowCounts }, null, 2));
 }
 
 main().catch((err) => {
