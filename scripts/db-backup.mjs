@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Read-only backup utility for FC HĐH Gò Nổi database (Local SQLite or Turso LibSQL).
- * Exports exact table DDL schema + all row data as JSON.
+ * Read-only backup utility v3 for FC HĐH Gò Nổi database (Local SQLite or Turso LibSQL).
+ * Exports full database schema (tables, indexes, triggers, views) + typed row data (including BLOB).
  * Usage:
  *   node scripts/db-backup.mjs --out backups/backup.json [--sqlite data/gonoifc.sqlite]
  *   node scripts/db-backup.mjs --env staging --out backups/staging.json [--preflight-only]
@@ -10,18 +10,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
 import { validateStagingTarget } from "./lib/turso-preflight.mjs";
-
-const TABLES = [
-  "team_settings",
-  "players",
-  "matches",
-  "match_attendances",
-  "other_incomes",
-  "expenses",
-  "club_posts",
-  "sponsors",
-  "audit_logs",
-];
+import {
+  encodeRow,
+  isValidIdentifier,
+  topoSortTables,
+  validateBackupPayload,
+} from "./lib/backup-format.mjs";
 
 function getArg(flag) {
   const idx = process.argv.indexOf(flag);
@@ -29,6 +23,124 @@ function getArg(flag) {
     return process.argv[idx + 1];
   }
   return null;
+}
+
+function collectObjects(masterRows) {
+  const schema = {};
+  const objects = {
+    tables: [],
+    indexes: [],
+    triggers: [],
+    views: [],
+  };
+
+  for (const row of masterRows) {
+    const name = row.name ? String(row.name) : "";
+    const type = row.type ? String(row.type) : "";
+    const tblName = row.tbl_name ? String(row.tbl_name) : "";
+    const sql = row.sql ? String(row.sql) : "";
+    if (!name || !sql || name.startsWith("sqlite_") || !isValidIdentifier(name)) {
+      continue;
+    }
+
+    const entry = { name, tbl_name: tblName, sql };
+    if (type === "table") {
+      schema[name] = sql;
+      objects.tables.push(entry);
+    } else if (type === "index") {
+      objects.indexes.push(entry);
+    } else if (type === "trigger") {
+      objects.triggers.push(entry);
+    } else if (type === "view") {
+      objects.views.push(entry);
+    }
+  }
+
+  return { schema, objects };
+}
+
+async function backupFromTurso(tursoUrl, tursoToken) {
+  const client = createClient({ url: tursoUrl, authToken: tursoToken });
+  try {
+    const masterRes = await client.execute(
+      "SELECT name, type, tbl_name, sql FROM sqlite_master WHERE type IN ('table', 'index', 'trigger', 'view') AND name NOT LIKE 'sqlite_%' AND sql IS NOT NULL ORDER BY type ASC, name ASC"
+    );
+    const { schema, objects } = collectObjects(masterRes.rows);
+
+    const rawTableNames = objects.tables.map((t) => t.name);
+    const fkEdges = [];
+    for (const table of rawTableNames) {
+      try {
+        const fkRes = await client.execute(`PRAGMA foreign_key_list("${table}")`);
+        for (const fk of fkRes.rows) {
+          if (fk.table) {
+            fkEdges.push({ child: table, parent: String(fk.table) });
+          }
+        }
+      } catch {
+        // Ignore if pragma unavailable
+      }
+    }
+
+    const orderedTables = topoSortTables(rawTableNames, fkEdges);
+    const tablesData = {};
+    const rowCounts = {};
+
+    for (const table of orderedTables) {
+      const res = await client.execute(`SELECT * FROM "${table}"`);
+      tablesData[table] = res.rows.map((r) => encodeRow({ ...r }));
+      rowCounts[table] = tablesData[table].length;
+    }
+
+    return { schema, objects, tablesData, rowCounts };
+  } finally {
+    client.close();
+  }
+}
+
+async function backupFromSqlite(targetFile) {
+  const { DatabaseSync } = await import("node:sqlite");
+  if (!fs.existsSync(targetFile)) {
+    throw new Error(`SQLite file not found: ${targetFile}`);
+  }
+  const db = new DatabaseSync(targetFile, { readOnly: true });
+  try {
+    const masterRows = db
+      .prepare(
+        "SELECT name, type, tbl_name, sql FROM sqlite_master WHERE type IN ('table', 'index', 'trigger', 'view') AND name NOT LIKE 'sqlite_%' AND sql IS NOT NULL ORDER BY type ASC, name ASC"
+      )
+      .all();
+    const { schema, objects } = collectObjects(masterRows);
+
+    const rawTableNames = objects.tables.map((t) => t.name);
+    const fkEdges = [];
+    for (const table of rawTableNames) {
+      try {
+        const fkRows = db.prepare(`PRAGMA foreign_key_list("${table}")`).all();
+        for (const fk of fkRows) {
+          if (fk.table) {
+            fkEdges.push({ child: table, parent: String(fk.table) });
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
+    const orderedTables = topoSortTables(rawTableNames, fkEdges);
+    const tablesData = {};
+    const rowCounts = {};
+
+    for (const table of orderedTables) {
+      const rows = db.prepare(`SELECT * FROM "${table}"`).all();
+      tablesData[table] = rows.map((r) => encodeRow(r));
+      rowCounts[table] = tablesData[table].length;
+    }
+
+    return { schema, objects, tablesData, rowCounts };
+  } finally {
+    db.close();
+  }
 }
 
 async function main() {
@@ -72,82 +184,46 @@ async function main() {
     process.exit(1);
   }
 
-  const schema = {};
-  const tablesData = {};
-  const rowCounts = {};
+  const useTurso = envMode === "staging" || (!sqlitePath && tursoUrl && tursoToken);
+  const sourceType = envMode === "staging" ? "turso-staging" : useTurso ? "turso" : "sqlite";
 
-  if (envMode === "staging" || (!sqlitePath && tursoUrl && tursoToken)) {
-    const client = createClient({ url: tursoUrl, authToken: tursoToken });
-    try {
-      const schemaRes = await client.execute(
-        "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name ASC"
-      );
-      for (const row of schemaRes.rows) {
-        if (row.name && row.sql) {
-          schema[String(row.name)] = String(row.sql);
-        }
-      }
-
-      for (const table of TABLES) {
-        try {
-          const res = await client.execute(`SELECT * FROM ${table}`);
-          tablesData[table] = res.rows.map((r) => ({ ...r }));
-          rowCounts[table] = tablesData[table].length;
-        } catch {
-          tablesData[table] = [];
-          rowCounts[table] = 0;
-        }
-      }
-    } finally {
-      client.close();
-    }
-  } else {
-    const { DatabaseSync } = await import("node:sqlite");
-    const targetFile = path.resolve(sqlitePath || process.env.SQLITE_DB_PATH || "data/gonoifc.sqlite");
-    if (!fs.existsSync(targetFile)) {
-      console.error(`SQLite file not found: ${targetFile}`);
-      process.exit(1);
-    }
-    const db = new DatabaseSync(targetFile, { readOnly: true });
-    try {
-      const schemaRows = db
-        .prepare(
-          "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name ASC"
-        )
-        .all();
-      for (const row of schemaRows) {
-        if (row.name && row.sql) {
-          schema[String(row.name)] = String(row.sql);
-        }
-      }
-
-      for (const table of TABLES) {
-        try {
-          const rows = db.prepare(`SELECT * FROM ${table}`).all();
-          tablesData[table] = rows;
-          rowCounts[table] = rows.length;
-        } catch {
-          tablesData[table] = [];
-          rowCounts[table] = 0;
-        }
-      }
-    } finally {
-      db.close();
-    }
-  }
+  const { schema, objects, tablesData, rowCounts } = useTurso
+    ? await backupFromTurso(tursoUrl, tursoToken)
+    : await backupFromSqlite(path.resolve(sqlitePath || process.env.SQLITE_DB_PATH || "data/gonoifc.sqlite"));
 
   const payload = {
-    version: 2,
+    version: 3,
     createdAt: new Date().toISOString(),
+    sourceType,
     schema,
+    objects,
     rowCounts,
     tables: tablesData,
   };
 
+  validateBackupPayload(payload);
+
   const resolvedOut = path.resolve(outPath);
   fs.mkdirSync(path.dirname(resolvedOut), { recursive: true });
   fs.writeFileSync(resolvedOut, JSON.stringify(payload, null, 2), "utf8");
-  console.log(JSON.stringify({ status: "ok", out: resolvedOut, schemaTables: Object.keys(schema).length, rowCounts }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        status: "ok",
+        version: 3,
+        out: resolvedOut,
+        objectCounts: {
+          tables: objects.tables.length,
+          indexes: objects.indexes.length,
+          triggers: objects.triggers.length,
+          views: objects.views.length,
+        },
+        rowCounts,
+      },
+      null,
+      2
+    )
+  );
 }
 
 main().catch((err) => {
