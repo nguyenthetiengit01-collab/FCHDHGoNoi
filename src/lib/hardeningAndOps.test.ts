@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -158,5 +159,121 @@ describe("Phase 5 Hardening, Audit Logs & Security Matrix", () => {
 
     const logs = await getAuditLogs(10);
     expect(logs.some((l) => /pin|secret|token/i.test(l.summary))).toBe(false);
+  });
+
+  it("stops safely on missing or production-like Turso Staging credentials without fallback", () => {
+    const baseEnv = { ...process.env };
+    delete baseEnv.TURSO_STAGING_DATABASE_URL;
+    delete baseEnv.TURSO_STAGING_AUTH_TOKEN;
+    delete baseEnv.TURSO_STAGING_RESTORE_DATABASE_URL;
+    delete baseEnv.TURSO_STAGING_RESTORE_AUTH_TOKEN;
+
+    // 1. Missing Staging credentials -> must fail even if TURSO_DATABASE_URL is set
+    const backupMissing = spawnSync(
+      process.execPath,
+      ["scripts/db-backup.mjs", "--env", "staging", "--preflight-only"],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...baseEnv,
+          TURSO_DATABASE_URL: "libsql://fchdhgonoi-example.turso.io",
+          TURSO_AUTH_TOKEN: "dummy-prod-token",
+        },
+        encoding: "utf8",
+      }
+    );
+    expect(backupMissing.status).toBe(1);
+    expect(backupMissing.stderr).toContain("TURSO_STAGING_DATABASE_URL");
+    expect(backupMissing.stderr).not.toContain("dummy-prod-token");
+
+    const restoreMissing = spawnSync(
+      process.execPath,
+      ["scripts/db-restore.mjs", "--env", "staging", "--preflight-only"],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...baseEnv,
+          TURSO_DATABASE_URL: "libsql://fchdhgonoi-example.turso.io",
+          TURSO_AUTH_TOKEN: "dummy-prod-token",
+        },
+        encoding: "utf8",
+      }
+    );
+    expect(restoreMissing.status).toBe(1);
+    expect(restoreMissing.stderr).toContain("TURSO_STAGING_RESTORE_DATABASE_URL");
+    expect(restoreMissing.stderr).not.toContain("dummy-prod-token");
+
+    // 2. Production-like URL passed as Staging -> must be blocked by preflight
+    const backupProdUrl = spawnSync(
+      process.execPath,
+      ["scripts/db-backup.mjs", "--env", "staging", "--preflight-only"],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...baseEnv,
+          TURSO_STAGING_DATABASE_URL: "libsql://fchdhgonoi.aws-ap-northeast-1.turso.io",
+          TURSO_STAGING_AUTH_TOKEN: "secret-staging-token",
+        },
+        encoding: "utf8",
+      }
+    );
+    expect(backupProdUrl.status).toBe(1);
+    expect(backupProdUrl.stderr).toContain("Preflight blocked");
+    expect(backupProdUrl.stderr).not.toContain("secret-staging-token");
+
+    // 3. Restore target matching Staging source -> must be blocked (must be isolated)
+    const restoreSameAsSource = spawnSync(
+      process.execPath,
+      ["scripts/db-restore.mjs", "--env", "staging", "--preflight-only"],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...baseEnv,
+          TURSO_STAGING_DATABASE_URL: "libsql://fchdhgonoi-staging-org.turso.io",
+          TURSO_STAGING_RESTORE_DATABASE_URL: "libsql://fchdhgonoi-staging-org.turso.io",
+          TURSO_STAGING_RESTORE_AUTH_TOKEN: "secret-restore-token",
+        },
+        encoding: "utf8",
+      }
+    );
+    expect(restoreSameAsSource.status).toBe(1);
+    expect(restoreSameAsSource.stderr).toContain("Preflight blocked");
+    expect(restoreSameAsSource.stderr).not.toContain("secret-restore-token");
+
+    // 4. Valid isolated Staging & Restore targets pass preflight without printing tokens
+    const backupOk = spawnSync(
+      process.execPath,
+      ["scripts/db-backup.mjs", "--env", "staging", "--preflight-only"],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...baseEnv,
+          TURSO_STAGING_DATABASE_URL: "libsql://fchdhgonoi-staging-org.turso.io",
+          TURSO_STAGING_AUTH_TOKEN: "secret-staging-token",
+        },
+        encoding: "utf8",
+      }
+    );
+    expect(backupOk.status).toBe(0);
+    expect(backupOk.stdout).toContain("preflight_ok");
+    expect(backupOk.stdout).not.toContain("secret-staging-token");
+
+    const restoreOk = spawnSync(
+      process.execPath,
+      ["scripts/db-restore.mjs", "--env", "staging", "--preflight-only"],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...baseEnv,
+          TURSO_STAGING_DATABASE_URL: "libsql://fchdhgonoi-staging-org.turso.io",
+          TURSO_STAGING_RESTORE_DATABASE_URL: "libsql://fchdhgonoi-staging-restore-org.turso.io",
+          TURSO_STAGING_RESTORE_AUTH_TOKEN: "secret-restore-token",
+        },
+        encoding: "utf8",
+      }
+    );
+    expect(restoreOk.status).toBe(0);
+    expect(restoreOk.stdout).toContain("preflight_ok");
+    expect(restoreOk.stdout).not.toContain("secret-restore-token");
   });
 });

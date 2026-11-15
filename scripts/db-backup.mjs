@@ -4,10 +4,12 @@
  * Exports exact table DDL schema + all row data as JSON.
  * Usage:
  *   node scripts/db-backup.mjs --out backups/backup.json [--sqlite data/gonoifc.sqlite]
+ *   node scripts/db-backup.mjs --env staging --out backups/staging.json [--preflight-only]
  */
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
+import { validateStagingTarget } from "./lib/turso-preflight.mjs";
 
 const TABLES = [
   "team_settings",
@@ -30,21 +32,50 @@ function getArg(flag) {
 }
 
 async function main() {
+  const envMode = getArg("--env");
+  const preflightOnly = process.argv.includes("--preflight-only");
   const outPath = getArg("--out");
-  if (!outPath) {
-    console.error("Usage: node scripts/db-backup.mjs --out <file.json> [--sqlite <path>]");
+  if (!preflightOnly && !outPath) {
+    console.error(
+      "Usage: node scripts/db-backup.mjs --out <file.json> [--sqlite <path>] [--env staging] [--preflight-only]"
+    );
     process.exit(1);
   }
 
   const sqlitePath = getArg("--sqlite");
-  const tursoUrl = process.env.TURSO_DATABASE_URL;
-  const tursoToken = process.env.TURSO_AUTH_TOKEN;
+  let tursoUrl = process.env.TURSO_DATABASE_URL;
+  let tursoToken = process.env.TURSO_AUTH_TOKEN;
+
+  if (envMode === "staging") {
+    if (sqlitePath) {
+      console.error("Preflight blocked: --sqlite cannot be combined with --env staging.");
+      process.exit(1);
+    }
+    const stagingUrl = process.env.TURSO_STAGING_DATABASE_URL;
+    const stagingToken = process.env.TURSO_STAGING_AUTH_TOKEN;
+    const preflight = validateStagingTarget({
+      url: stagingUrl,
+      token: stagingToken,
+      envUrlName: "TURSO_STAGING_DATABASE_URL",
+      envTokenName: "TURSO_STAGING_AUTH_TOKEN",
+      disallowUrls: [process.env.TURSO_DATABASE_URL],
+    });
+    if (preflightOnly) {
+      console.log(JSON.stringify({ status: "preflight_ok", mode: "staging", ...preflight }, null, 2));
+      return;
+    }
+    tursoUrl = stagingUrl;
+    tursoToken = stagingToken;
+  } else if (envMode) {
+    console.error(`Unsupported --env value "${envMode}". Expected "staging".`);
+    process.exit(1);
+  }
 
   const schema = {};
   const tablesData = {};
   const rowCounts = {};
 
-  if (!sqlitePath && tursoUrl && tursoToken) {
+  if (envMode === "staging" || (!sqlitePath && tursoUrl && tursoToken)) {
     const client = createClient({ url: tursoUrl, authToken: tursoToken });
     try {
       const schemaRes = await client.execute(
@@ -119,6 +150,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error(err instanceof Error ? err.message : String(err));
   process.exit(1);
 });

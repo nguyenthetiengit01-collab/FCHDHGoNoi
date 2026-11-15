@@ -61,6 +61,7 @@ jobs:
 ```
 
 - **Kiểm tra & Cảnh báo thất bại**: Bước `db-restore.mjs` ngay trong job xác minh file backup có thể khôi phục thành công. Nếu job fail, GitHub Actions gửi email/notification cho chủ sở hữu repository.
+- **Kiểm thử trên Turso Cloud Staging**: Xem hướng dẫn thiết lập biến `TURSO_STAGING_DATABASE_URL`, `TURSO_STAGING_AUTH_TOKEN`, `TURSO_STAGING_RESTORE_DATABASE_URL`, `TURSO_STAGING_RESTORE_AUTH_TOKEN` và preflight an toàn tại [turso-staging-guide.md](turso-staging-guide.md).
 
 ---
 
