@@ -121,6 +121,8 @@ export default function CauChuyenGoNoiPage() {
                 <img
                   src={GO_NOI_IDENTITY.coverUrl}
                   alt="Tập thể FC HĐH Gò Nổi tại TP.HCM"
+                  fetchPriority="high"
+                  decoding="async"
                   className="aspect-[16/10] w-full object-cover"
                 />
                 <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
@@ -262,6 +264,8 @@ export default function CauChuyenGoNoiPage() {
                 <img
                   src={photo.src}
                   alt={photo.alt}
+                  loading="lazy"
+                  decoding="async"
                   className="aspect-[16/10] w-full object-cover"
                 />
                 <figcaption className="border-t border-white/10 px-4 py-3 text-xs text-slate-300">

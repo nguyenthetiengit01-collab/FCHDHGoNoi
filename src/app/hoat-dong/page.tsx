@@ -197,6 +197,7 @@ export default function HoatDongPage() {
       </header>
 
       {/* ==================== HERO TIÊU ĐỀ CHUYÊN TRANG ==================== */}
+      <main id="main-content">
       <section className="relative py-16 sm:py-20 px-4 sm:px-8 overflow-hidden bg-gradient-to-b from-[#092244] via-[#0d2e5b] to-[#050b17] border-b border-[#d4af37]/20">
         <div
           aria-hidden="true"
@@ -655,6 +656,7 @@ export default function HoatDongPage() {
           )}
         </section>
       </div>
+      </main>
 
       {/* Lightbox Modal */}
       <ImageLightboxModal

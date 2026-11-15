@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -32,17 +33,45 @@ import {
   createTransitionSafeData,
   executeSessionHydration,
 } from "@/lib/sessionHydration";
-import { DashboardTab } from "./DashboardTab";
-import { ScheduleTab } from "./ScheduleTab";
-import { CollectionTab } from "./CollectionTab";
-import { MatrixTab } from "./MatrixTab";
-import { PlayersTab } from "./PlayersTab";
-import { FinanceTab } from "./FinanceTab";
-import { PlayerPersonalTab } from "./PlayerPersonalTab";
 import { PublicGuestPortal } from "./PublicGuestPortal";
-import ClubPostsTab from "./ClubPostsTab";
-import { SponsorsTab } from "./SponsorsTab";
-import { LoginModal } from "./LoginModal";
+
+const DashboardTab = dynamic(
+  () => import("./DashboardTab").then((m) => m.DashboardTab),
+  { ssr: false }
+);
+const ScheduleTab = dynamic(
+  () => import("./ScheduleTab").then((m) => m.ScheduleTab),
+  { ssr: false }
+);
+const CollectionTab = dynamic(
+  () => import("./CollectionTab").then((m) => m.CollectionTab),
+  { ssr: false }
+);
+const MatrixTab = dynamic(
+  () => import("./MatrixTab").then((m) => m.MatrixTab),
+  { ssr: false }
+);
+const PlayersTab = dynamic(
+  () => import("./PlayersTab").then((m) => m.PlayersTab),
+  { ssr: false }
+);
+const FinanceTab = dynamic(
+  () => import("./FinanceTab").then((m) => m.FinanceTab),
+  { ssr: false }
+);
+const PlayerPersonalTab = dynamic(
+  () => import("./PlayerPersonalTab").then((m) => m.PlayerPersonalTab),
+  { ssr: false }
+);
+const ClubPostsTab = dynamic(() => import("./ClubPostsTab"), { ssr: false });
+const SponsorsTab = dynamic(
+  () => import("./SponsorsTab").then((m) => m.SponsorsTab),
+  { ssr: false }
+);
+const LoginModal = dynamic(
+  () => import("./LoginModal").then((m) => m.LoginModal),
+  { ssr: false }
+);
 
 type ActiveTab =
   | "public"

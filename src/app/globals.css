@@ -157,6 +157,9 @@ button:disabled,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
   .gn-marquee,
   .gn-float,
   .gn-float-slow,
@@ -166,10 +169,25 @@ button:disabled,
   .sc-hologram-sweep {
     animation: none !important;
   }
+  button,
+  a,
+  [role="button"] {
+    transition: none !important;
+  }
   button:not(:disabled):active,
   [role="button"]:not([aria-disabled="true"]):active {
     transform: none !important;
   }
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible {
+  outline: 2px solid var(--brand-gold);
+  outline-offset: 2px;
 }
 
 /* Form inputs & tables */

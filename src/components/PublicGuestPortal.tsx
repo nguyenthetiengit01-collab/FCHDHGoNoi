@@ -644,7 +644,11 @@ export function PublicGuestPortal({
           <img
             key={src}
             src={src}
-            alt="FC HĐH Gò Nổi"
+            alt={i === 0 ? "Tập thể FC HĐH Gò Nổi tại TP.HCM" : ""}
+            aria-hidden={heroIdx !== i}
+            fetchPriority={i === 0 ? "high" : "low"}
+            loading={i === 0 ? "eager" : "lazy"}
+            decoding="async"
             className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 ${heroIdx === i ? "opacity-100 scale-100" : "opacity-0 scale-105"
               }`}
           />
@@ -854,9 +858,9 @@ export function PublicGuestPortal({
                               </div>
                             )}
                           </div>
-                          <h3 className="font-display font-extrabold uppercase text-xl sm:text-3xl text-white drop-shadow">
+                          <h2 className="font-display font-extrabold uppercase text-xl sm:text-3xl text-white drop-shadow">
                             {sp.name}
-                          </h3>
+                          </h2>
                           {sp.description && (
                             <p className="text-xs sm:text-sm text-slate-200 line-clamp-2 max-w-xl font-light">
                               {sp.description}
@@ -910,18 +914,24 @@ export function PublicGuestPortal({
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
-                  <div className="absolute bottom-3 right-5 z-20 flex items-center gap-1.5">
+                  <div className="absolute bottom-2 right-4 z-20 flex items-center gap-0.5">
                     {homeBanners.map((_, i) => (
                       <button
                         key={i}
                         type="button"
                         onClick={() => setActiveBannerIdx(i)}
-                        className={`h-2 rounded-full transition-all cursor-pointer ${i === activeBannerIdx
-                            ? "w-6 bg-[#d4af37]"
-                            : "w-2 bg-white/40 hover:bg-white/70"
-                          }`}
+                        className="min-h-6 min-w-6 flex items-center justify-center p-1.5 cursor-pointer"
                         aria-label={`Tới banner ${i + 1}`}
-                      />
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`block h-2 rounded-full transition-all ${
+                            i === activeBannerIdx
+                              ? "w-6 bg-[#d4af37]"
+                              : "w-2 bg-white/40 hover:bg-white/70"
+                          }`}
+                        />
+                      </button>
                     ))}
                   </div>
                 </>
@@ -1935,9 +1945,9 @@ export function PublicGuestPortal({
                               </div>
                             )}
                             <div className="space-y-1 min-w-0">
-                              <h4 className="font-display font-extrabold uppercase text-lg sm:text-xl text-white">
+                              <h3 className="font-display font-extrabold uppercase text-lg sm:text-xl text-white">
                                 {sp.name}
-                              </h4>
+                              </h3>
                               {sp.description && (
                                 <p className="text-xs text-sky-200/90 font-light line-clamp-3">
                                   {sp.description}
@@ -1996,9 +2006,9 @@ export function PublicGuestPortal({
                               >
                                 {(SPONSOR_TIERS[sp.tier] || SPONSOR_TIERS.gold).label}
                               </span>
-                              <h5 className="font-bold text-sm text-white truncate mt-0.5">
+                              <h3 className="font-bold text-sm text-white truncate mt-0.5">
                                 {sp.name}
-                              </h5>
+                              </h3>
                             </div>
                           </div>
                         ))}
