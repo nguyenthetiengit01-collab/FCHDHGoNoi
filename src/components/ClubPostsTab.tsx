@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ModalDialog } from "./ModalDialog";
+import { ConfirmDialog } from "./ui";
 import {
   convertFileToWebp,
   convertMultipleFilesToWebp,
@@ -97,6 +98,9 @@ export default function ClubPostsTab({
   const [featuredWebpInfo, setFeaturedWebpInfo] = useState("");
   const [isConvertingGallery, setIsConvertingGallery] = useState(false);
   const [galleryWebpInfo, setGalleryWebpInfo] = useState("");
+  const [pendingDeletePost, setPendingDeletePost] =
+    useState<ClubActivityPost | null>(null);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
 
   const QUICK_TEMPLATES = [
     {
@@ -334,16 +338,20 @@ export default function ClubPostsTab({
     setModalOpen(false);
   }
 
-  async function handleDeletePost(post: ClubActivityPost) {
+  function handleDeletePost(post: ClubActivityPost) {
     if (!isManager) return;
-    if (
-      !window.confirm(
-        `Ban Quản Lý xác nhận xoá bài viết "${post.title}" khỏi trang Hoạt Động CLB?`
-      )
-    ) {
-      return;
+    setPendingDeletePost(post);
+  }
+
+  async function handleConfirmDeletePost() {
+    if (!pendingDeletePost || !isManager) return;
+    setIsDeletingPost(true);
+    try {
+      await onMutate("delete_club_post", { id: pendingDeletePost.id });
+      setPendingDeletePost(null);
+    } finally {
+      setIsDeletingPost(false);
     }
-    await onMutate("delete_club_post", { id: post.id });
   }
 
   const filteredPosts =
@@ -875,6 +883,19 @@ export default function ClubPostsTab({
           </div>
         </form>
       </ModalDialog>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeletePost)}
+        onClose={() => {
+          if (!isDeletingPost) setPendingDeletePost(null);
+        }}
+        onConfirm={() => void handleConfirmDeletePost()}
+        title="Xác nhận xoá bài viết"
+        description={`Ban Quản Lý xác nhận xoá bài viết "${pendingDeletePost?.title ?? ""}" khỏi trang Hoạt Động CLB?`}
+        confirmLabel="Xoá bài viết"
+        danger
+        loading={isDeletingPost}
+      />
     </div>
   );
 }

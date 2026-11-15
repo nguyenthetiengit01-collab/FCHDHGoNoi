@@ -34,6 +34,7 @@ import {
   executeSessionHydration,
 } from "@/lib/sessionHydration";
 import { PublicGuestPortal } from "./PublicGuestPortal";
+import { useDialogA11y } from "./useDialogA11y";
 
 const DashboardTab = dynamic(
   () => import("./DashboardTab").then((m) => m.DashboardTab),
@@ -122,7 +123,10 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const [session, setSession] = useState<AuthSession>(GUEST_SESSION);
   const [activeTab, setActiveTab] = useState<ActiveTab>("public");
   const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{
+    message: string;
+    variant: "success" | "error";
+  } | null>(null);
 
   // Login modal & session hydration states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -134,8 +138,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const isMountedRef = useRef(true);
   const hydrationEpochRef = useRef(0);
   const hydrationAbortRef = useRef<AbortController | null>(null);
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
   const drawerCloseBtnRef = useRef<HTMLButtonElement>(null);
-  const lastFocusedBeforeDrawerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -182,31 +186,12 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
     });
   };
 
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    lastFocusedBeforeDrawerRef.current =
-      document.activeElement as HTMLElement | null;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const focusTimer = window.setTimeout(() => {
-      drawerCloseBtnRef.current?.focus();
-    }, 10);
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setMobileMenuOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.clearTimeout(focusTimer);
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = prevOverflow;
-      lastFocusedBeforeDrawerRef.current?.focus?.();
-    };
-  }, [mobileMenuOpen]);
+  useDialogA11y({
+    isOpen: mobileMenuOpen,
+    onClose: () => setMobileMenuOpen(false),
+    containerRef: mobileDrawerRef,
+    initialFocusRef: drawerCloseBtnRef,
+  });
 
   // Tự động khôi phục phiên làm việc an toàn từ Server Cookie khi khởi tạo
   useEffect(() => {
@@ -237,11 +222,11 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
     };
   }, [initialData]);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
+  const showToast = (msg: string, variant: "success" | "error" = "success") => {
+    setToastMessage({ message: msg, variant });
     window.setTimeout(() => {
-      setToastMessage((prev) => (prev === msg ? null : prev));
-    }, 2800);
+      setToastMessage((prev) => (prev?.message === msg ? null : prev));
+    }, variant === "error" ? 4500 : 2800);
   };
 
   const handleMutate = async (
@@ -257,7 +242,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       });
       const json = await res.json();
       if (!res.ok) {
-        alert(json.error || "Có lỗi xảy ra");
+        showToast(json.error || "Có lỗi xảy ra", "error");
         return;
       }
       setData(json);
@@ -284,7 +269,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       }
     } catch (err) {
       console.error(err);
-      alert("Không thể kết nối máy chủ");
+      showToast("Không thể kết nối máy chủ", "error");
     } finally {
       setIsSaving(false);
     }
@@ -303,7 +288,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       });
       const json = await res.json();
       if (!res.ok) {
-        alert(json.error || "Không thể nhập file Excel");
+        showToast(json.error || "Không thể nhập file Excel", "error");
         return;
       }
       setData(json);
@@ -315,7 +300,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       showToast(`Đã đồng bộ dữ liệu từ file ${file.name}!`);
     } catch (err) {
       console.error(err);
-      alert("Lỗi khi tải file Excel lên");
+      showToast("Lỗi khi tải file Excel lên", "error");
     } finally {
       setIsSaving(false);
       e.target.value = "";
@@ -654,12 +639,29 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       {/* Toast Notification */}
       {toastMessage && (
         <div
-          role="status"
-          aria-live="polite"
-          className="fixed bottom-20 md:bottom-6 right-4 z-50 rounded-xl bg-[#092244] text-white px-4 py-3 text-sm font-bold shadow-lg border border-[#d4af37] flex items-center gap-2.5"
+          role={toastMessage.variant === "error" ? "alert" : "status"}
+          aria-live={toastMessage.variant === "error" ? "assertive" : "polite"}
+          className={`fixed bottom-20 md:bottom-6 right-4 z-50 rounded-xl px-4 py-3 text-sm font-bold shadow-lg border flex items-center gap-2.5 max-w-md ${
+            toastMessage.variant === "error"
+              ? "bg-rose-950 text-rose-50 border-rose-400"
+              : "bg-[#092244] text-white border-[#d4af37]"
+          }`}
         >
-          <span className="h-2.5 w-2.5 rounded-full bg-[#d4af37] shrink-0" />
-          <span>{toastMessage}</span>
+          <span
+            className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+              toastMessage.variant === "error" ? "bg-rose-400" : "bg-[#d4af37]"
+            }`}
+            aria-hidden="true"
+          />
+          <span className="flex-1">{toastMessage.message}</span>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            aria-label="Đóng thông báo"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
@@ -935,6 +937,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       {/* ===================== MOBILE MORE MENU BOTTOM SHEET / DRAWER ===================== */}
       {mobileMenuOpen && (
         <div
+          ref={mobileDrawerRef}
           role="dialog"
           aria-modal="true"
           aria-label="Tất cả chức năng ứng dụng"

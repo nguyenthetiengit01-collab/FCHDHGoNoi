@@ -44,7 +44,7 @@ import {
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
-import { Badge, EmptyState, PositionBadge } from "./ui";
+import { Badge, ConfirmDialog, EmptyState, PositionBadge } from "./ui";
 import { MatchdayRosterPosterModal } from "./MatchdayRosterPoster";
 import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
 import { AvatarCropperModal } from "./AvatarCropperModal";
@@ -143,6 +143,11 @@ export function ScheduleTab({
   // Modal Tạo / Sửa Lịch Thi Đấu
   const [modalOpen, setModalOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<MatchRecord | null>(null);
+  const [pendingDeleteMatch, setPendingDeleteMatch] = useState<{
+    id: number;
+    label: string;
+  } | null>(null);
+  const [isDeletingMatch, setIsDeletingMatch] = useState(false);
   const [matchNumber, setMatchNumber] = useState<string>("");
   const [label, setLabel] = useState<string>("");
   const [matchDate, setMatchDate] = useState<string>("2026-11-04");
@@ -250,9 +255,19 @@ export function ScheduleTab({
     });
   }
 
-  async function handleDeleteMatch(id: number, matchLabel: string) {
-    if (!window.confirm(`Bạn có chắc muốn xoá "${matchLabel}"?`)) return;
-    await onMutate("delete_match", { id });
+  function handleDeleteMatch(id: number, matchLabel: string) {
+    setPendingDeleteMatch({ id, label: matchLabel });
+  }
+
+  async function handleConfirmDeleteMatch() {
+    if (!pendingDeleteMatch) return;
+    setIsDeletingMatch(true);
+    try {
+      await onMutate("delete_match", { id: pendingDeleteMatch.id });
+      setPendingDeleteMatch(null);
+    } finally {
+      setIsDeletingMatch(false);
+    }
   }
 
   const activeAttendances = attendances.filter(
@@ -2738,6 +2753,19 @@ export function ScheduleTab({
           zaloCopyText={fanpagePreviewText}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeleteMatch)}
+        onClose={() => {
+          if (!isDeletingMatch) setPendingDeleteMatch(null);
+        }}
+        onConfirm={() => void handleConfirmDeleteMatch()}
+        title="Xác nhận xoá trận đấu"
+        description={`Bạn có chắc muốn xoá "${pendingDeleteMatch?.label ?? ""}"?`}
+        confirmLabel="Xoá trận đấu"
+        danger
+        loading={isDeletingMatch}
+      />
     </div>
   );
 }

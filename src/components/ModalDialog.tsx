@@ -2,6 +2,7 @@
 
 import React, { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
+import { useDialogA11y } from "./useDialogA11y";
 
 interface ModalDialogProps {
   isOpen: boolean;
@@ -22,16 +23,11 @@ export function ModalDialog({
   const titleId = useId();
   const pressedOutsideRef = useRef(false);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen && !dialog.open) {
-      dialog.showModal();
-    } else if (!isOpen && dialog.open) {
-      dialog.close();
-    }
-  }, [isOpen]);
+  useDialogA11y({
+    isOpen,
+    onClose,
+    containerRef: dialogRef,
+  });
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -92,9 +88,9 @@ export function ModalDialog({
           </div>
           <button
             type="button"
-            onClick={() => dialogRef.current?.close()}
+            onClick={() => (dialogRef.current?.open ? dialogRef.current.close() : onClose())}
             aria-label="Đóng hộp thoại"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200/70 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-emerald-600"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200/70 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d4af37]"
           >
             <X className="h-5 w-5" />
           </button>

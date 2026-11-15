@@ -7,7 +7,10 @@ import { Home, RefreshCw, WifiOff } from "lucide-react";
 export default function OfflinePage() {
   return (
     <div className="min-h-screen bg-[#040e1a] text-slate-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full rounded-xl bg-[#081a33] border border-[#d4af37]/40 p-6 sm:p-8 text-center space-y-5 shadow-2xl">
+      <a href="#main-content" className="skip-link">
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
+      <main id="main-content" className="max-w-md w-full rounded-xl bg-[#081a33] border border-[#d4af37]/40 p-6 sm:p-8 text-center space-y-5 shadow-2xl">
         <div className="mx-auto h-16 w-16 rounded-full bg-white p-1 border border-[#d4af37]/60 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -51,7 +54,7 @@ export default function OfflinePage() {
             Về trang chủ
           </Link>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

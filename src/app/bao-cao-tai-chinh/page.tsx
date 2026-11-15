@@ -112,6 +112,9 @@ export default function PublicFinancialReportPage() {
 
   return (
     <div className="min-h-screen bg-[#040e1a] text-slate-100 flex flex-col">
+      <a href="#main-content" className="skip-link">
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
       {/* Header đồng bộ thương hiệu FC HĐH Gò Nổi */}
       <header className="sticky top-0 z-30 bg-[#040e1a]/95 backdrop-blur-md border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
@@ -167,7 +170,7 @@ export default function PublicFinancialReportPage() {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         {/* Hero */}
         <section className="relative border-b border-white/10 bg-gradient-to-b from-[#081a33] via-[#061326] to-[#040e1a] py-10 sm:py-14">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center">

@@ -21,6 +21,7 @@ import {
   getSponsorStatus,
 } from "@/lib/sponsors";
 import { convertFileToWebp } from "@/lib/imageToWebp";
+import { ConfirmDialog } from "./ui";
 
 interface SponsorsTabProps {
   data: FullAppData;
@@ -65,13 +66,19 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
   const [formData, setFormData] = useState<SponsorFormData>(DEFAULT_FORM);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [pendingDeleteSponsor, setPendingDeleteSponsor] =
+    useState<Sponsor | null>(null);
+  const [isDeletingSponsor, setIsDeletingSponsor] = useState(false);
 
   const handleOpenAdd = () => {
+    setFormError(null);
     setFormData(DEFAULT_FORM);
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (sp: Sponsor) => {
+    setFormError(null);
     setFormData({
       id: sp.id,
       name: sp.name,
@@ -92,12 +99,19 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (sp: Sponsor) => {
-    const ok = window.confirm(
-      `Bạn có chắc chắn muốn xóa đơn vị tài trợ "${sp.name}"?`
-    );
-    if (!ok) return;
-    await onMutate("delete_sponsor", { id: sp.id });
+  const handleDelete = (sp: Sponsor) => {
+    setPendingDeleteSponsor(sp);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteSponsor) return;
+    setIsDeletingSponsor(true);
+    try {
+      await onMutate("delete_sponsor", { id: pendingDeleteSponsor.id });
+      setPendingDeleteSponsor(null);
+    } finally {
+      setIsDeletingSponsor(false);
+    }
   };
 
   const handleTogglePosition = (posId: string) => {
@@ -114,11 +128,14 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      setFormError(null);
       setUploadingLogo(true);
       const res = await convertFileToWebp(file, { maxWidth: 600, quality: 0.9 });
       setFormData((prev) => ({ ...prev, logo_url: res.dataUrl }));
     } catch (err) {
-      alert("Lỗi tải ảnh logo: " + (err instanceof Error ? err.message : String(err)));
+      setFormError(
+        "Lỗi tải ảnh logo: " + (err instanceof Error ? err.message : String(err))
+      );
     } finally {
       setUploadingLogo(false);
     }
@@ -128,11 +145,14 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      setFormError(null);
       setUploadingBanner(true);
       const res = await convertFileToWebp(file, { maxWidth: 1600, quality: 0.85 });
       setFormData((prev) => ({ ...prev, banner_url: res.dataUrl }));
     } catch (err) {
-      alert("Lỗi tải ảnh banner: " + (err instanceof Error ? err.message : String(err)));
+      setFormError(
+        "Lỗi tải ảnh banner: " + (err instanceof Error ? err.message : String(err))
+      );
     } finally {
       setUploadingBanner(false);
     }
@@ -141,9 +161,10 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      alert("Vui lòng nhập tên đơn vị tài trợ.");
+      setFormError("Vui lòng nhập tên đơn vị tài trợ.");
       return;
     }
+    setFormError(null);
     await onMutate("upsert_sponsor", formData as unknown as Record<string, unknown>);
     setIsModalOpen(false);
   };
@@ -380,6 +401,14 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {formError && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-800"
+                >
+                  {formError}
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Tên đơn vị */}
                 <div>
@@ -643,6 +672,19 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeleteSponsor)}
+        onClose={() => {
+          if (!isDeletingSponsor) setPendingDeleteSponsor(null);
+        }}
+        onConfirm={() => void handleConfirmDelete()}
+        title="Xác nhận xóa đơn vị tài trợ"
+        description={`Bạn có chắc chắn muốn xóa đơn vị tài trợ "${pendingDeleteSponsor?.name ?? ""}"?`}
+        confirmLabel="Xóa đơn vị"
+        danger
+        loading={isDeletingSponsor}
+      />
     </div>
   );
 }

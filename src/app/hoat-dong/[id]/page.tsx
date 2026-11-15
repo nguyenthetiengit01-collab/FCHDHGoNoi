@@ -98,6 +98,9 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-[#050b17] text-slate-100 flex flex-col selection:bg-[#d4af37] selection:text-slate-950">
+      <a href="#main-content" className="skip-link">
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
       {/* ==================== HEADER ==================== */}
       <header className="sticky top-0 z-40 bg-[#092244]/90 backdrop-blur-md border-b border-[#d4af37]/30 py-3.5 px-4 sm:px-8 shadow-lg">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
@@ -158,7 +161,8 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
       </div>
 
       {/* ==================== NỘI DUNG CHÍNH BÀI VIẾT ==================== */}
-      <article className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-10 sm:py-14 flex-1">
+      <main id="main-content" className="flex-1">
+        <article className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-10 sm:py-14">
         {/* Meta & Chuyên mục */}
         <div className="space-y-4 mb-8">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -412,7 +416,8 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
             </div>
           </div>
         )}
-      </article>
+        </article>
+      </main>
 
       {/* ==================== FOOTER ==================== */}
       <footer className="mt-auto border-t border-[#d4af37]/20 bg-[#040e1e] py-8 text-center text-xs text-slate-400">

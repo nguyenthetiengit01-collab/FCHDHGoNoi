@@ -89,6 +89,9 @@ export function PlayerProfileClient({
 
   return (
     <div className="min-h-screen bg-[#040e1a] text-slate-100 flex flex-col selection:bg-[#ffd700] selection:text-slate-950">
+      <a href="#main-content" className="skip-link">
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 bg-[#071a33]/90 backdrop-blur-md border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -149,7 +152,7 @@ export function PlayerProfileClient({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
+      <main id="main-content" className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
         {/* Banner giới thiệu hồ sơ định danh */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-[#0c2f5e] via-[#09254d] to-[#06182f] border border-[#ffd700]/30 shadow-md">
           <div className="flex items-center gap-3">

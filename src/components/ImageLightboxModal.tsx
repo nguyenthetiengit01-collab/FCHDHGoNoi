@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { X, ChevronLeft, ChevronRight, Download, Sparkles } from "lucide-react";
+import { useDialogA11y } from "./useDialogA11y";
 
 export interface LightboxImage {
   src: string;
@@ -27,16 +28,11 @@ export function ImageLightboxModal({
 }: ImageLightboxModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen && !dialog.open) {
-      dialog.showModal();
-    } else if (!isOpen && dialog.open) {
-      dialog.close();
-    }
-  }, [isOpen]);
+  useDialogA11y({
+    isOpen,
+    onClose,
+    containerRef: dialogRef,
+  });
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -55,9 +51,7 @@ export function ImageLightboxModal({
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      } else if (e.key === "ArrowLeft") {
+      if (e.key === "ArrowLeft") {
         if (images.length > 1) {
           onNavigate((currentIndex - 1 + images.length) % images.length);
         }
@@ -72,7 +66,7 @@ export function ImageLightboxModal({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, currentIndex, images.length, onClose, onNavigate]);
+  }, [isOpen, currentIndex, images.length, onNavigate]);
 
   if (!isOpen || images.length === 0) return null;
 
@@ -92,6 +86,8 @@ export function ImageLightboxModal({
   return (
     <dialog
       ref={dialogRef}
+      open={isOpen}
+      aria-label="Xem ảnh phóng to"
       className="lightbox-dialog"
       onClick={(e) => {
         if (e.target === dialogRef.current) {
@@ -100,9 +96,6 @@ export function ImageLightboxModal({
       }}
     >
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Xem ảnh phóng to"
         onClick={onClose}
         className="w-full h-full flex flex-col items-center justify-between p-3 sm:p-6 select-none bg-black/90 backdrop-blur-xl animate-in fade-in duration-200"
       >
@@ -132,7 +125,8 @@ export function ImageLightboxModal({
                 target="_blank"
                 rel="noopener noreferrer"
                 download
-                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-100 hover:text-white transition"
+                aria-label="Mở hoặc tải ảnh gốc"
+                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-100 hover:text-white transition focus-visible:outline-2 focus-visible:outline-[#d4af37]"
                 title="Mở hoặc tải ảnh gốc"
               >
                 <Download className="h-5 w-5" />
@@ -141,7 +135,8 @@ export function ImageLightboxModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-2.5 rounded-full bg-white/10 hover:bg-rose-600/80 text-white transition cursor-pointer"
+              aria-label="Đóng xem ảnh"
+              className="p-2.5 rounded-full bg-white/10 hover:bg-rose-600/80 text-white transition cursor-pointer focus-visible:outline-2 focus-visible:outline-[#d4af37]"
               title="Đóng (phím Esc)"
             >
               <X className="h-5 w-5" />
@@ -159,7 +154,8 @@ export function ImageLightboxModal({
             <button
               type="button"
               onClick={handlePrev}
-              className="absolute left-2 sm:left-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-[#1e4fc2] text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105"
+              aria-label="Ảnh trước"
+              className="absolute left-2 sm:left-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-[#1e4fc2] text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105 focus-visible:outline-2 focus-visible:outline-[#d4af37]"
               title="Ảnh trước (Mũi tên trái)"
             >
               <ChevronLeft className="h-6 w-6" />
@@ -181,7 +177,8 @@ export function ImageLightboxModal({
             <button
               type="button"
               onClick={handleNext}
-              className="absolute right-2 sm:right-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-[#1e4fc2] text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105"
+              aria-label="Ảnh tiếp theo"
+              className="absolute right-2 sm:right-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-[#1e4fc2] text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105 focus-visible:outline-2 focus-visible:outline-[#d4af37]"
               title="Ảnh tiếp theo (Mũi tên phải)"
             >
               <ChevronRight className="h-6 w-6" />

@@ -158,6 +158,9 @@ export default function NhaTaiTroPage() {
 
   return (
     <div className="min-h-screen bg-[#040e1a] text-slate-100 flex flex-col selection:bg-[#d4af37] selection:text-slate-950">
+      <a href="#main-content" className="skip-link">
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
       {/* ==================== HEADER ==================== */}
       <header className="sticky top-0 z-40 bg-[#081a33]/95 backdrop-blur-md border-b border-[#d4af37]/30 py-3.5 px-4 sm:px-8 shadow-lg">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
@@ -229,7 +232,7 @@ export default function NhaTaiTroPage() {
       </section>
 
       {/* ==================== NỘI DUNG CHÍNH ==================== */}
-      <main className="max-w-6xl mx-auto w-full px-4 sm:px-8 py-12 space-y-14 flex-1">
+      <main id="main-content" className="max-w-6xl mx-auto w-full px-4 sm:px-8 py-12 space-y-14 flex-1">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[1, 2].map((item) => (

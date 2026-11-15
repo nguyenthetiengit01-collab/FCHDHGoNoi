@@ -143,6 +143,9 @@ export default function HoatDongPage() {
 
   return (
     <div className="min-h-screen bg-[#050b17] text-slate-100 flex flex-col selection:bg-[#d4af37] selection:text-slate-950">
+      <a href="#main-content" className="skip-link">
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
       {/* ==================== HEADER TRANG HOẠT ĐỘNG ==================== */}
       <header className="sticky top-0 z-40 bg-[#092244]/90 backdrop-blur-md border-b border-[#d4af37]/30 py-3.5 px-4 sm:px-8 shadow-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">

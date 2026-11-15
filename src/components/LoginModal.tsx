@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   User,
   Lock,
@@ -15,6 +15,7 @@ import {
   PhoneCall,
 } from "lucide-react";
 import { OFFICIAL_LOGO_URL, type Player } from "@/types/app";
+import { useDialogA11y } from "./useDialogA11y";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -32,20 +33,21 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [lockoutSeconds, setLockoutSeconds] = useState<number | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  // Reset trạng thái khi modal mở lại + đóng khi nhấn Escape
+  useDialogA11y({
+    isOpen,
+    onClose,
+    containerRef: dialogRef,
+  });
+
+  // Reset trạng thái khi modal mở lại
   useEffect(() => {
     if (!isOpen) return;
     setErrorMessage("");
     setShowHelp(false);
     setIsLoading(false);
-
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   // Bộ đếm ngược thời gian khóa đăng nhập nếu bị rate-limited
   useEffect(() => {
@@ -122,12 +124,15 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
   };
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      ref={dialogRef}
+      open={isOpen}
       aria-modal="true"
       aria-labelledby="login-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in"
-      onClick={onClose}
+      className="fixed inset-0 z-50 m-0 h-dvh w-screen max-h-none max-w-none flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in border-0 text-inherit"
+      onClick={(e) => {
+        if (e.target === dialogRef.current) onClose();
+      }}
     >
       <div
         className="relative w-full max-w-md my-auto rounded-2xl bg-gradient-to-b from-[#0f3468] via-[#0d2e5b] to-[#092244] border-2 border-[#ffd700]/70 text-white shadow-[0_25px_60px_rgba(0,0,0,0.85)] overflow-hidden"
@@ -365,7 +370,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 

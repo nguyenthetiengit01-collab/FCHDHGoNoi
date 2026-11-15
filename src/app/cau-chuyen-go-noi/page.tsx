@@ -30,6 +30,9 @@ export const metadata: Metadata = buildPageMetadata({
 export default function CauChuyenGoNoiPage() {
   return (
     <div className="min-h-screen bg-[#040e1a] text-slate-100">
+      <a href="#main-content" className="skip-link">
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
       {/* Top Navigation */}
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#040e1a]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -69,7 +72,7 @@ export default function CauChuyenGoNoiPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-10 px-4 py-8 sm:px-6 sm:py-12">
+      <main id="main-content" className="mx-auto max-w-6xl space-y-10 px-4 py-8 sm:px-6 sm:py-12">
         {/* Hero Section */}
         <section className="overflow-hidden rounded-xl border border-[#d4af37]/30 bg-gradient-to-br from-[#081a33] via-[#0b2447] to-[#040e1a] shadow-lg">
           <div className="grid grid-cols-1 gap-6 p-6 sm:p-8 lg:grid-cols-12 lg:items-center">
