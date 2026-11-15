@@ -109,6 +109,23 @@ export function validateBackupPayload(backup) {
     if (!backup.rowCounts || typeof backup.rowCounts !== "object" || Array.isArray(backup.rowCounts)) {
       throw new Error("Invalid v3 backup file: missing 'rowCounts' object.");
     }
+    if (backup.sequences !== undefined) {
+      if (!Array.isArray(backup.sequences)) {
+        throw new Error("Invalid v3 backup file: 'sequences' must be an array.");
+      }
+      for (const s of backup.sequences) {
+        if (
+          !s ||
+          typeof s !== "object" ||
+          !isValidIdentifier(s.name) ||
+          typeof s.seq !== "number" ||
+          !Number.isInteger(s.seq) ||
+          s.seq < 0
+        ) {
+          throw new Error("Invalid v3 backup file: malformed sqlite_sequence entry.");
+        }
+      }
+    }
   }
 
   return { version };

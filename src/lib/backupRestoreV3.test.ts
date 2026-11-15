@@ -246,4 +246,94 @@ describe("Backup/Restore v3 – Full Schema Completeness & Backward Compatibilit
     expect(invalidRes.status).toBe(1);
     expect(invalidRes.stderr).toContain("Unsupported backup format version");
   });
+
+  it("preserves AUTOINCREMENT sqlite_sequence after highest ID deletion (100 deleted -> next insert is 101)", () => {
+    const autoSrcPath = path.join(tmpDir, "auto-src.sqlite");
+    const autoBackupPath = path.join(tmpDir, "auto-v3.json");
+    const autoDstPath = path.join(tmpDir, "auto-dst.sqlite");
+
+    const src = new DatabaseSync(autoSrcPath);
+    try {
+      src.exec(`
+        CREATE TABLE auto_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          label TEXT NOT NULL
+        );
+      `);
+      const insertStmt = src.prepare("INSERT INTO auto_items (label) VALUES (?)");
+      for (let i = 1; i <= 100; i++) {
+        insertStmt.run(`item-${i}`);
+      }
+      src.exec("DELETE FROM auto_items WHERE id = 100;");
+    } finally {
+      src.close();
+    }
+
+    const bRes = spawnSync(
+      process.execPath,
+      ["scripts/db-backup.mjs", "--sqlite", autoSrcPath, "--out", autoBackupPath],
+      { cwd: process.cwd(), encoding: "utf8" }
+    );
+    expect(bRes.status).toBe(0);
+
+    const backupObj = JSON.parse(fs.readFileSync(autoBackupPath, "utf8"));
+    expect(backupObj.sequences).toEqual([{ name: "auto_items", seq: 100 }]);
+    expect(backupObj.rowCounts.auto_items).toBe(99);
+
+    const rRes = spawnSync(
+      process.execPath,
+      ["scripts/db-restore.mjs", "--in", autoBackupPath, "--target", autoDstPath, "--confirm"],
+      { cwd: process.cwd(), encoding: "utf8" }
+    );
+    expect(rRes.status).toBe(0);
+
+    const dst = new DatabaseSync(autoDstPath);
+    try {
+      const inserted = dst.prepare("INSERT INTO auto_items (label) VALUES (?)").run("new-after-restore");
+      expect(Number(inserted.lastInsertRowid)).toBe(101);
+    } finally {
+      dst.close();
+    }
+  });
+
+  it("detects foreign key violations via PRAGMA foreign_key_check and fails restore without reporting PASS", () => {
+    const fkInvalidBackupPath = path.join(tmpDir, "fk-invalid-v3.json");
+    const fkTargetPath = path.join(tmpDir, "fk-invalid.sqlite");
+
+    fs.writeFileSync(
+      fkInvalidBackupPath,
+      JSON.stringify({
+        version: 3,
+        createdAt: new Date().toISOString(),
+        objects: {
+          tables: [
+            { name: "parents", tbl_name: "parents", sql: "CREATE TABLE parents (id INTEGER PRIMARY KEY)" },
+            {
+              name: "children",
+              tbl_name: "children",
+              sql: "CREATE TABLE children (id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL REFERENCES parents(id))",
+            },
+          ],
+          indexes: [],
+          triggers: [],
+          views: [],
+        },
+        rowCounts: { parents: 1, children: 1 },
+        tables: {
+          parents: [{ id: 1 }],
+          children: [{ id: 10, parent_id: 999 }],
+        },
+      }),
+      "utf8"
+    );
+
+    const res = spawnSync(
+      process.execPath,
+      ["scripts/db-restore.mjs", "--in", fkInvalidBackupPath, "--target", fkTargetPath, "--confirm"],
+      { cwd: process.cwd(), encoding: "utf8" }
+    );
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("Foreign key integrity check failed");
+    expect(res.stdout).not.toContain('"status": "ok"');
+  });
 });

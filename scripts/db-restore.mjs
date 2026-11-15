@@ -193,6 +193,27 @@ async function restoreToTursoStaging(backup, version, preflight) {
           );
         }
       }
+
+      // 5b. Restore sqlite_sequence for AUTOINCREMENT tables
+      if (Array.isArray(backup.sequences) && backup.sequences.length > 0) {
+        for (const seqEntry of backup.sequences) {
+          if (!isValidIdentifier(seqEntry.name)) continue;
+          try {
+            await client.execute({
+              sql: "DELETE FROM sqlite_sequence WHERE name = ?",
+              args: [seqEntry.name],
+            });
+            await client.execute({
+              sql: `INSERT INTO sqlite_sequence (name, seq) VALUES (?, MAX(?, COALESCE((SELECT MAX(rowid) FROM "${seqEntry.name}"), 0)))`,
+              args: [seqEntry.name, seqEntry.seq],
+            });
+          } catch (err) {
+            throw new Error(
+              `Failed restoring sqlite_sequence for "${seqEntry.name}": ${err instanceof Error ? err.message : String(err)}. Re-run on a clean target database.`
+            );
+          }
+        }
+      }
     }
 
     // 6. Foreign key check
@@ -334,6 +355,23 @@ async function restoreToLocalSqlite(backup, version, resolvedTarget) {
           throw new Error(
             `Failed creating trigger "${trg.name}": ${err instanceof Error ? err.message : String(err)}. Re-run on a clean target database.`
           );
+        }
+      }
+
+      // 5b. Restore sqlite_sequence for AUTOINCREMENT tables
+      if (Array.isArray(backup.sequences) && backup.sequences.length > 0) {
+        for (const seqEntry of backup.sequences) {
+          if (!isValidIdentifier(seqEntry.name)) continue;
+          try {
+            db.prepare("DELETE FROM sqlite_sequence WHERE name = ?").run(seqEntry.name);
+            db.prepare(
+              `INSERT INTO sqlite_sequence (name, seq) VALUES (?, MAX(?, COALESCE((SELECT MAX(rowid) FROM "${seqEntry.name}"), 0)))`
+            ).run(seqEntry.name, seqEntry.seq);
+          } catch (err) {
+            throw new Error(
+              `Failed restoring sqlite_sequence for "${seqEntry.name}": ${err instanceof Error ? err.message : String(err)}. Re-run on a clean target database.`
+            );
+          }
         }
       }
     }

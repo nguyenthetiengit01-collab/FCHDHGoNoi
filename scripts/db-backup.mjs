@@ -92,7 +92,17 @@ async function backupFromTurso(tursoUrl, tursoToken) {
       rowCounts[table] = tablesData[table].length;
     }
 
-    return { schema, objects, tablesData, rowCounts };
+    let sequences = [];
+    try {
+      const seqRes = await client.execute("SELECT name, seq FROM sqlite_sequence ORDER BY name ASC");
+      sequences = seqRes.rows
+        .filter((r) => r.name && isValidIdentifier(String(r.name)))
+        .map((r) => ({ name: String(r.name), seq: Number(r.seq) }));
+    } catch {
+      // sqlite_sequence does not exist if no AUTOINCREMENT tables exist
+    }
+
+    return { schema, objects, tablesData, rowCounts, sequences };
   } finally {
     client.close();
   }
@@ -137,7 +147,17 @@ async function backupFromSqlite(targetFile) {
       rowCounts[table] = tablesData[table].length;
     }
 
-    return { schema, objects, tablesData, rowCounts };
+    let sequences = [];
+    try {
+      const seqRows = db.prepare("SELECT name, seq FROM sqlite_sequence ORDER BY name ASC").all();
+      sequences = seqRows
+        .filter((r) => r.name && isValidIdentifier(String(r.name)))
+        .map((r) => ({ name: String(r.name), seq: Number(r.seq) }));
+    } catch {
+      // sqlite_sequence does not exist if no AUTOINCREMENT tables exist
+    }
+
+    return { schema, objects, tablesData, rowCounts, sequences };
   } finally {
     db.close();
   }
@@ -187,7 +207,7 @@ async function main() {
   const useTurso = envMode === "staging" || (!sqlitePath && tursoUrl && tursoToken);
   const sourceType = envMode === "staging" ? "turso-staging" : useTurso ? "turso" : "sqlite";
 
-  const { schema, objects, tablesData, rowCounts } = useTurso
+  const { schema, objects, tablesData, rowCounts, sequences } = useTurso
     ? await backupFromTurso(tursoUrl, tursoToken)
     : await backupFromSqlite(path.resolve(sqlitePath || process.env.SQLITE_DB_PATH || "data/gonoifc.sqlite"));
 
@@ -197,6 +217,7 @@ async function main() {
     sourceType,
     schema,
     objects,
+    sequences,
     rowCounts,
     tables: tablesData,
   };
@@ -217,6 +238,7 @@ async function main() {
           indexes: objects.indexes.length,
           triggers: objects.triggers.length,
           views: objects.views.length,
+          sequences: sequences.length,
         },
         rowCounts,
       },
