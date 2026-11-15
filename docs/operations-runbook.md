@@ -26,42 +26,25 @@ Tài liệu vận hành chính thức cho hệ thống **FC HĐH Gò Nổi tại
   ```
 - **Không bao giờ** commit file backup, file `.sqlite` / `.db` hoặc secrets vào Git.
 
-### 2.2. Đề Xuất Lịch Backup Tự Động (GitHub Actions — Chưa Bật Tự Động)
-Chủ sở hữu có thể tạo workflow `.github/workflows/turso-backup.yml` và cấu hình **Repository Secrets** (`TURSO_PROD_DATABASE_URL`, `TURSO_PROD_AUTH_TOKEN_RO` chỉ đọc):
+### 2.2. Lịch Backup Tự Động (`.github/workflows/turso-backup.yml`)
+Workflow [turso-backup.yml](../.github/workflows/turso-backup.yml) chỉ kích hoạt trên nhánh `main` (sau khi release) theo lịch tuần (`0 20 * * 0` UTC = 03:00 sáng Thứ Hai UTC+7) hoặc chạy thủ công qua `workflow_dispatch`:
 
-```yaml
-name: Weekly Turso Backup (Read-Only)
-on:
-  schedule:
-    - cron: "0 20 * * 0" # 03:00 sáng Thứ Hai (UTC+7)
-  workflow_dispatch:
-
-jobs:
-  backup:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - run: npm ci --ignore-scripts
-      - name: Run read-only Turso backup
-        env:
-          TURSO_DATABASE_URL: ${{ secrets.TURSO_PROD_DATABASE_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_PROD_AUTH_TOKEN_RO }}
-        run: |
-          node scripts/db-backup.mjs --out /tmp/gonoi-backup.json
-          node scripts/db-restore.mjs --in /tmp/gonoi-backup.json --target /tmp/verify.sqlite --confirm
-      - name: Upload encrypted/private workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: turso-backup-${{ github.run_id }}
-          path: /tmp/gonoi-backup.json
-          retention-days: 30
-```
-
-- **Kiểm tra & Cảnh báo thất bại**: Bước `db-restore.mjs` ngay trong job xác minh file backup có thể khôi phục thành công. Nếu job fail, GitHub Actions gửi email/notification cho chủ sở hữu repository.
-- **Kiểm thử trên Turso Cloud Staging**: Xem hướng dẫn thiết lập biến `TURSO_STAGING_DATABASE_URL`, `TURSO_STAGING_AUTH_TOKEN`, `TURSO_STAGING_RESTORE_DATABASE_URL`, `TURSO_STAGING_RESTORE_AUTH_TOKEN` và preflight an toàn tại [turso-staging-guide.md](turso-staging-guide.md).
+- **Repository Secrets bắt buộc** (cấu hình trong **GitHub → Settings → Secrets and variables → Actions**):
+  - `TURSO_PROD_DATABASE_URL`: URL Production Turso DB (ánh xạ vào `TURSO_DATABASE_URL`).
+  - `TURSO_PROD_AUTH_TOKEN_RO`: Token **chỉ đọc (`--read-only`)** (ánh xạ vào `TURSO_AUTH_TOKEN`). Tuyệt đối không dùng token có quyền ghi Production trong workflow backup.
+- **Bảo vệ & Kiểm tra Artifact**:
+  - `concurrency: turso-production-backup` (`cancel-in-progress: false`), `timeout-minutes: 15`, `permissions: contents: read`, không có `continue-on-error`.
+  - Xác minh file backup v3 khác rỗng, đủ `schema`, `objects.tables`, `sequences`, `rowCounts` và chạy thử restore cục bộ (`db-restore.mjs --target /tmp/verify-restore.sqlite --confirm`).
+  - Artifact `turso-prod-backup-<run_id>` lưu với `retention-days: 30`, `if-no-files-found: error`. Chỉ thành viên có quyền đọc repository mới tải được artifact; đối với repository public không nên lưu dữ liệu nhạy cảm chưa mã hóa trên GitHub Artifacts.
+- **Cảnh báo thất bại (Failure Alert)**:
+  - Bật **GitHub Settings → Notifications → Actions → Send notifications for failed workflows** để nhận email/thông báo ngay khi bước backup, validation, local restore hoặc upload artifact thất bại.
+- **Kiểm chứng Restore trên Staging riêng (tùy chọn thủ công)**:
+  - Tải artifact backup về máy vận hành hoặc dùng runner có sẵn `TURSO_STAGING_RESTORE_DATABASE_URL` + `TURSO_STAGING_RESTORE_AUTH_TOKEN` (tách biệt hoàn toàn khỏi Production) và chạy:
+    ```bash
+    node scripts/db-restore.mjs --env staging --in ../backups/gonoi-prod-backup.json --confirm
+    ```
+  - Không tự động xóa database Staging sau kiểm thử.
+- **Hướng dẫn Staging chi tiết**: Xem [turso-staging-guide.md](turso-staging-guide.md).
 
 ---
 
