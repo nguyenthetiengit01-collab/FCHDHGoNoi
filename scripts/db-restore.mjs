@@ -111,6 +111,7 @@ async function main() {
       token: process.env.TURSO_STAGING_RESTORE_AUTH_TOKEN,
       envUrlName: "TURSO_STAGING_RESTORE_DATABASE_URL",
       envTokenName: "TURSO_STAGING_RESTORE_AUTH_TOKEN",
+      role: "target",
       disallowUrls: [
         process.env.TURSO_DATABASE_URL,
         process.env.TURSO_STAGING_DATABASE_URL,

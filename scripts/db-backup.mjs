@@ -58,6 +58,7 @@ async function main() {
       token: stagingToken,
       envUrlName: "TURSO_STAGING_DATABASE_URL",
       envTokenName: "TURSO_STAGING_AUTH_TOKEN",
+      role: "source",
       disallowUrls: [process.env.TURSO_DATABASE_URL],
     });
     if (preflightOnly) {

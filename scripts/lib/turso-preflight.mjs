@@ -1,9 +1,13 @@
 /**
  * Preflight safety checks for Turso Cloud Staging backup & restore scripts.
- * Never logs or returns auth tokens, and strictly prevents falling back to Production.
+ * Enforces an exact database allowlist (Source: fchdhgonoi-staging, Target: fchdhgonoi-staging-restore),
+ * never logs or returns auth tokens, and strictly prevents falling back to Production or SQLite.
  */
 
-const SAFE_STAGING_NAME_PATTERN = /(staging|restore|drill|dev|test)/i;
+export const ALLOWED_STAGING_DATABASES = Object.freeze({
+  source: "fchdhgonoi-staging",
+  target: "fchdhgonoi-staging-restore",
+});
 
 export function extractTursoDbName(rawUrl) {
   if (!rawUrl || typeof rawUrl !== "string") {
@@ -26,13 +30,33 @@ export function extractTursoDbName(rawUrl) {
   return { dbName, safeHost: `${parsed.protocol}//${hostname}` };
 }
 
+function matchesExactAllowlistedDb(hostSlug, allowedBaseName) {
+  if (hostSlug === allowedBaseName) return true;
+  if (!hostSlug.startsWith(`${allowedBaseName}-`)) return false;
+  // Ensure "fchdhgonoi-staging" does not accidentally match "fchdhgonoi-staging-restore*"
+  if (
+    allowedBaseName === ALLOWED_STAGING_DATABASES.source &&
+    (hostSlug === ALLOWED_STAGING_DATABASES.target ||
+      hostSlug.startsWith(`${ALLOWED_STAGING_DATABASES.target}-`))
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export function validateStagingTarget({
   url,
   token,
   envUrlName,
   envTokenName,
+  role = "source",
   disallowUrls = [],
 }) {
+  const allowedBaseName = ALLOWED_STAGING_DATABASES[role];
+  if (!allowedBaseName) {
+    throw new Error(`Preflight blocked: invalid staging role "${role}".`);
+  }
+
   const cleanUrl = typeof url === "string" ? url.trim() : "";
   const cleanToken = typeof token === "string" ? token.trim() : "";
 
@@ -62,15 +86,15 @@ export function validateStagingTarget({
 
   if (dbName === "fchdhgonoi" || dbName.startsWith("fchdhgonoi-nguyenthetiengit01")) {
     throw new Error(
-      `Preflight blocked: database "${dbName}" appears to be Production. Staging/restore target must be a separate database.`
+      `Preflight blocked: database "${dbName}" appears to be Production. Staging/restore target must be an allowlisted database.`
     );
   }
 
-  if (!SAFE_STAGING_NAME_PATTERN.test(dbName)) {
+  if (!matchesExactAllowlistedDb(dbName, allowedBaseName)) {
     throw new Error(
-      `Preflight blocked: database name "${dbName}" must explicitly include one of [staging, restore, drill, dev, test].`
+      `Preflight blocked: database "${dbName}" is not in the exact allowlist for role "${role}" (expected "${allowedBaseName}").`
     );
   }
 
-  return { dbName, safeHost };
+  return { dbName, safeHost, allowedBaseName, role };
 }
