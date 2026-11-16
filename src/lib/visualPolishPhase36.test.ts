@@ -49,4 +49,12 @@ describe("Phase 3.6 – UI Consistency & Visual Polish (UX-09, UX-10, UX-11)", (
     const portalSrc = readSrc("src/components/PublicGuestPortal.tsx");
     expect(portalSrc).not.toMatch(/from-purple-.*to-pink|from-pink-.*to-purple|from-indigo-.*to-pink/);
   });
+
+  it("Phase 3.7 Radius Token Alignment: :root radius tokens match Tailwind v4 defaults and AGENTS.md 8-12px", () => {
+    const css = readSrc("src/app/globals.css");
+    expect(css).toContain("--radius-sm: 0.25rem;");
+    expect(css).toContain("--radius-md: 0.375rem;");
+    expect(css).toContain("--radius-lg: 0.5rem;");
+    expect(css).toContain("--radius-xl: 0.75rem;");
+  });
 });
