@@ -27,7 +27,7 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
       expect(src).not.toContain('addEventListener("close"');
       expect(src).toContain("aria-labelledby={titleId}");
       expect(src).toContain('aria-label="Đóng hộp thoại"');
-      expect(src).toContain("focus-visible:outline-[#d4af37]");
+      expect(src).toContain("focus-visible:outline-brand-gold");
       expect(src).not.toContain("outline-emerald-600");
     });
 
@@ -39,7 +39,7 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
       expect(src).toContain('aria-modal="true"');
       expect(src).toContain('aria-labelledby="login-modal-title"');
       expect(src).toContain('aria-label="Đóng cửa sổ đăng nhập"');
-      expect(src).toContain("focus-visible:outline-[#d4af37]");
+      expect(src).toContain("focus-visible:outline-brand-gold");
     });
 
     it("ImageLightboxModal uses showModal() (no open={isOpen}), no nested role=dialog, no duplicate close listener, and gold focus rings", () => {
@@ -54,7 +54,7 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
       expect(src).toContain('aria-label="Mở hoặc tải ảnh gốc"');
       expect(src).toContain('aria-label="Ảnh trước"');
       expect(src).toContain('aria-label="Ảnh tiếp theo"');
-      expect(src).toContain("focus-visible:outline-[#d4af37]");
+      expect(src).toContain("focus-visible:outline-brand-gold");
     });
 
     it("useDialogA11y opens dialogs via showModal() and closes via close()", () => {

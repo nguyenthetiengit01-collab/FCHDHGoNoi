@@ -6,12 +6,12 @@ import { Home, RefreshCw, WifiOff } from "lucide-react";
 
 export default function OfflinePage() {
   return (
-    <div className="min-h-screen bg-[#040e1a] text-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-navy-950 text-slate-100 flex items-center justify-center p-4">
       <a href="#main-content" className="skip-link">
         Bỏ qua điều hướng, tới nội dung chính
       </a>
-      <main id="main-content" className="max-w-md w-full rounded-xl bg-[#081a33] border border-[#d4af37]/40 p-6 sm:p-8 text-center space-y-5 shadow-2xl">
-        <div className="mx-auto h-16 w-16 rounded-full bg-white p-1 border border-[#d4af37]/60 overflow-hidden">
+      <main id="main-content" className="max-w-md w-full rounded-xl bg-navy-900 border border-gold-500/40 p-6 sm:p-8 text-center space-y-5 shadow-2xl">
+        <div className="mx-auto h-16 w-16 rounded-full bg-white p-1 border border-gold-500/60 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/logo.jpg"
@@ -40,7 +40,7 @@ export default function OfflinePage() {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[#d4af37] hover:bg-[#fde047] text-[#040e1a] text-xs font-extrabold uppercase tracking-wider transition"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-gold-500 hover:bg-gold-300 text-navy-950 text-xs font-extrabold uppercase tracking-wider transition"
           >
             <RefreshCw className="h-4 w-4" />
             Thử tải lại
@@ -48,7 +48,7 @@ export default function OfflinePage() {
 
           <Link
             href="/"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[#0b2447] hover:bg-[#11315f] border border-white/15 text-white text-xs font-bold uppercase tracking-wider transition"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-navy-700 hover:bg-[#11315f] border border-white/15 text-white text-xs font-bold uppercase tracking-wider transition"
           >
             <Home className="h-4 w-4" />
             Về trang chủ

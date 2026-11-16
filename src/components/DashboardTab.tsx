@@ -181,10 +181,10 @@ export function DashboardTab({
   return (
     <div className="space-y-6">
       {/* 1. Banner Điều Hành CLB */}
-      <section className="rounded-xl bg-gradient-to-br from-[#092244] via-[#0d2e5b] to-[#17488c] text-white p-5 sm:p-6 shadow-sm border border-[#d4af37]/40">
+      <section className="rounded-xl bg-gradient-to-br from-navy-800 via-navy-600 to-navy-500 text-white p-5 sm:p-6 shadow-sm border border-gold-500/40">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl bg-white p-1 border-2 border-[#d4af37] shrink-0 shadow-sm">
+            <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-xl bg-white p-1 border-2 border-gold-500 shrink-0 shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={OFFICIAL_LOGO_URL}
@@ -193,7 +193,7 @@ export function DashboardTab({
               />
             </div>
             <div>
-              <div className="inline-flex flex-wrap items-center gap-2 rounded-md bg-white/10 px-2.5 py-1 text-xs font-bold text-[#fde047] border border-white/15">
+              <div className="inline-flex flex-wrap items-center gap-2 rounded-md bg-white/10 px-2.5 py-1 text-xs font-bold text-gold-300 border border-white/15">
                 <span>{settings.short_name}</span>
                 <span className="text-white/40">•</span>
                 <span>Xã Gò Nổi • TP. Đà Nẵng</span>
@@ -204,7 +204,7 @@ export function DashboardTab({
               </div>
               <h2 className="mt-2 text-xl sm:text-2xl font-extrabold tracking-tight text-white">
                 {settings.team_name}{" "}
-                <span className="text-[#fde047] text-sm sm:text-base font-bold">
+                <span className="text-gold-300 text-sm sm:text-base font-bold">
                   • Tại TP.HCM
                 </span>
               </h2>
@@ -226,7 +226,7 @@ export function DashboardTab({
             <Button
               variant="outline"
               onClick={() => onNavigateTab("schedule")}
-              leftIcon={<Calendar className="h-4 w-4 text-[#fde047]" />}
+              leftIcon={<Calendar className="h-4 w-4 text-gold-300" />}
               className="min-h-11 sm:min-h-10 !bg-white/10 !text-white !border-white/25 hover:!bg-white/20"
             >
               Lịch & Điểm Danh
@@ -314,7 +314,7 @@ export function DashboardTab({
                 <button
                   type="button"
                   onClick={() => handleInsightNavigate(item.targetTab)}
-                  className="shrink-0 text-xs font-bold text-[#0d2e5b] hover:text-[#17488c] underline cursor-pointer whitespace-nowrap"
+                  className="shrink-0 text-xs font-bold text-navy-600 hover:text-navy-500 underline cursor-pointer whitespace-nowrap"
                 >
                   {item.actionLabel} →
                 </button>
@@ -331,7 +331,7 @@ export function DashboardTab({
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-[#0d2e5b]" />
+                <BarChart3 className="h-4 w-4 text-navy-600" />
                 <CardTitle>Biến Động Thu Chi & Công Nợ</CardTitle>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -350,8 +350,8 @@ export function DashboardTab({
                     setSelectedPointKey(null);
                   }}
                   className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${chartMode === "match"
-                      ? "bg-[#0d2e5b] text-white"
-                      : "text-slate-600 hover:text-[#092244]"
+                      ? "bg-navy-600 text-white"
+                      : "text-slate-600 hover:text-ink-primary"
                     }`}
                 >
                   Theo trận
@@ -363,8 +363,8 @@ export function DashboardTab({
                     setSelectedPointKey(null);
                   }}
                   className={`px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer ${chartMode === "month"
-                      ? "bg-[#0d2e5b] text-white"
-                      : "text-slate-600 hover:text-[#092244]"
+                      ? "bg-navy-600 text-white"
+                      : "text-slate-600 hover:text-ink-primary"
                     }`}
                 >
                   Theo tháng
@@ -378,7 +378,7 @@ export function DashboardTab({
                   setChartRange(Number(e.target.value));
                   setSelectedPointKey(null);
                 }}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-[#092244]"
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-ink-primary"
               >
                 <option value={6}>
                   {chartMode === "match" ? "6 trận gần nhất" : "6 tháng gần nhất"}
@@ -395,12 +395,12 @@ export function DashboardTab({
 
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold">
             <div className="flex flex-wrap items-center gap-4">
-              <span className="inline-flex items-center gap-1.5 text-[#0d2e5b]">
-                <span className="h-2.5 w-2.5 rounded-xs bg-[#0d2e5b]" />
+              <span className="inline-flex items-center gap-1.5 text-navy-600">
+                <span className="h-2.5 w-2.5 rounded-xs bg-navy-600" />
                 Thực thu
               </span>
-              <span className="inline-flex items-center gap-1.5 text-[#8a6d14]">
-                <span className="h-2.5 w-2.5 rounded-xs bg-[#d4af37]" />
+              <span className="inline-flex items-center gap-1.5 text-gold-700">
+                <span className="h-2.5 w-2.5 rounded-xs bg-gold-500" />
                 Chi tiêu
               </span>
               <span className="inline-flex items-center gap-1.5 text-rose-700">
@@ -448,19 +448,19 @@ export function DashboardTab({
                         onClick={() => setSelectedPointKey(pt.key)}
                         aria-label={`${pt.fullLabel}: Thực thu ${formatVND(pt.actualIncome)}, Chi ${formatVND(pt.expense)}, Chưa thu ${formatVND(pt.unpaidDebt)}`}
                         className={`flex-1 min-w-[38px] flex flex-col items-center h-full justify-end rounded-lg px-1 py-1 transition cursor-pointer ${isSelected
-                            ? "bg-[#0d2e5b]/[0.06] ring-1 ring-[#0d2e5b]/25"
+                            ? "bg-navy-600/[0.06] ring-1 ring-navy-600/25"
                             : "hover:bg-slate-50"
                           }`}
                       >
                         <div className="w-full flex items-end justify-center gap-0.5 h-36 border-b border-slate-200 px-0.5">
                           <div
-                            className="w-2.5 bg-[#0d2e5b] rounded-t transition-all"
+                            className="w-2.5 bg-navy-600 rounded-t transition-all"
                             style={{
                               height: `${pt.actualIncome > 0 ? Math.max(5, incPct) : 0}%`,
                             }}
                           />
                           <div
-                            className="w-2.5 bg-[#d4af37] rounded-t transition-all"
+                            className="w-2.5 bg-gold-500 rounded-t transition-all"
                             style={{
                               height: `${pt.expense > 0 ? Math.max(5, expPct) : 0}%`,
                             }}
@@ -472,7 +472,7 @@ export function DashboardTab({
                             />
                           )}
                         </div>
-                        <div className="mt-1.5 text-[11px] font-bold text-[#092244] whitespace-nowrap">
+                        <div className="mt-1.5 text-[11px] font-bold text-ink-primary whitespace-nowrap">
                           {pt.label}
                         </div>
                         <div
@@ -491,7 +491,7 @@ export function DashboardTab({
 
               {activePoint && (
                 <div className="rounded-lg bg-slate-50 border border-slate-200 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-                  <span className="font-bold text-[#092244]">
+                  <span className="font-bold text-ink-primary">
                     {activePoint.fullLabel}
                   </span>
                   <div className="flex flex-wrap items-center gap-4 tabular-nums">
@@ -533,7 +533,7 @@ export function DashboardTab({
               <button
                 type="button"
                 onClick={() => onNavigateTab("finance")}
-                className="text-xs font-bold text-[#0d2e5b] hover:text-[#17488c] inline-flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-navy-600 hover:text-navy-500 inline-flex items-center gap-1 cursor-pointer"
               >
                 <span>Sổ chi</span>
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -549,11 +549,11 @@ export function DashboardTab({
                   className="w-full text-left space-y-1.5 rounded-lg p-1.5 -mx-1.5 hover:bg-slate-50 transition cursor-pointer"
                 >
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold text-[#092244]">
+                    <span className="font-semibold text-ink-primary">
                       {item.category}
                     </span>
                     <div className="flex items-center gap-2 tabular-nums">
-                      <span className="font-bold text-[#0d2e5b]">
+                      <span className="font-bold text-navy-600">
                         {formatVND(item.amount)}
                       </span>
                       <span className="w-12 text-right text-xs font-semibold text-slate-500">
@@ -564,9 +564,9 @@ export function DashboardTab({
                   <div className="h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${item.category === "Tiền sân"
-                          ? "bg-[#0d2e5b]"
+                          ? "bg-navy-600"
                           : item.amount > 0
-                            ? "bg-[#d4af37]"
+                            ? "bg-gold-500"
                             : "bg-slate-200"
                         }`}
                       style={{
@@ -618,7 +618,7 @@ export function DashboardTab({
                 <button
                   type="button"
                   onClick={() => onNavigateTab("matrix")}
-                  className="text-xs font-bold text-[#0d2e5b] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-navy-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
                 >
                   <span>Bảng thu trận</span>
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -665,7 +665,7 @@ export function DashboardTab({
 
           {/* Tách bạch lượt tham dự và lượt thanh toán */}
           <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 space-y-2.5 text-xs">
-            <div className="flex items-center justify-between font-bold text-[#092244]">
+            <div className="flex items-center justify-between font-bold text-ink-primary">
               <span>Đối chiếu lượt tham dự & thanh toán</span>
               <span className="tabular-nums text-slate-600">
                 {collection.totalAttendanceTurns} lượt ra sân thực tế
@@ -677,7 +677,7 @@ export function DashboardTab({
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Ra sân • Đã đóng
                 </span>
-                <strong className="tabular-nums text-[#092244]">
+                <strong className="tabular-nums text-ink-primary">
                   {collection.paidAttendedTurns}
                 </strong>
               </div>
@@ -710,7 +710,7 @@ export function DashboardTab({
                 <button
                   type="button"
                   onClick={() => onNavigateTab("matrix")}
-                  className="text-[#0d2e5b] hover:underline cursor-pointer"
+                  className="text-navy-600 hover:underline cursor-pointer"
                 >
                   Chi tiết công nợ →
                 </button>
@@ -721,7 +721,7 @@ export function DashboardTab({
                     key={d.playerId}
                     className="px-3 py-2 flex items-center justify-between gap-2 text-xs"
                   >
-                    <span className="font-semibold text-[#092244] truncate">
+                    <span className="font-semibold text-ink-primary truncate">
                       #{d.jerseyNumber ?? "-"} {d.fullName}
                     </span>
                     <span className="shrink-0 tabular-nums font-bold text-rose-600">
@@ -738,7 +738,7 @@ export function DashboardTab({
         <Card className="lg:col-span-6 space-y-4">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-[#0d2e5b]" />
+              <Receipt className="h-4 w-4 text-navy-600" />
               <div>
                 <CardTitle>Lịch Sử Giao Dịch Gần Đây</CardTitle>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -749,7 +749,7 @@ export function DashboardTab({
             <button
               type="button"
               onClick={() => onNavigateTab("finance")}
-              className="text-xs font-bold text-[#0d2e5b] hover:underline inline-flex items-center gap-1 cursor-pointer"
+              className="text-xs font-bold text-navy-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
             >
               <span>Xem tất cả</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -787,7 +787,7 @@ export function DashboardTab({
                           : formatDateVN(tx.date)}
                       </span>
                     </div>
-                    <p className="font-semibold text-[#092244] truncate">
+                    <p className="font-semibold text-ink-primary truncate">
                       {tx.title}
                     </p>
                     <p className="text-xs text-slate-500 truncate">
@@ -814,7 +814,7 @@ export function DashboardTab({
         <Card className="lg:col-span-7 space-y-3">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-[#d4af37]" />
+              <Award className="h-5 w-5 text-gold-500" />
               <div>
                 <CardTitle>Bảng Vàng Chuyên Cần & Đóng Quỹ</CardTitle>
                 <p className="text-xs text-slate-500">
@@ -825,7 +825,7 @@ export function DashboardTab({
             <button
               type="button"
               onClick={() => onNavigateTab("players")}
-              className="text-xs font-bold text-[#0d2e5b] hover:underline inline-flex items-center gap-1 cursor-pointer"
+              className="text-xs font-bold text-navy-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
             >
               <span>Đội hình</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -847,7 +847,7 @@ export function DashboardTab({
                   <div className="flex items-center gap-3 min-w-0">
                     <span
                       className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-extrabold tabular-nums ${index === 0
-                          ? "bg-[#d4af37] text-[#092244]"
+                          ? "bg-gold-500 text-ink-primary"
                           : index === 1
                             ? "bg-slate-200 text-slate-800"
                             : index === 2
@@ -857,7 +857,7 @@ export function DashboardTab({
                     >
                       {index + 1}
                     </span>
-                    <div className="h-9 w-9 shrink-0 rounded-full overflow-hidden border border-[#0d2e5b]/30 bg-slate-200">
+                    <div className="h-9 w-9 shrink-0 rounded-full overflow-hidden border border-navy-600/30 bg-slate-200">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={p.avatar_url || "/uploads/avatars/member-1.jpg"}
@@ -868,7 +868,7 @@ export function DashboardTab({
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="font-bold text-[#092244] truncate">
+                        <p className="font-bold text-ink-primary truncate">
                           {p.full_name}
                         </p>
                         <span className="text-xs font-semibold text-slate-500 tabular-nums">
@@ -905,7 +905,7 @@ export function DashboardTab({
         <Card className="lg:col-span-5 space-y-4">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-[#0d2e5b]" />
+              <Calendar className="h-5 w-5 text-navy-600" />
               <div>
                 <CardTitle>Hoạt Động Thi Đấu</CardTitle>
                 <p className="text-xs text-slate-500">
@@ -916,7 +916,7 @@ export function DashboardTab({
             <button
               type="button"
               onClick={() => onNavigateTab("schedule")}
-              className="text-xs font-bold text-[#0d2e5b] hover:underline inline-flex items-center gap-1 cursor-pointer"
+              className="text-xs font-bold text-navy-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
             >
               <span>Lịch đấu</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -924,7 +924,7 @@ export function DashboardTab({
           </CardHeader>
 
           {matchAnalytics.upcomingMatch && (
-            <div className="rounded-xl bg-[#092244] text-white p-3.5 border border-[#d4af37]/50 space-y-1.5">
+            <div className="rounded-xl bg-navy-800 text-white p-3.5 border border-gold-500/50 space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Badge variant="gold">Trận sắp tới</Badge>
                 <span className="text-xs text-sky-200 tabular-nums">
@@ -963,11 +963,11 @@ export function DashboardTab({
               matchAnalytics.recentMatches.map((m) => (
                 <div
                   key={m.id}
-                  className="rounded-lg border border-slate-200 p-3 hover:border-[#0d2e5b]/50 transition"
+                  className="rounded-lg border border-slate-200 p-3 hover:border-navy-600/50 transition"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-bold text-sm text-[#092244] truncate">
+                      <span className="font-bold text-sm text-ink-primary truncate">
                         {m.label}
                       </span>
                       <Badge
@@ -1039,7 +1039,7 @@ export function DashboardTab({
               <a
                 href={OFFICIAL_QR_URL}
                 download="QR_Quy_FC_HDH_Go_Noi_NguyenTheTieng.jpg"
-                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-[#0d2e5b] px-3.5 py-2 text-xs font-bold text-[#fde047] hover:bg-[#17488c] transition"
+                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-navy-600 px-3.5 py-2 text-xs font-bold text-gold-300 hover:bg-navy-500 transition"
               >
                 <Download className="h-3.5 w-3.5" />
                 <span>Tải ảnh QR về điện thoại</span>
@@ -1095,9 +1095,9 @@ export function DashboardTab({
             </div>
           </div>
 
-          <div className="rounded-xl bg-[#0d2e5b] text-white p-3.5 flex items-center justify-between gap-3">
+          <div className="rounded-xl bg-navy-600 text-white p-3.5 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <span className="text-[11px] text-[#fde047] font-bold block">
+              <span className="text-[11px] text-gold-300 font-bold block">
                 Số tiền gợi ý: {formatVND(qrAmount)} • Nội dung chuyển khoản:
               </span>
               <span className="text-sm font-extrabold truncate block">

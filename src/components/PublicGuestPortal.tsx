@@ -248,13 +248,13 @@ function CompactPlayerRow({
       type="button"
       onClick={onSelect}
       aria-pressed={isSelected}
-      className={`group w-full text-left flex items-center justify-between p-3 rounded-lg transition-all border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d4af37] ${isSelected
-        ? "bg-[#17488c] border-l-4 border-l-[#ffd700] border-y-[#ffd700]/70 border-r-[#ffd700]/70 shadow-[0_4px_25px_rgba(20,70,140,0.5)]"
-        : "bg-[#0c2f5e] border border-white/15 hover:border-sky-300/40 hover:bg-[#123e7a]"
+      className={`group w-full text-left flex items-center justify-between p-3 rounded-lg transition-all border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${isSelected
+        ? "bg-navy-500 border-l-4 border-l-gold-400 border-y-[#ffd700]/70 border-r-gold-400/70 shadow-[0_4px_25px_rgba(20,70,140,0.5)]"
+        : "bg-navy-700 border border-white/15 hover:border-sky-300/40 hover:bg-navy-500"
         }`}
     >
       <div className="flex items-center gap-3 min-w-0">
-        <div className="h-10 w-10 rounded-md bg-[#09254d] border border-[#ffd700]/60 flex items-center justify-center shrink-0 font-display font-black text-base text-[#ffd700]">
+        <div className="h-10 w-10 rounded-md bg-navy-800 border border-gold-400/60 flex items-center justify-center shrink-0 font-display font-black text-base text-gold-400">
           #{player.jersey_number ?? "--"}
         </div>
 
@@ -280,7 +280,7 @@ function CompactPlayerRow({
               {player.full_name}
             </span>
             {player.nickname && (
-              <span className="text-xs text-[#ffd700] font-semibold shrink-0">
+              <span className="text-xs text-gold-400 font-semibold shrink-0">
                 ({player.nickname})
               </span>
             )}
@@ -300,7 +300,7 @@ function CompactPlayerRow({
 
       <div className="text-right shrink-0 pl-2">
         {isSelected ? (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#ffd700] text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-gold-400 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm">
             <span>ĐANG XEM</span>
           </span>
         ) : (
@@ -472,11 +472,11 @@ export function PublicGuestPortal({
     matchTab === "fixtures" ? upcomingMatches : pastMatches.slice(0, 8);
 
   return (
-    <div className="w-full font-sans text-white overflow-x-clip bg-[#092244]">
+    <div className="w-full font-sans text-white overflow-x-clip bg-navy-800">
       {/* ===================== HEADER XANH LAM HOÀNG GIA ===================== */}
       <header
         className={`fixed inset-x-0 top-0 z-40 transition-all duration-500 ${scrolled
-          ? "bg-[#0a274e]/90 backdrop-blur-lg py-3 border-b border-[#d4af37]/30 shadow-lg"
+          ? "bg-[#0a274e]/90 backdrop-blur-lg py-3 border-b border-gold-500/30 shadow-lg"
           : "bg-gradient-to-b from-[#061730]/80 via-[#061730]/40 to-transparent py-5"
           }`}
       >
@@ -491,13 +491,13 @@ export function PublicGuestPortal({
             <img
               src={OFFICIAL_LOGO_URL}
               alt="Logo FC HĐH Gò Nổi"
-              className="h-11 w-11 rounded-full object-contain bg-white p-0.5 ring-2 ring-[#d4af37] group-hover:scale-105 transition shadow-md"
+              className="h-11 w-11 rounded-full object-contain bg-white p-0.5 ring-2 ring-gold-500 group-hover:scale-105 transition shadow-md"
             />
             <div className="text-left hidden sm:block">
               <span className="font-display font-extrabold uppercase text-xl sm:text-2xl tracking-wide leading-none text-white block">
                 FC HĐH Gò Nổi
               </span>
-              <span className="text-[10px] uppercase tracking-widest text-[#d4af37] font-bold block mt-0.5">
+              <span className="text-[10px] uppercase tracking-widest text-gold-500 font-bold block mt-0.5">
                 Xã Gò Nổi • TP. Đà Nẵng
               </span>
             </div>
@@ -512,7 +512,7 @@ export function PublicGuestPortal({
                 key={l.id}
                 type="button"
                 onClick={() => go(l.id)}
-                className="hover:text-[#d4af37] cursor-pointer inline-flex items-center gap-1.5 transition"
+                className="hover:text-gold-500 cursor-pointer inline-flex items-center gap-1.5 transition"
               >
                 <span>{l.label}</span>
               </button>
@@ -521,7 +521,7 @@ export function PublicGuestPortal({
               href={fanpageUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-[#d4af37] inline-flex items-center gap-1 text-sky-200 transition"
+              className="hover:text-gold-500 inline-flex items-center gap-1 text-sky-200 transition"
             >
               Fanpage <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
@@ -531,7 +531,7 @@ export function PublicGuestPortal({
             <button
               type="button"
               onClick={onOpenLogin}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-3.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-3.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition"
             >
               <LogIn className="h-4 w-4" />
               <span>Đăng nhập</span>
@@ -552,10 +552,10 @@ export function PublicGuestPortal({
 
         {/* ===================== MOBILE NAVIGATION DRAWER ===================== */}
         {mobileNavOpen && (
-          <div className="lg:hidden fixed inset-x-0 top-[60px] sm:top-[68px] bottom-0 bg-[#061730]/98 backdrop-blur-xl z-50 overflow-y-auto border-t border-[#d4af37]/30 shadow-2xl p-5 flex flex-col justify-between">
+          <div className="lg:hidden fixed inset-x-0 top-[60px] sm:top-[68px] bottom-0 bg-[#061730]/98 backdrop-blur-xl z-50 overflow-y-auto border-t border-gold-500/30 shadow-2xl p-5 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-white/15">
-                <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700]">
+                <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gold-400">
                   DANH MỤC TRANG CHỦ
                 </span>
                 <span className="text-xs text-sky-200">
@@ -571,18 +571,18 @@ export function PublicGuestPortal({
                       key={l.id}
                       type="button"
                       onClick={() => go(l.id)}
-                      className="flex items-center justify-between p-3.5 rounded-xl bg-[#0b2447] hover:bg-[#123e7a] border border-white/10 text-left transition cursor-pointer group"
+                      className="flex items-center justify-between p-3.5 rounded-xl bg-navy-700 hover:bg-navy-500 border border-white/10 text-left transition cursor-pointer group"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-[#071933] text-[#ffd700] border border-[#ffd700]/30 group-hover:scale-110 transition">
+                        <div className="p-2 rounded-lg bg-navy-900 text-gold-400 border border-gold-400/30 group-hover:scale-110 transition">
                           <Icon className="h-4 w-4" />
                         </div>
-                        <span className="font-bold text-sm text-white group-hover:text-[#ffd700] transition">
+                        <span className="font-bold text-sm text-white group-hover:text-gold-400 transition">
                           {l.label}
                         </span>
                       </div>
                       {l.badge && (
-                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-[#ffd700]/15 text-[#ffd700] border border-[#ffd700]/30">
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-gold-400/15 text-gold-400 border border-gold-400/30">
                           {l.badge}
                         </span>
                       )}
@@ -620,7 +620,7 @@ export function PublicGuestPortal({
                   setMobileNavOpen(false);
                   onOpenLogin();
                 }}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#d4af37] to-[#e6c466] text-slate-950 font-black py-3.5 rounded-xl uppercase text-xs tracking-wider shadow-lg"
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-gold-500 to-[#e6c466] text-slate-950 font-black py-3.5 rounded-xl uppercase text-xs tracking-wider shadow-lg"
               >
                 <LogIn className="h-4 w-4" />
                 <span>Đăng Nhập Thành Viên & Ban Quản Lý</span>
@@ -661,15 +661,15 @@ export function PublicGuestPortal({
         />
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-radial-[circle_at_20%_20%] from-[#d4af37]/15 via-transparent to-transparent mix-blend-screen pointer-events-none"
+          className="absolute inset-0 bg-radial-[circle_at_20%_20%] from-gold-500/15 via-transparent to-transparent mix-blend-screen pointer-events-none"
         />
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-t from-[#092244] via-[#0b2952]/75 to-[#071933]/45"
+          className="absolute inset-0 bg-gradient-to-t from-navy-800 via-navy-700/75 to-navy-900/45"
         />
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-r from-[#0c2850]/85 via-[#0b2952]/40 to-transparent"
+          className="absolute inset-0 bg-gradient-to-r from-[#0c2850]/85 via-navy-700/40 to-transparent"
         />
 
         {/* Chữ in chìm không gian sâu (Depth Watermark) */}
@@ -682,11 +682,11 @@ export function PublicGuestPortal({
 
         <div className={`${WRAP} relative z-10 pt-40 pb-14 sm:pb-20`}>
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="font-bold uppercase tracking-[0.35em] text-xs sm:text-sm text-[#d4af37] flex items-center gap-2">
-              <SoccerBallIcon className="h-4 w-4 text-[#d4af37] gn-spin-slow" />
+            <span className="font-bold uppercase tracking-[0.35em] text-xs sm:text-sm text-gold-500 flex items-center gap-2">
+              <SoccerBallIcon className="h-4 w-4 text-gold-500 gn-spin-slow" />
               <span>Bóng đá phủi • Đồng hương Gò Nổi • TP.HCM</span>
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 px-3 py-0.5 text-[11px] font-extrabold text-[#fde047] backdrop-blur-md">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/20 border border-gold-500/50 px-3 py-0.5 text-[11px] font-extrabold text-gold-300 backdrop-blur-md">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>{totalPlayerCount}+ Cầu thủ • Mở rộng đón anh em Gò Nổi</span>
             </span>
@@ -703,13 +703,13 @@ export function PublicGuestPortal({
 
           <div className="mt-10 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
             <p className="max-w-xl text-lg sm:text-xl text-sky-100 leading-relaxed font-light">
-              Ngôi nhà chung của <strong className="text-[#fde047] font-bold">{totalPlayerCount}+ anh em chiến binh</strong> và không ngừng mở rộng, hướng đến việc quy tụ toàn bộ anh em con em Điện Quang, Điện Trung, Điện Phong tại TP.HCM. Bất kể bạn đá ở vị trí nào, chỉ cần mang trong mình tinh thần Gò Nổi — sân bóng luôn sẵn sàng đón bạn!
+              Ngôi nhà chung của <strong className="text-gold-300 font-bold">{totalPlayerCount}+ anh em chiến binh</strong> và không ngừng mở rộng, hướng đến việc quy tụ toàn bộ anh em con em Điện Quang, Điện Trung, Điện Phong tại TP.HCM. Bất kể bạn đá ở vị trí nào, chỉ cần mang trong mình tinh thần Gò Nổi — sân bóng luôn sẵn sàng đón bạn!
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <button
                 type="button"
                 onClick={onOpenLogin}
-                className="inline-flex items-center gap-3 bg-gradient-to-r from-[#17488c] to-[#1e5eb8] hover:from-[#1e5eb8] hover:to-[#2563eb] text-white font-bold px-8 py-4 sm:py-5 text-sm uppercase tracking-widest rounded-xl cursor-pointer shadow-xl border border-sky-300/30 transition hover:scale-[1.02]"
+                className="inline-flex items-center gap-3 bg-gradient-to-r from-navy-500 to-royal-500 hover:from-royal-500 hover:to-[#2563eb] text-white font-bold px-8 py-4 sm:py-5 text-sm uppercase tracking-widest rounded-xl cursor-pointer shadow-xl border border-sky-300/30 transition hover:scale-[1.02]"
               >
                 <span>Vào khu thành viên</span>
                 <ArrowRight className="h-5 w-5" />
@@ -717,16 +717,16 @@ export function PublicGuestPortal({
               <button
                 type="button"
                 onClick={() => go("join-us")}
-                className="inline-flex items-center gap-3 border-2 border-[#d4af37] hover:bg-[#d4af37] hover:text-slate-950 text-[#d4af37] font-bold px-8 py-[14px] sm:py-[18px] text-sm uppercase tracking-widest rounded-xl cursor-pointer transition shadow-md hover:scale-[1.02]"
+                className="inline-flex items-center gap-3 border-2 border-gold-500 hover:bg-gold-500 hover:text-slate-950 text-gold-500 font-bold px-8 py-[14px] sm:py-[18px] text-sm uppercase tracking-widest rounded-xl cursor-pointer transition shadow-md hover:scale-[1.02]"
               >
                 <HeartHandshake className="h-5 w-5" />
                 <span>Gia nhập đội bóng</span>
               </button>
               <Link
                 href="/cau-chuyen-go-noi"
-                className="inline-flex items-center gap-2 border border-white/25 bg-white/10 hover:bg-white/15 hover:border-[#d4af37]/60 text-white font-bold px-6 py-[14px] sm:py-[18px] text-sm uppercase tracking-wider rounded-xl transition"
+                className="inline-flex items-center gap-2 border border-white/25 bg-white/10 hover:bg-white/15 hover:border-gold-500/60 text-white font-bold px-6 py-[14px] sm:py-[18px] text-sm uppercase tracking-wider rounded-xl transition"
               >
-                <BookOpen className="h-4 w-4 text-[#fde047]" />
+                <BookOpen className="h-4 w-4 text-gold-300" />
                 <span>Câu chuyện Gò Nổi</span>
               </Link>
             </div>
@@ -740,7 +740,7 @@ export function PublicGuestPortal({
               { n: wins, l: "Trận thắng" },
             ].map((s) => (
               <div key={s.l}>
-                <dd className="font-display text-6xl sm:text-7xl font-bold text-[#d4af37] leading-none">
+                <dd className="font-display text-6xl sm:text-7xl font-bold text-gold-500 leading-none">
                   {s.n}
                 </dd>
                 <dt className="mt-1 text-xs font-bold uppercase tracking-[0.25em] text-sky-200">
@@ -755,14 +755,14 @@ export function PublicGuestPortal({
           type="button"
           onClick={() => go("match-center")}
           aria-label="Cuộn xuống"
-          className="absolute right-6 sm:right-12 bottom-36 hidden sm:flex flex-col items-center gap-2 text-sky-200/80 hover:text-[#d4af37] text-[11px] uppercase tracking-[0.3em] cursor-pointer [writing-mode:vertical-rl]"
+          className="absolute right-6 sm:right-12 bottom-36 hidden sm:flex flex-col items-center gap-2 text-sky-200/80 hover:text-gold-500 text-[11px] uppercase tracking-[0.3em] cursor-pointer [writing-mode:vertical-rl]"
         >
           <span>Cuộn</span>
-          <ChevronDown className="h-4 w-4 gn-float text-[#d4af37]" />
+          <ChevronDown className="h-4 w-4 gn-float text-gold-500" />
         </button>
 
         {/* Dải chữ chạy vàng kim loại */}
-        <div className="relative z-10 bg-gradient-to-r from-[#d4af37] via-[#f5d97f] to-[#d4af37] text-slate-950 overflow-hidden shadow-inner">
+        <div className="relative z-10 bg-gradient-to-r from-gold-500 via-[#f5d97f] to-gold-500 text-slate-950 overflow-hidden shadow-inner">
           <div className="gn-marquee flex w-max gap-12 py-3 font-display font-bold uppercase text-lg tracking-[0.2em]">
             {[...ticker, ...ticker, ...ticker, ...ticker].map((t, i) => (
               <span key={i} className="inline-flex items-center gap-12">
@@ -777,7 +777,7 @@ export function PublicGuestPortal({
       {/* ===================== THANH ĐIỀU HƯỚNG NHANH CÁC KHU VỰC (QUICK JUMP BAR) ===================== */}
       <nav
         aria-label="Thanh nhảy nhanh chuyên mục"
-        className="sticky top-[60px] sm:top-[68px] z-30 bg-[#061730]/95 backdrop-blur-md border-y border-[#ffd700]/30 shadow-lg py-2.5"
+        className="sticky top-[60px] sm:top-[68px] z-30 bg-[#061730]/95 backdrop-blur-md border-y border-gold-400/30 shadow-lg py-2.5"
       >
         <div className={`${WRAP} flex items-center justify-between gap-3 overflow-x-auto gn-hide-scroll`}>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -788,12 +788,12 @@ export function PublicGuestPortal({
                   key={l.id}
                   type="button"
                   onClick={() => go(l.id)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0b2447] hover:bg-[#123e7a] border border-white/10 hover:border-[#ffd700]/60 text-xs font-bold text-sky-100 hover:text-white transition whitespace-nowrap cursor-pointer shrink-0 group"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-500 border border-white/10 hover:border-gold-400/60 text-xs font-bold text-sky-100 hover:text-white transition whitespace-nowrap cursor-pointer shrink-0 group"
                 >
-                  <Icon className="h-3.5 w-3.5 text-[#ffd700] group-hover:scale-110 transition" />
+                  <Icon className="h-3.5 w-3.5 text-gold-400 group-hover:scale-110 transition" />
                   <span>{l.label}</span>
                   {l.badge && (
-                    <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-[#ffd700]/15 text-[#ffd700] border border-[#ffd700]/30">
+                    <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-gold-400/15 text-gold-400 border border-gold-400/30">
                       {l.badge}
                     </span>
                   )}
@@ -806,7 +806,7 @@ export function PublicGuestPortal({
             <span className="text-[10px] uppercase tracking-wider text-sky-300 font-bold">
               FC HĐH Gò Nổi:
             </span>
-            <span className="font-extrabold text-[#fde047]">
+            <span className="font-extrabold text-gold-300">
               {totalPlayerCount}+ Cầu Thủ
             </span>
           </div>
@@ -817,7 +817,7 @@ export function PublicGuestPortal({
       {homeBanners.length > 0 && (
         <section className="relative bg-[#061730] py-6 sm:py-8 border-b border-white/10">
           <div className={WRAP}>
-            <div className="relative rounded-2xl overflow-hidden border border-[#d4af37]/40 shadow-2xl bg-gradient-to-r from-[#081a33] to-[#0b2447]">
+            <div className="relative rounded-2xl overflow-hidden border border-gold-500/40 shadow-2xl bg-gradient-to-r from-navy-900 to-navy-700">
               {/* Slide hình ảnh Banner */}
               <div className="relative aspect-[21/9] sm:aspect-[24/9] min-h-[180px] w-full overflow-hidden">
                 {homeBanners.map((sp, idx) => {
@@ -872,7 +872,7 @@ export function PublicGuestPortal({
                                 href={sp.website_url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#d4af37] hover:bg-[#fde047] px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-slate-950 transition"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-gold-500 hover:bg-gold-300 px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-slate-950 transition"
                               >
                                 <span>Ghé thăm đơn vị</span>
                                 <ArrowUpRight className="h-3.5 w-3.5" />
@@ -927,7 +927,7 @@ export function PublicGuestPortal({
                           aria-hidden="true"
                           className={`block h-2 rounded-full transition-all ${
                             i === activeBannerIdx
-                              ? "w-6 bg-[#d4af37]"
+                              ? "w-6 bg-gold-500"
                               : "w-2 bg-white/40 hover:bg-white/70"
                           }`}
                         />
@@ -945,7 +945,7 @@ export function PublicGuestPortal({
       {nextMatch && (
         <section
           id="match-center"
-          className="relative bg-gradient-to-b from-[#0e3164] via-[#123e7a] to-[#0c2b57] py-16 sm:py-24 overflow-hidden border-y border-white/15"
+          className="relative bg-gradient-to-b from-navy-600 via-navy-500 to-[#0c2b57] py-16 sm:py-24 overflow-hidden border-y border-white/15"
         >
           <span
             aria-hidden="true"
@@ -958,7 +958,7 @@ export function PublicGuestPortal({
               {/* Technical Section Index */}
               <div className="flex flex-wrap items-center justify-between gap-3 pb-6 border-b border-white/15">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700] bg-[#ffd700]/15 px-2.5 py-1 rounded border border-[#ffd700]/40">
+                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gold-400 bg-gold-400/15 px-2.5 py-1 rounded border border-gold-400/40">
                     01 // MATCHDAY FIXTURE
                   </span>
                   <span className="text-xs uppercase font-extrabold tracking-widest text-slate-200">
@@ -977,14 +977,14 @@ export function PublicGuestPortal({
               </div>
 
               {/* TV Broadcast Scoreboard Box */}
-              <div className="mt-8 rounded-xl bg-gradient-to-br from-[#123e7a] via-[#0e3164] to-[#0a2347] border border-[#ffd700]/50 p-6 sm:p-10 shadow-[0_20px_50px_rgba(14,49,100,0.5)] relative overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ffd700] to-transparent" />
+              <div className="mt-8 rounded-xl bg-gradient-to-br from-navy-500 via-navy-600 to-navy-800 border border-gold-400/50 p-6 sm:p-10 shadow-[0_20px_50px_rgba(14,49,100,0.5)] relative overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
 
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] items-center gap-8 lg:gap-12">
                   {/* Đội chủ nhà FC Gò Nổi */}
                   <div className="flex flex-col lg:items-end items-center text-center lg:text-right space-y-2">
                     <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-bold uppercase tracking-widest text-[#ffd700] bg-[#ffd700]/15 px-2 py-0.5 rounded border border-[#ffd700]/40">
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-gold-400 bg-gold-400/15 px-2 py-0.5 rounded border border-gold-400/40">
                         CHỦ NHÀ
                       </span>
                     </div>
@@ -1000,13 +1000,13 @@ export function PublicGuestPortal({
                   <div className="flex flex-col items-center justify-center px-6 py-4 rounded-lg bg-[#0a2752] border border-white/20 shrink-0 shadow-md">
                     {nextMatch.team_score !== null &&
                       nextMatch.opponent_score !== null ? (
-                      <div className="font-display font-black text-5xl sm:text-7xl text-[#fde047] leading-none tracking-tight">
+                      <div className="font-display font-black text-5xl sm:text-7xl text-gold-300 leading-none tracking-tight">
                         {nextMatch.team_score}
                         <span className="mx-2 text-white/40">:</span>
                         {nextMatch.opponent_score}
                       </div>
                     ) : (
-                      <div className="font-display font-black text-4xl sm:text-5xl text-[#ffd700] leading-none tracking-widest">
+                      <div className="font-display font-black text-4xl sm:text-5xl text-gold-400 leading-none tracking-widest">
                         VS
                       </div>
                     )}
@@ -1035,13 +1035,13 @@ export function PublicGuestPortal({
                 <div className="mt-10 pt-6 border-t border-white/15 flex flex-col md:flex-row items-center justify-between gap-6">
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-8 gap-y-2 text-sm text-white">
                     <span className="inline-flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-[#ffd700]" />
+                      <Clock className="h-4 w-4 text-gold-400" />
                       <span className="font-bold">{nextMatch.kickoff_time}</span>
                       <span className="text-white/40">•</span>
                       <span>{formatDateVN(nextMatch.match_date)}</span>
                     </span>
                     <span className="inline-flex items-center gap-2 text-sky-100">
-                      <MapPin className="h-4 w-4 text-[#ffd700]" />
+                      <MapPin className="h-4 w-4 text-gold-400" />
                       <span>{nextMatch.venue}</span>
                     </span>
                   </div>
@@ -1050,7 +1050,7 @@ export function PublicGuestPortal({
                     <button
                       type="button"
                       onClick={() => setPosterModalOpen(true)}
-                      className="inline-flex items-center gap-2 bg-[#0f376a] hover:bg-[#144788] text-[#ffd700] border border-[#ffd700]/60 font-extrabold px-5 py-3.5 text-xs uppercase tracking-wider rounded-lg cursor-pointer transition shadow-md"
+                      className="inline-flex items-center gap-2 bg-[#0f376a] hover:bg-[#144788] text-gold-400 border border-gold-400/60 font-extrabold px-5 py-3.5 text-xs uppercase tracking-wider rounded-lg cursor-pointer transition shadow-md"
                       title="Tải trực tiếp ảnh đội hình ra sân về máy để gửi vào Zalo"
                     >
                       <Camera className="h-4 w-4" />
@@ -1060,7 +1060,7 @@ export function PublicGuestPortal({
                     <button
                       type="button"
                       onClick={onOpenLogin}
-                      className="inline-flex items-center gap-2.5 bg-gradient-to-r from-[#ffd700] to-[#f5c518] hover:from-[#f5c518] hover:to-[#ffd700] text-slate-950 font-black px-6 py-3.5 text-xs uppercase tracking-widest rounded-lg cursor-pointer transition shadow-lg hover:shadow-xl"
+                      className="inline-flex items-center gap-2.5 bg-gradient-to-r from-gold-400 to-[#f5c518] hover:from-[#f5c518] hover:to-gold-400 text-slate-950 font-black px-6 py-3.5 text-xs uppercase tracking-widest rounded-lg cursor-pointer transition shadow-lg hover:shadow-xl"
                     >
                       <SoccerBallIcon className="h-4 w-4" />
                       <span>Đăng nhập để điểm danh</span>
@@ -1077,7 +1077,7 @@ export function PublicGuestPortal({
       {/* ===================== HOẠT ĐỘNG & BÀI VIẾT CLB (EDITORIAL MAGAZINE LAYOUT) ===================== */}
       <section
         id="activities"
-        className="relative bg-gradient-to-b from-[#0a2347] via-[#0e3164] to-[#0a2347] text-white py-20 sm:py-28 border-b border-white/15"
+        className="relative bg-gradient-to-b from-navy-800 via-navy-600 to-navy-800 text-white py-20 sm:py-28 border-b border-white/15"
       >
         <div className={WRAP}>
           <Reveal>
@@ -1085,7 +1085,7 @@ export function PublicGuestPortal({
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 pb-8 border-b border-white/15">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700] bg-[#ffd700]/15 px-2.5 py-1 rounded border border-[#ffd700]/40">
+                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gold-400 bg-gold-400/15 px-2.5 py-1 rounded border border-gold-400/40">
                     02 // BÀI VIẾT &amp; HOẠT ĐỘNG CLB
                   </span>
                   <span className="text-xs uppercase font-extrabold tracking-widest text-sky-200">
@@ -1093,7 +1093,7 @@ export function PublicGuestPortal({
                   </span>
                 </div>
                 <h2 className="mt-3 font-display font-black uppercase leading-tight text-4xl sm:text-6xl text-white">
-                  Hoạt động &amp; <span className="text-[#ffd700]">Ký ức sân cỏ</span>
+                  Hoạt động &amp; <span className="text-gold-400">Ký ức sân cỏ</span>
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm sm:text-base text-sky-100/90 leading-relaxed font-light">
                   Nơi ghi dấu những trận cầu nảy lửa, giải đấu truyền thống, khoảnh khắc giao lưu anh em đồng hương Điện Quang, Điện Trung, Điện Phong và tình cảm của các nhà tài trợ.
@@ -1102,7 +1102,7 @@ export function PublicGuestPortal({
 
               <Link
                 href="/hoat-dong"
-                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-950 bg-gradient-to-r from-[#ffd700] to-[#f5c518] hover:from-[#f5c518] hover:to-[#ffd700] px-5 py-3 rounded-xl transition shadow-lg w-fit shrink-0 hover:scale-[1.02]"
+                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-950 bg-gradient-to-r from-gold-400 to-[#f5c518] hover:from-[#f5c518] hover:to-gold-400 px-5 py-3 rounded-xl transition shadow-lg w-fit shrink-0 hover:scale-[1.02]"
               >
                 <BookOpen className="h-4 w-4" />
                 <span>Xem kho bài viết hoàn chỉnh</span>
@@ -1115,7 +1115,7 @@ export function PublicGuestPortal({
               {/* Dòng thời gian CLB theo năm */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-bold uppercase tracking-wider">
                 <span className="text-sky-300 font-extrabold text-[10px] uppercase mr-1 shrink-0 flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-[#ffd700]" />
+                  <Calendar className="h-3.5 w-3.5 text-gold-400" />
                   <span>Niên khóa:</span>
                 </span>
                 {CLUB_TIMELINE_YEARS.map((y) => (
@@ -1124,7 +1124,7 @@ export function PublicGuestPortal({
                     type="button"
                     onClick={() => setSelectedTimelineYear(y.id)}
                     className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition cursor-pointer border text-xs flex items-center gap-1.5 ${selectedTimelineYear === y.id
-                      ? "bg-[#ffd700] text-slate-950 font-black border-[#ffd700] shadow-sm"
+                      ? "bg-gold-400 text-slate-950 font-black border-gold-400 shadow-sm"
                       : "bg-[#0b254a] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
                       }`}
                   >
@@ -1142,7 +1142,7 @@ export function PublicGuestPortal({
                     type="button"
                     onClick={() => setActiveActivityCategory(cat.id)}
                     className={`px-3.5 py-2 rounded-lg whitespace-nowrap transition cursor-pointer border ${activeActivityCategory === cat.id
-                      ? "bg-[#164ea0] text-[#ffd700] border-[#ffd700]/70 shadow-md font-black"
+                      ? "bg-[#164ea0] text-gold-400 border-gold-400/70 shadow-md font-black"
                       : "bg-[#0b254a] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
                       }`}
                   >
@@ -1174,7 +1174,7 @@ export function PublicGuestPortal({
                   <div className="lg:col-span-7">
                     <Link
                       href={`/hoat-dong/${filteredActivityPosts[0].id}`}
-                      className="group block bg-[#0c2b55] rounded-xl overflow-hidden border border-white/15 hover:border-[#ffd700]/70 shadow-xl transition-all duration-300"
+                      className="group block bg-[#0c2b55] rounded-xl overflow-hidden border border-white/15 hover:border-gold-400/70 shadow-xl transition-all duration-300"
                     >
                       {/* Ảnh đại diện tỷ lệ 16:9 với overlay thông số */}
                       <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
@@ -1191,11 +1191,11 @@ export function PublicGuestPortal({
 
                         {/* Badges chuyên mục và năm */}
                         <div className="absolute top-4 left-4 flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-[#123e7a] text-[#ffd700] border border-[#ffd700]/40 shadow-sm">
+                          <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-navy-500 text-gold-400 border border-gold-400/40 shadow-sm">
                             TIÊU ĐIỂM // {filteredActivityPosts[0].categoryLabel}
                           </span>
                           {filteredActivityPosts[0].eventYear && (
-                            <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-[#d4af37] text-slate-950 shadow-sm">
+                            <span className="text-[10px] font-black uppercase px-2 py-1 rounded bg-gold-500 text-slate-950 shadow-sm">
                               {filteredActivityPosts[0].eventYear}
                             </span>
                           )}
@@ -1204,7 +1204,7 @@ export function PublicGuestPortal({
                         {/* Metadata ảnh và thời gian đọc */}
                         <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-white text-xs">
                           <span className="inline-flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded border border-white/15">
-                            <Camera className="h-3.5 w-3.5 text-[#d4af37]" />
+                            <Camera className="h-3.5 w-3.5 text-gold-500" />
                             <span>
                               Album{" "}
                               {1 +
@@ -1223,13 +1223,13 @@ export function PublicGuestPortal({
                       {/* Thân bài viết tiêu điểm */}
                       <div className="p-6 sm:p-7 space-y-3.5">
                         <div className="flex items-center gap-2 text-xs font-semibold text-sky-200">
-                          <Calendar className="h-3.5 w-3.5 text-[#ffd700]" />
+                          <Calendar className="h-3.5 w-3.5 text-gold-400" />
                           <span>{filteredActivityPosts[0].publishedDate}</span>
                           <span>•</span>
                           <span>Tác giả: {filteredActivityPosts[0].author}</span>
                         </div>
 
-                        <h3 className="font-display font-black uppercase text-2xl sm:text-3xl text-white group-hover:text-[#ffd700] transition leading-snug">
+                        <h3 className="font-display font-black uppercase text-2xl sm:text-3xl text-white group-hover:text-gold-400 transition leading-snug">
                           {filteredActivityPosts[0].title}
                         </h3>
 
@@ -1238,7 +1238,7 @@ export function PublicGuestPortal({
                         </p>
 
                         {filteredActivityPosts[0].quote && (
-                          <div className="p-3.5 rounded-lg bg-[#092244] border-l-4 border-[#ffd700] text-xs italic text-sky-200">
+                          <div className="p-3.5 rounded-lg bg-navy-800 border-l-4 border-gold-400 text-xs italic text-sky-200">
                             &ldquo;{filteredActivityPosts[0].quote}&rdquo;
                           </div>
                         )}
@@ -1254,7 +1254,7 @@ export function PublicGuestPortal({
                                 (name) => (
                                   <span
                                     key={name}
-                                    className="px-2 py-0.5 rounded bg-[#092244] text-sky-200 text-[10px] font-semibold border border-white/15"
+                                    className="px-2 py-0.5 rounded bg-navy-800 text-sky-200 text-[10px] font-semibold border border-white/15"
                                   >
                                     {name}
                                   </span>
@@ -1263,10 +1263,10 @@ export function PublicGuestPortal({
                             </div>
                           )}
 
-                        <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs font-bold text-[#ffd700]">
+                        <div className="pt-4 border-t border-white/10 flex items-center justify-between text-xs font-bold text-gold-400">
                           <span className="group-hover:translate-x-1 transition inline-flex items-center gap-1.5">
                             <span>Đọc bài viết chi tiết &amp; xem album ảnh</span>
-                            <ArrowRight className="h-4 w-4 text-[#ffd700]" />
+                            <ArrowRight className="h-4 w-4 text-gold-400" />
                           </span>
                           <span className="text-sky-200/80 group-hover:text-white">
                             Chi tiết bài viết →
@@ -1280,7 +1280,7 @@ export function PublicGuestPortal({
                 {/* 5 COLS: DÒNG TIN HOẠT ĐỘNG (SECONDARY EDITORIAL FEED) */}
                 <div className="lg:col-span-5 bg-[#0c2b55] rounded-xl border border-white/15 shadow-xl p-5 sm:p-6 space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-white/15">
-                    <span className="text-xs uppercase font-extrabold tracking-widest text-[#ffd700] flex items-center gap-1.5">
+                    <span className="text-xs uppercase font-extrabold tracking-widest text-gold-400 flex items-center gap-1.5">
                       <BookOpen className="h-4 w-4" />
                       <span>Dòng tin hoạt động gần đây</span>
                     </span>
@@ -1296,7 +1296,7 @@ export function PublicGuestPortal({
                         href={`/hoat-dong/${post.id}`}
                         className="group py-3.5 flex gap-3.5 items-center cursor-pointer"
                       >
-                        <div className="relative h-20 w-24 sm:h-22 sm:w-28 rounded-lg overflow-hidden shrink-0 bg-[#092244] border border-white/15">
+                        <div className="relative h-20 w-24 sm:h-22 sm:w-28 rounded-lg overflow-hidden shrink-0 bg-navy-800 border border-white/15">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={post.featuredImage}
@@ -1304,7 +1304,7 @@ export function PublicGuestPortal({
                             className="h-full w-full object-cover group-hover:scale-105 transition duration-300"
                           />
                           {post.eventYear && (
-                            <span className="absolute bottom-1 right-1 text-[9px] font-black px-1.5 py-0.2 rounded bg-black/85 text-[#fde047]">
+                            <span className="absolute bottom-1 right-1 text-[9px] font-black px-1.5 py-0.2 rounded bg-black/85 text-gold-300">
                               {post.eventYear}
                             </span>
                           )}
@@ -1312,14 +1312,14 @@ export function PublicGuestPortal({
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 text-[10px] text-sky-300 font-semibold mb-0.5">
-                            <span className="text-[#ffd700] uppercase font-bold">
+                            <span className="text-gold-400 uppercase font-bold">
                               {post.categoryLabel}
                             </span>
                             <span>•</span>
                             <span>{post.publishedDate}</span>
                           </div>
 
-                          <h4 className="font-display font-bold uppercase text-xs sm:text-sm text-white group-hover:text-[#ffd700] transition line-clamp-2 leading-snug">
+                          <h4 className="font-display font-bold uppercase text-xs sm:text-sm text-white group-hover:text-gold-400 transition line-clamp-2 leading-snug">
                             {post.title}
                           </h4>
 
@@ -1334,7 +1334,7 @@ export function PublicGuestPortal({
                   <div className="pt-3 border-t border-white/10 text-center">
                     <Link
                       href="/hoat-dong"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#ffd700] hover:text-[#fde047]"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gold-400 hover:text-gold-300"
                     >
                       <span>Xem toàn bộ chuyên mục hoạt động</span>
                       <ArrowRight className="h-3.5 w-3.5" />
@@ -1354,23 +1354,23 @@ export function PublicGuestPortal({
                       <Link
                         key={post.id}
                         href={`/hoat-dong/${post.id}`}
-                        className="group bg-[#0c2b55] rounded-xl overflow-hidden border border-white/15 hover:border-[#ffd700]/70 shadow-lg hover:shadow-xl transition flex flex-col justify-between p-5"
+                        className="group bg-[#0c2b55] rounded-xl overflow-hidden border border-white/15 hover:border-gold-400/70 shadow-lg hover:shadow-xl transition flex flex-col justify-between p-5"
                       >
                         <div>
                           <div className="flex items-center justify-between text-[11px] text-sky-300 mb-2">
-                            <span className="font-bold uppercase text-[#ffd700]">
+                            <span className="font-bold uppercase text-gold-400">
                               {post.categoryLabel}
                             </span>
                             <span>{post.publishedDate}</span>
                           </div>
-                          <h5 className="font-display font-bold uppercase text-sm sm:text-base text-white group-hover:text-[#ffd700] transition line-clamp-2">
+                          <h5 className="font-display font-bold uppercase text-sm sm:text-base text-white group-hover:text-gold-400 transition line-clamp-2">
                             {post.title}
                           </h5>
                           <p className="mt-2 text-xs text-sky-200/80 line-clamp-2 font-light">
                             {post.summary}
                           </p>
                         </div>
-                        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-bold text-[#ffd700]">
+                        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-bold text-gold-400">
                           <span>Xem chi tiết</span>
                           <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition" />
                         </div>
@@ -1387,14 +1387,14 @@ export function PublicGuestPortal({
       {/* ===================== CẦU THỦ NÒNG CỐT 23+ (BROADCAST SQUAD ROSTER) ===================== */}
       <section
         id="squad-section"
-        className="relative bg-gradient-to-b from-[#0e3164] via-[#123e7a] to-[#0c2b57] py-20 sm:py-28 overflow-hidden border-y border-[#ffd700]/30"
+        className="relative bg-gradient-to-b from-navy-600 via-navy-500 to-[#0c2b57] py-20 sm:py-28 overflow-hidden border-y border-gold-400/30"
       >
         <div className={WRAP}>
           <Reveal>
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 pb-8 border-b border-white/15">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700] bg-[#ffd700]/15 px-2.5 py-1 rounded border border-[#ffd700]/40">
+                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gold-400 bg-gold-400/15 px-2.5 py-1 rounded border border-gold-400/40">
                     03 // ĐỘI HÌNH &amp; HỒ SƠ {totalPlayerCount}+ CẦU THỦ
                   </span>
                   <span className="text-xs uppercase font-extrabold tracking-widest text-sky-200">
@@ -1402,7 +1402,7 @@ export function PublicGuestPortal({
                   </span>
                 </div>
                 <h2 className="mt-3 font-display font-black uppercase leading-tight text-4xl sm:text-6xl text-white">
-                  Đội hình <span className="text-[#ffd700]">{totalPlayerCount}+ chiến binh</span>
+                  Đội hình <span className="text-gold-400">{totalPlayerCount}+ chiến binh</span>
                 </h2>
                 <p className="text-xs sm:text-sm text-sky-100 mt-2 max-w-2xl leading-relaxed font-light">
                   Bảng danh sách đăng ký thi đấu chính thức mùa giải 2026. Chọn cầu thủ bên danh sách để xem thẻ vận động viên và hồ sơ chuyên sâu.
@@ -1411,11 +1411,11 @@ export function PublicGuestPortal({
 
               {/* Thông số nhanh */}
               <div className="flex items-center gap-3">
-                <div className="bg-[#0c2f5e] px-5 py-3 rounded-lg border border-[#ffd700]/50 shadow-md text-right">
+                <div className="bg-navy-700 px-5 py-3 rounded-lg border border-gold-400/50 shadow-md text-right">
                   <span className="text-[10px] uppercase tracking-wider font-bold text-sky-200 block">
                     Đội hình chính thức
                   </span>
-                  <span className="text-2xl font-display font-black text-[#fde047] leading-none">
+                  <span className="text-2xl font-display font-black text-gold-300 leading-none">
                     {totalPlayerCount}+ Cầu thủ
                   </span>
                 </div>
@@ -1449,7 +1449,7 @@ export function PublicGuestPortal({
                       value={playerSearchQuery}
                       onChange={(e) => setPlayerSearchQuery(e.target.value)}
                       placeholder="Tìm theo tên, số áo, vị trí..."
-                      className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#09254d] border border-white/25 text-white placeholder-sky-200/60 text-xs focus:outline-none focus:border-[#ffd700] transition"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-navy-800 border border-white/25 text-white placeholder-sky-200/60 text-xs focus:outline-none focus:border-gold-400 transition"
                     />
                     {playerSearchQuery && (
                       <button
@@ -1463,7 +1463,7 @@ export function PublicGuestPortal({
                   </div>
 
                   {/* Filter tabs */}
-                  <div className="flex items-center gap-1 p-1 rounded-lg bg-[#09254d] border border-white/20 text-xs font-bold uppercase tracking-wider shrink-0 overflow-x-auto">
+                  <div className="flex items-center gap-1 p-1 rounded-lg bg-navy-800 border border-white/20 text-xs font-bold uppercase tracking-wider shrink-0 overflow-x-auto">
                     {(
                       [
                         ["all", "Tất cả"],
@@ -1479,7 +1479,7 @@ export function PublicGuestPortal({
                         type="button"
                         onClick={() => setSquadFilter(key)}
                         className={`px-2.5 py-1.5 rounded transition cursor-pointer text-[11px] shrink-0 ${squadFilter === key
-                          ? "bg-[#ffd700] text-slate-950 font-black shadow-sm"
+                          ? "bg-gold-400 text-slate-950 font-black shadow-sm"
                           : "text-sky-200 hover:text-white"
                           }`}
                       >
@@ -1491,7 +1491,7 @@ export function PublicGuestPortal({
 
                 <div className="flex items-center justify-between text-xs text-slate-300 px-1 pt-1 border-t border-white/15">
                   <span>
-                    Hiển thị: <strong className="text-[#fde047]">{displayedSquad.length}</strong> cầu thủ
+                    Hiển thị: <strong className="text-gold-300">{displayedSquad.length}</strong> cầu thủ
                   </span>
                   <span className="text-[11px] text-sky-200/80">
                     Chọn cầu thủ để xem hồ sơ bên trái
@@ -1524,7 +1524,7 @@ export function PublicGuestPortal({
       {/* ===================== HƯỚNG ĐẾN TẤT CẢ ANH EM GÒ NỔI (GIA NHẬP ĐỘI BÓNG) ===================== */}
       <section
         id="join-us"
-        className="relative bg-gradient-to-b from-[#061830] via-[#092244] to-[#061830] py-20 sm:py-28 text-white overflow-hidden border-y border-white/10"
+        className="relative bg-gradient-to-b from-[#061830] via-navy-800 to-[#061830] py-20 sm:py-28 text-white overflow-hidden border-y border-white/10"
       >
         <span
           aria-hidden="true"
@@ -1537,7 +1537,7 @@ export function PublicGuestPortal({
           <Reveal>
             <div className="max-w-3xl">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#d4af37] bg-[#d4af37]/15 px-2.5 py-1 rounded border border-[#d4af37]/30">
+                <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gold-500 bg-gold-500/15 px-2.5 py-1 rounded border border-gold-500/30">
                   04 // KẾT NỐI ĐỒNG HƯƠNG
                 </span>
                 <span className="text-xs uppercase font-extrabold tracking-widest text-slate-400">
@@ -1547,25 +1547,25 @@ export function PublicGuestPortal({
               <h2 className="font-display font-black uppercase leading-tight text-4xl sm:text-6xl lg:text-7xl text-white">
                 Mở rộng cửa đón
                 <br />
-                <span className="text-[#d4af37]">anh em Gò Nổi</span>
+                <span className="text-gold-500">anh em Gò Nổi</span>
               </h2>
               <p className="mt-4 text-base sm:text-lg text-sky-100 font-light leading-relaxed">
-                Mục tiêu xuyên suốt của FC HĐH Gò Nổi là <strong className="text-[#fde047] font-semibold">quy tụ và chào đón tất cả anh em con em quê hương Gò Nổi</strong> đang sinh sống, học tập và làm việc tại TP.HCM cùng tề tựu trên sân cỏ.
+                Mục tiêu xuyên suốt của FC HĐH Gò Nổi là <strong className="text-gold-300 font-semibold">quy tụ và chào đón tất cả anh em con em quê hương Gò Nổi</strong> đang sinh sống, học tập và làm việc tại TP.HCM cùng tề tựu trên sân cỏ.
               </p>
             </div>
 
             {/* 4 Trụ cột cam kết chào đón anh em (Athletic Technical Index) */}
             <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-              <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-6 border border-white/20 hover:border-[#ffd700]/60 shadow-lg transition group">
+              <div className="rounded-xl bg-gradient-to-br from-navy-500 to-navy-600 p-6 border border-white/20 hover:border-gold-400/60 shadow-lg transition group">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-display font-black text-2xl text-[#ffd700]">
+                  <span className="font-display font-black text-2xl text-gold-400">
                     01
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-sky-200 bg-white/10 px-2 py-0.5 rounded">
                     QUY MÔ
                   </span>
                 </div>
-                <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-[#ffd700] transition">
+                <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-gold-400 transition">
                   {totalPlayerCount}+ Cầu thủ nòng cốt
                 </h3>
                 <p className="text-xs sm:text-sm text-sky-100 leading-relaxed font-light">
@@ -1573,7 +1573,7 @@ export function PublicGuestPortal({
                 </p>
               </div>
 
-              <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-6 border border-white/20 hover:border-emerald-400/60 shadow-lg transition group">
+              <div className="rounded-xl bg-gradient-to-br from-navy-500 to-navy-600 p-6 border border-white/20 hover:border-emerald-400/60 shadow-lg transition group">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-display font-black text-2xl text-emerald-400">
                     02
@@ -1590,7 +1590,7 @@ export function PublicGuestPortal({
                 </p>
               </div>
 
-              <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-6 border border-white/20 hover:border-sky-300/60 shadow-lg transition group">
+              <div className="rounded-xl bg-gradient-to-br from-navy-500 to-navy-600 p-6 border border-white/20 hover:border-sky-300/60 shadow-lg transition group">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-display font-black text-2xl text-sky-300">
                     03
@@ -1607,16 +1607,16 @@ export function PublicGuestPortal({
                 </p>
               </div>
 
-              <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-6 border border-white/20 hover:border-[#fde047]/60 shadow-lg transition group">
+              <div className="rounded-xl bg-gradient-to-br from-navy-500 to-navy-600 p-6 border border-white/20 hover:border-gold-300/60 shadow-lg transition group">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-display font-black text-2xl text-[#fde047]">
+                  <span className="font-display font-black text-2xl text-gold-300">
                     04
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-sky-200 bg-white/10 px-2 py-0.5 rounded">
                     QUẢN TRỊ
                   </span>
                 </div>
-                <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-[#fde047] transition">
+                <h3 className="font-display font-bold uppercase text-lg text-white mb-2 group-hover:text-gold-300 transition">
                   Minh bạch &amp; Bài bản
                 </h3>
                 <p className="text-xs sm:text-sm text-sky-100 leading-relaxed font-light">
@@ -1625,7 +1625,7 @@ export function PublicGuestPortal({
                 <div className="mt-3">
                   <Link
                     href="/bao-cao-tai-chinh"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#fde047] hover:text-white transition"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-gold-300 hover:text-white transition"
                   >
                     Xem báo cáo tài chính <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
@@ -1634,9 +1634,9 @@ export function PublicGuestPortal({
             </div>
 
             {/* Khung hành động & Ban Quản Lý */}
-            <div className="mt-10 rounded-xl bg-gradient-to-r from-[#123e7a] via-[#164a91] to-[#0e3164] p-6 sm:p-8 border border-[#ffd700]/50 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 shadow-2xl">
+            <div className="mt-10 rounded-xl bg-gradient-to-r from-navy-500 via-[#164a91] to-navy-600 p-6 sm:p-8 border border-gold-400/50 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 shadow-2xl">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#d4af37] block mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gold-500 block mb-1">
                   BẠN LÀ NGƯỜI CON GÒ NỔI TẠI TP.HCM?
                 </span>
                 <h3 className="font-display font-black uppercase text-2xl sm:text-3xl text-white">
@@ -1664,7 +1664,7 @@ export function PublicGuestPortal({
                   href={fanpageUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-black px-6 py-3.5 text-xs uppercase tracking-wider transition shadow-lg cursor-pointer"
+                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-black px-6 py-3.5 text-xs uppercase tracking-wider transition shadow-lg cursor-pointer"
                 >
                   <span>Nhắn Fanpage Tham Gia</span>
                   <ArrowUpRight className="h-4 w-4" />
@@ -1686,14 +1686,14 @@ export function PublicGuestPortal({
       {/* ===================== LỊCH ĐẤU & KẾT QUẢ ===================== */}
       <section
         id="fixtures-section"
-        className="relative bg-gradient-to-b from-[#071933] via-[#0a2347] to-[#071933] text-white py-20 sm:py-28 border-b border-white/15"
+        className="relative bg-gradient-to-b from-navy-900 via-navy-800 to-navy-900 text-white py-20 sm:py-28 border-b border-white/15"
       >
         <div className={WRAP}>
           <Reveal>
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 pb-6 border-b border-white/15">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#ffd700] bg-[#ffd700]/15 px-2.5 py-1 rounded border border-[#ffd700]/40">
+                  <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gold-400 bg-gold-400/15 px-2.5 py-1 rounded border border-gold-400/40">
                     05 // KẾT QUẢ &amp; LỊCH THI ĐẤU
                   </span>
                   <span className="text-xs uppercase font-extrabold tracking-widest text-sky-200">
@@ -1701,7 +1701,7 @@ export function PublicGuestPortal({
                   </span>
                 </div>
                 <h2 className="mt-3 font-display font-black uppercase leading-tight text-4xl sm:text-6xl text-white">
-                  Lịch đấu <span className="text-[#ffd700]">&amp; kết quả</span>
+                  Lịch đấu <span className="text-gold-400">&amp; kết quả</span>
                 </h2>
               </div>
               <div className="flex gap-3 text-xs font-black uppercase tracking-wider">
@@ -1717,8 +1717,8 @@ export function PublicGuestPortal({
                     onClick={() => setMatchTab(key)}
                     aria-pressed={matchTab === key}
                     className={`px-4 py-2.5 rounded-lg border transition cursor-pointer ${matchTab === key
-                      ? "bg-[#ffd700] text-slate-950 font-black border-[#ffd700] shadow-md"
-                      : "bg-[#0b2447] text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
+                      ? "bg-gold-400 text-slate-950 font-black border-gold-400 shadow-md"
+                      : "bg-navy-700 text-sky-200 border-white/15 hover:border-white/30 hover:text-white"
                       }`}
                   >
                     {label}
@@ -1737,10 +1737,10 @@ export function PublicGuestPortal({
             {matchRows.map((m) => (
               <div
                 key={m.id}
-                className="group grid grid-cols-1 md:grid-cols-[220px_1fr_auto] items-center gap-3 md:gap-8 py-5 px-4 sm:px-6 rounded-xl bg-[#0c2b55]/60 hover:bg-[#0f3466] border border-white/10 hover:border-[#ffd700]/60 transition-all shadow-md"
+                className="group grid grid-cols-1 md:grid-cols-[220px_1fr_auto] items-center gap-3 md:gap-8 py-5 px-4 sm:px-6 rounded-xl bg-[#0c2b55]/60 hover:bg-[#0f3466] border border-white/10 hover:border-gold-400/60 transition-all shadow-md"
               >
                 <div className="text-xs font-bold text-sky-300 uppercase tracking-wider">
-                  <div className="text-[#ffd700] font-black">{m.label}</div>
+                  <div className="text-gold-400 font-black">{m.label}</div>
                   <div className="text-sky-200/80 mt-0.5">
                     {formatDateVN(m.match_date)}
                     {m.kickoff_time ? ` • ${m.kickoff_time}` : ""}
@@ -1749,24 +1749,24 @@ export function PublicGuestPortal({
                 <div className="font-display font-black uppercase text-2xl sm:text-3xl leading-none flex flex-wrap items-center gap-x-3">
                   <span className="text-white">FC HĐH Gò Nổi</span>
                   {matchTab === "results" ? (
-                    <span className="text-slate-950 px-2.5 py-1 rounded bg-[#ffd700] font-black shadow-sm text-xl sm:text-2xl">
+                    <span className="text-slate-950 px-2.5 py-1 rounded bg-gold-400 font-black shadow-sm text-xl sm:text-2xl">
                       {m.team_score ?? 0} - {m.opponent_score ?? 0}
                     </span>
                   ) : (
-                    <span className="text-[#ffd700] text-lg font-black">VS</span>
+                    <span className="text-gold-400 text-lg font-black">VS</span>
                   )}
                   <span className="text-sky-100">{m.opponent}</span>
                 </div>
                 <div className="flex items-center gap-4 text-xs">
                   <span className="inline-flex items-center gap-1.5 font-semibold text-sky-200">
-                    <MapPin className="h-3.5 w-3.5 text-[#ffd700]" />
+                    <MapPin className="h-3.5 w-3.5 text-gold-400" />
                     {m.venue}
                   </span>
                   {matchTab === "fixtures" && (
                     <button
                       type="button"
                       onClick={onOpenLogin}
-                      className="font-black uppercase tracking-wider text-slate-950 bg-gradient-to-r from-[#ffd700] to-[#f5c518] hover:from-[#f5c518] hover:to-[#ffd700] px-3.5 py-1.5 rounded-lg cursor-pointer inline-flex items-center gap-1.5 shadow-sm transition"
+                      className="font-black uppercase tracking-wider text-slate-950 bg-gradient-to-r from-gold-400 to-[#f5c518] hover:from-[#f5c518] hover:to-gold-400 px-3.5 py-1.5 rounded-lg cursor-pointer inline-flex items-center gap-1.5 shadow-sm transition"
                     >
                       <span>Điểm danh</span>
                       <ArrowRight className="h-3 w-3" />
@@ -1784,7 +1784,7 @@ export function PublicGuestPortal({
         <div className={`${WRAP} pt-20 sm:pt-28 pb-10`}>
           <Reveal>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-black uppercase tracking-[0.25em] text-[#d4af37] bg-[#d4af37]/15 px-2.5 py-1 rounded border border-[#d4af37]/30">
+              <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gold-500 bg-gold-500/15 px-2.5 py-1 rounded border border-gold-500/30">
                 06 // TƯ LIỆU SÂN CỎ
               </span>
               <span className="text-xs uppercase font-extrabold tracking-widest text-slate-400">
@@ -1792,7 +1792,7 @@ export function PublicGuestPortal({
               </span>
             </div>
             <h2 className="mt-3 font-display font-black uppercase leading-tight text-4xl sm:text-6xl lg:text-7xl text-white">
-              Khoảnh khắc <span className="text-[#d4af37]">của đội</span>
+              Khoảnh khắc <span className="text-gold-500">của đội</span>
             </h2>
           </Reveal>
         </div>
@@ -1819,15 +1819,15 @@ export function PublicGuestPortal({
                   alt={img.title}
                   className="absolute inset-0 h-full w-full object-cover group-hover:scale-110 transition duration-1000"
                 />
-                <figcaption className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-[#092244]/90 via-transparent to-transparent p-5 opacity-90 group-hover:opacity-100 transition">
-                  <span className="text-[#d4af37] text-[11px] font-bold uppercase tracking-[0.25em]">
+                <figcaption className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-navy-800/90 via-transparent to-transparent p-5 opacity-90 group-hover:opacity-100 transition">
+                  <span className="text-gold-500 text-[11px] font-bold uppercase tracking-[0.25em]">
                     {img.tag}
                   </span>
                   <p className="font-display font-bold uppercase text-2xl sm:text-3xl leading-none mt-1 text-white">
                     {img.title}
                   </p>
                   <span className="text-xs text-sky-200/80 opacity-0 group-hover:opacity-100 transition mt-1.5 flex items-center gap-1.5">
-                    <Camera className="h-3 w-3 text-[#d4af37]" />
+                    <Camera className="h-3 w-3 text-gold-500" />
                     <span>Nhấp để phóng to toàn màn hình</span>
                   </span>
                 </figcaption>
@@ -1843,7 +1843,7 @@ export function PublicGuestPortal({
           >
             <Reveal>
               <h3 className="font-display font-bold uppercase leading-[0.85] text-6xl sm:text-8xl text-white">
-                Theo dõi <span className="text-[#d4af37]">Fanpage</span>
+                Theo dõi <span className="text-gold-500">Fanpage</span>
               </h3>
               <p className="mt-5 max-w-md text-lg text-sky-100 font-light leading-relaxed">
                 Ảnh, video bàn thắng và tin nóng của đội bóng được cập nhật sau mỗi trận. Anh em đồng hương muốn giao lưu hoặc gia nhập đội thì nhắn thẳng cho chúng mình nhé!
@@ -1852,7 +1852,7 @@ export function PublicGuestPortal({
                 href={fanpageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-8 inline-flex items-center gap-3 bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-bold px-7 py-4 text-sm uppercase tracking-widest rounded-xl transition shadow-lg"
+                className="mt-8 inline-flex items-center gap-3 bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-bold px-7 py-4 text-sm uppercase tracking-widest rounded-xl transition shadow-lg"
               >
                 Mở Facebook <ArrowUpRight className="h-5 w-5" />
               </a>
@@ -1876,17 +1876,17 @@ export function PublicGuestPortal({
       {/* ===================== ĐỐI TÁC & ĐƠN VỊ ĐỒNG HÀNH ===================== */}
       <section
         id="partners-section"
-        className="relative bg-gradient-to-b from-[#092244] via-[#071b36] to-[#051329] py-20 border-t border-white/10"
+        className="relative bg-gradient-to-b from-navy-800 via-[#071b36] to-[#051329] py-20 border-t border-white/10"
       >
         <div className={WRAP}>
           <Reveal>
             <div className="flex flex-col items-center text-center max-w-3xl mx-auto space-y-3">
-              <span className="font-bold uppercase tracking-[0.35em] text-xs text-[#d4af37] flex items-center gap-2">
-                <Award className="h-4 w-4 text-[#d4af37]" />
+              <span className="font-bold uppercase tracking-[0.35em] text-xs text-gold-500 flex items-center gap-2">
+                <Award className="h-4 w-4 text-gold-500" />
                 <span>Tri Ân & Đồng Hành Phong Trào</span>
               </span>
               <h2 className="font-display font-extrabold uppercase text-4xl sm:text-6xl text-white tracking-tight">
-                Đồng Hành Cùng <span className="text-[#d4af37]">FC HĐH Gò Nổi</span>
+                Đồng Hành Cùng <span className="text-gold-500">FC HĐH Gò Nổi</span>
               </h2>
               <p className="text-sm sm:text-base text-sky-100/90 font-light leading-relaxed">
                 Xin chân thành cảm ơn các cơ quan đoàn thể, doanh nghiệp, mạnh thường quân và những người con Gò Nổi xa quê đã chung tay tiếp lửa cho màu cờ sắc áo của đội bóng.
@@ -1894,7 +1894,7 @@ export function PublicGuestPortal({
               <div className="pt-2">
                 <Link
                   href="/nha-tai-tro"
-                  className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-[#d4af37] text-[#fde047] hover:text-slate-950 font-bold px-4 py-2 text-xs uppercase tracking-wider border border-[#d4af37]/40 transition"
+                  className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-gold-500 text-gold-300 hover:text-slate-950 font-bold px-4 py-2 text-xs uppercase tracking-wider border border-gold-500/40 transition"
                 >
                   <span>Trang Nhà Tài Trợ & Đối Tác</span>
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -1924,7 +1924,7 @@ export function PublicGuestPortal({
                   {grouped.title.length > 0 && (
                     <div className="space-y-4">
                       <div className="text-center">
-                        <span className="inline-flex items-center gap-2 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 px-4 py-1 text-xs font-black uppercase tracking-widest text-[#fde047]">
+                        <span className="inline-flex items-center gap-2 rounded-full bg-gold-500/20 border border-gold-500/50 px-4 py-1 text-xs font-black uppercase tracking-widest text-gold-300">
                           ★ Đơn Vị Bảo Trợ & Tài Trợ Kim Cương ★
                         </span>
                       </div>
@@ -1932,10 +1932,10 @@ export function PublicGuestPortal({
                         {grouped.title.map((sp) => (
                           <div
                             key={sp.id}
-                            className="rounded-2xl bg-gradient-to-br from-[#10346a] via-[#0e2a57] to-[#091b38] border-2 border-[#d4af37] p-6 shadow-[0_10px_40px_rgba(212,175,55,0.2)] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left transition hover:scale-[1.02]"
+                            className="rounded-2xl bg-gradient-to-br from-[#10346a] via-[#0e2a57] to-[#091b38] border-2 border-gold-500 p-6 shadow-[0_10px_40px_rgba(212,175,55,0.2)] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left transition hover:scale-[1.02]"
                           >
                             {sp.logo_url && (
-                              <div className="relative h-20 w-20 shrink-0 rounded-xl bg-white p-2 border border-[#d4af37]/60 shadow-md overflow-hidden">
+                              <div className="relative h-20 w-20 shrink-0 rounded-xl bg-white p-2 border border-gold-500/60 shadow-md overflow-hidden">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={sp.logo_url}
@@ -1958,7 +1958,7 @@ export function PublicGuestPortal({
                                   href={sp.website_url}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs font-bold text-[#fde047] hover:underline pt-1"
+                                  className="inline-flex items-center gap-1 text-xs font-bold text-gold-300 hover:underline pt-1"
                                 >
                                   <span>Tìm hiểu thêm</span>
                                   <ArrowUpRight className="h-3 w-3" />
@@ -1983,7 +1983,7 @@ export function PublicGuestPortal({
                         {[...grouped.gold, ...grouped.silver].map((sp) => (
                           <div
                             key={sp.id}
-                            className="rounded-xl bg-[#0b2447] border border-white/15 hover:border-[#d4af37]/60 p-4 flex items-center gap-3.5 transition hover:bg-[#0f3161] min-w-[240px] max-w-sm"
+                            className="rounded-xl bg-navy-700 border border-white/15 hover:border-gold-500/60 p-4 flex items-center gap-3.5 transition hover:bg-[#0f3161] min-w-[240px] max-w-sm"
                           >
                             {sp.logo_url ? (
                               <div className="relative h-12 w-12 shrink-0 rounded-lg bg-white p-1 border border-slate-200 overflow-hidden shadow-xs">
@@ -2056,7 +2056,7 @@ export function PublicGuestPortal({
       </section>
 
       {/* ===================== CTA + FOOTER SANG TRỌNG ===================== */}
-      <footer className="relative bg-gradient-to-r from-[#d4af37] via-[#f5d97f] to-[#d4af37] text-slate-950 overflow-hidden shadow-2xl">
+      <footer className="relative bg-gradient-to-r from-gold-500 via-[#f5d97f] to-gold-500 text-slate-950 overflow-hidden shadow-2xl">
         <div className={`${WRAP} pt-20 sm:pt-28 pb-10`}>
           <Reveal>
             <h2 className="font-display font-bold uppercase leading-[0.8] text-[17vw] sm:text-[13vw] lg:text-[11rem] drop-shadow-sm">

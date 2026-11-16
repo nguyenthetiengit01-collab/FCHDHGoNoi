@@ -370,9 +370,9 @@ export default function ClubPostsTab({
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#0e2768] via-[#173b94] to-[#1e4fc2] p-6 text-white shadow-lg border border-[#ffc933]/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-2xl bg-gradient-to-r from-[#0e2768] via-[#173b94] to-royal-600 p-6 text-white shadow-lg border border-gold-400/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-[#ffc933]/20 border border-[#ffc933]/40 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-[#ffc933] mb-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-gold-400/20 border border-gold-400/40 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-gold-400 mb-2">
             <Newspaper className="h-3.5 w-3.5" />
             <span>Quản Lý Bài Viết & Hoạt Động CLB</span>
           </div>
@@ -393,7 +393,7 @@ export default function ClubPostsTab({
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2.5 text-xs font-bold text-white transition"
           >
-            <ExternalLink className="h-4 w-4 text-[#ffc933]" />
+            <ExternalLink className="h-4 w-4 text-gold-400" />
             <span>Xem Trang Hoạt Động Công Khai</span>
           </a>
 
@@ -418,7 +418,7 @@ export default function ClubPostsTab({
             onClick={() => setFilterCategory(cat.id)}
             className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
               filterCategory === cat.id
-                ? "bg-[#1e4fc2] text-[#ffc933] shadow-sm"
+                ? "bg-royal-600 text-gold-400 shadow-sm"
                 : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
             }`}
           >
@@ -462,11 +462,11 @@ export default function ClubPostsTab({
                   className="h-full w-full object-cover"
                 />
                 <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                  <span className="inline-flex items-center rounded-full bg-[#091b42]/85 backdrop-blur-md border border-[#ffc933]/40 px-2.5 py-1 text-[11px] font-bold text-[#ffc933]">
+                  <span className="inline-flex items-center rounded-full bg-[#091b42]/85 backdrop-blur-md border border-gold-400/40 px-2.5 py-1 text-[11px] font-bold text-gold-400">
                     {post.categoryLabel}
                   </span>
                   {post.eventYear && (
-                    <span className="inline-flex items-center rounded-full bg-[#ffc933] text-slate-950 px-2 py-0.5 text-[11px] font-black shadow-xs">
+                    <span className="inline-flex items-center rounded-full bg-gold-400 text-slate-950 px-2 py-0.5 text-[11px] font-black shadow-xs">
                       {post.eventYear}
                     </span>
                   )}
@@ -482,11 +482,11 @@ export default function ClubPostsTab({
               <div className="p-4 space-y-2.5">
                 <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
                   <span className="inline-flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-[#1e4fc2]" />
+                    <Calendar className="h-3 w-3 text-royal-600" />
                     {post.publishedDate}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <User className="h-3 w-3 text-[#1e4fc2]" />
+                    <User className="h-3 w-3 text-royal-600" />
                     {post.author}
                   </span>
                 </div>
@@ -511,7 +511,7 @@ export default function ClubPostsTab({
                 )}
 
                 {post.galleryImages && post.galleryImages.length > 0 && (
-                  <div className="pt-1 flex items-center gap-1.5 text-[11px] font-semibold text-[#1e4fc2]">
+                  <div className="pt-1 flex items-center gap-1.5 text-[11px] font-semibold text-royal-600">
                     <ImageIcon className="h-3.5 w-3.5" />
                     <span>+{post.galleryImages.length} ảnh trong album</span>
                   </div>
@@ -524,7 +524,7 @@ export default function ClubPostsTab({
                 href={`/hoat-dong/${post.id}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs font-bold text-[#1e4fc2] hover:underline inline-flex items-center gap-1"
+                className="text-xs font-bold text-royal-600 hover:underline inline-flex items-center gap-1"
               >
                 <span>Đọc bài viết</span>
                 <ExternalLink className="h-3 w-3" />
@@ -537,7 +537,7 @@ export default function ClubPostsTab({
                     size="sm"
                     onClick={() => openEditPostModal(post)}
                     leftIcon={<Edit3 className="h-3.5 w-3.5" />}
-                    className="bg-blue-50 hover:bg-blue-100 text-[#1e4fc2]"
+                    className="bg-blue-50 hover:bg-blue-100 text-royal-600"
                   >
                     Sửa
                   </Button>
@@ -572,7 +572,7 @@ export default function ClubPostsTab({
         <form onSubmit={handleSavePost} className="space-y-4">
           {/* Mẫu bài viết soạn nhanh (Quick Templates) */}
           <div className="rounded-xl bg-gradient-to-r from-amber-50 to-sky-50 p-3.5 border border-amber-200 space-y-2">
-            <span className="text-xs font-black uppercase text-[#1e4fc2] flex items-center gap-1.5">
+            <span className="text-xs font-black uppercase text-royal-600 flex items-center gap-1.5">
               <Sparkles className="h-4 w-4 text-[#d99b00]" />
               <span>Mẫu bài viết soạn nhanh (Bấm để điền sẵn bố cục chuẩn):</span>
             </span>
@@ -582,7 +582,7 @@ export default function ClubPostsTab({
                   key={tpl.id}
                   type="button"
                   onClick={tpl.apply}
-                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-[#1e4fc2] text-slate-800 hover:text-white border border-slate-300 hover:border-[#1e4fc2] text-xs font-bold transition shadow-xs cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-royal-600 text-slate-800 hover:text-white border border-slate-300 hover:border-royal-600 text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   {tpl.label}
                 </button>
@@ -593,7 +593,7 @@ export default function ClubPostsTab({
           {/* Upload Ảnh Đại Diện Bài Viết (Auto WebP) */}
           <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-extrabold uppercase tracking-wider text-[#1e4fc2] flex items-center gap-1.5">
+              <label className="text-xs font-extrabold uppercase tracking-wider text-royal-600 flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-[#d99b00]" />
                 <span>Ảnh Đại Diện Bài Viết (Tự động chuyển sang WebP) *</span>
               </label>
@@ -604,7 +604,7 @@ export default function ClubPostsTab({
 
             <div className="flex flex-col sm:flex-row items-center gap-4">
               {featuredImage ? (
-                <div className="relative h-28 w-44 rounded-xl overflow-hidden border-2 border-[#1e4fc2] bg-slate-900 shrink-0">
+                <div className="relative h-28 w-44 rounded-xl overflow-hidden border-2 border-royal-600 bg-slate-900 shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={featuredImage}
@@ -615,7 +615,7 @@ export default function ClubPostsTab({
               ) : null}
 
               <div className="space-y-2 flex-1">
-                <label className="inline-flex items-center gap-2 rounded-xl bg-[#1e4fc2] hover:bg-[#163d99] px-4 py-2.5 text-xs font-bold text-[#ffc933] cursor-pointer transition shadow-sm">
+                <label className="inline-flex items-center gap-2 rounded-xl bg-royal-600 hover:bg-[#163d99] px-4 py-2.5 text-xs font-bold text-gold-400 cursor-pointer transition shadow-sm">
                   <Upload className="h-4 w-4" />
                   <span>
                     {isConvertingFeatured
@@ -716,7 +716,7 @@ export default function ClubPostsTab({
                     }}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer border ${
                       isTagged
-                        ? "bg-[#1e4fc2] text-white border-[#1e4fc2] shadow-xs"
+                        ? "bg-royal-600 text-white border-royal-600 shadow-xs"
                         : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                     }`}
                   >
@@ -782,7 +782,7 @@ export default function ClubPostsTab({
               value={contentText}
               onChange={(e) => setContentText(e.target.value)}
               placeholder="Nhập nội dung bài viết chi tiết..."
-              className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
             />
           </div>
 
@@ -821,7 +821,7 @@ export default function ClubPostsTab({
                 Album Ảnh Đính Kèm Bài Viết ({galleryImages.length} ảnh - Tự
                 động WebP)
               </span>
-              <label className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 px-3 py-1.5 text-xs font-bold text-[#ffc933] cursor-pointer transition">
+              <label className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 px-3 py-1.5 text-xs font-bold text-gold-400 cursor-pointer transition">
                 <Upload className="h-3.5 w-3.5" />
                 <span>
                   {isConvertingGallery

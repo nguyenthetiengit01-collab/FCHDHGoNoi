@@ -1,20 +1,52 @@
 @import "tailwindcss";
 
 @theme {
+  /* Primitive Navy & Royal Scale (70% Surface & Backdrop) */
+  --color-navy-950: #040e1a;
+  --color-navy-900: #081a33;
+  --color-navy-800: #092244;
+  --color-navy-700: #0b2447;
+  --color-navy-600: #0d2e5b;
+  --color-navy-500: #17488c;
+  --color-royal-600: #1e4fc2;
+  --color-royal-500: #2f66dd;
+
+  /* Royal Gold Scale (5% Brand Accent) */
+  --color-gold-300: #fde047;
+  --color-gold-400: #ffd700;
+  --color-gold-500: #d4af37;
+  --color-gold-600: #b89635;
+  --color-gold-700: #8a6d14;
+
+  /* Brand Aliases (Tailwind v4 compatible) */
   --color-brand-navy: #0d2e5b;
   --color-brand-navy-mid: #17488c;
   --color-brand-gold: #d4af37;
   --color-brand-gold-dark: #b89635;
   --color-brand-sky: #0284c7;
+
+  /* Semantic Surface, Text, Border & Feedback Tokens */
+  --color-surface-page: #f1f5f9;
+  --color-surface-card: #ffffff;
+  --color-surface-subtle: #f8fafc;
+  --color-ink-primary: #092244;
+  --color-ink-secondary: #334155;
+  --color-ink-muted: #64748b;
+  --color-line-default: #cbd5e1;
+  --color-line-subtle: #e2e8f0;
+  --color-feedback-success: #059669;
+  --color-feedback-warning: #d97706;
+  --color-feedback-danger: #dc2626;
+  --color-feedback-info: #0284c7;
 }
 
 .bg-brand-navy {
-  background-color: #0d2e5b !important;
+  background-color: var(--brand-navy) !important;
   color: #ffffff !important;
 }
 
 .bg-brand-navy-mid {
-  background-color: #17488c !important;
+  background-color: var(--brand-navy-mid) !important;
   color: #ffffff !important;
 }
 

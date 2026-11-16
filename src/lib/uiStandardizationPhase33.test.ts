@@ -152,7 +152,7 @@ describe("Phase 3.3 – UI Component Standardization", () => {
       );
 
       expect(html).toContain("<select");
-      expect(html).toContain("focus-visible:outline-[#d4af37]");
+      expect(html).toContain("focus-visible:outline-brand-gold");
       expect(html).toContain('aria-invalid="true"');
     });
   });
@@ -167,7 +167,7 @@ describe("Phase 3.3 – UI Component Standardization", () => {
         )
       );
       expect(normalHtml).toContain('type="button"');
-      expect(normalHtml).toContain("focus-visible:outline-[#d4af37]");
+      expect(normalHtml).toContain("focus-visible:outline-brand-gold");
       expect(normalHtml).toContain('aria-hidden="true"');
 
       const loadingHtml = renderToStaticMarkup(

@@ -551,7 +551,7 @@ export function ScheduleTab({
             type="button"
             onClick={() => setSpaceMode("upcoming")}
             className={`inline-flex items-center gap-2 min-h-11 sm:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "upcoming"
-                ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
+                ? "bg-navy-600 text-gold-300 shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
               }`}
           >
@@ -563,7 +563,7 @@ export function ScheduleTab({
             type="button"
             onClick={() => setSpaceMode("finished")}
             className={`inline-flex items-center gap-2 min-h-11 sm:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "finished"
-                ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
+                ? "bg-navy-600 text-gold-300 shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
               }`}
           >
@@ -577,9 +577,9 @@ export function ScheduleTab({
             <button
               type="button"
               onClick={onGoToCollection}
-              className="inline-flex items-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg border border-[#0d2e5b]/30 bg-slate-50 px-3.5 py-2 text-xs font-bold text-[#0d2e5b] hover:bg-slate-100 transition"
+              className="inline-flex items-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg border border-navy-600/30 bg-slate-50 px-3.5 py-2 text-xs font-bold text-navy-600 hover:bg-slate-100 transition"
             >
-              <Wallet className="h-4 w-4 text-[#0284c7]" />
+              <Wallet className="h-4 w-4 text-brand-sky" />
               <span>Sang Mục Thu Tiền Trận →</span>
             </button>
           )}
@@ -587,7 +587,7 @@ export function ScheduleTab({
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center justify-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg bg-[#0d2e5b] px-4 py-2 text-xs font-bold text-[#fde047] hover:bg-[#17488c] transition"
+              className="inline-flex items-center justify-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg bg-navy-600 px-4 py-2 text-xs font-bold text-gold-300 hover:bg-navy-500 transition"
             >
               <Plus className="h-4 w-4" />
               <span>Tạo Lịch Tuần Mới</span>
@@ -605,7 +605,7 @@ export function ScheduleTab({
               <button
                 type="button"
                 onClick={openCreateModal}
-                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-[#0d2e5b] px-4 py-2 text-xs font-bold text-[#fde047] hover:bg-[#17488c] transition"
+                className="inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-navy-600 px-4 py-2 text-xs font-bold text-gold-300 hover:bg-navy-500 transition"
               >
                 <Plus className="h-4 w-4" />
                 <span>Tạo Lịch Tuần Mới</span>
@@ -637,7 +637,7 @@ export function ScheduleTab({
                       syncQuickPitchInputs(m);
                     }}
                     className={`shrink-0 rounded-xl px-3.5 py-2 text-xs font-extrabold border transition cursor-pointer ${isSelected
-                        ? "bg-[#1e4fc2] text-[#ffc933] border-[#1e4fc2]"
+                        ? "bg-royal-600 text-gold-400 border-royal-600"
                         : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
                       }`}
                   >
@@ -650,15 +650,15 @@ export function ScheduleTab({
 
           {/* HỘP ƯU TIÊN SỐ 1: THÔNG BÁO LỊCH TUẦN & ĐIỂM DANH 1-CHẠM */}
           {session.playerId && (
-            <section className="rounded-xl bg-gradient-to-br from-[#092244] via-[#0d2e5b] to-[#17488c] text-white p-5 sm:p-6 border border-[#d4af37]/60 shadow-sm">
+            <section className="rounded-xl bg-gradient-to-br from-navy-800 via-navy-600 to-navy-500 text-white p-5 sm:p-6 border border-gold-500/60 shadow-sm">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                 <div className="space-y-3 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 rounded-md bg-[#d4af37] text-[#092244] px-3 py-1 text-xs font-extrabold uppercase tracking-wider">
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-gold-500 text-ink-primary px-3 py-1 text-xs font-extrabold uppercase tracking-wider">
                       <BellRing className="h-3.5 w-3.5" />
                       <span>ĐIỂM DANH LỊCH TUẦN</span>
                     </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1 text-xs font-bold text-[#fde047] border border-white/15">
+                    <span className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1 text-xs font-bold text-gold-300 border border-white/15">
                       <span>Cầu thủ:</span>
                       <strong className="text-white">
                         #{session.jerseyNumber ?? "-"} {session.fullName}
@@ -674,14 +674,14 @@ export function ScheduleTab({
                   </h2>
 
                   <div className="flex flex-wrap items-center gap-2.5 text-xs sm:text-sm text-sky-100">
-                    <span className="inline-flex items-center gap-1.5 font-bold bg-white/10 text-[#fde047] px-3 py-1.5 rounded-lg border border-white/15 tabular-nums">
+                    <span className="inline-flex items-center gap-1.5 font-bold bg-white/10 text-gold-300 px-3 py-1.5 rounded-lg border border-white/15 tabular-nums">
                       <Clock className="h-4 w-4 shrink-0" />
                       <span>
                         {activeMatch.kickoff_time} • {formatDateVN(activeMatch.match_date)}
                       </span>
                     </span>
                     <span className="inline-flex items-center gap-1.5 font-semibold bg-white/10 text-sky-100 px-3 py-1.5 rounded-lg border border-white/15">
-                      <MapPin className="h-4 w-4 shrink-0 text-[#fde047]" />
+                      <MapPin className="h-4 w-4 shrink-0 text-gold-300" />
                       <span>
                         {activeMatch.venue} ({activeMatch.opponent})
                       </span>
@@ -701,7 +701,7 @@ export function ScheduleTab({
                         <span>Bạn đã Báo Vắng trận này</span>
                       </div>
                     ) : (
-                      <div className="inline-flex items-center gap-2 rounded-lg bg-[#d4af37] text-[#092244] font-extrabold text-xs sm:text-sm px-3.5 py-2">
+                      <div className="inline-flex items-center gap-2 rounded-lg bg-gold-500 text-ink-primary font-extrabold text-xs sm:text-sm px-3.5 py-2">
                         <BellRing className="h-4 w-4 shrink-0" />
                         <span>Bạn chưa điểm danh — Chọn Có Mặt hoặc Báo Vắng bên cạnh</span>
                       </div>
@@ -718,7 +718,7 @@ export function ScheduleTab({
                     onClick={() =>
                       handleSetRsvp(session.playerId!, "registered")
                     }
-                    className={`min-h-12 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm sm:text-base font-extrabold transition focus-visible:outline-2 focus-visible:outline-[#d4af37] ${myAttendance?.rsvp_status === "registered"
+                    className={`min-h-12 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm sm:text-base font-extrabold transition focus-visible:outline-2 focus-visible:outline-brand-gold ${myAttendance?.rsvp_status === "registered"
                         ? "bg-emerald-500 text-white ring-2 ring-white shadow-sm"
                         : "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/60"
                       }`}
@@ -734,7 +734,7 @@ export function ScheduleTab({
                     onClick={() =>
                       handleSetRsvp(session.playerId!, "absent_notice")
                     }
-                    className={`min-h-12 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm sm:text-base font-extrabold transition focus-visible:outline-2 focus-visible:outline-[#d4af37] ${myAttendance?.rsvp_status === "absent_notice"
+                    className={`min-h-12 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm sm:text-base font-extrabold transition focus-visible:outline-2 focus-visible:outline-brand-gold ${myAttendance?.rsvp_status === "absent_notice"
                         ? "bg-rose-600 text-white ring-2 ring-white shadow-sm"
                         : "bg-white/10 hover:bg-rose-600 text-white border border-white/25 hover:border-rose-400"
                       }`}
@@ -749,14 +749,14 @@ export function ScheduleTab({
 
           {/* KHUNG GHI NHANH CHI TIỀN SÂN DÀNH CHO BAN QUẢN LÝ (ĐƠN GIẢN & TIỆN LỢI 1-CHẠM) */}
           {isManager && (
-            <section className="rounded-xl bg-amber-50/90 border-2 border-[#ffc933] p-4 sm:p-5 space-y-3.5 shadow-2xs">
+            <section className="rounded-xl bg-amber-50/90 border-2 border-gold-400 p-4 sm:p-5 space-y-3.5 shadow-2xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#1e4fc2] text-[#ffc933]">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-royal-600 text-gold-400">
                     <Zap className="h-4 w-4" />
                   </span>
                   <div>
-                    <h3 className="text-sm sm:text-base font-extrabold text-[#1e4fc2]">
+                    <h3 className="text-sm sm:text-base font-extrabold text-royal-600">
                       Chi Tiền Sân Nhanh Cho Ban Quản Lý ({activeMatch.label})
                     </h3>
                     <p className="text-xs text-slate-600">
@@ -791,7 +791,7 @@ export function ScheduleTab({
                         setQuickPitchCost(String(preset.cost));
                       }}
                       className={`rounded-lg px-3 py-1.5 text-xs font-extrabold border transition cursor-pointer ${isActivePreset
-                          ? "bg-[#1e4fc2] text-[#ffc933] border-[#1e4fc2]"
+                          ? "bg-royal-600 text-gold-400 border-royal-600"
                           : "bg-white text-slate-800 border-slate-300 hover:bg-slate-100"
                         }`}
                     >
@@ -844,7 +844,7 @@ export function ScheduleTab({
                         type="button"
                         onClick={() => setQuickPayer(pName)}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${quickPayer === pName
-                            ? "bg-[#1e4fc2] text-[#ffc933] border-[#1e4fc2]"
+                            ? "bg-royal-600 text-gold-400 border-royal-600"
                             : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                           }`}
                       >
@@ -877,14 +877,14 @@ export function ScheduleTab({
                   <img
                     src={OFFICIAL_LOGO_URL}
                     alt="Logo FC HĐH Gò Nổi"
-                    className="h-10 w-10 rounded-xl object-contain border border-[#ffc933] bg-white p-0.5 shrink-0"
+                    className="h-10 w-10 rounded-xl object-contain border border-gold-400 bg-white p-0.5 shrink-0"
                   />
                   <div>
-                    <div className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[#0284c7]">
+                    <div className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-brand-sky">
                       <Sparkles className="h-3.5 w-3.5" />
                       <span>Chuẩn bài đăng Fanpage • Không để quỹ</span>
                     </div>
-                    <h3 className="text-base font-extrabold text-[#1e4fc2]">
+                    <h3 className="text-base font-extrabold text-royal-600">
                       Bản Tin Thông Báo Lịch Thi Đấu
                     </h3>
                   </div>
@@ -920,7 +920,7 @@ export function ScheduleTab({
                   type="button"
                   onClick={() => setPostTemplateMode("fanpage")}
                   className={`rounded-lg py-1.5 px-2 text-xs font-bold transition cursor-pointer ${postTemplateMode === "fanpage"
-                      ? "bg-[#1e4fc2] text-[#ffc933]"
+                      ? "bg-royal-600 text-gold-400"
                       : "text-slate-700 hover:text-slate-900"
                     }`}
                 >
@@ -930,7 +930,7 @@ export function ScheduleTab({
                   type="button"
                   onClick={() => setPostTemplateMode("with_roster")}
                   className={`rounded-lg py-1.5 px-2 text-xs font-bold transition cursor-pointer ${postTemplateMode === "with_roster"
-                      ? "bg-[#1e4fc2] text-[#ffc933]"
+                      ? "bg-royal-600 text-gold-400"
                       : "text-slate-700 hover:text-slate-900"
                     }`}
                 >
@@ -948,7 +948,7 @@ export function ScheduleTab({
                 <button
                   type="button"
                   onClick={handleCopyFanpagePost}
-                  className="w-full sm:w-auto sm:flex-1 sm:min-w-[172px] inline-flex items-center justify-center gap-2 rounded-xl bg-[#1e4fc2] hover:bg-[#2f66dd] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-[#ffc933] transition cursor-pointer shadow-xs"
+                  className="w-full sm:w-auto sm:flex-1 sm:min-w-[172px] inline-flex items-center justify-center gap-2 rounded-xl bg-royal-600 hover:bg-royal-500 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-gold-400 transition cursor-pointer shadow-xs"
                 >
                   <Copy className="h-4 w-4 shrink-0" aria-hidden="true" />
                   <span>
@@ -961,7 +961,7 @@ export function ScheduleTab({
                 <button
                   type="button"
                   onClick={() => setPosterModalOpen(true)}
-                  className="w-full sm:w-auto sm:flex-1 sm:min-w-[205px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
+                  className="w-full sm:w-auto sm:flex-1 sm:min-w-[205px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
                   title="Tải trực tiếp ảnh bảng điểm danh cầu thủ chất lượng cao về máy để chia sẻ vào Zalo"
                 >
                   <Camera className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -986,11 +986,11 @@ export function ScheduleTab({
                 <>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-slate-100 pb-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="h-10 w-10 rounded-xl bg-[#1e4fc2] text-[#ffc933] flex items-center justify-center shrink-0 shadow-xs">
+                      <div className="h-10 w-10 rounded-xl bg-royal-600 text-gold-400 flex items-center justify-center shrink-0 shadow-xs">
                         <UserCircle2 className="h-6 w-6" />
                       </div>
                       <div>
-                        <h3 className="text-base sm:text-lg font-extrabold text-[#1e4fc2]">
+                        <h3 className="text-base sm:text-lg font-extrabold text-royal-600">
                           Hồ Sơ & Bài Viết Của Bạn
                         </h3>
                         <p className="text-xs text-slate-500">
@@ -1006,14 +1006,14 @@ export function ScheduleTab({
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition cursor-pointer"
                         title="Xem danh sách điểm danh cả đội tuần này"
                       >
-                        <Users className="h-3.5 w-3.5 text-[#1e4fc2]" />
+                        <Users className="h-3.5 w-3.5 text-royal-600" />
                         <span>Xem DS Đội ({registeredPlayers.length} ra sân)</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={openEditMyProfile}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#ffc933] hover:bg-[#ffd95e] px-3.5 py-1.5 text-xs font-extrabold text-slate-950 transition cursor-pointer shadow-xs"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-gold-400 hover:bg-[#ffd95e] px-3.5 py-1.5 text-xs font-extrabold text-slate-950 transition cursor-pointer shadow-xs"
                       >
                         <Edit3 className="h-3.5 w-3.5" />
                         <span>Sửa Hồ Sơ & Bài Viết</span>
@@ -1035,14 +1035,14 @@ export function ScheduleTab({
                           className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 hover:bg-white/10 px-3 py-2 text-xs font-bold text-slate-200 transition cursor-pointer"
                           title="Xem danh sách điểm danh cả đội tuần này"
                         >
-                          <Users className="h-3.5 w-3.5 text-[#ffd700]" />
+                          <Users className="h-3.5 w-3.5 text-gold-400" />
                           <span>DS Đội ({registeredPlayers.length})</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={openEditMyProfile}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#ffd700] to-[#f5c518] hover:from-[#f5c518] hover:to-[#ffd700] px-3.5 py-2 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-gold-400 to-[#f5c518] hover:from-[#f5c518] hover:to-gold-400 px-3.5 py-2 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
                         >
                           <Edit3 className="h-3.5 w-3.5" />
                           <span>Sửa Hồ Sơ &amp; Bài Viết</span>
@@ -1059,7 +1059,7 @@ export function ScheduleTab({
                           }}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2 text-xs font-bold text-white transition cursor-pointer"
                         >
-                          <KeyRound className="h-3.5 w-3.5 text-[#ffd700]" />
+                          <KeyRound className="h-3.5 w-3.5 text-gold-400" />
                           <span>Đổi Mật Khẩu</span>
                         </button>
                       </div>
@@ -1069,10 +1069,10 @@ export function ScheduleTab({
                   {/* Thanh Điểm Danh Nhanh Tuần Này & Tài Chính Cá Nhân */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                     {/* Hộp điểm danh nhanh */}
-                    <div className="rounded-xl bg-gradient-to-r from-[#123e7a] to-[#0d2d5a] border border-[#ffd700]/50 p-3.5 flex flex-col justify-between gap-2.5 text-white shadow-sm">
+                    <div className="rounded-xl bg-gradient-to-r from-navy-500 to-navy-600 border border-gold-400/50 p-3.5 flex flex-col justify-between gap-2.5 text-white shadow-sm">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs text-sky-200 font-bold flex items-center gap-1.5">
-                          <Clock className="h-4 w-4 text-[#ffd700]" />
+                          <Clock className="h-4 w-4 text-gold-400" />
                           <span>Điểm danh: {activeMatch.label}</span>
                         </span>
                         {myAttendance?.rsvp_status === "registered" ? (
@@ -1120,7 +1120,7 @@ export function ScheduleTab({
 
                     {/* Hộp tài chính & chuyên cần cá nhân */}
                     <div className="grid grid-cols-2 gap-2 text-center text-white">
-                      <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-3 border border-sky-300/30 flex flex-col justify-center">
+                      <div className="rounded-xl bg-gradient-to-br from-navy-500 to-navy-600 p-3 border border-sky-300/30 flex flex-col justify-center">
                         <span className="text-[10px] uppercase font-bold text-sky-200 tracking-wider">
                           Tiền Quỹ Đã Nộp
                         </span>
@@ -1131,7 +1131,7 @@ export function ScheduleTab({
                           {myMatchesPlayed}/{myEligibleMatchesCount} trận ({formatAttendanceRate(myRate)})
                         </span>
                       </div>
-                      <div className="rounded-xl bg-gradient-to-br from-[#123e7a] to-[#0d2d5a] p-3 border border-sky-300/30 flex flex-col justify-center">
+                      <div className="rounded-xl bg-gradient-to-br from-navy-500 to-navy-600 p-3 border border-sky-300/30 flex flex-col justify-center">
                         <span className="text-[10px] uppercase font-bold text-sky-200 tracking-wider">
                           Tiền Sân Còn Nợ
                         </span>
@@ -1146,16 +1146,16 @@ export function ScheduleTab({
                   </div>
 
                   {/* Mục Bài Viết / Lời Ngỏ Giới Thiệu Bản Thân (Bio) */}
-                  <div className="rounded-2xl bg-amber-50/70 border border-[#ffc933]/50 p-4 space-y-2.5">
+                  <div className="rounded-2xl bg-amber-50/70 border border-gold-400/50 p-4 space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-[#1e4fc2]">
-                        <Quote className="h-4 w-4 text-[#ffc933]" />
+                      <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-royal-600">
+                        <Quote className="h-4 w-4 text-gold-400" />
                         <span>Bài Viết / Lời Ngỏ Của Cầu Thủ (Bio)</span>
                       </div>
                       <button
                         type="button"
                         onClick={openEditMyProfile}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-[#1e4fc2] hover:text-[#2f66dd] cursor-pointer"
+                        className="inline-flex items-center gap-1 text-xs font-bold text-royal-600 hover:text-royal-500 cursor-pointer"
                       >
                         <Edit3 className="h-3 w-3" />
                         <span>{me.bio ? "Chỉnh sửa bài viết" : "Viết bài ngỏ"}</span>
@@ -1174,7 +1174,7 @@ export function ScheduleTab({
                         <button
                           type="button"
                           onClick={openEditMyProfile}
-                          className="shrink-0 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] text-[#ffc933] px-3.5 py-1.5 font-extrabold text-xs transition cursor-pointer shadow-xs"
+                          className="shrink-0 rounded-lg bg-royal-600 hover:bg-royal-500 text-gold-400 px-3.5 py-1.5 font-extrabold text-xs transition cursor-pointer shadow-xs"
                         >
                           ✍️ Viết Bài Ngay
                         </button>
@@ -1193,7 +1193,7 @@ export function ScheduleTab({
                     <button
                       type="button"
                       onClick={openEditMyProfile}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#1e4fc2] hover:bg-[#2f66dd] px-4 py-2.5 text-xs sm:text-sm font-extrabold text-[#ffc933] transition cursor-pointer shadow-xs"
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-royal-600 hover:bg-royal-500 px-4 py-2.5 text-xs sm:text-sm font-extrabold text-gold-400 transition cursor-pointer shadow-xs"
                     >
                       <Edit3 className="h-4 w-4" />
                       <span>Cập Nhật Hồ Sơ, Ảnh (WebP) & Bài Viết</span>
@@ -1211,7 +1211,7 @@ export function ScheduleTab({
                       }}
                       className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-700 transition cursor-pointer"
                     >
-                      <KeyRound className="h-4 w-4 text-[#1e4fc2]" />
+                      <KeyRound className="h-4 w-4 text-royal-600" />
                       <span>Đổi Mật Khẩu</span>
                     </button>
                   </div>
@@ -1221,7 +1221,7 @@ export function ScheduleTab({
                 <>
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                     <div>
-                      <h3 className="text-base sm:text-lg font-extrabold text-[#1e4fc2]">
+                      <h3 className="text-base sm:text-lg font-extrabold text-royal-600">
                         Danh Sách Điểm Danh Ra Sân ({activeMatch.label})
                       </h3>
                       <p className="text-xs text-slate-500">
@@ -1236,7 +1236,7 @@ export function ScheduleTab({
                         <button
                           type="button"
                           onClick={() => setRosterViewMode("my_profile")}
-                          className="inline-flex items-center gap-1 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] text-[#ffc933] px-3 py-1.5 text-xs font-bold transition cursor-pointer shadow-xs"
+                          className="inline-flex items-center gap-1 rounded-lg bg-royal-600 hover:bg-royal-500 text-gold-400 px-3 py-1.5 text-xs font-bold transition cursor-pointer shadow-xs"
                         >
                           <UserCircle2 className="h-3.5 w-3.5" />
                           <span>← Xem Hồ Sơ & Bài Viết Của Bạn</span>
@@ -1246,7 +1246,7 @@ export function ScheduleTab({
                       <button
                         type="button"
                         onClick={() => setPosterModalOpen(true)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-xs"
+                        className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-xs"
                         title="Tải trực tiếp ảnh bảng điểm danh cầu thủ chất lượng cao về máy để chia sẻ vào Zalo"
                       >
                         <Camera className="h-3.5 w-3.5" />
@@ -1287,7 +1287,7 @@ export function ScheduleTab({
                             )
                           }
                           className={`min-h-11 sm:min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${rosterRsvpFilter === opt.key
-                              ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                              ? "bg-navy-600 text-gold-300 border-navy-600"
                               : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
                             }`}
                         >
@@ -1304,7 +1304,7 @@ export function ScheduleTab({
                         placeholder="Tìm tên, số áo..."
                         value={rosterSearch}
                         onChange={(e) => setRosterSearch(e.target.value)}
-                        className="min-h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 py-1 text-xs text-[#092244] focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+                        className="min-h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 py-1 text-xs text-ink-primary focus-visible:outline-2 focus-visible:outline-brand-gold"
                       />
                     </div>
                   </div>
@@ -1350,7 +1350,7 @@ export function ScheduleTab({
                             <div
                               key={p.id}
                               className={`flex items-center justify-between gap-2 rounded-xl border p-2.5 transition ${isMe
-                                  ? "ring-2 ring-[#d4af37] border-[#0d2e5b] bg-amber-50/70 shadow-xs"
+                                  ? "ring-2 ring-gold-500 border-navy-600 bg-amber-50/70 shadow-xs"
                                   : rsvp === "registered"
                                     ? "bg-emerald-50/70 border-emerald-300"
                                     : rsvp === "absent_notice"
@@ -1367,15 +1367,15 @@ export function ScheduleTab({
                                     }
                                     alt={p.full_name}
                                     loading="lazy"
-                                    className="h-10 w-10 rounded-lg object-cover object-top border border-[#0d2e5b]"
+                                    className="h-10 w-10 rounded-lg object-cover object-top border border-navy-600"
                                   />
-                                  <span className="absolute -bottom-1 -right-1 rounded bg-[#0d2e5b] text-[#fde047] px-1 text-[9px] font-extrabold tabular-nums">
+                                  <span className="absolute -bottom-1 -right-1 rounded bg-navy-600 text-gold-300 px-1 text-[9px] font-extrabold tabular-nums">
                                     #{p.jersey_number ?? "-"}
                                   </span>
                                 </div>
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    <p className="text-xs sm:text-sm font-bold text-[#092244] truncate">
+                                    <p className="text-xs sm:text-sm font-bold text-ink-primary truncate">
                                       {p.full_name}
                                     </p>
                                     {isMe && (
@@ -1469,11 +1469,11 @@ export function ScheduleTab({
         <section className="rounded-xl bg-white border border-slate-200 p-4 sm:p-6 space-y-5 shadow-xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2.5">
-              <div className="h-10 w-10 rounded-xl bg-[#0d2e5b] text-[#fde047] flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-xl bg-navy-600 text-gold-300 flex items-center justify-center shrink-0">
                 <Trophy className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base sm:text-lg font-extrabold text-[#092244]">
+                <h3 className="text-base sm:text-lg font-extrabold text-ink-primary">
                   Lịch Sử Các Trận Đấu Đã Kết Thúc ({finishedMatches.length} trận)
                 </h3>
                 <p className="text-xs text-slate-500">
@@ -1491,7 +1491,7 @@ export function ScheduleTab({
                   placeholder="Tìm tên trận, sân đấu..."
                   value={finishedSearch}
                   onChange={(e) => setFinishedSearch(e.target.value)}
-                  className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-1.5 text-xs sm:text-sm text-[#092244] focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+                  className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-1.5 text-xs sm:text-sm text-ink-primary focus-visible:outline-2 focus-visible:outline-brand-gold"
                 />
               </div>
             )}
@@ -1534,7 +1534,7 @@ export function ScheduleTab({
                   return (
                     <div
                       key={m.id}
-                      className="rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-[#0d2e5b]/40 p-4 flex flex-col justify-between gap-3 transition shadow-xs"
+                      className="rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-navy-600/40 p-4 flex flex-col justify-between gap-3 transition shadow-xs"
                     >
                       <div>
                         <div className="flex items-start justify-between gap-2">
@@ -1542,13 +1542,13 @@ export function ScheduleTab({
                             <span className="inline-block rounded bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-700">
                               Đã kết thúc • Trận #{m.match_number}
                             </span>
-                            <h4 className="mt-1 text-base font-extrabold text-[#092244]">
+                            <h4 className="mt-1 text-base font-extrabold text-ink-primary">
                               {m.label}
                             </h4>
                           </div>
 
                           {m.team_score !== null && m.opponent_score !== null ? (
-                            <div className="rounded-lg bg-[#0d2e5b] text-[#fde047] px-2.5 py-1 text-xs font-extrabold tabular-nums">
+                            <div className="rounded-lg bg-navy-600 text-gold-300 px-2.5 py-1 text-xs font-extrabold tabular-nums">
                               {m.team_score} - {m.opponent_score}
                             </div>
                           ) : (
@@ -1561,7 +1561,7 @@ export function ScheduleTab({
                         <div className="mt-3 space-y-1.5 text-xs text-slate-600">
                           <div className="flex items-center justify-between">
                             <span className="inline-flex items-center gap-1 font-semibold text-slate-800">
-                              <MapPin className="h-3.5 w-3.5 text-[#0284c7]" />
+                              <MapPin className="h-3.5 w-3.5 text-brand-sky" />
                               {m.venue}
                             </span>
                             <span className="inline-flex items-center gap-1 font-bold text-emerald-700 tabular-nums">
@@ -1587,7 +1587,7 @@ export function ScheduleTab({
                         <button
                           type="button"
                           onClick={() => setSelectedFinishedMatch(m)}
-                          className="text-xs font-bold text-[#0d2e5b] hover:text-[#0284c7]"
+                          className="text-xs font-bold text-navy-600 hover:text-brand-sky"
                         >
                           Xem danh sách ra sân →
                         </button>
@@ -1698,7 +1698,7 @@ export function ScheduleTab({
                       <img
                         src={p.avatar_url || "/uploads/avatars/member-1.jpg"}
                         alt={p.full_name}
-                        className="h-8 w-8 rounded-lg object-cover border border-[#1e4fc2]"
+                        className="h-8 w-8 rounded-lg object-cover border border-royal-600"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -1849,7 +1849,7 @@ export function ScheduleTab({
                     setPitchCost(String(preset.cost));
                   }}
                   className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${venue === preset.venue
-                      ? "bg-[#1e4fc2] text-[#ffc933] border-[#1e4fc2]"
+                      ? "bg-royal-600 text-gold-400 border-royal-600"
                       : "bg-white text-slate-700 border-slate-300"
                     }`}
                 >
@@ -1963,7 +1963,7 @@ export function ScheduleTab({
               type="checkbox"
               checked={syncPitchExpense}
               onChange={(e) => setSyncPitchExpense(e.target.checked)}
-              className="accent-[#1e4fc2] h-4 w-4 rounded"
+              className="accent-royal-600 h-4 w-4 rounded"
             />
             <span>
               Tự động ghi{" "}
@@ -1983,7 +1983,7 @@ export function ScheduleTab({
             <button
               type="submit"
               disabled={isSaving}
-              className="rounded-lg bg-[#1e4fc2] px-5 py-2 text-sm font-bold text-[#ffc933] hover:bg-[#2f66dd] cursor-pointer"
+              className="rounded-lg bg-royal-600 px-5 py-2 text-sm font-bold text-gold-400 hover:bg-royal-500 cursor-pointer"
             >
               {editingMatch ? "Lưu Cập Nhật" : "Tạo Lịch Mới"}
             </button>
@@ -2004,7 +2004,7 @@ export function ScheduleTab({
             <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                  <Crop className="h-4 w-4 text-[#1e4fc2]" />
+                  <Crop className="h-4 w-4 text-royal-600" />
                   <span>1. Ảnh Avatar Thi Đấu (Chuẩn 3:4)</span>
                 </span>
                 <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
@@ -2017,11 +2017,11 @@ export function ScheduleTab({
                 <img
                   src={profileAvatarUrl || "/uploads/avatars/member-1.jpg"}
                   alt="Ảnh chân dung"
-                  className="h-28 w-21 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shrink-0 bg-slate-900 shadow-sm"
+                  className="h-28 w-21 rounded-xl object-cover object-top border-2 border-royal-600 shrink-0 bg-slate-900 shadow-sm"
                 />
                 <div className="space-y-2 flex-1 text-center sm:text-left">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                    <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition shadow-xs">
+                    <label className="inline-flex items-center gap-1.5 rounded-lg bg-royal-600 hover:bg-royal-500 px-3.5 py-2 text-xs font-bold text-gold-400 cursor-pointer transition shadow-xs">
                       <Upload className="h-3.5 w-3.5" />
                       <span>Tải Avatar Mới</span>
                       <input
@@ -2061,7 +2061,7 @@ export function ScheduleTab({
                           setProfileWebpInfo("");
                         }}
                         className={`h-8 w-8 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${profileAvatarUrl === url
-                            ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
+                            ? "border-gold-400 ring-2 ring-royal-600"
                             : "border-transparent opacity-70 hover:opacity-100"
                           }`}
                         title={`Ảnh thành viên #${idx + 1}`}
@@ -2083,7 +2083,7 @@ export function ScheduleTab({
             <div className="rounded-xl bg-sky-50/60 p-4 border border-sky-200 space-y-3">
               <div className="flex items-center justify-between border-b border-sky-200/60 pb-2">
                 <span className="text-xs font-black uppercase tracking-wider text-sky-950 flex items-center gap-1.5">
-                  <ImageIcon className="h-4 w-4 text-[#1e4fc2]" />
+                  <ImageIcon className="h-4 w-4 text-royal-600" />
                   <span>2. Ảnh Giới Thiệu Profile (Khung Rộng 16:9 / 4:3)</span>
                 </span>
                 <span className="rounded-md bg-sky-100 border border-sky-300 px-2 py-0.5 text-[10px] font-black text-sky-800">
@@ -2114,7 +2114,7 @@ export function ScheduleTab({
                   </p>
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                     <label className="inline-flex items-center gap-1.5 rounded-lg bg-sky-800 hover:bg-sky-900 px-3.5 py-2 text-xs font-bold text-white cursor-pointer transition shadow-xs">
-                      <Upload className="h-3.5 w-3.5 text-[#ffc933]" />
+                      <Upload className="h-3.5 w-3.5 text-gold-400" />
                       <span>Tải Ảnh Profile Mới</span>
                       <input
                         type="file"
@@ -2165,7 +2165,7 @@ export function ScheduleTab({
               <div className="pt-2.5 border-t border-sky-200/70 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
-                    <Camera className="h-3.5 w-3.5 text-[#1e4fc2]" />
+                    <Camera className="h-3.5 w-3.5 text-royal-600" />
                     <span>Hoặc chọn nhanh từ Album hoạt động cá nhân ({profileGalleryUrls.length} ảnh):</span>
                   </span>
                   {profileGalleryUrls.length > 0 && (
@@ -2187,7 +2187,7 @@ export function ScheduleTab({
                             }}
                             className={`relative h-14 w-24 rounded-lg overflow-hidden border-2 transition cursor-pointer ${
                               isSelected
-                                ? "border-[#ffd700] ring-2 ring-[#1e4fc2] shadow-md"
+                                ? "border-gold-400 ring-2 ring-royal-600 shadow-md"
                                 : "border-slate-300 opacity-80 hover:opacity-100 hover:border-sky-500"
                             }`}
                             title={`Chọn ảnh hoạt động #${idx + 1} làm ảnh Profile`}
@@ -2199,7 +2199,7 @@ export function ScheduleTab({
                               className="w-full h-full object-cover"
                             />
                             {isSelected && (
-                              <span className="absolute bottom-0 inset-x-0 bg-[#092244]/85 text-[9px] font-black text-[#ffd700] text-center py-0.5 flex items-center justify-center gap-0.5">
+                              <span className="absolute bottom-0 inset-x-0 bg-navy-800/85 text-[9px] font-black text-gold-400 text-center py-0.5 flex items-center justify-center gap-0.5">
                                 <Check className="h-2.5 w-2.5" />
                                 <span>Đang chọn</span>
                               </span>
@@ -2212,7 +2212,7 @@ export function ScheduleTab({
                               setProfileCropperSource(url);
                               setProfileCropperOpen(true);
                             }}
-                            className="absolute top-1 right-1 bg-black/80 hover:bg-black text-[#ffc933] p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                            className="absolute top-1 right-1 bg-black/80 hover:bg-black text-gold-400 p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
                             title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
                           >
                             <Crop className="h-3 w-3" />
@@ -2239,7 +2239,7 @@ export function ScheduleTab({
                   required
                   value={profileShortName}
                   onChange={(e) => setProfileShortName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
                 />
               </div>
 
@@ -2252,7 +2252,7 @@ export function ScheduleTab({
                   value={profileJerseyNumber}
                   onChange={(e) => setProfileJerseyNumber(e.target.value)}
                   placeholder="VD: 12, 26, 9..."
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
                 />
               </div>
 
@@ -2263,7 +2263,7 @@ export function ScheduleTab({
                 <select
                   value={profilePosition}
                   onChange={(e) => setProfilePosition(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
                 >
                   {POSITIONS.map((pos) => (
                     <option key={pos} value={pos}>
@@ -2280,7 +2280,7 @@ export function ScheduleTab({
                 <select
                   value={profileBirthYear}
                   onChange={(e) => setProfileBirthYear(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none bg-white"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none bg-white"
                 >
                   <option value="">-- Chọn năm sinh --</option>
                   {BIRTH_YEAR_OPTIONS.map((y) => (
@@ -2298,7 +2298,7 @@ export function ScheduleTab({
                 <select
                   value={profileHometown}
                   onChange={(e) => setProfileHometown(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
                 >
                   <option value="Điện Quang">Xã Điện Quang</option>
                   <option value="Điện Trung">Xã Điện Trung</option>
@@ -2316,7 +2316,7 @@ export function ScheduleTab({
                   value={profileNickname}
                   onChange={(e) => setProfileNickname(e.target.value)}
                   placeholder="VD: Tiếng Ronaldo, Tín Mười..."
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
                 />
               </div>
 
@@ -2329,7 +2329,7 @@ export function ScheduleTab({
                   value={profilePlayingStyle}
                   onChange={(e) => setProfilePlayingStyle(e.target.value)}
                   placeholder="VD: Tốc độ cao, sút xa hiểm hóc, đeo bám quyết liệt..."
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
                 />
               </div>
 
@@ -2342,7 +2342,7 @@ export function ScheduleTab({
                   value={profilePhone}
                   onChange={(e) => setProfilePhone(e.target.value)}
                   placeholder="VD: 0905123456"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
                 />
               </div>
             </div>
@@ -2353,7 +2353,7 @@ export function ScheduleTab({
                 <label className="block text-xs font-bold text-slate-700">
                   Album ảnh thi đấu &amp; hoạt động ({profileGalleryUrls.length} ảnh)
                 </label>
-                <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] text-[#ffc933] px-3 py-1 text-xs font-bold cursor-pointer transition">
+                <label className="inline-flex items-center gap-1.5 rounded-lg bg-royal-600 hover:bg-royal-500 text-gold-400 px-3 py-1 text-xs font-bold cursor-pointer transition">
                   <Upload className="h-3.5 w-3.5" />
                   <span>{isConvertingProfileGallery ? "Đang xử lý..." : "Thêm ảnh (WebP)"}</span>
                   <input
@@ -2378,7 +2378,7 @@ export function ScheduleTab({
                         key={idx}
                         className={`relative aspect-square rounded-xl overflow-hidden border-2 group bg-slate-900 transition ${
                           isProfile
-                            ? "border-[#ffd700] ring-2 ring-sky-500 shadow-md"
+                            ? "border-gold-400 ring-2 ring-sky-500 shadow-md"
                             : "border-slate-300"
                         }`}
                       >
@@ -2386,7 +2386,7 @@ export function ScheduleTab({
                         <img src={url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
 
                         {isProfile && (
-                          <div className="absolute top-1 left-1 bg-[#092244]/90 text-[9px] font-black text-[#ffd700] px-1.5 py-0.5 rounded border border-white/20 shadow flex items-center gap-0.5">
+                          <div className="absolute top-1 left-1 bg-navy-800/90 text-[9px] font-black text-gold-400 px-1.5 py-0.5 rounded border border-white/20 shadow flex items-center gap-0.5">
                             <Check className="h-2.5 w-2.5" />
                             <span>Profile</span>
                           </div>
@@ -2439,7 +2439,7 @@ export function ScheduleTab({
                 <label className="block text-xs font-bold text-slate-700">
                   Bài viết / Lời ngỏ giới thiệu về bản thân (Bio)
                 </label>
-                <span className="text-[11px] text-[#1e4fc2] font-semibold">
+                <span className="text-[11px] text-royal-600 font-semibold">
                   Hiển thị trên Trang chủ & Thẻ Cầu Thủ
                 </span>
               </div>
@@ -2448,7 +2448,7 @@ export function ScheduleTab({
                 value={profileBio}
                 onChange={(e) => setProfileBio(e.target.value)}
                 placeholder="Viết đôi nét về phong cách đá bóng của bạn, niềm đam mê hoặc những lời chúc gửi đến anh em FC HĐH Gò Nổi..."
-                className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none leading-relaxed"
+                className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-royal-600 focus:outline-none leading-relaxed"
               />
             </div>
 
@@ -2462,7 +2462,7 @@ export function ScheduleTab({
                 value={profileNotes}
                 onChange={(e) => setProfileNotes(e.target.value)}
                 placeholder="VD: Quê quán xã Điện Trung, thường đá cánh phải..."
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
               />
             </div>
 
@@ -2477,7 +2477,7 @@ export function ScheduleTab({
               <button
                 type="submit"
                 disabled={isSaving || isConvertingProfileGallery}
-                className="rounded-xl bg-[#1e4fc2] hover:bg-[#2f66dd] disabled:opacity-50 px-5 py-2 text-xs font-black text-[#ffc933] shadow-md cursor-pointer"
+                className="rounded-xl bg-royal-600 hover:bg-royal-500 disabled:opacity-50 px-5 py-2 text-xs font-black text-gold-400 shadow-md cursor-pointer"
               >
                 {isSaving ? "Đang lưu..." : "Lưu Hồ Sơ & Bài Viết"}
               </button>
@@ -2504,7 +2504,7 @@ export function ScheduleTab({
                 value={pwdNewUsername}
                 onChange={(e) => setPwdNewUsername(e.target.value)}
                 placeholder="VD: tieng, tin, trung..."
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
               />
             </div>
 
@@ -2519,7 +2519,7 @@ export function ScheduleTab({
                   value={pwdOldPin}
                   onChange={(e) => setPwdOldPin(e.target.value)}
                   placeholder="Nhập mật khẩu hiện tại (mặc định 1234)"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
                 />
                 <button
                   type="button"
@@ -2552,7 +2552,7 @@ export function ScheduleTab({
                   value={pwdNewPin}
                   onChange={(e) => setPwdNewPin(e.target.value)}
                   placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
                 />
                 <button
                   type="button"
@@ -2621,7 +2621,7 @@ export function ScheduleTab({
                   value={pwdConfirmPin}
                   onChange={(e) => setPwdConfirmPin(e.target.value)}
                   placeholder="Nhập lại mật khẩu mới"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
                 />
                 <button
                   type="button"
@@ -2660,7 +2660,7 @@ export function ScheduleTab({
               <button
                 type="submit"
                 disabled={isSaving}
-                className="rounded-xl bg-[#1e4fc2] hover:bg-[#2f66dd] px-5 py-2 text-xs font-black text-[#ffc933] shadow-md cursor-pointer"
+                className="rounded-xl bg-royal-600 hover:bg-royal-500 px-5 py-2 text-xs font-black text-gold-400 shadow-md cursor-pointer"
               >
                 {isSaving ? "Đang lưu..." : "Cập Nhật Mật Khẩu"}
               </button>

@@ -22,7 +22,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         ref={ref}
         aria-invalid={hasError || undefined}
-        className={`form-input focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#d4af37] ${
+        className={`form-input focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-gold ${
           hasError ? "!border-rose-500 focus-visible:!outline-rose-500" : ""
         } ${className}`}
         {...rest}
@@ -42,7 +42,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <select
         ref={ref}
         aria-invalid={hasError || undefined}
-        className={`form-select focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#d4af37] ${
+        className={`form-select focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-gold ${
           hasError ? "!border-rose-500 focus-visible:!outline-rose-500" : ""
         } ${className}`}
         {...rest}
@@ -65,7 +65,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       <textarea
         ref={ref}
         aria-invalid={hasError || undefined}
-        className={`form-textarea focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#d4af37] ${
+        className={`form-textarea focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-gold ${
           hasError ? "!border-rose-500 focus-visible:!outline-rose-500" : ""
         } ${className}`}
         {...rest}

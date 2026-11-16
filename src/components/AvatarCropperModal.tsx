@@ -358,9 +358,9 @@ export function AvatarCropperModal({
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 bg-[#092244]/90 shrink-0">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 bg-navy-800/90 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-[#ffd700]/20 border border-[#ffd700]/50 flex items-center justify-center text-[#ffd700] shrink-0">
+          <div className="h-8 w-8 rounded-lg bg-gold-400/20 border border-gold-400/50 flex items-center justify-center text-gold-400 shrink-0">
             <Sparkles className="h-4 w-4" />
           </div>
           <div>
@@ -385,7 +385,7 @@ export function AvatarCropperModal({
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sky-200 hover:text-white text-xs font-semibold border border-white/15 transition cursor-pointer"
             title="Tải ảnh khác từ máy"
           >
-            <Upload className="h-3.5 w-3.5 text-[#ffd700]" />
+            <Upload className="h-3.5 w-3.5 text-gold-400" />
             <span className="hidden sm:inline">Đổi Ảnh Khác</span>
           </button>
           <button
@@ -405,7 +405,7 @@ export function AvatarCropperModal({
         {isProfileMode && (
           <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/5 border border-white/10">
             <div className="flex items-center gap-1.5 text-xs text-sky-200 font-semibold">
-              <Ratio className="h-4 w-4 text-[#ffd700]" />
+              <Ratio className="h-4 w-4 text-gold-400" />
               <span>Tỉ lệ khung hình Profile:</span>
             </div>
             <div className="flex items-center gap-1">
@@ -417,7 +417,7 @@ export function AvatarCropperModal({
                 }}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer border ${
                   profileAspect === "16:9"
-                    ? "bg-[#ffd700] text-slate-950 border-[#ffd700] shadow-sm"
+                    ? "bg-gold-400 text-slate-950 border-gold-400 shadow-sm"
                     : "bg-white/10 text-slate-300 border-white/15 hover:text-white"
                 }`}
               >
@@ -431,7 +431,7 @@ export function AvatarCropperModal({
                 }}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer border ${
                   profileAspect === "4:3"
-                    ? "bg-[#ffd700] text-slate-950 border-[#ffd700] shadow-sm"
+                    ? "bg-gold-400 text-slate-950 border-gold-400 shadow-sm"
                     : "bg-white/10 text-slate-300 border-white/15 hover:text-white"
                 }`}
               >
@@ -455,7 +455,7 @@ export function AvatarCropperModal({
           </div>
         ) : loadingImg ? (
           <div className="h-80 sm:h-96 flex flex-col items-center justify-center gap-3 text-sky-200">
-            <Loader2 className="h-8 w-8 animate-spin text-[#ffd700]" />
+            <Loader2 className="h-8 w-8 animate-spin text-gold-400" />
             <span className="text-xs font-semibold">Đang tải ảnh vào Studio...</span>
           </div>
         ) : (
@@ -463,7 +463,7 @@ export function AvatarCropperModal({
             {/* Khu vực Cắt Ảnh (Dynamic Viewport) */}
             <div className="flex flex-col items-center justify-center">
               <div
-                className="relative overflow-hidden rounded-xl border-2 border-[#ffd700] shadow-[0_10px_35px_rgba(0,0,0,0.6)] cursor-grab active:cursor-grabbing select-none touch-none bg-slate-900"
+                className="relative overflow-hidden rounded-xl border-2 border-gold-400 shadow-[0_10px_35px_rgba(0,0,0,0.6)] cursor-grab active:cursor-grabbing select-none touch-none bg-slate-900"
                 style={{ width: `${viewportW}px`, height: `${viewportH}px` }}
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
@@ -514,9 +514,9 @@ export function AvatarCropperModal({
                 {/* Vạch gợi ý căn chỉnh mặt & vai cho chế độ avatar 3:4 */}
                 {!isProfileMode && (
                   <div className="absolute inset-x-0 top-10 flex flex-col items-center pointer-events-none opacity-40">
-                    <div className="w-28 h-36 rounded-full border border-dashed border-[#ffd700]" />
-                    <div className="w-48 h-16 rounded-t-full border-t border-dashed border-[#ffd700] -mt-2" />
-                    <span className="text-[10px] font-bold text-[#ffd700] tracking-wider uppercase mt-1">
+                    <div className="w-28 h-36 rounded-full border border-dashed border-gold-400" />
+                    <div className="w-48 h-16 rounded-t-full border-t border-dashed border-gold-400 -mt-2" />
+                    <span className="text-[10px] font-bold text-gold-400 tracking-wider uppercase mt-1">
                       Khu vực khuôn mặt &amp; ngực
                     </span>
                   </div>
@@ -524,12 +524,12 @@ export function AvatarCropperModal({
 
                 {/* Nút chỉ dẫn kéo thả */}
                 <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-[10px] font-semibold text-slate-300 flex items-center gap-1 pointer-events-none border border-white/10">
-                  <Move className="h-3 w-3 text-[#ffd700]" />
+                  <Move className="h-3 w-3 text-gold-400" />
                   <span>Giữ &amp; kéo để canh góc</span>
                 </div>
 
                 {/* Tỷ lệ chuẩn */}
-                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-bold text-[#ffd700] border border-white/10 pointer-events-none">
+                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-bold text-gold-400 border border-white/10 pointer-events-none">
                   {isProfileMode ? profileAspect : "Tỷ lệ 3:4"}
                 </div>
               </div>
@@ -555,7 +555,7 @@ export function AvatarCropperModal({
                   step="0.05"
                   value={zoom}
                   onChange={(e) => setZoom(parseFloat(e.target.value))}
-                  className="flex-1 accent-[#ffd700] cursor-pointer"
+                  className="flex-1 accent-gold-400 cursor-pointer"
                 />
 
                 <button
@@ -567,7 +567,7 @@ export function AvatarCropperModal({
                   <ZoomIn className="h-4 w-4" />
                 </button>
 
-                <span className="text-xs font-mono font-bold text-[#ffd700] w-12 text-right">
+                <span className="text-xs font-mono font-bold text-gold-400 w-12 text-right">
                   {zoom.toFixed(1)}x
                 </span>
               </div>
@@ -590,7 +590,7 @@ export function AvatarCropperModal({
                     onClick={handleFlip}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer border ${
                       flipH
-                        ? "bg-[#ffd700]/25 text-[#ffd700] border-[#ffd700]/50"
+                        ? "bg-gold-400/25 text-gold-400 border-gold-400/50"
                         : "bg-white/10 hover:bg-white/20 text-white border-white/15"
                     }`}
                     title="Lật gương ngang"
@@ -628,7 +628,7 @@ export function AvatarCropperModal({
               {/* 3 Preset ánh sáng sân cỏ */}
               <div className="flex items-center gap-2 pt-1 border-t border-white/10">
                 <span className="text-[11px] font-bold text-sky-200 flex items-center gap-1 shrink-0">
-                  <SunMedium className="h-3.5 w-3.5 text-[#ffd700]" />
+                  <SunMedium className="h-3.5 w-3.5 text-gold-400" />
                   <span>Bộ lọc màu:</span>
                 </span>
                 <div className="flex items-center gap-1.5 flex-1 overflow-x-auto">
@@ -637,7 +637,7 @@ export function AvatarCropperModal({
                     onClick={() => setLighting("original")}
                     className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer border ${
                       lighting === "original"
-                        ? "bg-[#ffd700] text-slate-950 border-[#ffd700]"
+                        ? "bg-gold-400 text-slate-950 border-gold-400"
                         : "bg-white/10 text-slate-300 border-white/15 hover:text-white"
                     }`}
                   >
@@ -648,7 +648,7 @@ export function AvatarCropperModal({
                     onClick={() => setLighting("bright")}
                     className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer border ${
                       lighting === "bright"
-                        ? "bg-[#ffd700] text-slate-950 border-[#ffd700]"
+                        ? "bg-gold-400 text-slate-950 border-gold-400"
                         : "bg-white/10 text-slate-300 border-white/15 hover:text-white"
                     }`}
                   >
@@ -659,7 +659,7 @@ export function AvatarCropperModal({
                     onClick={() => setLighting("vivid")}
                     className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition cursor-pointer border ${
                       lighting === "vivid"
-                        ? "bg-[#ffd700] text-slate-950 border-[#ffd700]"
+                        ? "bg-gold-400 text-slate-950 border-gold-400"
                         : "bg-white/10 text-slate-300 border-white/15 hover:text-white"
                     }`}
                   >
@@ -711,7 +711,7 @@ export function AvatarCropperModal({
               type="button"
               onClick={handleDirectSaveCrop}
               disabled={!loadedImg || processing || directSaving}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#ffd700] via-[#fde047] to-[#eab308] hover:from-[#fde047] hover:to-[#ffd700] text-slate-950 font-black text-xs sm:text-sm shadow-md transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-gold-400 via-gold-300 to-[#eab308] hover:from-gold-300 hover:to-gold-400 text-slate-950 font-black text-xs sm:text-sm shadow-md transition cursor-pointer disabled:opacity-50"
               title="Lưu ngay lập tức vào cơ sở dữ liệu"
             >
               {directSaving ? (

@@ -92,8 +92,8 @@ export function ImageLightboxModal({
         >
           <div className="flex items-center gap-3">
             {current.tag && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 text-xs font-black text-[#fde047] uppercase tracking-wider backdrop-blur-md">
-                <Sparkles className="h-3.5 w-3.5 text-[#d4af37]" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold-500/20 border border-gold-500/50 text-xs font-black text-gold-300 uppercase tracking-wider backdrop-blur-md">
+                <Sparkles className="h-3.5 w-3.5 text-gold-500" />
                 <span>{current.tag}</span>
               </span>
             )}
@@ -112,7 +112,7 @@ export function ImageLightboxModal({
                 rel="noopener noreferrer"
                 download
                 aria-label="Mở hoặc tải ảnh gốc"
-                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-100 hover:text-white transition focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-100 hover:text-white transition focus-visible:outline-2 focus-visible:outline-brand-gold"
                 title="Mở hoặc tải ảnh gốc"
               >
                 <Download className="h-5 w-5" />
@@ -122,7 +122,7 @@ export function ImageLightboxModal({
               type="button"
               onClick={onClose}
               aria-label="Đóng xem ảnh"
-              className="p-2.5 rounded-full bg-white/10 hover:bg-rose-600/80 text-white transition cursor-pointer focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+              className="p-2.5 rounded-full bg-white/10 hover:bg-rose-600/80 text-white transition cursor-pointer focus-visible:outline-2 focus-visible:outline-brand-gold"
               title="Đóng (phím Esc)"
             >
               <X className="h-5 w-5" />
@@ -141,7 +141,7 @@ export function ImageLightboxModal({
               type="button"
               onClick={handlePrev}
               aria-label="Ảnh trước"
-              className="absolute left-2 sm:left-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-[#1e4fc2] text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105 focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+              className="absolute left-2 sm:left-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-royal-600 text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105 focus-visible:outline-2 focus-visible:outline-brand-gold"
               title="Ảnh trước (Mũi tên trái)"
             >
               <ChevronLeft className="h-6 w-6" />
@@ -164,7 +164,7 @@ export function ImageLightboxModal({
               type="button"
               onClick={handleNext}
               aria-label="Ảnh tiếp theo"
-              className="absolute right-2 sm:right-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-[#1e4fc2] text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105 focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+              className="absolute right-2 sm:right-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-royal-600 text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105 focus-visible:outline-2 focus-visible:outline-brand-gold"
               title="Ảnh tiếp theo (Mũi tên phải)"
             >
               <ChevronRight className="h-6 w-6" />
@@ -198,7 +198,7 @@ export function ImageLightboxModal({
                   onClick={() => onNavigate(idx)}
                   className={`relative h-12 w-16 sm:h-14 sm:w-20 rounded-lg overflow-hidden shrink-0 border-2 transition cursor-pointer ${
                     currentIndex === idx
-                      ? "border-[#ffc933] ring-2 ring-[#ffc933]/50 scale-105 opacity-100"
+                      ? "border-gold-400 ring-2 ring-gold-400/50 scale-105 opacity-100"
                       : "border-white/20 opacity-50 hover:opacity-100"
                   }`}
                 >

@@ -24,11 +24,11 @@ export interface ButtonProps
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-[#0d2e5b] text-white border border-[#0d2e5b] hover:bg-[#17488c] hover:border-[#17488c] shadow-sm",
+    "bg-navy-600 text-white border border-navy-600 hover:bg-navy-500 hover:border-navy-500 shadow-sm",
   secondary:
     "bg-slate-100 text-slate-900 border border-slate-200 hover:bg-slate-200/80",
   gold:
-    "bg-[#d4af37] text-[#092244] border border-[#b89635] hover:bg-[#e0bd48] font-bold shadow-sm",
+    "bg-gold-500 text-ink-primary border border-gold-600 hover:bg-gold-500/90 font-bold shadow-sm",
   outline:
     "bg-white text-slate-800 border border-slate-300 hover:bg-slate-50 hover:border-slate-400",
   ghost:
@@ -67,7 +67,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         type={type}
         disabled={isDisabled}
         aria-busy={loading || undefined}
-        className={`inline-flex items-center justify-center font-semibold tracking-tight transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d4af37] disabled:cursor-not-allowed disabled:opacity-55 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+        className={`inline-flex items-center justify-center font-semibold tracking-tight transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold disabled:cursor-not-allowed disabled:opacity-55 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
         {...rest}
       >
         {loading ? (

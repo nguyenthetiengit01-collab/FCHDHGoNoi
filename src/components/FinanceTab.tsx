@@ -304,7 +304,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
         <Card className="space-y-3.5">
           <CardHeader className="border-b border-slate-100 pb-2.5">
             <div className="flex items-center gap-2">
-              <PieChart className="h-4 w-4 text-[#0d2e5b]" />
+              <PieChart className="h-4 w-4 text-navy-600" />
               <CardTitle className="text-sm">
                 Cơ Cấu Chi Tiêu Theo Hạng Mục
               </CardTitle>
@@ -332,7 +332,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                   className="w-full text-left group cursor-pointer rounded-lg p-1.5 -mx-1.5 hover:bg-slate-50 transition"
                 >
                   <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-semibold text-[#092244] group-hover:text-[#17488c]">
+                    <span className="font-semibold text-ink-primary group-hover:text-navy-500">
                       {item.category}
                     </span>
                     <span className="font-bold text-slate-700 tabular-nums">
@@ -346,7 +346,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                     <div
                       className={`h-full rounded-full transition-all ${
                         item.category === "Tiền sân"
-                          ? "bg-[#0d2e5b]"
+                          ? "bg-navy-600"
                           : "bg-rose-500"
                       }`}
                       style={{
@@ -376,7 +376,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
           <div className="space-y-3">
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-semibold text-[#092244]">
+                <span className="font-semibold text-ink-primary">
                   Thu tiền trận hằng tuần
                 </span>
                 <span className="font-bold text-emerald-700 tabular-nums">
@@ -396,7 +396,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
 
             <div>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-semibold text-[#092244]">
+                <span className="font-semibold text-ink-primary">
                   Thu khác & Tài trợ quỹ đội
                 </span>
                 <span className="font-bold text-sky-700 tabular-nums">
@@ -423,12 +423,12 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                   {formatVND(summary.totalUnpaidAmount)}
                 </span>
               </div>
-              <div className="rounded-lg bg-[#092244]/[0.04] border border-[#0d2e5b]/15 px-3 py-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#0d2e5b] flex items-center gap-1">
-                  <Trophy className="h-3 w-3 text-[#b89635]" />
+              <div className="rounded-lg bg-navy-800/[0.04] border border-navy-600/15 px-3 py-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-navy-600 flex items-center gap-1">
+                  <Trophy className="h-3 w-3 text-gold-600" />
                   Quỹ giải tách riêng
                 </span>
-                <span className="text-sm font-extrabold text-[#092244] tabular-nums">
+                <span className="text-sm font-extrabold text-ink-primary tabular-nums">
                   {formatVND(settings.tournament_fund_reserve)}
                 </span>
               </div>
@@ -445,7 +445,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
             onClick={() => setSubView("expenses")}
             className={`inline-flex items-center gap-2 min-h-11 sm:min-h-10 px-4 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
               subView === "expenses"
-                ? "bg-[#0d2e5b] text-[#fde047]"
+                ? "bg-navy-600 text-gold-300"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
@@ -458,7 +458,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
             onClick={() => setSubView("incomes")}
             className={`inline-flex items-center gap-2 min-h-11 sm:min-h-10 px-4 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
               subView === "incomes"
-                ? "bg-[#0d2e5b] text-[#fde047]"
+                ? "bg-navy-600 text-gold-300"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
@@ -471,7 +471,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
             onClick={() => setSubView("settings")}
             className={`inline-flex items-center gap-2 min-h-11 sm:min-h-10 px-4 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
               subView === "settings"
-                ? "bg-[#0d2e5b] text-[#fde047]"
+                ? "bg-navy-600 text-gold-300"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
@@ -483,7 +483,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
         <div className="flex flex-wrap items-center gap-2.5">
           <a
             href="/api/export"
-            className="inline-flex items-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg border border-[#0d2e5b]/25 bg-slate-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-[#0d2e5b] hover:bg-slate-100 transition"
+            className="inline-flex items-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg border border-navy-600/25 bg-slate-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-navy-600 hover:bg-slate-100 transition"
           >
             <Download className="h-4 w-4" />
             <span>Xuất File Excel (.xlsx)</span>
@@ -521,10 +521,10 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
       {subView === "expenses" && (
         <div className="space-y-4">
           {/* Hộp Ghi Nhanh Chi Tiền Sân 1 Chạm Dành Cho Ban Quản Lý */}
-          <Card className="bg-[#092244]/[0.03] border-[#0d2e5b]/20 space-y-3">
+          <Card className="bg-navy-800/[0.03] border-navy-600/20 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold text-[#092244]">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#0d2e5b] text-[#fde047]">
+              <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold text-ink-primary">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-navy-600 text-gold-300">
                   <Zap className="h-4 w-4" />
                 </span>
                 <span>
@@ -544,7 +544,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                     className={`min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
                       quickVenue === preset.venue &&
                       Number(quickCost) === preset.cost
-                        ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                        ? "bg-navy-600 text-gold-300 border-navy-600"
                         : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                     }`}
                   >
@@ -573,7 +573,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                       );
                     }
                   }}
-                  className="text-xs font-bold text-[#092244]"
+                  className="text-xs font-bold text-ink-primary"
                 >
                   {matches
                     .slice()
@@ -591,7 +591,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                   aria-label="Tên sân"
                   value={quickVenue}
                   onChange={(e) => setQuickVenue(e.target.value)}
-                  className="text-xs font-bold text-[#092244]"
+                  className="text-xs font-bold text-ink-primary"
                 />
               </div>
               <div className="sm:col-span-2">
@@ -614,7 +614,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                     onClick={() => setQuickPayer(pName)}
                     className={`min-h-9 px-2 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${
                       quickPayer === pName
-                        ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                        ? "bg-navy-600 text-gold-300 border-navy-600"
                         : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                     }`}
                   >
@@ -655,7 +655,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                   onClick={() => setFilterCategory(cat)}
                   className={`min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                     filterCategory === cat
-                      ? "bg-[#0d2e5b] text-white border-[#0d2e5b]"
+                      ? "bg-navy-600 text-white border-navy-600"
                       : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
@@ -753,7 +753,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                   </span>
                 </div>
 
-                <p className="text-sm font-semibold text-[#092244] break-words">
+                <p className="text-sm font-semibold text-ink-primary break-words">
                   {exp.description}
                 </p>
 
@@ -766,7 +766,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                       type="button"
                       onClick={() => openEditExpense(exp)}
                       aria-label={`Sửa khoản chi ${exp.description}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-[#d4af37] cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-gold cursor-pointer"
                     >
                       <Edit3 className="h-4 w-4" />
                     </button>
@@ -780,7 +780,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                         })
                       }
                       aria-label={`Xoá khoản chi ${exp.description}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-[#d4af37] cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-brand-gold cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -814,11 +814,11 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
             tabIndex={0}
             role="region"
             aria-label="Sổ chi tiêu quỹ đội bóng"
-            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-brand-gold"
           >
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead>
-                <tr className="bg-[#0d2e5b] text-white">
+                <tr className="bg-navy-600 text-white">
                   <th className="px-3.5 py-3 font-bold">STT</th>
                   <th className="px-3.5 py-3 font-bold">Ngày</th>
                   <th className="px-3.5 py-3 font-bold">Hạng Mục Luỹ Kế</th>
@@ -868,7 +868,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                         {exp.category}
                       </Badge>
                     </td>
-                    <td className="px-3.5 py-2.5 font-semibold text-[#092244]">
+                    <td className="px-3.5 py-2.5 font-semibold text-ink-primary">
                       {exp.description}
                     </td>
                     <td className="px-3.5 py-2.5 text-right font-bold text-rose-600 whitespace-nowrap tabular-nums">
@@ -936,9 +936,9 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
       {/* SUBVIEW 2: CÁC KHOẢN THU NGOÀI & TÀI TRỢ (Sheet '4. Thu Khác') */}
       {subView === "incomes" && (
         <div className="space-y-4">
-          <div className="rounded-xl bg-[#092244] text-white border border-[#d4af37] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="rounded-xl bg-navy-800 text-white border border-gold-500 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#fde047]">
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gold-300">
                 <Trophy className="h-3.5 w-3.5" />
                 <span>
                   Quỹ Giải Đội Bóng (Theo dõi tách riêng ngoài quỹ sinh hoạt tuần)
@@ -948,7 +948,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                 {settings.tournament_fund_note}
               </p>
             </div>
-            <div className="text-lg sm:text-xl font-extrabold text-[#fde047] shrink-0 tabular-nums">
+            <div className="text-lg sm:text-xl font-extrabold text-gold-300 shrink-0 tabular-nums">
               Còn lại: {formatVND(settings.tournament_fund_reserve)}
             </div>
           </div>
@@ -1019,7 +1019,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                   </span>
                 </div>
 
-                <p className="text-sm font-semibold text-[#092244] break-words">
+                <p className="text-sm font-semibold text-ink-primary break-words">
                   {inc.contributor}
                 </p>
 
@@ -1032,7 +1032,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                       type="button"
                       onClick={() => openEditIncome(inc)}
                       aria-label={`Sửa khoản thu ${inc.contributor}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-[#d4af37] cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-gold cursor-pointer"
                     >
                       <Edit3 className="h-4 w-4" />
                     </button>
@@ -1046,7 +1046,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                         })
                       }
                       aria-label={`Xoá khoản thu ${inc.contributor}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-[#d4af37] cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-brand-gold cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1088,11 +1088,11 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
             tabIndex={0}
             role="region"
             aria-label="Bảng các khoản thu ngoài và tài trợ"
-            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-brand-gold"
           >
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead>
-                <tr className="bg-[#0d2e5b] text-white">
+                <tr className="bg-navy-600 text-white">
                   <th className="px-3.5 py-3 font-bold">STT</th>
                   <th className="px-3.5 py-3 font-bold">Ngày</th>
                   <th className="px-3.5 py-3 font-bold">
@@ -1124,7 +1124,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                     <td className="px-3.5 py-2.5 whitespace-nowrap tabular-nums">
                       {formatDateVN(inc.income_date)}
                     </td>
-                    <td className="px-3.5 py-2.5 font-semibold text-[#092244]">
+                    <td className="px-3.5 py-2.5 font-semibold text-ink-primary">
                       {inc.contributor}
                     </td>
                     <td className="px-3.5 py-2.5">
@@ -1210,7 +1210,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
       {subView === "settings" && (
         <Card className="max-w-2xl space-y-6">
           <div className="border-b border-slate-100 pb-3">
-            <h3 className="text-base font-bold text-[#092244]">
+            <h3 className="text-base font-bold text-ink-primary">
               Cấu Hình Thông Tin Đội Bóng & Tài Khoản Thủ Quỹ (VietQR)
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -1505,7 +1505,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
               />
             </FormField>
             <fieldset>
-              <legend className="block text-sm font-semibold text-[#092244] mb-1.5">
+              <legend className="block text-sm font-semibold text-ink-primary mb-1.5">
                 Phân loại
               </legend>
               <div className="flex items-center gap-3 min-h-[44px]">
@@ -1520,7 +1520,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                       value={ft}
                       checked={incFundType === ft}
                       onChange={() => setIncFundType(ft)}
-                      className="accent-[#0d2e5b] h-4 w-4"
+                      className="accent-navy-600 h-4 w-4"
                     />
                     <span>{ft}</span>
                   </label>

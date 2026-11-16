@@ -20,8 +20,8 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const BADGE_CLASSES_LIGHT: Record<BadgeVariant, string> = {
   neutral: "bg-slate-100 text-slate-700 border-slate-200",
-  navy: "bg-[#0d2e5b]/10 text-[#0d2e5b] border-[#0d2e5b]/20",
-  gold: "bg-amber-50 text-[#8a6d14] border-amber-300/70",
+  navy: "bg-navy-600/10 text-navy-600 border-navy-600/20",
+  gold: "bg-amber-50 text-gold-700 border-amber-300/70",
   success: "bg-emerald-50 text-emerald-700 border-emerald-200",
   warning: "bg-amber-50 text-amber-800 border-amber-200",
   danger: "bg-rose-50 text-rose-700 border-rose-200",
@@ -31,8 +31,8 @@ const BADGE_CLASSES_LIGHT: Record<BadgeVariant, string> = {
 
 const BADGE_CLASSES_DARK: Record<BadgeVariant, string> = {
   neutral: "bg-white/10 text-slate-200 border-white/15",
-  navy: "bg-[#0d2e5b] text-sky-100 border-sky-400/30",
-  gold: "bg-[#d4af37]/20 text-[#fde047] border-[#d4af37]/40",
+  navy: "bg-navy-600 text-sky-100 border-sky-400/30",
+  gold: "bg-gold-500/20 text-gold-300 border-gold-500/40",
   success: "bg-emerald-500/20 text-emerald-300 border-emerald-400/30",
   warning: "bg-amber-500/20 text-amber-300 border-amber-400/30",
   danger: "bg-rose-500/20 text-rose-300 border-rose-400/30",
