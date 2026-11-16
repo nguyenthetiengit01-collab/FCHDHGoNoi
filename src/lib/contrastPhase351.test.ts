@@ -169,5 +169,67 @@ describe("Phase 3.5.1 – WCAG 2.2 Contrast & Design Token Integrity", () => {
       expect(css).toContain("@media (forced-colors: active)");
       expect(css).toContain("Highlight");
     });
+
+    it("Phase 3.5.2: default focus rules are wrapped in @layer base / @layer components so Tailwind utilities win", () => {
+      const layerBaseMatch = css.match(/@layer\s+base\s*\{([\s\S]*?)\n\}/);
+      expect(layerBaseMatch).toBeTruthy();
+      expect(layerBaseMatch![1]).toContain("button:focus-visible");
+      expect(layerBaseMatch![1]).toContain("var(--focus-on-light)");
+
+      const layerComponentsMatch = css.match(/@layer\s+components\s*\{([\s\S]*?)\n\}/);
+      expect(layerComponentsMatch).toBeTruthy();
+      expect(layerComponentsMatch![1]).toContain(".form-input:focus-visible");
+
+      // Strip @layer base, @layer components, and @media (forced-colors: active) to ensure zero unlayered focus overrides remain
+      const stripped = css
+        .replace(/@layer\s+base\s*\{[\s\S]*?\n\}/g, "")
+        .replace(/@layer\s+components\s*\{[\s\S]*?\n\}/g, "")
+        .replace(/@media\s*\(forced-colors:\s*active\)\s*\{[\s\S]*?\n\}/g, "");
+      expect(stripped).not.toMatch(/:focus-visible\s*\{/);
+    });
+
+    it("Phase 3.5.2: zero legacy outline-brand-gold remains and semantic focus tokens match surface contexts", () => {
+      const brandGoldFocus: string[] = [];
+      function scan(dir: string) {
+        for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, ent.name);
+          if (ent.isDirectory()) scan(full);
+          else if (ent.name.endsWith(".tsx")) {
+            const txt = fs.readFileSync(full, "utf8");
+            if (/outline-brand-gold\b/.test(txt)) {
+              brandGoldFocus.push(path.relative(ROOT, full));
+            }
+          }
+        }
+      }
+      scan(path.join(ROOT, "src"));
+      expect(brandGoldFocus).toEqual([]);
+
+      const darkSurfaceFiles = [
+        "src/components/LoginModal.tsx",
+        "src/components/ImageLightboxModal.tsx",
+        "src/components/PublicGuestPortal.tsx",
+        "src/components/TeamManagerApp.tsx",
+      ];
+      for (const file of darkSurfaceFiles) {
+        const src = readSrc(file);
+        expect(src, `${file} should use focus-on-dark`).toContain("outline-focus-on-dark");
+        expect(src, `${file} should not use focus-on-light`).not.toContain("outline-focus-on-light");
+      }
+
+      const lightSurfaceFiles = [
+        "src/components/ui/Button.tsx",
+        "src/components/ui/FormControls.tsx",
+        "src/components/ModalDialog.tsx",
+        "src/components/FinanceTab.tsx",
+        "src/components/MatrixTab.tsx",
+        "src/components/PlayersTab.tsx",
+      ];
+      for (const file of lightSurfaceFiles) {
+        const src = readSrc(file);
+        expect(src, `${file} should use focus-on-light`).toContain("outline-focus-on-light");
+        expect(src, `${file} should not use focus-on-dark`).not.toContain("outline-focus-on-dark");
+      }
+    });
   });
 });

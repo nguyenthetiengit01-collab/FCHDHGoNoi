@@ -528,7 +528,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 {session.role === "manager" && (
                   <>
                     <label
-                      className="hidden md:inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 lg:px-3 py-2 text-xs font-bold text-white transition cursor-pointer focus-within:outline-2 focus-within:outline-brand-gold"
+                      className="hidden md:inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 lg:px-3 py-2 text-xs font-bold text-white transition cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus-on-dark"
                       title="Nhập dữ liệu từ file Excel (.xlsx)"
                     >
                       <Upload className="h-3.5 w-3.5 text-gold-300 shrink-0" />

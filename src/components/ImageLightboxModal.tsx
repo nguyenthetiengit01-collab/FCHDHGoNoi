@@ -196,11 +196,10 @@ export function ImageLightboxModal({
                   key={idx}
                   type="button"
                   onClick={() => onNavigate(idx)}
-                  className={`relative h-12 w-16 sm:h-14 sm:w-20 rounded-lg overflow-hidden shrink-0 border-2 transition cursor-pointer ${
-                    currentIndex === idx
-                      ? "border-gold-400 ring-2 ring-gold-400/50 scale-105 opacity-100"
-                      : "border-white/20 opacity-50 hover:opacity-100"
-                  }`}
+                  className={`relative h-12 w-16 sm:h-14 sm:w-20 rounded-lg overflow-hidden shrink-0 border-2 transition cursor-pointer ${currentIndex === idx
+                    ? "border-gold-400 ring-2 ring-gold-400/50 scale-105 opacity-100"
+                    : "border-white/20 opacity-50 hover:opacity-100"
+                    }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

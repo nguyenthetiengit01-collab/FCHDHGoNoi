@@ -221,15 +221,17 @@ button:disabled,
   }
 }
 
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-[tabindex]:not([tabindex="-1"]):focus-visible {
-  outline: 2px solid var(--focus-on-light);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 2px var(--focus-halo);
+@layer base {
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:not([tabindex="-1"]):focus-visible {
+    outline: 2px solid var(--focus-on-light);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px var(--focus-halo);
+  }
 }
 
 @media (forced-colors: active) {
@@ -245,41 +247,43 @@ textarea:focus-visible,
 }
 
 /* Form inputs & tables */
-.form-input,
-.form-select,
-.form-textarea {
-  font-size: 0.9375rem;
-  min-height: 44px;
-  padding: 0.5625rem 0.875rem;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
-  width: 100%;
-  box-sizing: border-box;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-}
+@layer components {
+  .form-input,
+  .form-select,
+  .form-textarea {
+    font-size: 0.9375rem;
+    min-height: 44px;
+    padding: 0.5625rem 0.875rem;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  }
 
-.form-input::placeholder,
-.form-textarea::placeholder {
-  color: var(--text-muted);
-}
+  .form-input::placeholder,
+  .form-textarea::placeholder {
+    color: var(--text-muted);
+  }
 
-.form-input:disabled,
-.form-select:disabled,
-.form-textarea:disabled {
-  background-color: var(--bg-muted);
-  color: var(--text-muted);
-  cursor: not-allowed;
-}
+  .form-input:disabled,
+  .form-select:disabled,
+  .form-textarea:disabled {
+    background-color: var(--bg-muted);
+    color: var(--text-muted);
+    cursor: not-allowed;
+  }
 
-.form-input:focus-visible,
-.form-select:focus-visible,
-.form-textarea:focus-visible {
-  outline: 2px solid var(--focus-on-light);
-  outline-offset: 1px;
-  border-color: var(--brand-navy-mid);
-  box-shadow: 0 0 0 3px rgba(9, 34, 68, 0.14);
+  .form-input:focus-visible,
+  .form-select:focus-visible,
+  .form-textarea:focus-visible {
+    outline: 2px solid var(--focus-on-light);
+    outline-offset: 1px;
+    border-color: var(--brand-navy-mid);
+    box-shadow: 0 0 0 3px rgba(9, 34, 68, 0.14);
+  }
 }
 
 .ds-card {

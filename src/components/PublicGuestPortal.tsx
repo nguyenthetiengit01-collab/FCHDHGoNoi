@@ -248,7 +248,7 @@ function CompactPlayerRow({
       type="button"
       onClick={onSelect}
       aria-pressed={isSelected}
-      className={`group w-full text-left flex items-center justify-between p-3 rounded-lg transition-all border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-gold ${isSelected
+      className={`group w-full text-left flex items-center justify-between p-3 rounded-lg transition-all border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark ${isSelected
         ? "bg-navy-500 border-l-4 border-l-gold-400 border-y-[#ffd700]/70 border-r-gold-400/70 shadow-[0_4px_25px_rgba(20,70,140,0.5)]"
         : "bg-navy-700 border border-white/15 hover:border-sky-300/40 hover:bg-navy-500"
         }`}

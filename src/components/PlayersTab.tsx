@@ -549,7 +549,7 @@ export function PlayersTab({
                 placeholder="Tìm tên, số áo, vị trí..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-8 py-2 text-xs sm:text-sm text-ink-primary focus-visible:outline-2 focus-visible:outline-brand-gold"
+                className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-8 py-2 text-xs sm:text-sm text-ink-primary focus-visible:outline-2 focus-visible:outline-focus-on-light"
               />
               {searchQuery && (
                 <button

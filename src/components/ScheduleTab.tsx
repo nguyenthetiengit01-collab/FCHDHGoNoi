@@ -718,7 +718,7 @@ export function ScheduleTab({
                     onClick={() =>
                       handleSetRsvp(session.playerId!, "registered")
                     }
-                    className={`min-h-12 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm sm:text-base font-extrabold transition focus-visible:outline-2 focus-visible:outline-brand-gold ${myAttendance?.rsvp_status === "registered"
+                    className={`min-h-12 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm sm:text-base font-extrabold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark ${myAttendance?.rsvp_status === "registered"
                         ? "bg-emerald-500 text-white ring-2 ring-white shadow-sm"
                         : "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/60"
                       }`}
@@ -734,7 +734,7 @@ export function ScheduleTab({
                     onClick={() =>
                       handleSetRsvp(session.playerId!, "absent_notice")
                     }
-                    className={`min-h-12 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm sm:text-base font-extrabold transition focus-visible:outline-2 focus-visible:outline-brand-gold ${myAttendance?.rsvp_status === "absent_notice"
+                    className={`min-h-12 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm sm:text-base font-extrabold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark ${myAttendance?.rsvp_status === "absent_notice"
                         ? "bg-rose-600 text-white ring-2 ring-white shadow-sm"
                         : "bg-white/10 hover:bg-rose-600 text-white border border-white/25 hover:border-rose-400"
                       }`}
@@ -1304,7 +1304,7 @@ export function ScheduleTab({
                         placeholder="Tìm tên, số áo..."
                         value={rosterSearch}
                         onChange={(e) => setRosterSearch(e.target.value)}
-                        className="min-h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 py-1 text-xs text-ink-primary focus-visible:outline-2 focus-visible:outline-brand-gold"
+                        className="min-h-9 w-full rounded-lg border border-slate-300 bg-white pl-8 pr-3 py-1 text-xs text-ink-primary focus-visible:outline-2 focus-visible:outline-focus-on-light"
                       />
                     </div>
                   </div>
@@ -1491,7 +1491,7 @@ export function ScheduleTab({
                   placeholder="Tìm tên trận, sân đấu..."
                   value={finishedSearch}
                   onChange={(e) => setFinishedSearch(e.target.value)}
-                  className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-1.5 text-xs sm:text-sm text-ink-primary focus-visible:outline-2 focus-visible:outline-brand-gold"
+                  className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-1.5 text-xs sm:text-sm text-ink-primary focus-visible:outline-2 focus-visible:outline-focus-on-light"
                 />
               </div>
             )}
