@@ -35,19 +35,6 @@ export function ImageLightboxModal({
   });
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    const handleClose = () => {
-      dialog.returnValue = "";
-      onClose();
-    };
-
-    dialog.addEventListener("close", handleClose);
-    return () => dialog.removeEventListener("close", handleClose);
-  }, [onClose]);
-
-  useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -86,7 +73,6 @@ export function ImageLightboxModal({
   return (
     <dialog
       ref={dialogRef}
-      open={isOpen}
       aria-label="Xem ảnh phóng to"
       className="lightbox-dialog"
       onClick={(e) => {

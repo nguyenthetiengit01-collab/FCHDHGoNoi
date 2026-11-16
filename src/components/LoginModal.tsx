@@ -126,7 +126,6 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
   return (
     <dialog
       ref={dialogRef}
-      open={isOpen}
       aria-modal="true"
       aria-labelledby="login-modal-title"
       className="fixed inset-0 z-50 m-0 h-dvh w-screen max-h-none max-w-none flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in border-0 text-inherit"

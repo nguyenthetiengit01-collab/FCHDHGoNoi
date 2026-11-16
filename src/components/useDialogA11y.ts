@@ -11,16 +11,94 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
+let activeScrollLockCount = 0;
+let savedBodyOverflow = "";
+
+export function acquireBodyScrollLock() {
+  if (typeof document === "undefined") return;
+  if (activeScrollLockCount === 0) {
+    savedBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  }
+  activeScrollLockCount += 1;
+}
+
+export function releaseBodyScrollLock() {
+  if (typeof document === "undefined") return;
+  if (activeScrollLockCount <= 0) {
+    activeScrollLockCount = 0;
+    return;
+  }
+  activeScrollLockCount -= 1;
+  if (activeScrollLockCount === 0) {
+    document.body.style.overflow = savedBodyOverflow;
+    savedBodyOverflow = "";
+  }
+}
+
+export function resetBodyScrollLockForTest() {
+  activeScrollLockCount = 0;
+  savedBodyOverflow = "";
+}
+
 export function getFocusableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
     (el) => !el.hasAttribute("inert") && el.getAttribute("aria-hidden") !== "true"
   );
 }
 
+export function capturePreviousFocus(
+  existing: HTMLElement | null,
+  activeEl: HTMLElement | null,
+  container: HTMLElement | null
+): HTMLElement | null {
+  if (existing && existing.isConnected) {
+    return existing;
+  }
+  if (!activeEl) return null;
+  if (container && container.contains(activeEl)) {
+    return existing;
+  }
+  return activeEl;
+}
+
 export function restoreDialogFocus(previousEl: HTMLElement | null) {
   if (previousEl && previousEl.isConnected && typeof previousEl.focus === "function") {
     previousEl.focus();
   }
+}
+
+export function createDialogCloseCoordinator(onClose: () => void) {
+  let notified = false;
+  let suppressNativeClose = false;
+
+  return {
+    notifyOnce() {
+      if (notified) return;
+      notified = true;
+      onClose();
+    },
+    handleNativeClose(dialog?: { returnValue?: string } | null) {
+      if (suppressNativeClose) {
+        suppressNativeClose = false;
+        return;
+      }
+      if (dialog) {
+        dialog.returnValue = "";
+      }
+      if (notified) return;
+      notified = true;
+      onClose();
+    },
+    runProgrammaticClose(closeFn: () => void) {
+      suppressNativeClose = true;
+      try {
+        closeFn();
+      } finally {
+        suppressNativeClose = false;
+      }
+    },
+  };
 }
 
 export function handleDialogKeyDownEvent(
@@ -70,14 +148,14 @@ interface UseDialogA11yOptions {
   onClose: () => void;
   containerRef: RefObject<HTMLElement | null>;
   initialFocusRef?: RefObject<HTMLElement | null>;
-  /** Set true if the container itself handles backdrop click or Escape via native <dialog> */
   handleEscape?: boolean;
 }
 
 /**
  * Provides consistent WCAG 2.2 AA dialog accessibility across native <dialog>
- * and custom drawer overlays: focus initialization, Tab focus trap, Escape close,
- * body scroll locking, and focus restoration to the triggering element on close.
+ * and custom drawer overlays: focus capture/restoration, Tab focus trap,
+ * Escape/native-close deduplication, Strict-Mode-safe body scroll locking,
+ * and native showModal()/close() lifecycle management.
  */
 export function useDialogA11y({
   isOpen,
@@ -94,22 +172,65 @@ export function useDialogA11y({
   }, [onClose]);
 
   useEffect(() => {
+    if (!isOpen) {
+      previousFocusRef.current = null;
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!isOpen) return;
 
-    const prevFocus = previousFocusRef.current;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     const container = containerRef.current;
-    if (container && "showModal" in container && typeof (container as HTMLDialogElement).showModal === "function") {
+    previousFocusRef.current = capturePreviousFocus(
+      previousFocusRef.current,
+      typeof document !== "undefined"
+        ? (document.activeElement as HTMLElement | null)
+        : null,
+      container
+    );
+
+    acquireBodyScrollLock();
+
+    const coordinator = createDialogCloseCoordinator(() => {
+      onCloseRef.current();
+    });
+
+    const isNativeDialog =
+      Boolean(container) &&
+      typeof HTMLDialogElement !== "undefined" &&
+      container instanceof HTMLDialogElement;
+
+    if (
+      container &&
+      "showModal" in container &&
+      typeof (container as HTMLDialogElement).showModal === "function"
+    ) {
       const dialog = container as HTMLDialogElement;
       if (!dialog.open) {
         try {
           dialog.showModal();
         } catch {
-          // Ignore if already open or JSDOM throws
+          // Ignore if already open or non-standard environment throws
         }
       }
+    }
+
+    const handleNativeClose = () => {
+      coordinator.handleNativeClose(
+        isNativeDialog ? (container as HTMLDialogElement) : null
+      );
+    };
+
+    const handleNativeCancel = (e: Event) => {
+      if (handleEscape) {
+        e.preventDefault();
+        coordinator.notifyOnce();
+      }
+    };
+
+    if (container) {
+      container.addEventListener("close", handleNativeClose);
+      container.addEventListener("cancel", handleNativeCancel);
     }
 
     const focusTimer = window.setTimeout(() => {
@@ -133,9 +254,12 @@ export function useDialogA11y({
     }, 0);
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      handleDialogKeyDownEvent(e, containerRef.current, () => onCloseRef.current(), {
-        handleEscape,
-      });
+      handleDialogKeyDownEvent(
+        e,
+        containerRef.current,
+        () => coordinator.notifyOnce(),
+        { handleEscape }
+      );
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -143,7 +267,11 @@ export function useDialogA11y({
     return () => {
       window.clearTimeout(focusTimer);
       window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = prevOverflow;
+      if (container) {
+        container.removeEventListener("close", handleNativeClose);
+        container.removeEventListener("cancel", handleNativeCancel);
+      }
+      releaseBodyScrollLock();
 
       if (
         container &&
@@ -152,15 +280,17 @@ export function useDialogA11y({
       ) {
         const dialog = container as HTMLDialogElement;
         if (dialog.open) {
-          try {
-            dialog.close();
-          } catch {
-            // Ignore in non-browser environments
-          }
+          coordinator.runProgrammaticClose(() => {
+            try {
+              dialog.close();
+            } catch {
+              // Ignore in non-browser environments
+            }
+          });
         }
       }
 
-      restoreDialogFocus(prevFocus);
+      restoreDialogFocus(previousFocusRef.current);
     };
   }, [isOpen, containerRef, initialFocusRef, handleEscape]);
 }

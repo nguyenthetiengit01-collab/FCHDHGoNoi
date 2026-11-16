@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useId, useRef } from "react";
+import React, { useId, useRef } from "react";
 import { X } from "lucide-react";
 import { useDialogA11y } from "./useDialogA11y";
 
@@ -28,19 +28,6 @@ export function ModalDialog({
     onClose,
     containerRef: dialogRef,
   });
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    const handleClose = () => {
-      dialog.returnValue = "";
-      onClose();
-    };
-
-    dialog.addEventListener("close", handleClose);
-    return () => dialog.removeEventListener("close", handleClose);
-  }, [onClose]);
 
   const isOutsideDialog = (
     e: React.PointerEvent<HTMLDialogElement>,
