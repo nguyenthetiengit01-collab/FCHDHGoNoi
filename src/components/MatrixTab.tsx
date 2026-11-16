@@ -208,7 +208,16 @@ export function MatrixTab({
           />
         </Card>
       ) : (
-        <div className="ds-table-wrap">
+        <div className="space-y-2">
+          <p className="md:hidden text-[11px] font-semibold text-slate-600 px-1">
+            Cột Cầu thủ được ghim cố định — vuốt ngang bảng để xem từng trận.
+          </p>
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Ma trận điểm danh và đóng quỹ theo cầu thủ và trận đấu"
+            className="ds-table-wrap focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+          >
           <table className="matrix-table w-full text-xs">
             <thead>
               <tr className="bg-[#092244] text-white">
@@ -326,8 +335,8 @@ export function MatrixTab({
                   >
                     <th
                       scope="row"
-                      className={`px-3 py-2 text-left font-semibold text-[#092244] border-r border-slate-200 ${
-                        isSelf ? "!bg-amber-50" : ""
+                      className={`sticky-col px-3 py-2 text-left font-semibold text-[#092244] border-r border-slate-200 ${
+                        isSelf ? "bg-amber-50" : "bg-white"
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -403,6 +412,7 @@ export function MatrixTab({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

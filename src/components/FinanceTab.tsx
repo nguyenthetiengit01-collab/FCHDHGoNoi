@@ -710,11 +710,111 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
             </div>
           </Card>
 
+          {/* Mobile Card List (< 768px) */}
+          <div className="md:hidden space-y-2.5" aria-label="Sổ chi tiêu quỹ đội bóng (di động)">
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex items-center justify-between gap-3">
+              <span className="text-xs font-bold text-rose-950">
+                TỔNG CHI TIÊU ({filteredExpenses.length} khoản)
+              </span>
+              <span className="text-sm font-extrabold text-rose-700 tabular-nums whitespace-nowrap">
+                {(() => {
+                  const totalFiltered = filteredExpenses.reduce(
+                    (s, e) => s + e.amount,
+                    0
+                  );
+                  if (totalFiltered === 0) return formatVND(0);
+                  return totalFiltered > 0
+                    ? `-${formatVND(totalFiltered)}`
+                    : `+${formatVND(Math.abs(totalFiltered))}`;
+                })()}
+              </span>
+            </div>
+
+            {filteredExpenses.map((exp, index) => (
+              <Card key={exp.id} className="p-3.5 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                    <span className="text-[11px] font-bold text-slate-500 tabular-nums">
+                      #{filteredExpenses.length - index}
+                    </span>
+                    <span className="text-xs font-medium text-slate-600 tabular-nums">
+                      {formatDateVN(exp.expense_date)}
+                    </span>
+                    <Badge
+                      variant={
+                        exp.category === "Tiền sân" ? "navy" : "warning"
+                      }
+                    >
+                      {exp.category}
+                    </Badge>
+                  </div>
+                  <span className="text-sm font-extrabold text-rose-600 tabular-nums whitespace-nowrap shrink-0">
+                    -{formatVND(exp.amount)}
+                  </span>
+                </div>
+
+                <p className="text-sm font-semibold text-[#092244] break-words">
+                  {exp.description}
+                </p>
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                  <span className="text-xs text-slate-600 truncate">
+                    Người chi: <strong className="text-slate-800">{exp.payer}</strong>
+                  </span>
+                  <div className="inline-flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openEditExpense(exp)}
+                      aria-label={`Sửa khoản chi ${exp.description}`}
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-[#d4af37] cursor-pointer"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPendingDelete({
+                          kind: "expense",
+                          id: exp.id,
+                          label: exp.description,
+                        })
+                      }
+                      aria-label={`Xoá khoản chi ${exp.description}`}
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-[#d4af37] cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+
+            {filteredExpenses.length === 0 && (
+              <EmptyState
+                title="Không tìm thấy khoản chi nào"
+                description="Thử thay đổi bộ lọc hạng mục, khoảng thời gian hoặc từ khóa tìm kiếm."
+                action={
+                  hasActiveFilters ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllFilters}
+                    >
+                      Xoá bộ lọc
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )}
+          </div>
+
+          {/* Desktop & Tablet Table (>= 768px) */}
           <div
             tabIndex={0}
             role="region"
             aria-label="Sổ chi tiêu quỹ đội bóng"
-            className="ds-table-wrap"
+            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-[#d4af37]"
           >
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead>
@@ -883,11 +983,112 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
             </div>
           </Card>
 
+          {/* Mobile Card List (< 768px) */}
+          <div className="md:hidden space-y-2.5" aria-label="Bảng các khoản thu ngoài và tài trợ (di động)">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center justify-between gap-3">
+              <span className="text-xs font-bold text-emerald-950">
+                TỔNG THU KHÁC CỘNG QUỸ ĐỘI
+              </span>
+              <span className="text-sm font-extrabold text-emerald-700 tabular-nums whitespace-nowrap">
+                +{formatVND(summary.totalOtherIncome)}
+              </span>
+            </div>
+
+            {filteredIncomes.map((inc, idx) => (
+              <Card key={inc.id} className="p-3.5 space-y-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                    <span className="text-[11px] font-bold text-slate-500 tabular-nums">
+                      #{idx + 1}
+                    </span>
+                    <span className="text-xs font-medium text-slate-600 tabular-nums">
+                      {formatDateVN(inc.income_date)}
+                    </span>
+                    <Badge
+                      variant={
+                        inc.fund_type === "Ghi chú Quỹ giải"
+                          ? "gold"
+                          : "success"
+                      }
+                    >
+                      {inc.fund_type}
+                    </Badge>
+                  </div>
+                  <span className="text-sm font-extrabold text-emerald-700 tabular-nums whitespace-nowrap shrink-0">
+                    +{formatVND(inc.amount)}
+                  </span>
+                </div>
+
+                <p className="text-sm font-semibold text-[#092244] break-words">
+                  {inc.contributor}
+                </p>
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                  <span className="text-xs text-slate-600 truncate">
+                    {inc.note || "Không có ghi chú"}
+                  </span>
+                  <div className="inline-flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openEditIncome(inc)}
+                      aria-label={`Sửa khoản thu ${inc.contributor}`}
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-[#d4af37] cursor-pointer"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPendingDelete({
+                          kind: "income",
+                          id: inc.id,
+                          label: inc.contributor,
+                        })
+                      }
+                      aria-label={`Xoá khoản thu ${inc.contributor}`}
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-[#d4af37] cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+
+            {filteredIncomes.length === 0 && (
+              <EmptyState
+                title={
+                  otherIncomes.length === 0
+                    ? "Chưa có khoản thu khác nào"
+                    : "Không tìm thấy khoản thu phù hợp"
+                }
+                description={
+                  otherIncomes.length === 0
+                    ? "Nhấn Ghi Khoản Thu Khác để thêm nguồn thu tài trợ hoặc ủng hộ quỹ đội."
+                    : "Thử thay đổi bộ lọc tìm kiếm hoặc khoảng ngày."
+                }
+                action={
+                  hasActiveFilters ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllFilters}
+                    >
+                      Xoá bộ lọc
+                    </Button>
+                  ) : undefined
+                }
+              />
+            )}
+          </div>
+
+          {/* Desktop & Tablet Table (>= 768px) */}
           <div
             tabIndex={0}
             role="region"
             aria-label="Bảng các khoản thu ngoài và tài trợ"
-            className="ds-table-wrap"
+            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-[#d4af37]"
           >
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead>
