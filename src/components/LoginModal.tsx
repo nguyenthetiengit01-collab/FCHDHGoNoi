@@ -142,7 +142,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
           type="button"
           onClick={onClose}
           aria-label="Đóng cửa sổ đăng nhập"
-          className="absolute top-4 right-4 inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition z-10 focus-visible:outline-2 focus-visible:outline-brand-gold"
+          className="absolute top-4 right-4 inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition z-10 focus-visible:outline-2 focus-visible:outline-focus-on-dark"
           title="Đóng cửa sổ"
         >
           <X className="h-5 w-5" />
@@ -198,7 +198,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                   }}
                   disabled={isLoading || lockoutSeconds !== null}
                   placeholder="VD: tieng, 0905..., hoặc #12"
-                  className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-navy-800 border border-white/20 text-white placeholder-sky-200/50 text-sm font-medium focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-400/30 transition disabled:opacity-60"
+                  className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-navy-800 border border-white/20 text-white placeholder-sky-200/50 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:border-gold-400 focus:ring-2 focus:ring-gold-400/30 transition disabled:opacity-60"
                   autoFocus
                   required
                 />
@@ -251,7 +251,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                   onKeyUp={handleKeyDown}
                   disabled={isLoading || lockoutSeconds !== null}
                   placeholder="Nhập mật khẩu của bạn"
-                  className="w-full pl-10 pr-11 py-2.5 rounded-xl bg-navy-800 border border-white/20 text-white placeholder-sky-200/50 text-sm font-medium focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-400/30 transition disabled:opacity-60 tracking-wider"
+                  className="w-full pl-10 pr-11 py-2.5 rounded-xl bg-navy-800 border border-white/20 text-white placeholder-sky-200/50 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:border-gold-400 focus:ring-2 focus:ring-gold-400/30 transition disabled:opacity-60 tracking-wider"
                   required
                 />
                 <button

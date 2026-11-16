@@ -2239,7 +2239,7 @@ export function ScheduleTab({
                   required
                   value={profileShortName}
                   onChange={(e) => setProfileShortName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
               </div>
 
@@ -2252,7 +2252,7 @@ export function ScheduleTab({
                   value={profileJerseyNumber}
                   onChange={(e) => setProfileJerseyNumber(e.target.value)}
                   placeholder="VD: 12, 26, 9..."
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
               </div>
 
@@ -2263,7 +2263,7 @@ export function ScheduleTab({
                 <select
                   value={profilePosition}
                   onChange={(e) => setProfilePosition(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 >
                   {POSITIONS.map((pos) => (
                     <option key={pos} value={pos}>
@@ -2280,7 +2280,7 @@ export function ScheduleTab({
                 <select
                   value={profileBirthYear}
                   onChange={(e) => setProfileBirthYear(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none bg-white"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light bg-white"
                 >
                   <option value="">-- Chọn năm sinh --</option>
                   {BIRTH_YEAR_OPTIONS.map((y) => (
@@ -2298,7 +2298,7 @@ export function ScheduleTab({
                 <select
                   value={profileHometown}
                   onChange={(e) => setProfileHometown(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 >
                   <option value="Điện Quang">Xã Điện Quang</option>
                   <option value="Điện Trung">Xã Điện Trung</option>
@@ -2316,7 +2316,7 @@ export function ScheduleTab({
                   value={profileNickname}
                   onChange={(e) => setProfileNickname(e.target.value)}
                   placeholder="VD: Tiếng Ronaldo, Tín Mười..."
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
               </div>
 
@@ -2329,7 +2329,7 @@ export function ScheduleTab({
                   value={profilePlayingStyle}
                   onChange={(e) => setProfilePlayingStyle(e.target.value)}
                   placeholder="VD: Tốc độ cao, sút xa hiểm hóc, đeo bám quyết liệt..."
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
               </div>
 
@@ -2342,7 +2342,7 @@ export function ScheduleTab({
                   value={profilePhone}
                   onChange={(e) => setProfilePhone(e.target.value)}
                   placeholder="VD: 0905123456"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
               </div>
             </div>
@@ -2448,7 +2448,7 @@ export function ScheduleTab({
                 value={profileBio}
                 onChange={(e) => setProfileBio(e.target.value)}
                 placeholder="Viết đôi nét về phong cách đá bóng của bạn, niềm đam mê hoặc những lời chúc gửi đến anh em FC HĐH Gò Nổi..."
-                className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-royal-600 focus:outline-none leading-relaxed"
+                className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light leading-relaxed"
               />
             </div>
 
@@ -2462,7 +2462,7 @@ export function ScheduleTab({
                 value={profileNotes}
                 onChange={(e) => setProfileNotes(e.target.value)}
                 placeholder="VD: Quê quán xã Điện Trung, thường đá cánh phải..."
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
               />
             </div>
 
@@ -2504,7 +2504,7 @@ export function ScheduleTab({
                 value={pwdNewUsername}
                 onChange={(e) => setPwdNewUsername(e.target.value)}
                 placeholder="VD: tieng, tin, trung..."
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
               />
             </div>
 
@@ -2519,7 +2519,7 @@ export function ScheduleTab({
                   value={pwdOldPin}
                   onChange={(e) => setPwdOldPin(e.target.value)}
                   placeholder="Nhập mật khẩu hiện tại (mặc định 1234)"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
                 <button
                   type="button"
@@ -2552,7 +2552,7 @@ export function ScheduleTab({
                   value={pwdNewPin}
                   onChange={(e) => setPwdNewPin(e.target.value)}
                   placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
                 <button
                   type="button"
@@ -2621,7 +2621,7 @@ export function ScheduleTab({
                   value={pwdConfirmPin}
                   onChange={(e) => setPwdConfirmPin(e.target.value)}
                   placeholder="Nhập lại mật khẩu mới"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
                 <button
                   type="button"

@@ -203,7 +203,7 @@ export default function PublicFinancialReportPage() {
                 aria-label="Lọc theo năm"
                 value={selectedYear}
                 onChange={(e) => handleYearChange(e.target.value)}
-                className="rounded-lg bg-navy-950 border border-white/15 px-3 py-2 text-xs sm:text-sm font-semibold text-white focus:outline-none focus:border-gold-500"
+                className="rounded-lg bg-navy-950 border border-white/15 px-3 py-2 text-xs sm:text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:border-gold-500"
               >
                 <option value="all">Tất cả các năm</option>
                 {(report?.availableYears ?? []).map((y) => (
@@ -217,7 +217,7 @@ export default function PublicFinancialReportPage() {
                 aria-label="Lọc theo tháng"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="rounded-lg bg-navy-950 border border-white/15 px-3 py-2 text-xs sm:text-sm font-semibold text-white focus:outline-none focus:border-gold-500"
+                className="rounded-lg bg-navy-950 border border-white/15 px-3 py-2 text-xs sm:text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:border-gold-500"
               >
                 <option value="all">Tất cả các tháng</option>
                 {monthsForSelectedYear.map((m) => (

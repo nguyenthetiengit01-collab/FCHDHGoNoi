@@ -216,7 +216,7 @@ export function MatrixTab({
             tabIndex={0}
             role="region"
             aria-label="Ma trận điểm danh và đóng quỹ theo cầu thủ và trận đấu"
-            className="ds-table-wrap focus-visible:outline-2 focus-visible:outline-brand-gold"
+            className="ds-table-wrap focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-on-light"
           >
           <table className="matrix-table w-full text-xs">
             <thead>

@@ -583,7 +583,7 @@ export function PlayersTab({
                   aria-label="Tiêu đề danh sách đăng ký thi đấu"
                   value={tournamentName}
                   onChange={(e) => setTournamentName(e.target.value)}
-                  className="text-base sm:text-lg font-extrabold text-ink-primary border-b border-dashed border-slate-300 focus:border-navy-600 focus:outline-none w-full sm:w-[420px]"
+                  className="text-base sm:text-lg font-extrabold text-ink-primary border-b border-dashed border-slate-300 focus:border-navy-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light w-full sm:w-[420px]"
                 />
                 <p className="text-xs text-slate-600 mt-1">
                   Đơn vị: <strong>{settings.team_name}</strong> • Đã chọn:{" "}

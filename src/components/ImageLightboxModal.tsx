@@ -112,7 +112,7 @@ export function ImageLightboxModal({
                 rel="noopener noreferrer"
                 download
                 aria-label="Mở hoặc tải ảnh gốc"
-                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-100 hover:text-white transition focus-visible:outline-2 focus-visible:outline-brand-gold"
+                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-100 hover:text-white transition focus-visible:outline-2 focus-visible:outline-focus-on-dark"
                 title="Mở hoặc tải ảnh gốc"
               >
                 <Download className="h-5 w-5" />
@@ -122,7 +122,7 @@ export function ImageLightboxModal({
               type="button"
               onClick={onClose}
               aria-label="Đóng xem ảnh"
-              className="p-2.5 rounded-full bg-white/10 hover:bg-rose-600/80 text-white transition cursor-pointer focus-visible:outline-2 focus-visible:outline-brand-gold"
+              className="p-2.5 rounded-full bg-white/10 hover:bg-rose-600/80 text-white transition cursor-pointer focus-visible:outline-2 focus-visible:outline-focus-on-dark"
               title="Đóng (phím Esc)"
             >
               <X className="h-5 w-5" />
@@ -141,7 +141,7 @@ export function ImageLightboxModal({
               type="button"
               onClick={handlePrev}
               aria-label="Ảnh trước"
-              className="absolute left-2 sm:left-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-royal-600 text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105 focus-visible:outline-2 focus-visible:outline-brand-gold"
+              className="absolute left-2 sm:left-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-royal-600 text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105 focus-visible:outline-2 focus-visible:outline-focus-on-dark"
               title="Ảnh trước (Mũi tên trái)"
             >
               <ChevronLeft className="h-6 w-6" />
@@ -164,7 +164,7 @@ export function ImageLightboxModal({
               type="button"
               onClick={handleNext}
               aria-label="Ảnh tiếp theo"
-              className="absolute right-2 sm:right-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-royal-600 text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105 focus-visible:outline-2 focus-visible:outline-brand-gold"
+              className="absolute right-2 sm:right-4 z-20 p-3 sm:p-3.5 rounded-full bg-black/60 hover:bg-royal-600 text-white border border-white/20 transition cursor-pointer shadow-lg hover:scale-105 focus-visible:outline-2 focus-visible:outline-focus-on-dark"
               title="Ảnh tiếp theo (Mũi tên phải)"
             >
               <ChevronRight className="h-6 w-6" />

@@ -782,7 +782,7 @@ export default function ClubPostsTab({
               value={contentText}
               onChange={(e) => setContentText(e.target.value)}
               placeholder="Nhập nội dung bài viết chi tiết..."
-              className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-royal-600 focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
             />
           </div>
 

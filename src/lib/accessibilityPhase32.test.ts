@@ -27,11 +27,11 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
       expect(src).not.toContain('addEventListener("close"');
       expect(src).toContain("aria-labelledby={titleId}");
       expect(src).toContain('aria-label="Đóng hộp thoại"');
-      expect(src).toContain("focus-visible:outline-brand-gold");
+      expect(src).toContain("focus-visible:outline-focus-on-light");
       expect(src).not.toContain("outline-emerald-600");
     });
 
-    it("LoginModal uses native <dialog> via showModal() (no open={isOpen}), aria-modal, aria-labelledby, and gold focus ring", () => {
+    it("LoginModal uses native <dialog> via showModal() (no open={isOpen}), aria-modal, aria-labelledby, and high-contrast dark focus ring", () => {
       const src = readSrc("src/components/LoginModal.tsx");
       expect(src).toContain("<dialog");
       expect(src).not.toContain("open={isOpen}");
@@ -39,10 +39,10 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
       expect(src).toContain('aria-modal="true"');
       expect(src).toContain('aria-labelledby="login-modal-title"');
       expect(src).toContain('aria-label="Đóng cửa sổ đăng nhập"');
-      expect(src).toContain("focus-visible:outline-brand-gold");
+      expect(src).toContain("focus-visible:outline-focus-on-dark");
     });
 
-    it("ImageLightboxModal uses showModal() (no open={isOpen}), no nested role=dialog, no duplicate close listener, and gold focus rings", () => {
+    it("ImageLightboxModal uses showModal() (no open={isOpen}), no nested role=dialog, no duplicate close listener, and high-contrast dark focus rings", () => {
       const src = readSrc("src/components/ImageLightboxModal.tsx");
       expect(src).toContain("<dialog");
       expect(src).not.toContain("open={isOpen}");
@@ -54,7 +54,7 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
       expect(src).toContain('aria-label="Mở hoặc tải ảnh gốc"');
       expect(src).toContain('aria-label="Ảnh trước"');
       expect(src).toContain('aria-label="Ảnh tiếp theo"');
-      expect(src).toContain("focus-visible:outline-brand-gold");
+      expect(src).toContain("focus-visible:outline-focus-on-dark");
     });
 
     it("useDialogA11y opens dialogs via showModal() and closes via close()", () => {

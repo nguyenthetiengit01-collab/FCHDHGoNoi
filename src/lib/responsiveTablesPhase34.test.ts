@@ -224,7 +224,7 @@ describe("Phase 3.4 – Responsive Data Tables & Mobile UX", () => {
     expect(html).toContain('aria-label="Sửa khoản chi Tiền sân tuần 1"');
     expect(html).toContain('aria-label="Xoá khoản chi Tiền sân tuần 1"');
     expect(html).toContain("min-h-10 min-w-10");
-    expect(html).toContain("focus-visible:outline-brand-gold");
+    expect(html).toContain("focus-visible:outline-focus-on-light");
   });
 
   it("MatrixTab renders sticky corner/col cells, keyboard-focusable scroll region, and accurate player/match data", () => {

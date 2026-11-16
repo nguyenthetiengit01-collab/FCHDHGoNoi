@@ -1449,7 +1449,7 @@ export function PublicGuestPortal({
                       value={playerSearchQuery}
                       onChange={(e) => setPlayerSearchQuery(e.target.value)}
                       placeholder="Tìm theo tên, số áo, vị trí..."
-                      className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-navy-800 border border-white/25 text-white placeholder-sky-200/60 text-xs focus:outline-none focus:border-gold-400 transition"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-navy-800 border border-white/25 text-white placeholder-sky-200/60 text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:border-gold-400 transition"
                     />
                     {playerSearchQuery && (
                       <button

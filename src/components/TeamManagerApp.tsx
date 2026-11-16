@@ -544,7 +544,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
                     <a
                       href="/api/export"
-                      className="hidden md:inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 lg:px-3 py-2 text-xs font-bold text-white transition focus-visible:outline-2 focus-visible:outline-brand-gold"
+                      className="hidden md:inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 lg:px-3 py-2 text-xs font-bold text-white transition focus-visible:outline-2 focus-visible:outline-focus-on-dark"
                       title="Tải file Excel 5 sheets chuẩn GONOIFC"
                     >
                       <Download className="h-3.5 w-3.5 text-gold-300 shrink-0" />
@@ -587,7 +587,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   onClick={() => handleQuickSwitchRole(null)}
                   title="Đăng xuất về Trang Khách công khai"
                   aria-label="Đăng xuất về Trang Khách"
-                  className="inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg bg-white/10 hover:bg-rose-600 text-sky-100 hover:text-white border border-white/15 transition focus-visible:outline-2 focus-visible:outline-brand-gold"
+                  className="inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg bg-white/10 hover:bg-rose-600 text-sky-100 hover:text-white border border-white/15 transition focus-visible:outline-2 focus-visible:outline-focus-on-dark"
                 >
                   <LogOut className="h-4 w-4" />
                 </button>
@@ -620,7 +620,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                     type="button"
                     onClick={() => setActiveTab(item.id)}
                     aria-current={isActive ? "page" : undefined}
-                    className={`inline-flex items-center gap-1.5 min-h-10 px-3 py-2 text-xs lg:text-sm font-bold border-b-2 transition whitespace-nowrap focus-visible:outline-2 focus-visible:outline-brand-gold ${
+                    className={`inline-flex items-center gap-1.5 min-h-10 px-3 py-2 text-xs lg:text-sm font-bold border-b-2 transition whitespace-nowrap focus-visible:outline-2 focus-visible:outline-focus-on-dark ${
                       isActive
                         ? "border-gold-500 text-gold-300 bg-navy-800/75 rounded-t-lg font-extrabold"
                         : "border-transparent text-sky-100/85 hover:text-white hover:bg-white/10 rounded-t-lg"
@@ -658,7 +658,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
             type="button"
             onClick={() => setToastMessage(null)}
             aria-label="Đóng thông báo"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-brand-gold"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-focus-on-dark"
           >
             <X className="h-4 w-4" />
           </button>
@@ -986,7 +986,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
                 aria-label="Đóng menu điều hướng"
-                className="inline-flex items-center justify-center min-h-11 min-w-11 rounded-xl bg-white/10 hover:bg-white/20 text-white transition focus-visible:outline-2 focus-visible:outline-brand-gold"
+                className="inline-flex items-center justify-center min-h-11 min-w-11 rounded-xl bg-white/10 hover:bg-white/20 text-white transition focus-visible:outline-2 focus-visible:outline-focus-on-dark"
               >
                 <X className="h-5 w-5" />
               </button>

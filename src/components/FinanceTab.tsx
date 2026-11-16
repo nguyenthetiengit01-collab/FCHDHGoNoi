@@ -766,7 +766,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                       type="button"
                       onClick={() => openEditExpense(exp)}
                       aria-label={`Sửa khoản chi ${exp.description}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-gold cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
                     >
                       <Edit3 className="h-4 w-4" />
                     </button>
@@ -780,7 +780,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                         })
                       }
                       aria-label={`Xoá khoản chi ${exp.description}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-brand-gold cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -814,7 +814,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
             tabIndex={0}
             role="region"
             aria-label="Sổ chi tiêu quỹ đội bóng"
-            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-brand-gold"
+            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-focus-on-light"
           >
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead>
@@ -1032,7 +1032,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                       type="button"
                       onClick={() => openEditIncome(inc)}
                       aria-label={`Sửa khoản thu ${inc.contributor}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-gold cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
                     >
                       <Edit3 className="h-4 w-4" />
                     </button>
@@ -1046,7 +1046,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                         })
                       }
                       aria-label={`Xoá khoản thu ${inc.contributor}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-brand-gold cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1088,7 +1088,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
             tabIndex={0}
             role="region"
             aria-label="Bảng các khoản thu ngoài và tài trợ"
-            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-brand-gold"
+            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-focus-on-light"
           >
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead>
