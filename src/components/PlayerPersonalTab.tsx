@@ -31,6 +31,7 @@ import {
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
+import { Button, FormField, Input, Select } from "./ui";
 import {
   ImageLightboxModal,
   type LightboxImage,
@@ -769,49 +770,29 @@ export function PlayerPersonalTab({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="my-fullname"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Họ và Tên đầy đủ *
-              </label>
-              <input
+            <FormField label="Họ và Tên đầy đủ" htmlFor="my-fullname" required>
+              <Input
                 id="my-fullname"
                 type="text"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="form-input"
               />
-            </div>
-            <div>
-              <label
-                htmlFor="my-shortname"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Tên gọi trên sân *
-              </label>
-              <input
+            </FormField>
+            <FormField label="Tên gọi trên sân" htmlFor="my-shortname" required>
+              <Input
                 id="my-shortname"
                 type="text"
                 required
                 value={shortName}
                 onChange={(e) => setShortName(e.target.value)}
-                className="form-input"
               />
-            </div>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="my-jersey"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Số áo đăng ký thi đấu
-              </label>
-              <input
+            <FormField label="Số áo đăng ký thi đấu" htmlFor="my-jersey">
+              <Input
                 id="my-jersey"
                 type="text"
                 inputMode="numeric"
@@ -820,21 +801,14 @@ export function PlayerPersonalTab({
                 onChange={(e) =>
                   setJerseyNumber(e.target.value.replace(/[^0-9]/g, ""))
                 }
-                className="form-input font-bold"
+                className="font-bold"
               />
-            </div>
-            <div>
-              <label
-                htmlFor="my-birthyear"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Năm sinh
-              </label>
-              <select
+            </FormField>
+            <FormField label="Năm sinh" htmlFor="my-birthyear">
+              <Select
                 id="my-birthyear"
                 value={birthYear}
                 onChange={(e) => setBirthYear(e.target.value)}
-                className="form-select"
               >
                 <option value="">-- Chọn năm sinh --</option>
                 {BIRTH_YEAR_OPTIONS.map((y) => (
@@ -842,8 +816,8 @@ export function PlayerPersonalTab({
                     {y} ({new Date().getFullYear() - y} tuổi)
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1065,20 +1039,15 @@ export function PlayerPersonalTab({
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">
-            <button
-              type="button"
+            <Button
+              variant="outline"
               onClick={() => setProfileModalOpen(false)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
             >
               Huỷ
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-lg bg-[#1e4fc2] px-5 py-2 text-sm font-bold text-[#ffc933] hover:bg-[#2f66dd] cursor-pointer"
-            >
+            </Button>
+            <Button type="submit" variant="primary" loading={isSaving}>
               Lưu Hồ Sơ Của Tôi
-            </button>
+            </Button>
           </div>
         </form>
       </ModalDialog>
@@ -1104,25 +1073,20 @@ export function PlayerPersonalTab({
             </p>
           </div>
 
-          <div>
-            <label
-              htmlFor="new-username"
-              className="block text-sm font-semibold text-slate-700 mb-1"
-            >
-              Tên đăng nhập mới (tùy chọn)
-            </label>
-            <input
+          <FormField
+            label="Tên đăng nhập mới (tùy chọn)"
+            htmlFor="new-username"
+            hint="Có thể để trống nếu chỉ muốn đổi mật khẩu."
+          >
+            <Input
               id="new-username"
               type="text"
               placeholder="Nhập tên đăng nhập mới (vd: tiengfc, tin_gonoi, ...)"
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
-              className="form-input font-medium"
+              className="font-medium"
             />
-            <p className="mt-1 text-[11px] text-slate-500">
-              Có thể để trống nếu chỉ muốn đổi mật khẩu.
-            </p>
-          </div>
+          </FormField>
 
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1256,27 +1220,22 @@ export function PlayerPersonalTab({
           </div>
 
           {pwdError && (
-            <p className="text-xs font-bold text-rose-600 flex items-center gap-1.5">
-              <span>⚠️</span>
+            <p
+              role="alert"
+              className="text-xs font-bold text-rose-600 flex items-center gap-1.5"
+            >
+              <span aria-hidden="true">⚠️</span>
               <span>{pwdError}</span>
             </p>
           )}
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={() => setPwdModalOpen(false)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-            >
+            <Button variant="outline" onClick={() => setPwdModalOpen(false)}>
               Huỷ
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-lg bg-[#1e4fc2] px-5 py-2 text-sm font-bold text-[#ffc933] hover:bg-[#2f66dd] cursor-pointer"
-            >
+            </Button>
+            <Button type="submit" variant="primary" loading={isSaving}>
               Lưu Thay Đổi Tài Khoản
-            </button>
+            </Button>
           </div>
         </form>
       </ModalDialog>

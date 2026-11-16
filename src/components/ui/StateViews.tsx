@@ -32,17 +32,21 @@ export function EmptyState({
   title,
   description,
   action,
+  compact = false,
   className = "",
 }: {
   icon?: React.ReactNode;
   title: string;
   description?: string;
   action?: React.ReactNode;
+  compact?: boolean;
   className?: string;
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-6 py-10 text-center ${className}`}
+      className={`flex flex-col items-center justify-center gap-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-6 ${
+        compact ? "py-6" : "py-10"
+      } text-center ${className}`}
     >
       <div
         className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-200/70 text-slate-500"

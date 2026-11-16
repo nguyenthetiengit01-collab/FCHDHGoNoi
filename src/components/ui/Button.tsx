@@ -73,10 +73,18 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden="true" />
         ) : (
-          leftIcon && <span className="shrink-0">{leftIcon}</span>
+          leftIcon && (
+            <span className="shrink-0" aria-hidden="true">
+              {leftIcon}
+            </span>
+          )
         )}
         {children}
-        {!loading && rightIcon && <span className="shrink-0">{rightIcon}</span>}
+        {!loading && rightIcon && (
+          <span className="shrink-0" aria-hidden="true">
+            {rightIcon}
+          </span>
+        )}
       </button>
     );
   }

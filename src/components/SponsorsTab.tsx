@@ -21,7 +21,16 @@ import {
   getSponsorStatus,
 } from "@/lib/sponsors";
 import { convertFileToWebp } from "@/lib/imageToWebp";
-import { ConfirmDialog } from "./ui";
+import { ModalDialog } from "./ModalDialog";
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  FormField,
+  Input,
+  Select,
+  Textarea,
+} from "./ui";
 
 interface SponsorsTabProps {
   data: FullAppData;
@@ -187,28 +196,34 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
             </p>
           </div>
 
-          <button
-            type="button"
+          <Button
+            variant="primary"
             onClick={handleOpenAdd}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white transition cursor-pointer shadow-sm self-start sm:self-auto"
+            leftIcon={<Plus className="h-4 w-4" />}
+            className="self-start sm:self-auto"
           >
-            <Plus className="h-4 w-4" />
-            <span>Thêm Đơn Vị Mới</span>
-          </button>
+            Thêm Đơn Vị Mới
+          </Button>
         </div>
       </div>
 
       {/* Danh sách nhà tài trợ */}
       {sponsors.length === 0 ? (
-        <div className="rounded-xl bg-white p-12 text-center border border-slate-200 space-y-3">
-          <Award className="h-10 w-10 text-slate-400 mx-auto" />
-          <h3 className="text-base font-bold text-slate-800">
-            Chưa có nhà tài trợ nào trong hệ thống
-          </h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Bấm nút &quot;Thêm Đơn Vị Mới&quot; để tạo nhà tài trợ kim cương, vàng, bạc, đối tác hoặc đơn vị hỗ trợ nước uống, trang thiết bị thi đấu.
-          </p>
-        </div>
+        <EmptyState
+          icon={<Award className="h-5 w-5" />}
+          title="Chưa có nhà tài trợ nào trong hệ thống"
+          description='Bấm nút "Thêm Đơn Vị Mới" để tạo nhà tài trợ kim cương, vàng, bạc, đối tác hoặc đơn vị hỗ trợ nước uống, trang thiết bị thi đấu.'
+          action={
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleOpenAdd}
+              leftIcon={<Plus className="h-4 w-4" />}
+            >
+              Thêm Đơn Vị Mới
+            </Button>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sponsors.map((sp) => {
@@ -352,24 +367,25 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       disabled={isSaving}
                       onClick={() => handleOpenEdit(sp)}
-                      className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                      leftIcon={<Edit2 className="h-3 w-3" />}
                     >
-                      <Edit2 className="h-3 w-3" />
-                      <span>Sửa</span>
-                    </button>
-                    <button
-                      type="button"
+                      Sửa
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       disabled={isSaving}
                       onClick={() => handleDelete(sp)}
-                      className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                      leftIcon={<Trash2 className="h-3 w-3" />}
+                      className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                     >
-                      <Trash2 className="h-3 w-3" />
-                      <span>Xóa</span>
-                    </button>
+                      Xóa
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -378,110 +394,81 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
         </div>
       )}
 
-      {/* Modal Thêm / Chỉnh Sửa Nhà Tài Trợ */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="relative w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-2xl p-6 my-8 space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900">
-                  {formData.id ? "Chỉnh Sửa Đơn Vị Tài Trợ" : "Thêm Đơn Vị Tài Trợ Mới"}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Cấu hình quyền lợi, thời hạn banner và vị trí hiển thị trên website.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                ✕
-              </button>
+      {/* Modal Thêm / Chỉnh Sửa Nhà Tài Trợ (dùng ModalDialog chuẩn) */}
+      <ModalDialog
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={
+          formData.id ? "Chỉnh Sửa Đơn Vị Tài Trợ" : "Thêm Đơn Vị Tài Trợ Mới"
+        }
+        subtitle="Cấu hình quyền lợi, thời hạn banner và vị trí hiển thị trên website."
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {formError && (
+            <div
+              role="alert"
+              className="rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-800"
+            >
+              {formError}
             </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Tên Đơn Vị / Nhà Tài Trợ" required>
+              <Input
+                type="text"
+                required
+                placeholder="VD: Công ty TNHH ABC / Cựu Cầu Thủ X"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, name: e.target.value }))
+                }
+                className="text-sm"
+              />
+            </FormField>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {formError && (
-                <div
-                  role="alert"
-                  className="rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-800"
-                >
-                  {formError}
-                </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Tên đơn vị */}
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                    Tên Đơn Vị / Nhà Tài Trợ *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="VD: Công ty TNHH ABC / Cựu Cầu Thủ X"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, name: e.target.value }))
-                    }
-                    className="form-input text-sm"
-                  />
-                </div>
+            <FormField label="Hạng Phân Loại">
+              <Select
+                value={formData.tier}
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    tier: e.target.value as SponsorTier,
+                  }))
+                }
+                className="text-sm font-semibold"
+              >
+                {Object.values(SPONSOR_TIERS).map((t) => (
+                  <option key={t.tier} value={t.tier}>
+                    {t.label}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          </div>
 
-                {/* Hạng tài trợ */}
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                    Hạng Phân Loại
-                  </label>
-                  <select
-                    value={formData.tier}
-                    onChange={(e) =>
-                      setFormData((p) => ({
-                        ...p,
-                        tier: e.target.value as SponsorTier,
-                      }))
-                    }
-                    className="form-select text-sm font-semibold"
-                  >
-                    {Object.values(SPONSOR_TIERS).map((t) => (
-                      <option key={t.tier} value={t.tier}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+          <FormField label="Đường Dẫn Website Hoặc Fanpage Facebook">
+            <Input
+              type="url"
+              placeholder="https://facebook.com/... hoặc https://..."
+              value={formData.website_url}
+              onChange={(e) =>
+                setFormData((p) => ({ ...p, website_url: e.target.value }))
+              }
+              className="text-sm"
+            />
+          </FormField>
 
-              {/* Website / Fanpage */}
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                  Đường Dẫn Website Hoặc Fanpage Facebook
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://facebook.com/... hoặc https://..."
-                  value={formData.website_url}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, website_url: e.target.value }))
-                  }
-                  className="form-input text-sm"
-                />
-              </div>
-
-              {/* Mô tả giới thiệu */}
-              <div>
-                <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                  Mô Tả Giới Thiệu Ngắn Gọn
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Giới thiệu đôi nét về đơn vị và sự đồng hành cùng FC HĐH Gò Nổi..."
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, description: e.target.value }))
-                  }
-                  className="form-input text-sm"
-                />
-              </div>
+          <FormField label="Mô Tả Giới Thiệu Ngắn Gọn">
+            <Textarea
+              rows={2}
+              placeholder="Giới thiệu đôi nét về đơn vị và sự đồng hành cùng FC HĐH Gò Nổi..."
+              value={formData.description}
+              onChange={(e) =>
+                setFormData((p) => ({ ...p, description: e.target.value }))
+              }
+              className="text-sm"
+            />
+          </FormField>
 
               {/* Upload Logo & Banner */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-y border-slate-100 py-3">
@@ -558,32 +545,26 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
 
               {/* Thời hạn treo banner */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                    Ngày Bắt Đầu Treo Banner
-                  </label>
-                  <input
+                <FormField label="Ngày Bắt Đầu Treo Banner">
+                  <Input
                     type="date"
                     value={formData.start_date}
                     onChange={(e) =>
                       setFormData((p) => ({ ...p, start_date: e.target.value }))
                     }
-                    className="form-input text-sm"
+                    className="text-sm"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                    Ngày Kết Thúc Banner (Hết hạn sẽ hạ)
-                  </label>
-                  <input
+                </FormField>
+                <FormField label="Ngày Kết Thúc Banner (Hết hạn sẽ hạ)">
+                  <Input
                     type="date"
                     value={formData.end_date}
                     onChange={(e) =>
                       setFormData((p) => ({ ...p, end_date: e.target.value }))
                     }
-                    className="form-input text-sm"
+                    className="text-sm"
                   />
-                </div>
+                </FormField>
               </div>
 
               {/* Tích chọn vị trí hiển thị banner */}
@@ -619,25 +600,25 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
 
               {/* Ghi chú nội bộ BQL & Trạng thái kích hoạt */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
-                    Ghi Chú Nội Bộ Ban Quản Lý (Gói tài trợ, liên hệ)
-                  </label>
-                  <input
+                <FormField
+                  label="Ghi Chú Nội Bộ Ban Quản Lý (Gói tài trợ, liên hệ)"
+                  className="sm:col-span-2"
+                >
+                  <Input
                     type="text"
                     placeholder="VD: Gói tài trợ 5tr giải HĐH 2026, LH qua anh Tín..."
                     value={formData.note}
                     onChange={(e) =>
                       setFormData((p) => ({ ...p, note: e.target.value }))
                     }
-                    className="form-input text-sm"
+                    className="text-sm"
                   />
-                </div>
+                </FormField>
                 <div>
-                  <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
+                  <span className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Trạng Thái
-                  </label>
-                  <label className="flex items-center gap-2 p-2 rounded-lg border border-slate-200 bg-white cursor-pointer text-xs font-bold text-slate-800">
+                  </span>
+                  <label className="flex items-center gap-2 min-h-11 px-3 rounded-lg border border-slate-200 bg-white cursor-pointer text-xs font-bold text-slate-800">
                     <input
                       type="checkbox"
                       checked={formData.is_active}
@@ -653,25 +634,25 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
 
               {/* Nút hành động */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   Hủy Bỏ
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={isSaving || uploadingLogo || uploadingBanner}
-                  className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-5 py-2 text-xs font-extrabold text-white transition cursor-pointer shadow-sm disabled:opacity-50"
+                  variant="primary"
+                  size="sm"
+                  loading={isSaving}
+                  disabled={uploadingLogo || uploadingBanner}
                 >
-                  {isSaving ? "Đang lưu..." : "Lưu Thông Tin Đơn Vị"}
-                </button>
+                  Lưu Thông Tin Đơn Vị
+                </Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalDialog>
 
       <ConfirmDialog
         isOpen={Boolean(pendingDeleteSponsor)}

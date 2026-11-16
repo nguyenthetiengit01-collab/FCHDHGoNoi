@@ -15,9 +15,10 @@ export type BadgeVariant =
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
   size?: "sm" | "md";
+  surface?: "light" | "dark";
 }
 
-const BADGE_CLASSES: Record<BadgeVariant, string> = {
+const BADGE_CLASSES_LIGHT: Record<BadgeVariant, string> = {
   neutral: "bg-slate-100 text-slate-700 border-slate-200",
   navy: "bg-[#0d2e5b]/10 text-[#0d2e5b] border-[#0d2e5b]/20",
   gold: "bg-amber-50 text-[#8a6d14] border-amber-300/70",
@@ -28,19 +29,32 @@ const BADGE_CLASSES: Record<BadgeVariant, string> = {
   purple: "bg-purple-50 text-purple-700 border-purple-200",
 };
 
+const BADGE_CLASSES_DARK: Record<BadgeVariant, string> = {
+  neutral: "bg-white/10 text-slate-200 border-white/15",
+  navy: "bg-[#0d2e5b] text-sky-100 border-sky-400/30",
+  gold: "bg-[#d4af37]/20 text-[#fde047] border-[#d4af37]/40",
+  success: "bg-emerald-500/20 text-emerald-300 border-emerald-400/30",
+  warning: "bg-amber-500/20 text-amber-300 border-amber-400/30",
+  danger: "bg-rose-500/20 text-rose-300 border-rose-400/30",
+  info: "bg-sky-500/20 text-sky-300 border-sky-400/30",
+  purple: "bg-purple-500/20 text-purple-300 border-purple-400/30",
+};
+
 export function Badge({
   variant = "neutral",
   size = "sm",
+  surface = "light",
   className = "",
   children,
   ...rest
 }: BadgeProps) {
   const sizeClass =
     size === "sm" ? "px-2 py-0.5 text-[11px]" : "px-2.5 py-1 text-xs";
+  const palette = surface === "dark" ? BADGE_CLASSES_DARK : BADGE_CLASSES_LIGHT;
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md border font-bold tracking-wide leading-none whitespace-nowrap ${BADGE_CLASSES[variant]} ${sizeClass} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-md border font-bold tracking-wide leading-none whitespace-nowrap ${palette[variant]} ${sizeClass} ${className}`}
       {...rest}
     >
       {children}
@@ -54,9 +68,11 @@ export function Badge({
  */
 export function PositionBadge({
   position,
+  surface = "light",
   className = "",
 }: {
   position?: string;
+  surface?: "light" | "dark";
   className?: string;
 }) {
   const norm = (position || "").trim().toUpperCase();
@@ -69,7 +85,7 @@ export function PositionBadge({
     variant = "purple";
 
   return (
-    <Badge variant={variant} className={className}>
+    <Badge variant={variant} surface={surface} className={className}>
       {position || "—"}
     </Badge>
   );

@@ -22,7 +22,15 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ModalDialog } from "./ModalDialog";
-import { ConfirmDialog } from "./ui";
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  FormField,
+  Input,
+  Select,
+  Textarea,
+} from "./ui";
 import {
   convertFileToWebp,
   convertMultipleFilesToWebp,
@@ -390,14 +398,13 @@ export default function ClubPostsTab({
           </a>
 
           {isManager && (
-            <button
-              type="button"
+            <Button
+              variant="gold"
               onClick={openNewPostModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#ffc933] hover:bg-[#ffd65c] px-4 py-2.5 text-xs sm:text-sm font-black text-[#091b42] shadow-md transition cursor-pointer"
+              leftIcon={<Plus className="h-4 w-4" />}
             >
-              <Plus className="h-4 w-4" />
-              <span>Đăng Bài Viết Mới (Auto WebP)</span>
-            </button>
+              Đăng Bài Viết Mới (Auto WebP)
+            </Button>
           )}
         </div>
       </div>
@@ -421,8 +428,27 @@ export default function ClubPostsTab({
       </div>
 
       {/* Posts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredPosts.map((post) => (
+      {filteredPosts.length === 0 ? (
+        <EmptyState
+          icon={<Newspaper className="h-5 w-5" />}
+          title="Chưa có bài viết nào trong chuyên mục này"
+          description="Hãy chọn chuyên mục khác hoặc đăng bài viết hoạt động mới cho CLB."
+          action={
+            isManager ? (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={openNewPostModal}
+                leftIcon={<Plus className="h-4 w-4" />}
+              >
+                Đăng Bài Viết Mới
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredPosts.map((post) => (
           <div
             key={post.id}
             className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition"
@@ -506,28 +532,31 @@ export default function ClubPostsTab({
 
               {isManager && (
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => openEditPostModal(post)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#1e4fc2] px-2.5 py-1.5 text-xs font-bold transition cursor-pointer"
+                    leftIcon={<Edit3 className="h-3.5 w-3.5" />}
+                    className="bg-blue-50 hover:bg-blue-100 text-[#1e4fc2]"
                   >
-                    <Edit3 className="h-3.5 w-3.5" />
-                    <span>Sửa</span>
-                  </button>
-                  <button
-                    type="button"
+                    Sửa
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleDeletePost(post)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 text-xs font-bold transition cursor-pointer"
+                    leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                    className="bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Xoá</span>
-                  </button>
+                    Xoá
+                  </Button>
                 </div>
               )}
             </div>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal Đăng / Chỉnh Sửa Bài Viết Mới */}
       <ModalDialog
@@ -614,54 +643,45 @@ export default function ClubPostsTab({
 
           {/* Tiêu đề, Chuyên mục & Năm sự kiện (Dòng thời gian) */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Tiêu đề bài viết *
-              </label>
-              <input
+            <FormField label="Tiêu đề bài viết" required className="sm:col-span-2">
+              <Input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="VD: Chiến thắng giàu cảm xúc của FC HĐH Gò Nổi..."
-                className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                className="text-sm"
               />
-            </div>
+            </FormField>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Chuyên mục *
-              </label>
-              <select
+            <FormField label="Chuyên mục" required>
+              <Select
                 value={category}
                 onChange={(e) =>
                   setCategory(e.target.value as ClubActivityPost["category"])
                 }
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                className="text-sm"
               >
                 <option value="giaidau">Giải Đấu & Phong Trào</option>
                 <option value="giaoluu">Giao Lưu Kết Nối</option>
                 <option value="cauthu">Cầu Thủ Gò Nổi</option>
                 <option value="taitro">Đồng Hành & Tài Trợ</option>
                 <option value="anhbia">Ảnh Bìa & Khí Thế</option>
-              </select>
-            </div>
+              </Select>
+            </FormField>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Năm sự kiện (Timeline)
-              </label>
-              <select
+            <FormField label="Năm sự kiện (Timeline)">
+              <Select
                 value={eventYear}
                 onChange={(e) => setEventYear(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                className="text-sm"
               >
                 <option value="2026">2026 (Chuyển Mình & Số Hóa)</option>
                 <option value="2025">2025 (Khẳng Định Bản Lĩnh)</option>
                 <option value="2024">2024 (Gieo Mầm Kết Nối)</option>
                 <option value="2023">2023 (Kỷ Niệm Khởi Đầu)</option>
-              </select>
-            </div>
+              </Select>
+            </FormField>
           </div>
 
           {/* Gắn thẻ cầu thủ tham gia */}
@@ -709,56 +729,47 @@ export default function ClubPostsTab({
 
           {/* Ngày đăng & Tác giả */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Ngày đăng
-              </label>
-              <input
+            <FormField label="Ngày đăng">
+              <Input
                 type="date"
                 value={publishedDate}
                 onChange={(e) => setPublishedDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                className="text-sm"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Tác giả / Người đăng
-              </label>
-              <input
+            </FormField>
+            <FormField label="Tác giả / Người đăng">
+              <Input
                 type="text"
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                className="text-sm"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Thời lượng đọc
-              </label>
-              <input
+            </FormField>
+            <FormField label="Thời lượng đọc">
+              <Input
                 type="text"
                 value={readingTime}
                 onChange={(e) => setReadingTime(e.target.value)}
                 placeholder="4 phút đọc"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                className="text-sm"
               />
-            </div>
+            </FormField>
           </div>
 
           {/* Tóm tắt ngắn */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Tóm tắt bài viết (hiển thị ngoài thẻ tin) *
-            </label>
-            <textarea
+          <FormField
+            label="Tóm tắt bài viết (hiển thị ngoài thẻ tin)"
+            required
+          >
+            <Textarea
               required
               rows={2}
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               placeholder="Mô tả ngắn gọn nội dung chính của bài viết..."
-              className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+              className="text-sm"
             />
-          </div>
+          </FormField>
 
           {/* Nội dung chi tiết */}
           <div>
@@ -862,24 +873,24 @@ export default function ClubPostsTab({
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setModalOpen(false)}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
             >
               Huỷ
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={isSaving || isConvertingFeatured || isConvertingGallery}
-              className="rounded-xl bg-[#1e4fc2] hover:bg-[#163d99] disabled:opacity-50 px-5 py-2 text-xs font-black text-[#ffc933] shadow-md cursor-pointer"
+              variant="primary"
+              size="sm"
+              loading={isSaving}
+              disabled={isConvertingFeatured || isConvertingGallery}
             >
-              {isSaving
-                ? "Đang lưu bài viết..."
-                : editingPost
-                  ? "Lưu Cập Nhật Bài Viết"
-                  : "Đăng Bài Viết Lên Trang Web"}
-            </button>
+              {editingPost
+                ? "Lưu Cập Nhật Bài Viết"
+                : "Đăng Bài Viết Lên Trang Web"}
+            </Button>
           </div>
         </form>
       </ModalDialog>
