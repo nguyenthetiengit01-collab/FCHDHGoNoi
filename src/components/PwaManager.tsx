@@ -1,7 +1,21 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Download, RefreshCw, X } from "lucide-react";
+import { trackProductEvent } from "@/lib/analytics/clientTracker";
+
+function normalizeRouteGroup(pathname: string): string {
+  if (pathname === "/" || pathname === "") return "/";
+  if (pathname.startsWith("/hoat-dong/")) return "/hoat-dong/[id]";
+  if (pathname === "/hoat-dong") return "/hoat-dong";
+  if (pathname.startsWith("/cau-thu/")) return "/cau-thu/[id]";
+  if (pathname === "/bao-cao-tai-chinh") return "/bao-cao-tai-chinh";
+  if (pathname === "/nha-tai-tro") return "/nha-tai-tro";
+  if (pathname === "/cau-chuyen-go-noi") return "/cau-chuyen-go-noi";
+  if (pathname === "/offline") return "/offline";
+  return "/";
+}
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -11,6 +25,7 @@ interface BeforeInstallPromptEvent extends Event {
 const INSTALL_DISMISSED_KEY = "fc_gonoi_pwa_install_dismissed";
 
 export function PwaManager() {
+  const pathname = usePathname();
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
@@ -18,6 +33,22 @@ export function PwaManager() {
     null
   );
   const [showUpdateBanner, setShowUpdateBanner] = useState(false);
+
+  useEffect(() => {
+    const routeKey = normalizeRouteGroup(pathname || "/");
+    trackProductEvent({ eventName: "page_view", routeKey });
+    if (pathname?.startsWith("/cau-thu/")) {
+      const id = Number(pathname.split("/")[2]);
+      if (Number.isInteger(id) && id > 0) {
+        trackProductEvent({
+          eventName: "player_profile_view",
+          routeKey,
+          contentType: "player_profile",
+          contentId: id,
+        });
+      }
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

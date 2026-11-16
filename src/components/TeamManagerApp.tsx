@@ -25,6 +25,7 @@ import {
   MoreHorizontal,
   ChevronRight,
   Loader2,
+  BarChart3,
 } from "lucide-react";
 import type { FullAppData, AuthSession, Player } from "@/types/app";
 import { FANPAGE_URL, OFFICIAL_LOGO_URL } from "@/types/app";
@@ -38,6 +39,10 @@ import { useDialogA11y } from "./useDialogA11y";
 
 const DashboardTab = dynamic(
   () => import("./DashboardTab").then((m) => m.DashboardTab),
+  { ssr: false }
+);
+const AnalyticsCenterTab = dynamic(
+  () => import("./AnalyticsCenterTab").then((m) => m.AnalyticsCenterTab),
   { ssr: false }
 );
 const ScheduleTab = dynamic(
@@ -78,6 +83,7 @@ type ActiveTab =
   | "public"
   | "personal"
   | "dashboard"
+  | "analytics"
   | "schedule"
   | "collection"
   | "matrix"
@@ -443,6 +449,12 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         icon: LayoutDashboard,
       },
       {
+        id: "analytics" as ActiveTab,
+        label: "Thống kê & Phân tích",
+        shortLabel: "Phân tích",
+        icon: BarChart3,
+      },
+      {
         id: "finance" as ActiveTab,
         label: "Sổ Quỹ & Chi Tiêu",
         shortLabel: "Sổ quỹ",
@@ -783,6 +795,10 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 : undefined
             }
           />
+        )}
+
+        {session.role === "manager" && activeTab === "analytics" && (
+          <AnalyticsCenterTab onNavigateTab={(tab) => setActiveTab(tab)} />
         )}
 
         {session.role !== "guest" && activeTab === "schedule" && (

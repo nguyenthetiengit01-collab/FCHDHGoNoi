@@ -37,6 +37,7 @@ import {
   type LightboxImage,
 } from "./ImageLightboxModal";
 import { BroadcastAthleteCard } from "./BroadcastAthleteCard";
+import { PlayerInsights } from "./PlayerInsights";
 import { AvatarCropperModal } from "./AvatarCropperModal";
 import {
   formatBirthYear,
@@ -339,6 +340,8 @@ export function PlayerPersonalTab({
           setLightboxOpen(true);
         }}
       />
+
+      <PlayerInsights />
 
       {/* Điểm danh nhanh cho trận tuần hiện tại */}
       {latestMatch && (

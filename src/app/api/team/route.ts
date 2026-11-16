@@ -23,6 +23,10 @@ import {
 import { ensureWebpDataUrlServer } from "@/lib/serverWebp";
 import { formatBirthYear } from "@/lib/athleteProfile";
 import { getTeamStatistics } from "@/lib/teamStatistics";
+import {
+  recordPlayerLifecycleEvent,
+  validateSponsorIdForIncome,
+} from "@/lib/analytics/lifecycle";
 import type { FullAppData } from "@/types/app";
 
 export async function GET(req: NextRequest) {
@@ -245,8 +249,9 @@ export async function POST(req: NextRequest) {
             pin_code: string;
             gallery_urls_json: string;
             profile_image_url?: string;
+            status?: string;
           }>(
-            "SELECT pin_code, gallery_urls_json, profile_image_url FROM players WHERE id = ?",
+            "SELECT pin_code, gallery_urls_json, profile_image_url, status FROM players WHERE id = ?",
             [Number(id)]
           );
           const rawPin = String(pin_code || "").trim();
@@ -297,6 +302,18 @@ export async function POST(req: NextRequest) {
               Number(id),
             ]
           );
+          const nextStatus = status || "Đang sinh hoạt";
+          if (existing?.status && existing.status !== nextStatus) {
+            await recordPlayerLifecycleEvent({
+              db,
+              playerId: Number(id),
+              eventType: "status_changed",
+              fromStatus: existing.status,
+              toStatus: nextStatus,
+              actorId: session?.playerId ?? null,
+              source: "manager_action",
+            });
+          }
         } else {
           const maxRow = await db.queryOne<{ maxOrder: number }>(
             "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
@@ -338,6 +355,15 @@ export async function POST(req: NextRequest) {
             ]
           );
           const newPlayerId = Number(res.lastInsertRowid);
+          await recordPlayerLifecycleEvent({
+            db,
+            playerId: newPlayerId,
+            eventType: "joined",
+            fromStatus: null,
+            toStatus: status || "Đang sinh hoạt",
+            actorId: session?.playerId ?? null,
+            source: "manager_action",
+          });
           const existingMatches = await db.query<{ id: number }>(
             "SELECT id FROM matches"
           );
@@ -1131,34 +1157,70 @@ export async function POST(req: NextRequest) {
       }
 
       case "upsert_other_income": {
-        const { id, income_date, contributor, amount, fund_type, note } =
+        const { id, income_date, contributor, amount, fund_type, note, sponsor_id } =
           payload;
+        const sponsorCheck = await validateSponsorIdForIncome(db, sponsor_id);
+        if (!sponsorCheck.ok) {
+          return NextResponse.json({ error: sponsorCheck.error }, { status: 400 });
+        }
         if (id) {
-          await db.run(
-            `UPDATE other_incomes
-            SET income_date = ?, contributor = ?, amount = ?, fund_type = ?, note = ?
-            WHERE id = ?`,
-            [
-              income_date || "2026-11-03",
-              contributor || "",
-              Number(amount) || 0,
-              fund_type || "Quỹ sinh hoạt",
-              note || "",
-              Number(id),
-            ]
-          );
+          if (sponsorCheck.columnSupported) {
+            await db.run(
+              `UPDATE other_incomes
+              SET income_date = ?, contributor = ?, amount = ?, fund_type = ?, note = ?, sponsor_id = ?
+              WHERE id = ?`,
+              [
+                income_date || "2026-11-03",
+                contributor || "",
+                Number(amount) || 0,
+                fund_type || "Quỹ sinh hoạt",
+                note || "",
+                sponsorCheck.sponsorId,
+                Number(id),
+              ]
+            );
+          } else {
+            await db.run(
+              `UPDATE other_incomes
+              SET income_date = ?, contributor = ?, amount = ?, fund_type = ?, note = ?
+              WHERE id = ?`,
+              [
+                income_date || "2026-11-03",
+                contributor || "",
+                Number(amount) || 0,
+                fund_type || "Quỹ sinh hoạt",
+                note || "",
+                Number(id),
+              ]
+            );
+          }
         } else {
-          await db.run(
-            `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
-            VALUES (?, ?, ?, ?, ?)`,
-            [
-              income_date || new Date().toISOString().slice(0, 10),
-              contributor || "",
-              Number(amount) || 0,
-              fund_type || "Quỹ sinh hoạt",
-              note || "",
-            ]
-          );
+          if (sponsorCheck.columnSupported) {
+            await db.run(
+              `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note, sponsor_id)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+              [
+                income_date || new Date().toISOString().slice(0, 10),
+                contributor || "",
+                Number(amount) || 0,
+                fund_type || "Quỹ sinh hoạt",
+                note || "",
+                sponsorCheck.sponsorId,
+              ]
+            );
+          } else {
+            await db.run(
+              `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
+              VALUES (?, ?, ?, ?, ?)`,
+              [
+                income_date || new Date().toISOString().slice(0, 10),
+                contributor || "",
+                Number(amount) || 0,
+                fund_type || "Quỹ sinh hoạt",
+                note || "",
+              ]
+            );
+          }
         }
         break;
       }
