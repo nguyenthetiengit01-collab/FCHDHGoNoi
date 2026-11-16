@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
+import { getAuthSession } from "@/lib/auth";
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+
+function clampInt(raw: FormDataEntryValue | null, fallback: number, min: number, max: number) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(max, Math.max(min, Math.round(n)));
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getAuthSession(req);
+    if (!session) {
+      return NextResponse.json(
+        { error: "Vui lòng đăng nhập để tải và xử lý ảnh" },
+        { status: 401 }
+      );
+    }
+
     const contentType = req.headers.get("content-type") || "";
 
     if (contentType.includes("multipart/form-data")) {
@@ -15,9 +32,16 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const maxWidth = Number(formData.get("maxWidth")) || 1280;
-      const maxHeight = Number(formData.get("maxHeight")) || 960;
-      const quality = Number(formData.get("quality")) || 85;
+      if (file.size > MAX_UPLOAD_BYTES) {
+        return NextResponse.json(
+          { error: "Kích thước ảnh vượt quá giới hạn tối đa 10MB" },
+          { status: 413 }
+        );
+      }
+
+      const maxWidth = clampInt(formData.get("maxWidth"), 1280, 64, 2560);
+      const maxHeight = clampInt(formData.get("maxHeight"), 960, 64, 2560);
+      const quality = clampInt(formData.get("quality"), 85, 40, 95);
 
       const arrayBuffer = await file.arrayBuffer();
       const inputBuffer = Buffer.from(arrayBuffer);
@@ -53,4 +77,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

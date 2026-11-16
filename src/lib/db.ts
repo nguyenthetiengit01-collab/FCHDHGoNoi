@@ -625,6 +625,16 @@ function initSchema(db: DatabaseSyncType) {
       note TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      actor_id INTEGER NOT NULL,
+      actor_name TEXT NOT NULL,
+      actor_role TEXT NOT NULL,
+      action TEXT NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 }
 
@@ -1804,4 +1814,89 @@ export async function getFullAppData(): Promise<FullAppData> {
       sponsors,
     })
   );
+}
+
+export interface AuditLogEntry {
+  id: number;
+  actor_id: number;
+  actor_name: string;
+  actor_role: string;
+  action: string;
+  summary: string;
+  created_at: string;
+}
+
+let auditTableInitPromise: Promise<void> | null = null;
+
+export async function ensureAuditLogsReady(): Promise<void> {
+  if (!auditTableInitPromise) {
+    auditTableInitPromise = (async () => {
+      const db = getAsyncDb();
+      await db.run(`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          actor_id INTEGER NOT NULL,
+          actor_name TEXT NOT NULL,
+          actor_role TEXT NOT NULL,
+          action TEXT NOT NULL,
+          summary TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+    })().catch((err) => {
+      auditTableInitPromise = null;
+      throw err;
+    });
+  }
+  return auditTableInitPromise;
+}
+
+export async function recordAuditLog(params: {
+  actorId: number;
+  actorName: string;
+  actorRole: string;
+  action: string;
+  summary?: string;
+}): Promise<void> {
+  try {
+    await ensureAuditLogsReady();
+    const db = getAsyncDb();
+    await db.run(
+      `INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, summary)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        params.actorId,
+        String(params.actorName || "").slice(0, 120),
+        String(params.actorRole || "player").slice(0, 32),
+        String(params.action || "").slice(0, 80),
+        String(params.summary || "").slice(0, 300),
+      ]
+    );
+  } catch (err) {
+    console.error("recordAuditLog warning:", err);
+  }
+}
+
+export async function getAuditLogs(limit = 50): Promise<AuditLogEntry[]> {
+  await ensureAuditLogsReady();
+  const db = getAsyncDb();
+  const safeLimit = Math.min(200, Math.max(1, Math.floor(limit)));
+  const rows = await db.query<AuditLogEntry>(
+    `SELECT id, actor_id, actor_name, actor_role, action, summary, created_at
+     FROM audit_logs
+     ORDER BY id DESC
+     LIMIT ?`,
+    [safeLimit]
+  );
+  return rows;
+}
+
+export async function pingDatabase(): Promise<{ ok: boolean; latencyMs: number }> {
+  const startedAt = Date.now();
+  const db = getAsyncDb();
+  await db.query<{ ok: number }>("SELECT 1 AS ok");
+  return {
+    ok: true,
+    latencyMs: Math.max(0, Date.now() - startedAt),
+  };
 }
