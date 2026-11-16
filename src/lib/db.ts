@@ -1691,12 +1691,36 @@ interface RawSponsorRow {
 
 export async function getFullAppData(): Promise<FullAppData> {
   const db = getAsyncDb();
-  await ensureClubPostsReady(db);
-  await ensureSponsorsReady(db);
+  await Promise.all([ensureClubPostsReady(db), ensureSponsorsReady(db)]);
 
-  const settings = (await db.queryOne<TeamSettings>(
-    "SELECT * FROM team_settings WHERE id = 1"
-  )) || {
+  const [
+    settingsRow,
+    rawPlayers,
+    matches,
+    attendances,
+    otherIncomes,
+    expenses,
+    rawPosts,
+    rawSponsors,
+  ] = await Promise.all([
+    db.queryOne<TeamSettings>("SELECT * FROM team_settings WHERE id = 1"),
+    db.query<RawPlayerRow>("SELECT * FROM players ORDER BY code_order ASC, id ASC"),
+    db.query<MatchRecord>("SELECT * FROM matches ORDER BY match_number ASC, match_date ASC"),
+    db.query<MatchAttendance>("SELECT * FROM match_attendances"),
+    db.query<OtherIncome>("SELECT * FROM other_incomes ORDER BY income_date DESC, id DESC"),
+    db.query<ExpenseRecord>("SELECT * FROM expenses ORDER BY expense_date ASC, id ASC"),
+    db
+      .query<RawClubPostRow>("SELECT * FROM club_posts ORDER BY published_date DESC, rowid DESC")
+      .catch(() => null),
+    db
+      .query<RawSponsorRow>("SELECT * FROM sponsors ORDER BY sort_order ASC, id ASC")
+      .catch((err) => {
+        console.error("Failed to query sponsors:", err);
+        return null;
+      }),
+  ]);
+
+  const settings = settingsRow || {
     id: 1,
     team_name: "Đội Bóng HĐH Gò Nổi",
     short_name: "FC HĐH GÒ NỔI",
@@ -1710,10 +1734,6 @@ export async function getFullAppData(): Promise<FullAppData> {
     fanpage_url: FANPAGE_URL,
   };
 
-  const rawPlayers = await db.query<RawPlayerRow>(
-    "SELECT * FROM players ORDER BY code_order ASC, id ASC"
-  );
-
   // Bảo mật: Xóa mã PIN cá nhân trong dữ liệu trả về cho client/khách truy cập, chuẩn hóa năm sinh số nguyên
   const players = rawPlayers.map((p) => ({
     ...p,
@@ -1723,77 +1743,47 @@ export async function getFullAppData(): Promise<FullAppData> {
     gallery_urls: safeJsonParseArray(p.gallery_urls_json || "[]"),
   }));
 
-  const matches = await db.query<MatchRecord>(
-    "SELECT * FROM matches ORDER BY match_number ASC, match_date ASC"
-  );
+  const posts: ClubActivityPost[] =
+    rawPosts && rawPosts.length > 0
+      ? rawPosts.map((r) => ({
+          id: r.id,
+          category: r.category,
+          categoryLabel: r.category_label,
+          categoryBadgeClass: r.category_badge_class,
+          title: r.title,
+          slug: r.slug,
+          summary: r.summary,
+          publishedDate: r.published_date,
+          eventYear: r.event_year || "2026",
+          author: r.author,
+          featuredImage: r.featured_image,
+          galleryImages: safeJsonParseArray(r.gallery_images_json),
+          readingTime: r.reading_time || "3 phút đọc",
+          paragraphs: safeJsonParseArray(r.paragraphs_json),
+          quote: r.quote || undefined,
+          highlights: safeJsonParseArray(r.highlights_json),
+          taggedPlayerNames: safeJsonParseArray(r.tagged_players_json || "[]"),
+        }))
+      : CLUB_ACTIVITIES_POSTS;
 
-  const attendances = await db.query<MatchAttendance>(
-    "SELECT * FROM match_attendances"
-  );
-
-  const otherIncomes = await db.query<OtherIncome>(
-    "SELECT * FROM other_incomes ORDER BY income_date DESC, id DESC"
-  );
-
-  const expenses = await db.query<ExpenseRecord>(
-    "SELECT * FROM expenses ORDER BY expense_date ASC, id ASC"
-  );
-
-  let posts: ClubActivityPost[] = CLUB_ACTIVITIES_POSTS;
-  try {
-    const rawPosts = await db.query<RawClubPostRow>(
-      "SELECT * FROM club_posts ORDER BY published_date DESC, rowid DESC"
-    );
-    if (rawPosts.length > 0) {
-      posts = rawPosts.map((r) => ({
-        id: r.id,
-        category: r.category,
-        categoryLabel: r.category_label,
-        categoryBadgeClass: r.category_badge_class,
-        title: r.title,
-        slug: r.slug,
-        summary: r.summary,
-        publishedDate: r.published_date,
-        eventYear: r.event_year || "2026",
-        author: r.author,
-        featuredImage: r.featured_image,
-        galleryImages: safeJsonParseArray(r.gallery_images_json),
-        readingTime: r.reading_time || "3 phút đọc",
-        paragraphs: safeJsonParseArray(r.paragraphs_json),
-        quote: r.quote || undefined,
-        highlights: safeJsonParseArray(r.highlights_json),
-        taggedPlayerNames: safeJsonParseArray(r.tagged_players_json || "[]"),
-      }));
-    }
-  } catch {
-    posts = CLUB_ACTIVITIES_POSTS;
-  }
-
-  let sponsors: Sponsor[] = [];
-  try {
-    const rawSponsors = await db.query<RawSponsorRow>(
-      "SELECT * FROM sponsors ORDER BY sort_order ASC, id ASC"
-    );
-    sponsors = rawSponsors.map((r) => ({
-      id: Number(r.id),
-      name: r.name,
-      tier: (r.tier || "partner") as SponsorTier,
-      logo_url: r.logo_url || "",
-      banner_url: r.banner_url || "",
-      website_url: r.website_url || "",
-      description: r.description || "",
-      start_date: r.start_date || "",
-      end_date: r.end_date || "",
-      display_positions: safeJsonParseArray(r.display_positions_json),
-      is_active: Boolean(r.is_active),
-      sort_order: Number(r.sort_order || 0),
-      note: r.note || "",
-      created_at: r.created_at || "",
-    }));
-  } catch (err) {
-    console.error("Failed to query sponsors:", err);
-    sponsors = [];
-  }
+  const sponsors: Sponsor[] = rawSponsors
+    ? rawSponsors.map((r) => ({
+        id: Number(r.id),
+        name: r.name,
+        tier: (r.tier || "partner") as SponsorTier,
+        logo_url: r.logo_url || "",
+        banner_url: r.banner_url || "",
+        website_url: r.website_url || "",
+        description: r.description || "",
+        start_date: r.start_date || "",
+        end_date: r.end_date || "",
+        display_positions: safeJsonParseArray(r.display_positions_json),
+        is_active: Boolean(r.is_active),
+        sort_order: Number(r.sort_order || 0),
+        note: r.note || "",
+        created_at: r.created_at || "",
+      }))
+    : [];
 
   const summary = calculateFinancialSummary({
     attendances,

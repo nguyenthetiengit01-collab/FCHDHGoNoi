@@ -482,7 +482,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       <a href="#main-content" className="skip-link">Bỏ qua điều hướng, tới nội dung chính</a>
       {/* Top Navigation Bar — Khi đã đăng nhập (Cầu thủ / Quản lý) hiển thị App Header; khi là Khách hiển thị thanh công khai */}
       {session.role !== "guest" ? (
-        <header className="sticky top-0 z-40 app-header text-white border-b border-white/15 shadow-md">
+        <header className="sticky top-0 z-40 app-header text-white border-b border-white/15 shadow-md pt-[env(safe-area-inset-top)]">
           <div className="mx-auto max-w-7xl px-3 sm:px-6">
             <div className="flex h-16 items-center justify-between gap-2.5">
               {/* Logo Chính Thức & Tên Đội */}

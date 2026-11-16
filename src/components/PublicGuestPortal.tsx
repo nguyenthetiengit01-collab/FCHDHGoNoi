@@ -476,8 +476,8 @@ export function PublicGuestPortal({
       {/* ===================== HEADER XANH LAM HOÀNG GIA ===================== */}
       <header
         className={`fixed inset-x-0 top-0 z-40 transition-all duration-500 ${scrolled
-          ? "bg-[#0a274e]/90 backdrop-blur-lg py-3 border-b border-gold-500/30 shadow-lg"
-          : "bg-gradient-to-b from-[#061730]/80 via-[#061730]/40 to-transparent py-5"
+          ? "bg-[#0a274e]/90 backdrop-blur-lg pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] border-b border-gold-500/30 shadow-lg"
+          : "bg-gradient-to-b from-[#061730]/80 via-[#061730]/40 to-transparent pb-5 pt-[max(1.25rem,env(safe-area-inset-top))]"
           }`}
       >
         <div className={`${WRAP} flex items-center justify-between gap-4`}>
