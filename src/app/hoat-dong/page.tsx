@@ -317,7 +317,7 @@ export default function HoatDongPage() {
         {/* ==================== DANH SÁCH BÀI VIẾT ==================== */}
         <div id="hoat-dong-cong-dong" className="mt-8 scroll-mt-24">
           {filteredPosts.length === 0 ? (
-            <div className="text-center py-20 bg-navy-800/40 rounded-3xl border border-white/10 p-8">
+            <div className="text-center py-20 bg-navy-800/40 rounded-xl border border-white/10 p-8">
               <p className="text-lg text-slate-400">Không tìm thấy bài viết nào phù hợp.</p>
               <button
                 type="button"
@@ -352,7 +352,7 @@ export default function HoatDongPage() {
                 return (
                   <article
                     key={post.id}
-                    className="group flex flex-col rounded-3xl overflow-hidden bg-gradient-to-b from-navy-700 to-navy-900 border border-gold-500/30 hover:border-gold-500 shadow-xl hover:shadow-[0_20px_40px_rgba(212,175,55,0.15)] transition duration-300"
+                    className="group flex flex-col rounded-xl overflow-hidden bg-gradient-to-b from-navy-700 to-navy-900 border border-gold-500/30 hover:border-gold-500 shadow-xl hover:shadow-[0_20px_40px_rgba(212,175,55,0.15)] transition duration-300"
                   >
                     {/* Ảnh bài viết */}
                     <div className="relative aspect-video overflow-hidden">
@@ -556,7 +556,7 @@ export default function HoatDongPage() {
 
           {/* Lưới ảnh thư viện */}
           {visibleGalleryPhotos.length === 0 ? (
-            <div className="text-center py-14 bg-navy-800/40 rounded-3xl border border-white/10 p-6">
+            <div className="text-center py-14 bg-navy-800/40 rounded-xl border border-white/10 p-6">
               <p className="text-base text-slate-300">
                 Chưa có hình ảnh phù hợp với bộ lọc hiện tại.
               </p>

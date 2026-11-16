@@ -44,14 +44,16 @@
   --color-focus-halo: #ffffff;
 }
 
-.bg-brand-navy {
-  background-color: var(--brand-navy) !important;
-  color: #ffffff !important;
-}
+@layer components {
+  .bg-brand-navy {
+    background-color: var(--brand-navy);
+    color: #ffffff;
+  }
 
-.bg-brand-navy-mid {
-  background-color: var(--brand-navy-mid) !important;
-  color: #ffffff !important;
+  .bg-brand-navy-mid {
+    background-color: var(--brand-navy-mid);
+    color: #ffffff;
+  }
 }
 
 :root {

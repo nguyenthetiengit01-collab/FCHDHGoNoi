@@ -945,7 +945,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
           onClick={() => setMobileMenuOpen(false)}
         >
           <div
-            className="w-full max-h-[85vh] bg-gradient-to-b from-[#0a2752] via-[#081f42] to-[#05142b] border-t-2 border-gold-400 rounded-t-3xl p-5 overflow-y-auto space-y-5 shadow-2xl text-white"
+            className="w-full max-h-[85vh] bg-gradient-to-b from-[#0a2752] via-[#081f42] to-[#05142b] border-t-2 border-gold-400 rounded-t-xl p-5 overflow-y-auto space-y-5 shadow-2xl text-white"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header Drawer với Thông tin Thành Viên */}

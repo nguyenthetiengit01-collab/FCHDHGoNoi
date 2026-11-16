@@ -233,7 +233,7 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
             ];
             openLightbox(allImgs, 0);
           }}
-          className="relative aspect-video rounded-3xl overflow-hidden mb-10 border-2 border-gold-500/40 shadow-2xl cursor-pointer group"
+          className="relative aspect-video rounded-xl overflow-hidden mb-10 border-2 border-gold-500/40 shadow-2xl cursor-pointer group"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -264,7 +264,7 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
 
         {/* Trích dẫn nổi bật (Quote) */}
         {post.quote && (
-          <blockquote className="my-10 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-navy-600 to-navy-800 border border-gold-500/60 shadow-xl relative overflow-hidden">
+          <blockquote className="my-10 p-6 sm:p-8 rounded-xl bg-gradient-to-r from-navy-600 to-navy-800 border border-gold-500/60 shadow-xl relative overflow-hidden">
             <Quote className="absolute right-4 bottom-4 h-24 w-24 text-white/5 pointer-events-none" />
             <p className="font-display font-bold text-xl sm:text-2xl text-gold-300 leading-snug">
               &ldquo;{post.quote}&rdquo;
@@ -277,7 +277,7 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
 
         {/* Điểm nhấn hoạt động */}
         {post.highlights && post.highlights.length > 0 && (
-          <div className="my-10 p-6 sm:p-8 rounded-3xl bg-navy-900 border border-white/15">
+          <div className="my-10 p-6 sm:p-8 rounded-xl bg-navy-900 border border-white/15">
             <h3 className="font-display font-extrabold uppercase text-lg text-gold-500 mb-4 flex items-center gap-2">
               <Flame className="h-5 w-5" />
               <span>Điểm nhấn hoạt động</span>
@@ -295,7 +295,7 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
 
         {/* Cầu thủ được gắn thẻ trong bài viết */}
         {post.taggedPlayerNames && post.taggedPlayerNames.length > 0 && (
-          <div className="my-10 p-6 rounded-3xl bg-navy-900 border border-gold-500/30">
+          <div className="my-10 p-6 rounded-xl bg-navy-900 border border-gold-500/30">
             <h3 className="font-display font-extrabold uppercase text-base text-gold-500 mb-3 flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span>Cầu thủ góp mặt trong hoạt động này</span>

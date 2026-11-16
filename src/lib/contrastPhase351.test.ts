@@ -176,9 +176,11 @@ describe("Phase 3.5.1 – WCAG 2.2 Contrast & Design Token Integrity", () => {
       expect(layerBaseMatch![1]).toContain("button:focus-visible");
       expect(layerBaseMatch![1]).toContain("var(--focus-on-light)");
 
-      const layerComponentsMatch = css.match(/@layer\s+components\s*\{([\s\S]*?)\n\}/);
-      expect(layerComponentsMatch).toBeTruthy();
-      expect(layerComponentsMatch![1]).toContain(".form-input:focus-visible");
+      const layerComponentsBlocks = Array.from(
+        css.matchAll(/@layer\s+components\s*\{([\s\S]*?)\n\}/g),
+        (m) => m[1]
+      ).join("\n");
+      expect(layerComponentsBlocks).toContain(".form-input:focus-visible");
 
       // Strip @layer base, @layer components, and @media (forced-colors: active) to ensure zero unlayered focus overrides remain
       const stripped = css

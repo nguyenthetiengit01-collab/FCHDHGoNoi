@@ -909,19 +909,20 @@ export function PublicGuestPortal({
                         (prev) => (prev + 1) % homeBanners.length
                       )
                     }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 rounded-full bg-slate-950/70 hover:bg-slate-950 p-2 text-white border border-white/20 transition cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 rounded-full bg-slate-950/70 hover:bg-slate-950 p-2 text-white border border-white/20 transition cursor-pointer focus-visible:outline-2 focus-visible:outline-focus-on-dark"
                     aria-label="Banner tiếp theo"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
-                  <div className="absolute bottom-2 right-4 z-20 flex items-center gap-0.5">
+                  <div className="absolute bottom-1 right-3 z-20 flex items-center gap-0.5">
                     {homeBanners.map((_, i) => (
                       <button
                         key={i}
                         type="button"
                         onClick={() => setActiveBannerIdx(i)}
-                        className="min-h-6 min-w-6 flex items-center justify-center p-1.5 cursor-pointer"
+                        className="min-h-11 min-w-11 flex items-center justify-center rounded-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-focus-on-dark"
                         aria-label={`Tới banner ${i + 1}`}
+                        aria-current={i === activeBannerIdx ? "true" : undefined}
                       >
                         <span
                           aria-hidden="true"
