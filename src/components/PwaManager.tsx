@@ -123,9 +123,9 @@ export function PwaManager() {
   return (
     <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-96 z-50 space-y-2 pointer-events-none">
       {showUpdateBanner && (
-        <div className="pointer-events-auto rounded-xl bg-[#081a33] border border-[#d4af37]/70 p-4 shadow-2xl text-slate-100 flex items-center justify-between gap-3">
+        <div className="pointer-events-auto rounded-xl bg-navy-900 border border-gold-500/70 p-4 shadow-2xl text-slate-100 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-xs font-extrabold uppercase tracking-wider text-[#fde047]">
+            <div className="text-xs font-extrabold uppercase tracking-wider text-gold-300">
               Có phiên bản mới
             </div>
             <p className="text-xs text-slate-300 mt-0.5">
@@ -136,7 +136,7 @@ export function PwaManager() {
             <button
               type="button"
               onClick={handleApplyUpdate}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#d4af37] hover:bg-[#fde047] text-[#040e1a] text-xs font-extrabold uppercase tracking-wider transition"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-500 hover:bg-gold-300 text-navy-950 text-xs font-extrabold uppercase tracking-wider transition"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Cập nhật
@@ -154,7 +154,7 @@ export function PwaManager() {
       )}
 
       {showInstallBanner && (
-        <div className="pointer-events-auto rounded-xl bg-[#081a33] border border-white/15 p-3.5 shadow-2xl text-slate-100 flex items-center justify-between gap-3">
+        <div className="pointer-events-auto rounded-xl bg-navy-900 border border-white/15 p-3.5 shadow-2xl text-slate-100 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs font-bold text-white truncate">
               Cài đặt ứng dụng FC Gò Nổi
@@ -167,7 +167,7 @@ export function PwaManager() {
             <button
               type="button"
               onClick={handleInstallClick}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0b2447] hover:bg-[#11315f] border border-[#d4af37]/50 text-[#fde047] text-xs font-bold transition"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-navy-700 hover:bg-[#11315f] border border-gold-500/50 text-gold-300 text-xs font-bold transition"
             >
               <Download className="h-3.5 w-3.5" />
               Cài đặt

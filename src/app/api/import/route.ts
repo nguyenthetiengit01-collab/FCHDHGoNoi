@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
 import * as XLSX from "xlsx";
-import { getAsyncDb, getFullAppData } from "@/lib/db";
+import { getAsyncDb, getFullAppData, recordAuditLog } from "@/lib/db";
 import {
   requireManagerSession,
   verifyCsrfOrigin,
@@ -626,6 +626,16 @@ export async function POST(req: NextRequest) {
     }
 
     const updated = await getFullAppData();
+    if (auth.session) {
+      await recordAuditLog({
+        actorId: auth.session.playerId,
+        actorName: auth.session.fullName,
+        actorRole: auth.session.accessRole,
+        action: "import_excel",
+        summary: `Import Excel: ${updated.players.length} cầu thủ, ${updated.matches.length} trận, ${updated.expenses.length} khoản chi`,
+      });
+    }
+
     return NextResponse.json(updated, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",

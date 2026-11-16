@@ -84,10 +84,10 @@ export function MatrixTab({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1">
             <Badge variant="navy" className="gap-1.5">
-              <Eye className="h-3.5 w-3.5 text-[#d4af37]" />
+              <Eye className="h-3.5 w-3.5 text-gold-500" />
               <span>Chế độ Xem Tổng Quan & Tham Khảo (Read-only)</span>
             </Badge>
-            <h2 className="text-lg font-extrabold text-[#092244] tracking-tight">
+            <h2 className="text-lg font-extrabold text-ink-primary tracking-tight">
               Bảng Tổng Hợp Thu Tiền Trận Hằng Tuần
             </h2>
             <p className="text-xs text-slate-600">
@@ -140,7 +140,7 @@ export function MatrixTab({
                 onClick={() => setFilterMode(item.key)}
                 className={`min-h-9 px-3 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
                   filterMode === item.key
-                    ? "bg-[#0d2e5b] text-white border-[#0d2e5b]"
+                    ? "bg-navy-600 text-white border-navy-600"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                 }`}
               >
@@ -208,25 +208,34 @@ export function MatrixTab({
           />
         </Card>
       ) : (
-        <div className="ds-table-wrap">
+        <div className="space-y-2">
+          <p className="md:hidden text-[11px] font-semibold text-slate-600 px-1">
+            Cột Cầu thủ được ghim cố định — vuốt ngang bảng để xem từng trận.
+          </p>
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Ma trận điểm danh và đóng quỹ theo cầu thủ và trận đấu"
+            className="ds-table-wrap focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-on-light"
+          >
           <table className="matrix-table w-full text-xs">
             <thead>
-              <tr className="bg-[#092244] text-white">
+              <tr className="bg-navy-800 text-white">
                 <th
                   scope="col"
-                  className="sticky-corner bg-[#092244] px-3 py-3 text-left font-bold border-b border-r border-white/10"
+                  className="sticky-corner bg-navy-800 px-3 py-3 text-left font-bold border-b border-r border-white/10"
                 >
                   Cầu Thủ ({filteredPlayers.length})
                 </th>
                 <th
                   scope="col"
-                  className="bg-[#0d2e5b] px-2 py-3 text-center font-bold border-b border-r border-white/10 whitespace-nowrap"
+                  className="bg-navy-600 px-2 py-3 text-center font-bold border-b border-r border-white/10 whitespace-nowrap"
                 >
                   Tên
                 </th>
                 <th
                   scope="col"
-                  className="bg-[#0d2e5b] px-3 py-3 text-right font-bold border-b border-r border-white/10 min-w-[120px]"
+                  className="bg-navy-600 px-3 py-3 text-right font-bold border-b border-r border-white/10 min-w-[120px]"
                 >
                   Tổng Đã Nộp
                 </th>
@@ -234,10 +243,10 @@ export function MatrixTab({
                   <th
                     key={m.id}
                     scope="col"
-                    className="bg-[#092244] px-2 py-2.5 text-center font-semibold border-b border-r border-white/10 min-w-[88px]"
+                    className="bg-navy-800 px-2 py-2.5 text-center font-semibold border-b border-r border-white/10 min-w-[88px]"
                     title={`${m.label} (${formatDateVN(m.match_date)}) - ${m.venue}`}
                   >
-                    <div className="font-bold text-[#fde047] whitespace-nowrap">
+                    <div className="font-bold text-gold-300 whitespace-nowrap">
                       {m.label}
                     </div>
                     <div className="text-[10px] font-normal text-slate-300 truncate max-w-[84px] mx-auto">
@@ -326,15 +335,15 @@ export function MatrixTab({
                   >
                     <th
                       scope="row"
-                      className={`px-3 py-2 text-left font-semibold text-[#092244] border-r border-slate-200 ${
-                        isSelf ? "!bg-amber-50" : ""
+                      className={`sticky-col px-3 py-2 text-left font-semibold text-ink-primary border-r border-slate-200 ${
+                        isSelf ? "bg-amber-50" : "bg-white"
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         <span className="w-5 text-xs text-slate-400 font-normal tabular-nums">
                           {idx + 1}.
                         </span>
-                        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded bg-[#0d2e5b] text-white text-[11px] font-bold tabular-nums">
+                        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded bg-navy-600 text-white text-[11px] font-bold tabular-nums">
                           {player.jersey_number ?? "-"}
                         </span>
                         <span className="truncate">{player.full_name}</span>
@@ -403,6 +412,7 @@ export function MatrixTab({
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

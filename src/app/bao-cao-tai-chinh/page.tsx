@@ -111,12 +111,15 @@ export default function PublicFinancialReportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#040e1a] text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-navy-950 text-slate-100 flex flex-col">
+      <a href="#main-content" className="skip-link">
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
       {/* Header đồng bộ thương hiệu FC HĐH Gò Nổi */}
-      <header className="sticky top-0 z-30 bg-[#040e1a]/95 backdrop-blur-md border-b border-white/10">
+      <header className="sticky top-0 z-30 bg-navy-950/95 backdrop-blur-md border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-3 min-w-0 group">
-            <div className="h-10 w-10 rounded-full overflow-hidden border border-[#d4af37]/60 bg-white shrink-0">
+            <div className="h-10 w-10 rounded-full overflow-hidden border border-gold-500/60 bg-white shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={OFFICIAL_LOGO_URL}
@@ -125,10 +128,10 @@ export default function PublicFinancialReportPage() {
               />
             </div>
             <div className="min-w-0">
-              <div className="font-display font-extrabold uppercase tracking-tight text-sm sm:text-base text-white truncate group-hover:text-[#fde047] transition">
+              <div className="font-display font-extrabold uppercase tracking-tight text-sm sm:text-base text-white truncate group-hover:text-gold-300 transition">
                 FC HĐH GÒ NỔI TẠI TP.HCM
               </div>
-              <div className="text-[11px] font-bold uppercase tracking-widest text-[#d4af37] truncate">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-gold-500 truncate">
                 Xã Gò Nổi • TP. Đà Nẵng
               </div>
             </div>
@@ -139,26 +142,26 @@ export default function PublicFinancialReportPage() {
               href="/cau-chuyen-go-noi"
               className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 transition"
             >
-              <BookOpen className="h-3.5 w-3.5 text-[#d4af37]" />
+              <BookOpen className="h-3.5 w-3.5 text-gold-500" />
               Câu chuyện Gò Nổi
             </Link>
             <Link
               href="/hoat-dong"
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 transition"
             >
-              <Camera className="h-3.5 w-3.5 text-[#d4af37]" />
+              <Camera className="h-3.5 w-3.5 text-gold-500" />
               Hoạt động CLB
             </Link>
             <Link
               href="/nha-tai-tro"
               className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white hover:bg-white/5 transition"
             >
-              <Handshake className="h-3.5 w-3.5 text-[#d4af37]" />
+              <Handshake className="h-3.5 w-3.5 text-gold-500" />
               Nhà tài trợ
             </Link>
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#0b2447] hover:bg-[#11315f] border border-white/15 text-xs font-bold uppercase tracking-wider text-white transition"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy-700 hover:bg-[#11315f] border border-white/15 text-xs font-bold uppercase tracking-wider text-white transition"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Trang chủ
@@ -167,17 +170,17 @@ export default function PublicFinancialReportPage() {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         {/* Hero */}
-        <section className="relative border-b border-white/10 bg-gradient-to-b from-[#081a33] via-[#061326] to-[#040e1a] py-10 sm:py-14">
+        <section className="relative border-b border-white/10 bg-gradient-to-b from-navy-900 via-[#061326] to-navy-950 py-10 sm:py-14">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/40 text-[#fde047] text-[11px] font-bold uppercase tracking-widest mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold-500/10 border border-gold-500/40 text-gold-300 text-[11px] font-bold uppercase tracking-widest mb-4">
               <ShieldCheck className="h-3.5 w-3.5" />
               Minh bạch tài chính cộng đồng
             </div>
             <h1 className="font-display font-black uppercase text-3xl sm:text-4xl lg:text-5xl tracking-tight text-white">
               BÁO CÁO{" "}
-              <span className="text-[#fde047]">TÀI CHÍNH MINH BẠCH</span>
+              <span className="text-gold-300">TÀI CHÍNH MINH BẠCH</span>
             </h1>
             <p className="mt-3 max-w-2xl mx-auto text-sm sm:text-base text-slate-300 font-light leading-relaxed">
               Tổng hợp công khai tình hình thu – chi quỹ sinh hoạt và quỹ giải của{" "}
@@ -189,10 +192,10 @@ export default function PublicFinancialReportPage() {
 
         {/* Filter Bar & Update Timestamp */}
         <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-8">
-          <div className="rounded-xl bg-[#081a33]/90 border border-white/10 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="rounded-xl bg-navy-900/90 border border-white/10 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
-                <Calendar className="h-4 w-4 text-[#d4af37]" />
+                <Calendar className="h-4 w-4 text-gold-500" />
                 Kỳ báo cáo:
               </div>
 
@@ -200,7 +203,7 @@ export default function PublicFinancialReportPage() {
                 aria-label="Lọc theo năm"
                 value={selectedYear}
                 onChange={(e) => handleYearChange(e.target.value)}
-                className="rounded-lg bg-[#040e1a] border border-white/15 px-3 py-2 text-xs sm:text-sm font-semibold text-white focus:outline-none focus:border-[#d4af37]"
+                className="rounded-lg bg-navy-950 border border-white/15 px-3 py-2 text-xs sm:text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:border-gold-500"
               >
                 <option value="all">Tất cả các năm</option>
                 {(report?.availableYears ?? []).map((y) => (
@@ -214,7 +217,7 @@ export default function PublicFinancialReportPage() {
                 aria-label="Lọc theo tháng"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="rounded-lg bg-[#040e1a] border border-white/15 px-3 py-2 text-xs sm:text-sm font-semibold text-white focus:outline-none focus:border-[#d4af37]"
+                className="rounded-lg bg-navy-950 border border-white/15 px-3 py-2 text-xs sm:text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:border-gold-500"
               >
                 <option value="all">Tất cả các tháng</option>
                 {monthsForSelectedYear.map((m) => (
@@ -231,7 +234,7 @@ export default function PublicFinancialReportPage() {
                     setSelectedYear("all");
                     setSelectedMonth("all");
                   }}
-                  className="px-3 py-2 rounded-lg text-xs font-bold text-[#fde047] bg-[#d4af37]/10 border border-[#d4af37]/30 hover:bg-[#d4af37]/20 transition"
+                  className="px-3 py-2 rounded-lg text-xs font-bold text-gold-300 bg-gold-500/10 border border-gold-500/30 hover:bg-gold-500/20 transition"
                 >
                   Xem toàn bộ
                 </button>
@@ -239,7 +242,7 @@ export default function PublicFinancialReportPage() {
             </div>
 
             <div className="flex items-center gap-2 text-xs text-slate-300">
-              <Clock className="h-3.5 w-3.5 text-[#d4af37] shrink-0" />
+              <Clock className="h-3.5 w-3.5 text-gold-500 shrink-0" />
               <span>{formattedUpdatedTime}</span>
             </div>
           </div>
@@ -252,17 +255,17 @@ export default function PublicFinancialReportPage() {
               {[1, 2, 3, 4].map((item) => (
                 <div
                   key={item}
-                  className="h-32 rounded-xl bg-[#081a33]/80 border border-white/10 animate-pulse"
+                  className="h-32 rounded-xl bg-navy-900/80 border border-white/10 animate-pulse"
                 />
               ))}
             </div>
           ) : error ? (
-            <div className="rounded-xl bg-[#081a33]/80 border border-rose-500/30 p-8 text-center text-sm text-rose-200">
+            <div className="rounded-xl bg-navy-900/80 border border-rose-500/30 p-8 text-center text-sm text-rose-200">
               {error}
             </div>
           ) : !report || !report.hasData ? (
-            <div className="rounded-xl bg-[#081a33]/80 border border-dashed border-white/15 p-10 text-center space-y-2">
-              <Wallet className="h-8 w-8 text-[#d4af37]/70 mx-auto" />
+            <div className="rounded-xl bg-navy-900/80 border border-dashed border-white/15 p-10 text-center space-y-2">
+              <Wallet className="h-8 w-8 text-gold-500/70 mx-auto" />
               <div className="font-display font-bold uppercase text-base text-white">
                 CHƯA CÓ DỮ LIỆU TÀI CHÍNH TRONG KỲ ĐÃ CHỌN
               </div>
@@ -274,7 +277,7 @@ export default function PublicFinancialReportPage() {
             <>
               {/* 4 KPI Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="rounded-xl bg-[#081a33]/90 border border-emerald-500/30 p-5 space-y-2">
+                <div className="rounded-xl bg-navy-900/90 border border-emerald-500/30 p-5 space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-emerald-300">
                     <span>Tổng thu</span>
                     <TrendingUp className="h-4 w-4 text-emerald-400" />
@@ -287,7 +290,7 @@ export default function PublicFinancialReportPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-[#081a33]/90 border border-rose-500/30 p-5 space-y-2">
+                <div className="rounded-xl bg-navy-900/90 border border-rose-500/30 p-5 space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-rose-300">
                     <span>Tổng chi</span>
                     <TrendingDown className="h-4 w-4 text-rose-400" />
@@ -300,7 +303,7 @@ export default function PublicFinancialReportPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-[#081a33]/90 border border-sky-400/35 p-5 space-y-2">
+                <div className="rounded-xl bg-navy-900/90 border border-sky-400/35 p-5 space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-sky-300">
                     <span>
                       {report.filter.year !== "all" || report.filter.month !== "all"
@@ -325,12 +328,12 @@ export default function PublicFinancialReportPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-gradient-to-br from-[#0e2e5c] to-[#081a33] border border-[#d4af37]/50 p-5 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#fde047]">
+                <div className="rounded-xl bg-gradient-to-br from-[#0e2e5c] to-navy-900 border border-gold-500/50 p-5 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-gold-300">
                     <span>Quỹ giải (Độc lập)</span>
-                    <Trophy className="h-4 w-4 text-[#fde047]" />
+                    <Trophy className="h-4 w-4 text-gold-300" />
                   </div>
-                  <div className="font-display font-black text-2xl text-[#fde047]">
+                  <div className="font-display font-black text-2xl text-gold-300">
                     {formatVND(report.tournamentReserve)}
                   </div>
                   <div className="text-xs text-slate-300">
@@ -342,7 +345,7 @@ export default function PublicFinancialReportPage() {
               {/* Cơ cấu nguồn thu & Cơ cấu chi phí 6 nhóm */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Nguồn thu */}
-                <div className="rounded-xl bg-[#081a33]/90 border border-white/10 p-5 sm:p-6 space-y-5">
+                <div className="rounded-xl bg-navy-900/90 border border-white/10 p-5 sm:p-6 space-y-5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <PieChart className="h-5 w-5 text-emerald-400" />
@@ -369,10 +372,10 @@ export default function PublicFinancialReportPage() {
                             </span>
                           </span>
                         </div>
-                        <div className="h-2.5 w-full rounded-full bg-[#040e1a] overflow-hidden border border-white/5">
+                        <div className="h-2.5 w-full rounded-full bg-navy-950 overflow-hidden border border-white/5">
                           <div
                             className={`h-full rounded-full transition-all ${
-                              src.key === "match" ? "bg-emerald-400" : "bg-[#d4af37]"
+                              src.key === "match" ? "bg-emerald-400" : "bg-gold-500"
                             }`}
                             style={{
                               width: `${Math.min(100, Math.max(0, src.percentage))}%`,
@@ -385,7 +388,7 @@ export default function PublicFinancialReportPage() {
                 </div>
 
                 {/* Cơ cấu chi phí theo 6 nhóm */}
-                <div className="rounded-xl bg-[#081a33]/90 border border-white/10 p-5 sm:p-6 space-y-5">
+                <div className="rounded-xl bg-navy-900/90 border border-white/10 p-5 sm:p-6 space-y-5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <BarChart3 className="h-5 w-5 text-sky-400" />
@@ -412,7 +415,7 @@ export default function PublicFinancialReportPage() {
                             </span>
                           </span>
                         </div>
-                        <div className="h-2.5 w-full rounded-full bg-[#040e1a] overflow-hidden border border-white/5">
+                        <div className="h-2.5 w-full rounded-full bg-navy-950 overflow-hidden border border-white/5">
                           <div
                             className={`h-full rounded-full transition-all ${
                               CATEGORY_ACCENTS[item.category] || "bg-slate-400"
@@ -429,7 +432,7 @@ export default function PublicFinancialReportPage() {
               </div>
 
               {/* Biểu đồ thu chi theo tháng */}
-              <div className="rounded-xl bg-[#081a33]/90 border border-white/10 p-5 sm:p-6 space-y-5">
+              <div className="rounded-xl bg-navy-900/90 border border-white/10 p-5 sm:p-6 space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="font-display font-extrabold uppercase text-lg text-white">
@@ -470,7 +473,7 @@ export default function PublicFinancialReportPage() {
                         return (
                           <div
                             key={point.month}
-                            className="flex flex-col items-center gap-2 rounded-lg bg-[#040e1a]/70 border border-white/5 p-3"
+                            className="flex flex-col items-center gap-2 rounded-lg bg-navy-950/70 border border-white/5 p-3"
                           >
                             <div className="text-[11px] font-semibold text-slate-300 text-center">
                               <div>+{formatShortVND(point.totalIncome)}</div>
@@ -500,8 +503,8 @@ export default function PublicFinancialReportPage() {
               </div>
 
               {/* Ghi chú minh bạch & bảo mật */}
-              <div className="rounded-xl bg-[#081a33]/60 border border-white/10 p-4 sm:p-5 flex items-start gap-3 text-xs sm:text-sm text-slate-300">
-                <Info className="h-4 w-4 text-[#d4af37] shrink-0 mt-0.5" />
+              <div className="rounded-xl bg-navy-900/60 border border-white/10 p-4 sm:p-5 flex items-start gap-3 text-xs sm:text-sm text-slate-300">
+                <Info className="h-4 w-4 text-gold-500 shrink-0 mt-0.5" />
                 <p className="leading-relaxed">
                   Báo cáo được tổng hợp trực tiếp từ hệ thống kế toán chuẩn của CLB (chỉ tính
                   khoản thu đã hoàn tất, loại trừ các giao dịch chuyển quỹ nội bộ, tách riêng
@@ -515,7 +518,7 @@ export default function PublicFinancialReportPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 bg-[#040e1a] py-6 text-center text-xs text-slate-400">
+      <footer className="border-t border-white/10 bg-navy-950 py-6 text-center text-xs text-slate-400">
         <div className="max-w-6xl mx-auto px-4 space-y-1">
           <div className="font-semibold text-slate-200">
             FC HĐH Gò Nổi tại TP.HCM • Xã Gò Nổi • TP. Đà Nẵng

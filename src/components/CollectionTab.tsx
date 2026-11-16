@@ -393,13 +393,13 @@ export function CollectionTab({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div className="space-y-1.5">
             <Badge variant="navy" className="gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#d4af37]" />
+              <ShieldCheck className="h-3.5 w-3.5 text-gold-500" />
               <span>
                 Phân hệ Thu Tiền Trận — Ban Quản Lý (
                 {managers.map((m) => m.short_name).join(", ")})
               </span>
             </Badge>
-            <h2 className="text-lg sm:text-xl font-extrabold text-[#092244] tracking-tight">
+            <h2 className="text-lg sm:text-xl font-extrabold text-ink-primary tracking-tight">
               Thu Tiền Trận Nhanh — {activeMatch.label}
             </h2>
             <p className="text-xs text-slate-600">
@@ -415,7 +415,7 @@ export function CollectionTab({
                 id="collect-match-select"
                 value={activeMatch.id}
                 onChange={(e) => handleSelectMatch(Number(e.target.value))}
-                className="font-bold text-[#092244]"
+                className="font-bold text-ink-primary"
               >
                 {matches
                   .slice()
@@ -478,10 +478,10 @@ export function CollectionTab({
         </div>
 
         {/* HỘP CHI TIỀN SÂN NHANH DÀNH CHO BAN QUẢN LÝ */}
-        <div className="rounded-xl bg-[#092244]/[0.03] border border-[#0d2e5b]/15 p-3.5 sm:p-4 space-y-3">
+        <div className="rounded-xl bg-navy-800/[0.03] border border-navy-600/15 p-3.5 sm:p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="inline-flex items-center gap-2 text-xs font-extrabold text-[#092244]">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#0d2e5b] text-[#fde047]">
+            <div className="inline-flex items-center gap-2 text-xs font-extrabold text-ink-primary">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-navy-600 text-gold-300">
                 <Zap className="h-3.5 w-3.5" />
               </span>
               <span>
@@ -503,7 +503,7 @@ export function CollectionTab({
                     }}
                     className={`min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
                       isSelected
-                        ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                        ? "bg-navy-600 text-gold-300 border-navy-600"
                         : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                     }`}
                   >
@@ -544,7 +544,7 @@ export function CollectionTab({
                   onClick={() => setPitchPayer(pName)}
                   className={`min-h-9 px-2.5 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${
                     pitchPayer === pName
-                      ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                      ? "bg-navy-600 text-gold-300 border-navy-600"
                       : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                   }`}
                 >
@@ -648,7 +648,7 @@ export function CollectionTab({
                     onClick={() => setStatusFilter(item.key)}
                     className={`min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
                       statusFilter === item.key
-                        ? "bg-[#0d2e5b] text-white border-[#0d2e5b]"
+                        ? "bg-navy-600 text-white border-navy-600"
                         : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                     }`}
                   >
@@ -705,12 +705,12 @@ export function CollectionTab({
                       <span className="text-xs font-bold text-slate-400 w-5 tabular-nums">
                         {index + 1}.
                       </span>
-                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0d2e5b] text-white text-xs font-extrabold tabular-nums">
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-navy-600 text-white text-xs font-extrabold tabular-nums">
                         #{p.jersey_number ?? "-"}
                       </span>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-sm text-[#092244]">
+                          <span className="font-bold text-sm text-ink-primary">
                             {p.full_name}
                           </span>
                           <span className="text-xs text-slate-500">
@@ -754,7 +754,7 @@ export function CollectionTab({
                           onChange={(e) =>
                             handleAmountChangeDraft(p.id, e.target.value)
                           }
-                          className="w-full min-h-11 sm:min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 pr-6 text-right text-sm font-bold text-[#092244] tabular-nums focus-visible:outline-2 focus-visible:outline-[#0d2e5b]"
+                          className="w-full min-h-11 sm:min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 pr-6 text-right text-sm font-bold text-ink-primary tabular-nums focus-visible:outline-2 focus-visible:outline-navy-600"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 pointer-events-none">
                           đ
@@ -772,7 +772,7 @@ export function CollectionTab({
                         }
                         className={`inline-flex items-center gap-1 min-h-11 sm:min-h-9 rounded-lg px-2.5 py-2 text-xs font-bold transition cursor-pointer select-none ${
                           eff.attended === 1
-                            ? "bg-[#092244] text-emerald-400 hover:bg-[#0d2e5b]"
+                            ? "bg-navy-800 text-emerald-400 hover:bg-navy-600"
                             : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                         }`}
                       >
@@ -828,8 +828,8 @@ export function CollectionTab({
         {/* Cột phải (4 cols): Bổ sung cầu thủ KHÔNG đăng ký trước nhưng vẫn tham gia */}
         <Card className="lg:col-span-4 space-y-5">
           <div className="border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2 text-[#092244]">
-              <UserPlus className="h-5 w-5 text-[#17488c]" />
+            <div className="flex items-center gap-2 text-ink-primary">
+              <UserPlus className="h-5 w-5 text-navy-500" />
               <h3 className="text-base font-bold">
                 Thêm Cầu Thủ Vào Phiếu Thu
               </h3>
@@ -860,7 +860,7 @@ export function CollectionTab({
           <div className="space-y-2.5">
             <label
               htmlFor="walkin-member-select"
-              className="block text-sm font-bold text-[#092244]"
+              className="block text-sm font-bold text-ink-primary"
             >
               1. Thành viên trong đội ({unregisteredPlayers.length})
             </label>
@@ -924,7 +924,7 @@ export function CollectionTab({
           >
             <label
               htmlFor="new-walkin-name"
-              className="block text-sm font-bold text-[#092244]"
+              className="block text-sm font-bold text-ink-primary"
             >
               2. Cầu thủ mới / Khách mời ngoài danh sách
             </label>
@@ -953,12 +953,12 @@ export function CollectionTab({
       </div>
 
       {/* THANH TÁC VỤ CỐ ĐỊNH Ở ĐÁY: HIỆN SỐ LƯỢNG THAY ĐỔI & NÚT LƯU PHIẾU THU */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-[#081a33]/95 backdrop-blur-md border-t border-white/10 px-4 py-3 shadow-2xl transition-transform">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-navy-900/95 backdrop-blur-md border-t border-white/10 px-4 py-3 shadow-2xl transition-transform">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3 w-full sm:w-auto">
             {dirtyCount > 0 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 border border-amber-400/50 px-3 py-1 text-xs font-extrabold text-[#fde047]">
-                <span className="h-2 w-2 rounded-full bg-[#fde047] animate-ping" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 border border-amber-400/50 px-3 py-1 text-xs font-extrabold text-gold-300">
+                <span className="h-2 w-2 rounded-full bg-gold-300 animate-ping" />
                 <span>{dirtyCount} thay đổi chưa lưu</span>
               </span>
             ) : (
@@ -972,7 +972,7 @@ export function CollectionTab({
               {activeMatch.label} • Thu bởi:{" "}
               <strong className="text-white">{collectorName}</strong>
               {totals.netAmountDiff !== 0 && (
-                <span className="ml-2 font-bold text-[#fde047] tabular-nums">
+                <span className="ml-2 font-bold text-gold-300 tabular-nums">
                   ({totals.netAmountDiff > 0 ? "+" : ""}
                   {formatVND(totals.netAmountDiff)})
                 </span>

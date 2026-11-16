@@ -39,11 +39,11 @@ function SponsorCard({
     <article
       className={`rounded-xl p-5 sm:p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5 border transition ${
         highlight
-          ? "bg-gradient-to-br from-[#0e2e5c] via-[#092244] to-[#06152b] border-[#d4af37]/70 shadow-[0_10px_30px_rgba(212,175,55,0.12)]"
-          : "bg-[#081a33]/90 border-white/10 hover:border-[#d4af37]/50"
+          ? "bg-gradient-to-br from-[#0e2e5c] via-navy-800 to-[#06152b] border-gold-500/70 shadow-[0_10px_30px_rgba(212,175,55,0.12)]"
+          : "bg-navy-900/90 border-white/10 hover:border-gold-500/50"
       }`}
     >
-      <div className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-lg bg-white p-2 border border-[#d4af37]/40 shadow-sm flex items-center justify-center overflow-hidden">
+      <div className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 rounded-lg bg-white p-2 border border-gold-500/40 shadow-sm flex items-center justify-center overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={logoSrc}
@@ -74,7 +74,7 @@ function SponsorCard({
         )}
 
         {sponsor.note && (
-          <p className="text-xs text-sky-200/80 border-l-2 border-[#d4af37]/60 pl-2.5 text-left">
+          <p className="text-xs text-sky-200/80 border-l-2 border-gold-500/60 pl-2.5 text-left">
             {sponsor.note}
           </p>
         )}
@@ -85,7 +85,7 @@ function SponsorCard({
               href={externalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#fde047] hover:text-white transition"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-gold-300 hover:text-white transition"
             >
               <span>
                 {externalUrl.includes("facebook.com")
@@ -109,8 +109,8 @@ function EmptyPartnerState({
   message: string;
 }) {
   return (
-    <div className="rounded-xl bg-[#081a33]/60 border border-white/10 p-8 text-center space-y-2">
-      <Building2 className="h-7 w-7 text-[#d4af37]/70 mx-auto" />
+    <div className="rounded-xl bg-navy-900/60 border border-white/10 p-8 text-center space-y-2">
+      <Building2 className="h-7 w-7 text-gold-500/70 mx-auto" />
       <p className="text-sm font-bold text-slate-200 uppercase tracking-wide">
         {title}
       </p>
@@ -157,22 +157,25 @@ export default function NhaTaiTroPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#040e1a] text-slate-100 flex flex-col selection:bg-[#d4af37] selection:text-slate-950">
+    <div className="min-h-screen bg-navy-950 text-slate-100 flex flex-col selection:bg-gold-500 selection:text-slate-950">
+      <a href="#main-content" className="skip-link">
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
       {/* ==================== HEADER ==================== */}
-      <header className="sticky top-0 z-40 bg-[#081a33]/95 backdrop-blur-md border-b border-[#d4af37]/30 py-3.5 px-4 sm:px-8 shadow-lg">
+      <header className="sticky top-0 z-40 bg-navy-900/95 backdrop-blur-md border-b border-gold-500/30 py-3.5 px-4 sm:px-8 shadow-lg">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <Link href="/" className="inline-flex items-center gap-3 group">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={OFFICIAL_LOGO_URL}
               alt="Logo FC HĐH Gò Nổi tại TP.HCM"
-              className="h-10 w-10 rounded-full object-contain bg-white p-0.5 ring-2 ring-[#d4af37] group-hover:scale-105 transition"
+              className="h-10 w-10 rounded-full object-contain bg-white p-0.5 ring-2 ring-gold-500 group-hover:scale-105 transition"
             />
             <div>
               <span className="font-display font-extrabold uppercase text-base sm:text-lg tracking-wide text-white block leading-tight">
                 FC HĐH GÒ NỔI tại TP.HCM
               </span>
-              <span className="text-[10px] uppercase tracking-widest text-[#d4af37] font-bold block">
+              <span className="text-[10px] uppercase tracking-widest text-gold-500 font-bold block">
                 Xã Gò Nổi • TP. Đà Nẵng
               </span>
             </div>
@@ -181,21 +184,21 @@ export default function NhaTaiTroPage() {
           <nav className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/cau-chuyen-go-noi"
-              className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-[#d4af37] transition px-2 py-1"
+              className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-gold-500 transition px-2 py-1"
             >
               <BookOpen className="h-3.5 w-3.5" />
               <span>Câu chuyện Gò Nổi</span>
             </Link>
             <Link
               href="/hoat-dong"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-[#d4af37] transition px-2 py-1"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-gold-500 transition px-2 py-1"
             >
               <Camera className="h-3.5 w-3.5" />
               <span>Hoạt động CLB</span>
             </Link>
             <Link
               href="/"
-              className="inline-flex items-center gap-2 rounded-lg bg-[#0b2447] hover:bg-[#12386d] text-white font-bold px-3.5 py-2 text-xs uppercase tracking-wider border border-white/15 transition"
+              className="inline-flex items-center gap-2 rounded-lg bg-navy-700 hover:bg-[#12386d] text-white font-bold px-3.5 py-2 text-xs uppercase tracking-wider border border-white/15 transition"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>Trang chủ</span>
@@ -205,16 +208,16 @@ export default function NhaTaiTroPage() {
       </header>
 
       {/* ==================== HERO ==================== */}
-      <section className="relative py-14 sm:py-20 px-4 sm:px-8 bg-gradient-to-b from-[#081a33] via-[#0b2447]/70 to-[#040e1a] border-b border-white/10">
+      <section className="relative py-14 sm:py-20 px-4 sm:px-8 bg-gradient-to-b from-navy-900 via-navy-700/70 to-navy-950 border-b border-white/10">
         <div className="max-w-4xl mx-auto text-center space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-lg bg-[#d4af37]/15 border border-[#d4af37]/40 px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider text-[#fde047]">
-            <Award className="h-4 w-4 text-[#d4af37]" />
+          <div className="inline-flex items-center gap-2 rounded-lg bg-gold-500/15 border border-gold-500/40 px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider text-gold-300">
+            <Award className="h-4 w-4 text-gold-500" />
             <span>Tri Ân & Kết Nối Đồng Hương</span>
           </div>
 
           <h1 className="font-display font-extrabold uppercase text-3xl sm:text-5xl lg:text-6xl text-white tracking-tight leading-tight">
             Nhà Tài Trợ &{" "}
-            <span className="text-[#d4af37]">Đối Tác Đồng Hành</span>
+            <span className="text-gold-500">Đối Tác Đồng Hành</span>
           </h1>
 
           <p className="max-w-2xl mx-auto text-sm sm:text-base text-slate-300 font-light leading-relaxed">
@@ -229,13 +232,13 @@ export default function NhaTaiTroPage() {
       </section>
 
       {/* ==================== NỘI DUNG CHÍNH ==================== */}
-      <main className="max-w-6xl mx-auto w-full px-4 sm:px-8 py-12 space-y-14 flex-1">
+      <main id="main-content" className="max-w-6xl mx-auto w-full px-4 sm:px-8 py-12 space-y-14 flex-1">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[1, 2].map((item) => (
               <div
                 key={item}
-                className="h-40 rounded-xl bg-[#081a33]/80 border border-white/10 animate-pulse"
+                className="h-40 rounded-xl bg-navy-900/80 border border-white/10 animate-pulse"
               />
             ))}
           </div>
@@ -250,7 +253,7 @@ export default function NhaTaiTroPage() {
             <section aria-labelledby="financial-sponsors-heading" className="space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-white/10 pb-3">
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#d4af37] flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-gold-500 flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5" />
                     <span>Bảo Trợ & Tài Trợ Chính Thức</span>
                   </span>
@@ -321,11 +324,11 @@ export default function NhaTaiTroPage() {
         )}
 
         {/* 3. CTA KẾT NỐI HỢP TÁC */}
-        <section className="rounded-xl bg-gradient-to-r from-[#0b2447] via-[#081a33] to-[#0b2447] border border-[#d4af37]/40 p-6 sm:p-10">
+        <section className="rounded-xl bg-gradient-to-r from-navy-700 via-navy-900 to-navy-700 border border-gold-500/40 p-6 sm:p-10">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2 max-w-2xl">
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#fde047]">
-                <ShieldCheck className="h-4 w-4 text-[#d4af37]" />
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gold-300">
+                <ShieldCheck className="h-4 w-4 text-gold-500" />
                 <span>Kết Nối Đồng Hành Cùng FC HĐH Gò Nổi</span>
               </div>
               <h2 className="font-display font-extrabold uppercase text-2xl sm:text-3xl text-white">
@@ -345,7 +348,7 @@ export default function NhaTaiTroPage() {
                 href={FANPAGE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-[#d4af37] hover:bg-[#fde047] text-slate-950 font-extrabold px-5 py-3 text-xs uppercase tracking-wider transition shadow-md"
+                className="inline-flex items-center gap-2 rounded-lg bg-gold-500 hover:bg-gold-300 text-slate-950 font-extrabold px-5 py-3 text-xs uppercase tracking-wider transition shadow-md"
               >
                 <span>Liên hệ qua Fanpage CLB</span>
                 <ExternalLink className="h-4 w-4" />
@@ -362,7 +365,7 @@ export default function NhaTaiTroPage() {
       </main>
 
       {/* ==================== FOOTER ==================== */}
-      <footer className="border-t border-white/10 bg-[#030912] py-8 px-4 text-center text-xs text-slate-400 space-y-1">
+      <footer className="border-t border-white/10 bg-navy-950 py-8 px-4 text-center text-xs text-slate-400 space-y-1">
         <p className="font-semibold text-slate-300">
           FC HĐH Gò Nổi tại TP.HCM · Xã Gò Nổi • TP. Đà Nẵng
         </p>

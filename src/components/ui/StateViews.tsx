@@ -19,7 +19,7 @@ export function LoadingState({
       className={`flex flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-6 py-12 text-center ${className}`}
     >
       <Loader2
-        className="h-7 w-7 animate-spin text-[#0d2e5b]"
+        className="h-7 w-7 animate-spin text-navy-600"
         aria-hidden="true"
       />
       <p className="text-sm font-semibold text-slate-600">{label}</p>
@@ -32,17 +32,21 @@ export function EmptyState({
   title,
   description,
   action,
+  compact = false,
   className = "",
 }: {
   icon?: React.ReactNode;
   title: string;
   description?: string;
   action?: React.ReactNode;
+  compact?: boolean;
   className?: string;
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-6 py-10 text-center ${className}`}
+      className={`flex flex-col items-center justify-center gap-2.5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-6 ${
+        compact ? "py-6" : "py-10"
+      } text-center ${className}`}
     >
       <div
         className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-slate-200/70 text-slate-500"
@@ -50,7 +54,7 @@ export function EmptyState({
       >
         {icon || <Inbox className="h-5 w-5" />}
       </div>
-      <h4 className="text-sm sm:text-base font-bold text-[#092244]">{title}</h4>
+      <h4 className="text-sm sm:text-base font-bold text-ink-primary">{title}</h4>
       {description && (
         <p className="max-w-md text-xs sm:text-sm text-slate-600 leading-relaxed">
           {description}

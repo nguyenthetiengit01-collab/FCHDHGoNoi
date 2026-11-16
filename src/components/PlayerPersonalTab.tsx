@@ -31,6 +31,7 @@ import {
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
 import { ModalDialog } from "./ModalDialog";
+import { Button, FormField, Input, Select } from "./ui";
 import {
   ImageLightboxModal,
   type LightboxImage,
@@ -285,7 +286,7 @@ export function PlayerPersonalTab({
             <button
               type="button"
               onClick={openEditMyProfile}
-              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#d4af37] to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-lg hover:shadow-xl"
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-lg hover:shadow-xl"
             >
               <Edit3 className="h-4 w-4" />
               <span>Sửa Thông Tin &amp; Ảnh Hồ Sơ</span>
@@ -300,7 +301,7 @@ export function PlayerPersonalTab({
               className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-2.5 text-xs font-bold text-sky-200 hover:text-white transition cursor-pointer"
               title="Mở Studio để canh chỉnh hoặc đổi ảnh Avatar chân dung 3:4"
             >
-              <Crop className="h-4 w-4 text-[#ffd700]" />
+              <Crop className="h-4 w-4 text-gold-400" />
               <span>✂️ Canh Avatar 3:4</span>
             </button>
             <button
@@ -328,7 +329,7 @@ export function PlayerPersonalTab({
               }}
               className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-2.5 text-xs font-bold text-white transition cursor-pointer"
             >
-              <KeyRound className="h-4 w-4 text-[#d4af37]" />
+              <KeyRound className="h-4 w-4 text-gold-500" />
               <span>Đổi Mật Khẩu</span>
             </button>
           </>
@@ -341,11 +342,11 @@ export function PlayerPersonalTab({
 
       {/* Điểm danh nhanh cho trận tuần hiện tại */}
       {latestMatch && (
-        <section className="rounded-xl bg-white p-4 sm:p-5 border-2 border-[#1e4fc2] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+        <section className="rounded-xl bg-white p-4 sm:p-5 border-2 border-royal-600 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
           <div className="flex items-start gap-3">
-            <BellRing className="h-5 w-5 text-[#1e4fc2] shrink-0 mt-0.5" />
+            <BellRing className="h-5 w-5 text-royal-600 shrink-0 mt-0.5" />
             <div>
-              <span className="text-xs font-extrabold uppercase tracking-wider text-[#0284c7]">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-brand-sky">
                 Điểm Danh Lịch Thi Đấu Tuần Này
               </span>
               <h3 className="text-base font-extrabold text-slate-900 mt-0.5">
@@ -399,7 +400,7 @@ export function PlayerPersonalTab({
         <section className="lg:col-span-8 rounded-xl bg-white p-5 border border-slate-200 space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-[#1e4fc2]" />
+              <Calendar className="h-5 w-5 text-royal-600" />
               <div>
                 <h3 className="text-base font-bold text-slate-900">
                   Lịch Sử Ra Sân & Đóng Quỹ Cá Nhân ({me.full_name})
@@ -482,7 +483,7 @@ export function PlayerPersonalTab({
         {/* Cột phải: Mã QR Chính Xác Của Thủ Quỹ NGUYEN THE TIENG */}
         <section className="lg:col-span-4 rounded-xl bg-white p-5 border border-slate-200 space-y-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <QrCode className="h-5 w-5 text-[#1e4fc2]" />
+            <QrCode className="h-5 w-5 text-royal-600" />
             <div>
               <h3 className="text-base font-bold text-slate-900">
                 Mã QR Đóng Quỹ Đội Bóng
@@ -501,7 +502,7 @@ export function PlayerPersonalTab({
               className="mx-auto max-w-[260px] w-full rounded-xl border border-slate-200 bg-white shadow-2xs"
             />
             <div className="text-xs text-slate-700 space-y-1">
-              <p className="font-extrabold text-sm text-[#1e4fc2]">
+              <p className="font-extrabold text-sm text-royal-600">
                 NGUYEN THE TIENG
               </p>
               <p>
@@ -527,7 +528,7 @@ export function PlayerPersonalTab({
           <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
               <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <Crop className="h-4 w-4 text-[#1e4fc2]" />
+                <Crop className="h-4 w-4 text-royal-600" />
                 <span>1. Ảnh Avatar Thi Đấu (Chuẩn 3:4)</span>
               </span>
               <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
@@ -540,12 +541,12 @@ export function PlayerPersonalTab({
               <img
                 src={avatarUrl || "/uploads/avatars/member-1.jpg"}
                 alt={me.full_name}
-                className="h-28 w-21 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shadow-sm shrink-0"
+                className="h-28 w-21 rounded-xl object-cover object-top border-2 border-royal-600 shadow-sm shrink-0"
               />
               <div className="space-y-2 flex-1 text-center sm:text-left">
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-white cursor-pointer transition shadow-xs">
-                    <Upload className="h-3.5 w-3.5 text-[#ffc933]" />
+                  <label className="inline-flex items-center gap-1.5 rounded-lg bg-royal-600 hover:bg-royal-500 px-3.5 py-2 text-xs font-bold text-white cursor-pointer transition shadow-xs">
+                    <Upload className="h-3.5 w-3.5 text-gold-400" />
                     <span>Tải Avatar Mới</span>
                     <input
                       type="file"
@@ -587,7 +588,7 @@ export function PlayerPersonalTab({
                         setWebpInfo("");
                       }}
                       className={`h-8 w-8 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${avatarUrl === url
-                          ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
+                          ? "border-gold-400 ring-2 ring-royal-600"
                           : "border-transparent opacity-70 hover:opacity-100"
                         }`}
                       title={`Ảnh thành viên #${idx + 1}`}
@@ -609,7 +610,7 @@ export function PlayerPersonalTab({
           <div className="rounded-xl bg-sky-50/60 p-4 border border-sky-200 space-y-3">
             <div className="flex items-center justify-between border-b border-sky-200/60 pb-2">
               <span className="text-xs font-black uppercase tracking-wider text-sky-950 flex items-center gap-1.5">
-                <ImageIcon className="h-4 w-4 text-[#1e4fc2]" />
+                <ImageIcon className="h-4 w-4 text-royal-600" />
                 <span>2. Ảnh Giới Thiệu Profile (Khung Rộng 16:9 / 4:3)</span>
               </span>
               <span className="rounded-md bg-sky-100 border border-sky-300 px-2 py-0.5 text-[10px] font-black text-sky-800">
@@ -640,7 +641,7 @@ export function PlayerPersonalTab({
                 </p>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                   <label className="inline-flex items-center gap-1.5 rounded-lg bg-sky-800 hover:bg-sky-900 px-3.5 py-2 text-xs font-bold text-white cursor-pointer transition shadow-xs">
-                    <Upload className="h-3.5 w-3.5 text-[#ffc933]" />
+                    <Upload className="h-3.5 w-3.5 text-gold-400" />
                     <span>Tải Ảnh Profile Mới</span>
                     <input
                       type="file"
@@ -691,7 +692,7 @@ export function PlayerPersonalTab({
             <div className="pt-2.5 border-t border-sky-200/70 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
-                  <Camera className="h-3.5 w-3.5 text-[#1e4fc2]" />
+                  <Camera className="h-3.5 w-3.5 text-royal-600" />
                   <span>Hoặc chọn nhanh từ Album hoạt động cá nhân ({galleryUrls.length} ảnh):</span>
                 </span>
                 {galleryUrls.length > 0 && (
@@ -713,7 +714,7 @@ export function PlayerPersonalTab({
                           }}
                           className={`relative h-14 w-24 rounded-lg overflow-hidden border-2 transition cursor-pointer ${
                             isSelected
-                              ? "border-[#ffc933] ring-2 ring-[#1e4fc2] shadow-md"
+                              ? "border-gold-400 ring-2 ring-royal-600 shadow-md"
                               : "border-slate-300 opacity-80 hover:opacity-100 hover:border-sky-500"
                           }`}
                           title={`Chọn ảnh hoạt động #${idx + 1} làm ảnh Profile`}
@@ -725,7 +726,7 @@ export function PlayerPersonalTab({
                             className="w-full h-full object-cover"
                           />
                           {isSelected && (
-                            <span className="absolute bottom-0 inset-x-0 bg-[#092244]/85 text-[9px] font-black text-[#ffc933] text-center py-0.5 flex items-center justify-center gap-0.5">
+                            <span className="absolute bottom-0 inset-x-0 bg-navy-800/85 text-[9px] font-black text-gold-400 text-center py-0.5 flex items-center justify-center gap-0.5">
                               <Check className="h-2.5 w-2.5" />
                               <span>Đang chọn</span>
                             </span>
@@ -738,7 +739,7 @@ export function PlayerPersonalTab({
                             setCropperSource(url);
                             setCropperOpen(true);
                           }}
-                          className="absolute top-1 right-1 bg-black/80 hover:bg-black text-[#ffc933] p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                          className="absolute top-1 right-1 bg-black/80 hover:bg-black text-gold-400 p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
                           title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
                         >
                           <Crop className="h-3 w-3" />
@@ -759,7 +760,7 @@ export function PlayerPersonalTab({
           <div className="p-3 rounded-lg bg-sky-50 border border-sky-200 text-xs text-sky-900 flex items-start gap-2">
             <span className="text-base">💡</span>
             <div>
-              <p className="font-bold text-[#17488c]">
+              <p className="font-bold text-navy-500">
                 Đồng bộ Thẻ Vận Động Viên (Mục số 3 ngoài Trang Chủ):
               </p>
               <p className="text-slate-600 mt-0.5">
@@ -769,49 +770,29 @@ export function PlayerPersonalTab({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="my-fullname"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Họ và Tên đầy đủ *
-              </label>
-              <input
+            <FormField label="Họ và Tên đầy đủ" htmlFor="my-fullname" required>
+              <Input
                 id="my-fullname"
                 type="text"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="form-input"
               />
-            </div>
-            <div>
-              <label
-                htmlFor="my-shortname"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Tên gọi trên sân *
-              </label>
-              <input
+            </FormField>
+            <FormField label="Tên gọi trên sân" htmlFor="my-shortname" required>
+              <Input
                 id="my-shortname"
                 type="text"
                 required
                 value={shortName}
                 onChange={(e) => setShortName(e.target.value)}
-                className="form-input"
               />
-            </div>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="my-jersey"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Số áo đăng ký thi đấu
-              </label>
-              <input
+            <FormField label="Số áo đăng ký thi đấu" htmlFor="my-jersey">
+              <Input
                 id="my-jersey"
                 type="text"
                 inputMode="numeric"
@@ -820,21 +801,14 @@ export function PlayerPersonalTab({
                 onChange={(e) =>
                   setJerseyNumber(e.target.value.replace(/[^0-9]/g, ""))
                 }
-                className="form-input font-bold"
+                className="font-bold"
               />
-            </div>
-            <div>
-              <label
-                htmlFor="my-birthyear"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Năm sinh
-              </label>
-              <select
+            </FormField>
+            <FormField label="Năm sinh" htmlFor="my-birthyear">
+              <Select
                 id="my-birthyear"
                 value={birthYear}
                 onChange={(e) => setBirthYear(e.target.value)}
-                className="form-select"
               >
                 <option value="">-- Chọn năm sinh --</option>
                 {BIRTH_YEAR_OPTIONS.map((y) => (
@@ -842,8 +816,8 @@ export function PlayerPersonalTab({
                     {y} ({new Date().getFullYear() - y} tuổi)
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </FormField>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -984,7 +958,7 @@ export function PlayerPersonalTab({
               <label className="block text-sm font-semibold text-slate-700">
                 Album ảnh thi đấu &amp; hoạt động của bạn ({galleryUrls.length} ảnh)
               </label>
-              <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#17488c] hover:bg-[#1e5eb8] text-white px-3 py-1 text-xs font-bold cursor-pointer transition">
+              <label className="inline-flex items-center gap-1.5 rounded-lg bg-navy-500 hover:bg-royal-500 text-white px-3 py-1 text-xs font-bold cursor-pointer transition">
                 <Upload className="h-3.5 w-3.5" />
                 <span>{isConvertingGallery ? "Đang xử lý..." : "Thêm ảnh (WebP)"}</span>
                 <input
@@ -1009,7 +983,7 @@ export function PlayerPersonalTab({
                       key={idx}
                       className={`relative aspect-square rounded-xl overflow-hidden border-2 group bg-slate-900 transition ${
                         isProfile
-                          ? "border-[#ffd700] ring-2 ring-sky-500 shadow-md"
+                          ? "border-gold-400 ring-2 ring-sky-500 shadow-md"
                           : "border-slate-300"
                       }`}
                     >
@@ -1017,7 +991,7 @@ export function PlayerPersonalTab({
                       <img src={url} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover" />
 
                       {isProfile && (
-                        <div className="absolute top-1 left-1 bg-[#092244]/90 text-[9px] font-black text-[#ffd700] px-1.5 py-0.5 rounded border border-white/20 shadow flex items-center gap-0.5">
+                        <div className="absolute top-1 left-1 bg-navy-800/90 text-[9px] font-black text-gold-400 px-1.5 py-0.5 rounded border border-white/20 shadow flex items-center gap-0.5">
                           <Check className="h-2.5 w-2.5" />
                           <span>Profile</span>
                         </div>
@@ -1065,20 +1039,15 @@ export function PlayerPersonalTab({
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">
-            <button
-              type="button"
+            <Button
+              variant="outline"
               onClick={() => setProfileModalOpen(false)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
             >
               Huỷ
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-lg bg-[#1e4fc2] px-5 py-2 text-sm font-bold text-[#ffc933] hover:bg-[#2f66dd] cursor-pointer"
-            >
+            </Button>
+            <Button type="submit" variant="primary" loading={isSaving}>
               Lưu Hồ Sơ Của Tôi
-            </button>
+            </Button>
           </div>
         </form>
       </ModalDialog>
@@ -1095,7 +1064,7 @@ export function PlayerPersonalTab({
           <div className="rounded-xl bg-sky-50 border border-sky-200 p-3 text-xs text-sky-900 space-y-1">
             <p className="font-bold">
               Tên đăng nhập hiện tại:{" "}
-              <span className="text-[#17488c] font-black">
+              <span className="text-navy-500 font-black">
                 {me.username || me.short_name.toLowerCase()}
               </span>
             </p>
@@ -1104,25 +1073,20 @@ export function PlayerPersonalTab({
             </p>
           </div>
 
-          <div>
-            <label
-              htmlFor="new-username"
-              className="block text-sm font-semibold text-slate-700 mb-1"
-            >
-              Tên đăng nhập mới (tùy chọn)
-            </label>
-            <input
+          <FormField
+            label="Tên đăng nhập mới (tùy chọn)"
+            htmlFor="new-username"
+            hint="Có thể để trống nếu chỉ muốn đổi mật khẩu."
+          >
+            <Input
               id="new-username"
               type="text"
               placeholder="Nhập tên đăng nhập mới (vd: tiengfc, tin_gonoi, ...)"
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
-              className="form-input font-medium"
+              className="font-medium"
             />
-            <p className="mt-1 text-[11px] text-slate-500">
-              Có thể để trống nếu chỉ muốn đổi mật khẩu.
-            </p>
-          </div>
+          </FormField>
 
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1256,27 +1220,22 @@ export function PlayerPersonalTab({
           </div>
 
           {pwdError && (
-            <p className="text-xs font-bold text-rose-600 flex items-center gap-1.5">
-              <span>⚠️</span>
+            <p
+              role="alert"
+              className="text-xs font-bold text-rose-600 flex items-center gap-1.5"
+            >
+              <span aria-hidden="true">⚠️</span>
               <span>{pwdError}</span>
             </p>
           )}
 
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-200">
-            <button
-              type="button"
-              onClick={() => setPwdModalOpen(false)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
-            >
+            <Button variant="outline" onClick={() => setPwdModalOpen(false)}>
               Huỷ
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-lg bg-[#1e4fc2] px-5 py-2 text-sm font-bold text-[#ffc933] hover:bg-[#2f66dd] cursor-pointer"
-            >
+            </Button>
+            <Button type="submit" variant="primary" loading={isSaving}>
               Lưu Thay Đổi Tài Khoản
-            </button>
+            </Button>
           </div>
         </form>
       </ModalDialog>

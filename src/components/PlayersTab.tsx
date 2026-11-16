@@ -409,7 +409,7 @@ export function PlayersTab({
       <div className="rounded-xl bg-white p-4 sm:p-5 border border-slate-200 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-[#092244]">
+            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-ink-primary">
               Đội Hình & Hồ Sơ Cầu Thủ ({players.length})
             </h2>
             <Badge variant={isManager ? "navy" : "info"} size="md">
@@ -435,7 +435,7 @@ export function PlayersTab({
               aria-pressed={viewMode === "cards"}
               onClick={() => setViewMode("cards")}
               className={`inline-flex items-center gap-1.5 min-h-11 sm:min-h-9 rounded-md px-3 py-1.5 text-xs font-bold transition ${viewMode === "cards"
-                ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
+                ? "bg-navy-600 text-gold-300 shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
                 }`}
             >
@@ -447,7 +447,7 @@ export function PlayersTab({
               aria-pressed={viewMode === "roster"}
               onClick={() => setViewMode("roster")}
               className={`inline-flex items-center gap-1.5 min-h-11 sm:min-h-9 rounded-md px-3 py-1.5 text-xs font-bold transition ${viewMode === "roster"
-                ? "bg-[#0d2e5b] text-[#fde047] shadow-xs"
+                ? "bg-navy-600 text-gold-300 shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
                 }`}
             >
@@ -519,7 +519,7 @@ export function PlayersTab({
                   aria-pressed={filterPosition === pos}
                   onClick={() => setFilterPosition(pos)}
                   className={`min-h-11 sm:min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${filterPosition === pos
-                    ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                    ? "bg-navy-600 text-gold-300 border-navy-600"
                     : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                     }`}
                 >
@@ -534,7 +534,7 @@ export function PlayersTab({
               aria-label="Lọc theo trạng thái sinh hoạt"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-[#092244]"
+              className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-ink-primary"
             >
               <option value="Tất cả">Tất cả trạng thái</option>
               <option value="Đang sinh hoạt">Đang sinh hoạt ({activePlayersCount})</option>
@@ -549,7 +549,7 @@ export function PlayersTab({
                 placeholder="Tìm tên, số áo, vị trí..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-8 py-2 text-xs sm:text-sm text-[#092244] focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+                className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-8 py-2 text-xs sm:text-sm text-ink-primary focus-visible:outline-2 focus-visible:outline-focus-on-light"
               />
               {searchQuery && (
                 <button
@@ -568,7 +568,7 @@ export function PlayersTab({
 
       {/* CHẾ ĐỘ 1: LẬP DANH SÁCH ĐĂNG KÝ THI ĐẤU (CÓ ẢNH HỒ SƠ THẬT) */}
       {viewMode === "roster" && (
-        <section className="rounded-xl bg-white border border-[#0d2e5b]/30 p-4 sm:p-6 space-y-5 shadow-xs">
+        <section className="rounded-xl bg-white border border-navy-600/30 p-4 sm:p-6 space-y-5 shadow-xs">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
             <div className="flex items-center gap-3.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -583,11 +583,11 @@ export function PlayersTab({
                   aria-label="Tiêu đề danh sách đăng ký thi đấu"
                   value={tournamentName}
                   onChange={(e) => setTournamentName(e.target.value)}
-                  className="text-base sm:text-lg font-extrabold text-[#092244] border-b border-dashed border-slate-300 focus:border-[#0d2e5b] focus:outline-none w-full sm:w-[420px]"
+                  className="text-base sm:text-lg font-extrabold text-ink-primary border-b border-dashed border-slate-300 focus:border-navy-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light w-full sm:w-[420px]"
                 />
                 <p className="text-xs text-slate-600 mt-1">
                   Đơn vị: <strong>{settings.team_name}</strong> • Đã chọn:{" "}
-                  <strong className="text-[#0d2e5b] tabular-nums">
+                  <strong className="text-navy-600 tabular-nums">
                     {rosterPlayers.length}/{players.length} cầu thủ
                   </strong>
                 </p>
@@ -613,7 +613,7 @@ export function PlayersTab({
                 variant="primary"
                 size="sm"
                 onClick={() => window.print()}
-                leftIcon={<Printer className="h-4 w-4 text-[#fde047]" />}
+                leftIcon={<Printer className="h-4 w-4 text-gold-300" />}
               >
                 In / Xuất PDF Danh Sách
               </Button>
@@ -634,7 +634,7 @@ export function PlayersTab({
                   aria-pressed={checked}
                   onClick={() => toggleRosterPlayer(p.id)}
                   className={`min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${checked
-                    ? "bg-[#0d2e5b] text-[#fde047] border-[#0d2e5b]"
+                    ? "bg-navy-600 text-gold-300 border-navy-600"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
                     }`}
                 >
@@ -663,18 +663,18 @@ export function PlayersTab({
                       src={p.avatar_url || "/uploads/avatars/member-1.jpg"}
                       alt={p.full_name}
                       loading="lazy"
-                      className="h-20 w-20 rounded-xl object-cover object-top border-2 border-[#0d2e5b] bg-slate-100"
+                      className="h-20 w-20 rounded-xl object-cover object-top border-2 border-navy-600 bg-slate-100"
                     />
-                    <span className="absolute -top-1.5 -left-1.5 h-6 w-6 rounded-md bg-[#0d2e5b] text-[#fde047] text-[11px] font-extrabold flex items-center justify-center border border-white tabular-nums">
+                    <span className="absolute -top-1.5 -left-1.5 h-6 w-6 rounded-md bg-navy-600 text-gold-300 text-[11px] font-extrabold flex items-center justify-center border border-white tabular-nums">
                       {idx + 1}
                     </span>
                   </div>
                   <div className="min-w-0 flex-1 space-y-1 text-xs">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="font-extrabold text-sm text-[#092244] truncate">
+                      <span className="font-extrabold text-sm text-ink-primary truncate">
                         {p.full_name}
                       </span>
-                      <span className="rounded bg-[#d4af37] px-1.5 py-0.5 text-xs font-extrabold text-[#092244] shrink-0 tabular-nums">
+                      <span className="rounded bg-gold-500 px-1.5 py-0.5 text-xs font-extrabold text-ink-primary shrink-0 tabular-nums">
                         #{p.jersey_number ?? "-"}
                       </span>
                     </div>
@@ -708,8 +708,8 @@ export function PlayersTab({
               <article
                 key={p.id}
                 className={`rounded-xl bg-white border p-4 flex flex-col justify-between transition shadow-xs ${isSelf
-                  ? "border-2 border-[#d4af37] ring-2 ring-[#d4af37]/25"
-                  : "border-slate-200 hover:border-[#0d2e5b]/40"
+                  ? "border-2 border-gold-500 ring-2 ring-gold-500/25"
+                  : "border-slate-200 hover:border-navy-600/40"
                   }`}
               >
                 <div>
@@ -721,16 +721,16 @@ export function PlayersTab({
                           src={p.avatar_url || "/uploads/avatars/member-1.jpg"}
                           alt={p.full_name}
                           loading="lazy"
-                          className="h-16 w-16 rounded-xl object-cover object-top border-2 border-[#0d2e5b] bg-slate-100"
+                          className="h-16 w-16 rounded-xl object-cover object-top border-2 border-navy-600 bg-slate-100"
                         />
-                        <span className="absolute -bottom-1.5 -right-1.5 rounded-md bg-[#0d2e5b] text-[#fde047] px-1.5 py-0.5 text-[11px] font-extrabold border border-white tabular-nums">
+                        <span className="absolute -bottom-1.5 -right-1.5 rounded-md bg-navy-600 text-gold-300 px-1.5 py-0.5 text-[11px] font-extrabold border border-white tabular-nums">
                           #{p.jersey_number ?? "-"}
                         </span>
                       </div>
 
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="text-base font-extrabold text-[#092244] truncate">
+                          <h3 className="text-base font-extrabold text-ink-primary truncate">
                             {p.full_name}
                           </h3>
                           {isSelf && (
@@ -740,7 +740,7 @@ export function PlayersTab({
                         <p className="text-xs text-slate-600 mt-0.5 flex items-center gap-1.5 flex-wrap">
                           <span>
                             Tên sân:{" "}
-                            <strong className="text-[#092244]">
+                            <strong className="text-ink-primary">
                               {p.short_name}
                             </strong>
                           </span>
@@ -752,7 +752,7 @@ export function PlayersTab({
                             Xã {getPlayerHamlet(p)}
                           </span>
                           {p.nickname ? (
-                            <span className="text-[#0d2e5b] font-semibold">
+                            <span className="text-navy-600 font-semibold">
                               {" "}• &ldquo;{p.nickname}&rdquo;
                             </span>
                           ) : ""}
@@ -775,7 +775,7 @@ export function PlayersTab({
                         <span className="text-slate-500 block">
                           Chuyên cần
                         </span>
-                        <span className="font-extrabold text-sm text-[#092244] tabular-nums">
+                        <span className="font-extrabold text-sm text-ink-primary tabular-nums">
                           {p.matchesPlayed}/{completedMatches.length} trận ({formatAttendanceRate(p.rate)})
                         </span>
                       </div>
@@ -796,7 +796,7 @@ export function PlayersTab({
                     </div>
                     <div className="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-[#0d2e5b] transition-all"
+                        className="h-full rounded-full bg-navy-600 transition-all"
                         style={{ width: `${Math.min(100, Math.max(0, p.rate ?? 0))}%` }}
                       />
                     </div>
@@ -841,7 +841,7 @@ export function PlayersTab({
                   <button
                     type="button"
                     onClick={() => setDetailPlayer(p)}
-                    className="inline-flex items-center gap-1 min-h-9 text-xs font-bold text-[#0d2e5b] hover:text-[#0284c7]"
+                    className="inline-flex items-center gap-1 min-h-9 text-xs font-bold text-navy-600 hover:text-brand-sky"
                   >
                     <Eye className="h-3.5 w-3.5" />
                     <span>Lịch sử {p.matchesPlayed} trận</span>
@@ -853,7 +853,7 @@ export function PlayersTab({
                       <button
                         type="button"
                         onClick={() => openEditPlayer(p)}
-                        className="inline-flex items-center gap-1 min-h-9 rounded-lg bg-[#0d2e5b] px-2.5 py-1 text-xs font-bold text-[#fde047] hover:bg-[#17488c]"
+                        className="inline-flex items-center gap-1 min-h-9 rounded-lg bg-navy-600 px-2.5 py-1 text-xs font-bold text-gold-300 hover:bg-navy-500"
                       >
                         <Edit3 className="h-3 w-3" />
                         <span>Sửa hồ sơ của tôi</span>
@@ -967,7 +967,7 @@ export function PlayersTab({
                 <span className="text-[11px] text-slate-500 block">
                   Số Áo
                 </span>
-                <span className="text-base font-extrabold text-[#1e4fc2]">
+                <span className="text-base font-extrabold text-royal-600">
                   #{detailPlayer.jersey_number ?? "-"}
                 </span>
               </div>
@@ -1070,7 +1070,7 @@ export function PlayersTab({
       >
         <form onSubmit={handleSavePlayer} className="space-y-4">
           {/* Thông báo đồng bộ trực tiếp với Thẻ VĐV Truyền Hình trang chủ */}
-          <div className="rounded-xl border border-[#d4af37]/40 bg-amber-500/10 p-3 text-xs text-amber-900 flex items-start gap-2">
+          <div className="rounded-xl border border-gold-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 flex items-start gap-2">
             <Sparkles className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold text-amber-800">
@@ -1086,7 +1086,7 @@ export function PlayersTab({
           <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
               <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <Crop className="h-4 w-4 text-[#1e4fc2]" />
+                <Crop className="h-4 w-4 text-royal-600" />
                 <span>1. Ảnh Avatar Thi Đấu (Chuẩn 3:4)</span>
               </span>
               <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
@@ -1099,11 +1099,11 @@ export function PlayersTab({
               <img
                 src={avatarUrl || "/uploads/avatars/member-1.jpg"}
                 alt="Ảnh hồ sơ"
-                className="h-28 w-21 rounded-xl object-cover object-top border-2 border-[#1e4fc2] shadow-sm shrink-0"
+                className="h-28 w-21 rounded-xl object-cover object-top border-2 border-royal-600 shadow-sm shrink-0"
               />
               <div className="space-y-2 flex-1 text-center sm:text-left">
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] px-3.5 py-2 text-xs font-bold text-[#ffc933] cursor-pointer transition shadow-xs">
+                  <label className="inline-flex items-center gap-1.5 rounded-lg bg-royal-600 hover:bg-royal-500 px-3.5 py-2 text-xs font-bold text-gold-400 cursor-pointer transition shadow-xs">
                     <Upload className="h-3.5 w-3.5" />
                     <span>Tải Avatar Mới</span>
                     <input
@@ -1143,7 +1143,7 @@ export function PlayersTab({
                         setWebpInfo("");
                       }}
                       className={`h-8 w-8 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${avatarUrl === url
-                        ? "border-[#ffc933] ring-2 ring-[#1e4fc2]"
+                        ? "border-gold-400 ring-2 ring-royal-600"
                         : "border-transparent opacity-70 hover:opacity-100"
                         }`}
                       title={`Ảnh thành viên #${idx + 1}`}
@@ -1165,7 +1165,7 @@ export function PlayersTab({
           <div className="rounded-xl bg-sky-50/60 p-4 border border-sky-200 space-y-3">
             <div className="flex items-center justify-between border-b border-sky-200/60 pb-2">
               <span className="text-xs font-black uppercase tracking-wider text-sky-950 flex items-center gap-1.5">
-                <ImageIcon className="h-4 w-4 text-[#1e4fc2]" />
+                <ImageIcon className="h-4 w-4 text-royal-600" />
                 <span>2. Ảnh Giới Thiệu Profile (Khung Rộng 16:9 / 4:3)</span>
               </span>
               <span className="rounded-md bg-sky-100 border border-sky-300 px-2 py-0.5 text-[10px] font-black text-sky-800">
@@ -1196,7 +1196,7 @@ export function PlayersTab({
                 </p>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                   <label className="inline-flex items-center gap-1.5 rounded-lg bg-sky-800 hover:bg-sky-900 px-3.5 py-2 text-xs font-bold text-white cursor-pointer transition shadow-xs">
-                    <Upload className="h-3.5 w-3.5 text-[#ffc933]" />
+                    <Upload className="h-3.5 w-3.5 text-gold-400" />
                     <span>Tải Ảnh Profile Mới</span>
                     <input
                       type="file"
@@ -1247,7 +1247,7 @@ export function PlayersTab({
             <div className="pt-2.5 border-t border-sky-200/70 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
-                  <Camera className="h-3.5 w-3.5 text-[#1e4fc2]" />
+                  <Camera className="h-3.5 w-3.5 text-royal-600" />
                   <span>Hoặc chọn nhanh từ Album hoạt động cá nhân ({galleryUrls.length} ảnh):</span>
                 </span>
                 {galleryUrls.length > 0 && (
@@ -1268,7 +1268,7 @@ export function PlayersTab({
                             setProfileWebpInfo(`✅ Đã chọn ảnh hoạt động #${idx + 1} làm ảnh Profile!`);
                           }}
                           className={`relative h-14 w-24 rounded-lg overflow-hidden border-2 transition cursor-pointer ${isSelected
-                              ? "border-[#ffd700] ring-2 ring-[#1e4fc2] shadow-md"
+                              ? "border-gold-400 ring-2 ring-royal-600 shadow-md"
                               : "border-slate-300 opacity-80 hover:opacity-100 hover:border-sky-500"
                             }`}
                           title={`Chọn ảnh hoạt động #${idx + 1} làm ảnh Profile`}
@@ -1280,7 +1280,7 @@ export function PlayersTab({
                             className="w-full h-full object-cover"
                           />
                           {isSelected && (
-                            <span className="absolute bottom-0 inset-x-0 bg-[#092244]/85 text-[9px] font-black text-[#ffd700] text-center py-0.5 flex items-center justify-center gap-0.5">
+                            <span className="absolute bottom-0 inset-x-0 bg-navy-800/85 text-[9px] font-black text-gold-400 text-center py-0.5 flex items-center justify-center gap-0.5">
                               <Check className="h-2.5 w-2.5" />
                               <span>Đang chọn</span>
                             </span>
@@ -1293,7 +1293,7 @@ export function PlayersTab({
                             setCropperSource(url);
                             setCropperOpen(true);
                           }}
-                          className="absolute top-1 right-1 bg-black/80 hover:bg-black text-[#ffd700] p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                          className="absolute top-1 right-1 bg-black/80 hover:bg-black text-gold-400 p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
                           title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
                         >
                           <Crop className="h-3 w-3" />
@@ -1528,7 +1528,7 @@ export function PlayersTab({
               <label className="block text-sm font-semibold text-slate-700">
                 Album Khoảnh Khắc Sân Cỏ ({galleryUrls.length} ảnh)
               </label>
-              <label className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e4fc2] hover:bg-[#2f66dd] text-[#ffc933] px-3 py-1 text-xs font-bold cursor-pointer transition">
+              <label className="inline-flex items-center gap-1.5 rounded-lg bg-royal-600 hover:bg-royal-500 text-gold-400 px-3 py-1 text-xs font-bold cursor-pointer transition">
                 <Camera className="h-3.5 w-3.5" />
                 <span>
                   {isConvertingGallery
@@ -1558,7 +1558,7 @@ export function PlayersTab({
                     <div
                       key={idx}
                       className={`relative aspect-square rounded-xl overflow-hidden border-2 group bg-slate-900 transition ${isProfile
-                          ? "border-[#ffd700] ring-2 ring-sky-500 shadow-md"
+                          ? "border-gold-400 ring-2 ring-sky-500 shadow-md"
                           : "border-slate-300"
                         }`}
                     >
@@ -1570,7 +1570,7 @@ export function PlayersTab({
                       />
 
                       {isProfile && (
-                        <div className="absolute top-1 left-1 bg-[#092244]/90 text-[9px] font-black text-[#ffd700] px-1.5 py-0.5 rounded border border-white/20 shadow flex items-center gap-0.5">
+                        <div className="absolute top-1 left-1 bg-navy-800/90 text-[9px] font-black text-gold-400 px-1.5 py-0.5 rounded border border-white/20 shadow flex items-center gap-0.5">
                           <Check className="h-2.5 w-2.5" />
                           <span>Profile</span>
                         </div>
@@ -1675,7 +1675,7 @@ export function PlayersTab({
                       value="player"
                       checked={accessRole === "player"}
                       onChange={() => setAccessRole("player")}
-                      className="accent-[#1e4fc2] h-4 w-4"
+                      className="accent-royal-600 h-4 w-4"
                     />
                     <span>Cầu thủ (Chỉ sửa thông tin cá nhân của mình)</span>
                   </label>
@@ -1706,7 +1706,7 @@ export function PlayersTab({
             <button
               type="submit"
               disabled={isSaving}
-              className="rounded-lg bg-[#1e4fc2] px-5 py-2 text-sm font-bold text-[#ffc933] hover:bg-[#2f66dd] cursor-pointer"
+              className="rounded-lg bg-royal-600 px-5 py-2 text-sm font-bold text-gold-400 hover:bg-royal-500 cursor-pointer"
             >
               Lưu Hồ Sơ
             </button>
@@ -1767,7 +1767,7 @@ export function PlayersTab({
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-[#1e4fc2] px-4 py-2 text-xs font-bold text-[#ffc933] cursor-pointer"
+              className="rounded-lg bg-royal-600 px-4 py-2 text-xs font-bold text-gold-400 cursor-pointer"
             >
               Lưu Mật Khẩu Mới
             </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   User,
   Lock,
@@ -15,6 +15,7 @@ import {
   PhoneCall,
 } from "lucide-react";
 import { OFFICIAL_LOGO_URL, type Player } from "@/types/app";
+import { useDialogA11y } from "./useDialogA11y";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -32,20 +33,21 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [lockoutSeconds, setLockoutSeconds] = useState<number | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  // Reset trạng thái khi modal mở lại + đóng khi nhấn Escape
+  useDialogA11y({
+    isOpen,
+    onClose,
+    containerRef: dialogRef,
+  });
+
+  // Reset trạng thái khi modal mở lại
   useEffect(() => {
     if (!isOpen) return;
     setErrorMessage("");
     setShowHelp(false);
     setIsLoading(false);
-
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   // Bộ đếm ngược thời gian khóa đăng nhập nếu bị rate-limited
   useEffect(() => {
@@ -122,15 +124,17 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
   };
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      ref={dialogRef}
       aria-modal="true"
       aria-labelledby="login-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in"
-      onClick={onClose}
+      className="fixed inset-0 z-50 m-0 h-dvh w-screen max-h-none max-w-none flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto animate-fade-in border-0 text-inherit"
+      onClick={(e) => {
+        if (e.target === dialogRef.current) onClose();
+      }}
     >
       <div
-        className="relative w-full max-w-md my-auto rounded-2xl bg-gradient-to-b from-[#0f3468] via-[#0d2e5b] to-[#092244] border-2 border-[#ffd700]/70 text-white shadow-[0_25px_60px_rgba(0,0,0,0.85)] overflow-hidden"
+        className="relative w-full max-w-md my-auto rounded-2xl bg-gradient-to-b from-[#0f3468] via-navy-600 to-navy-800 border-2 border-gold-400/70 text-white shadow-[0_25px_60px_rgba(0,0,0,0.85)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Nút đóng */}
@@ -138,7 +142,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
           type="button"
           onClick={onClose}
           aria-label="Đóng cửa sổ đăng nhập"
-          className="absolute top-4 right-4 inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition z-10 focus-visible:outline-2 focus-visible:outline-[#d4af37]"
+          className="absolute top-4 right-4 inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition z-10 focus-visible:outline-2 focus-visible:outline-focus-on-dark"
           title="Đóng cửa sổ"
         >
           <X className="h-5 w-5" />
@@ -151,10 +155,10 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
             <img
               src={OFFICIAL_LOGO_URL}
               alt="Logo FC HĐH Gò Nổi"
-              className="h-13 w-13 rounded-xl object-contain bg-white p-0.5 border-2 border-[#ffd700] shadow-md shrink-0"
+              className="h-13 w-13 rounded-xl object-contain bg-white p-0.5 border-2 border-gold-400 shadow-md shrink-0"
             />
             <div className="min-w-0">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#ffd700] block">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gold-400 block">
                 CỔNG XÁC THỰC THÀNH VIÊN
               </span>
               <h2
@@ -194,7 +198,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                   }}
                   disabled={isLoading || lockoutSeconds !== null}
                   placeholder="VD: tieng, 0905..., hoặc #12"
-                  className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-[#09254d] border border-white/20 text-white placeholder-sky-200/50 text-sm font-medium focus:outline-none focus:border-[#ffd700] focus:ring-2 focus:ring-[#ffd700]/30 transition disabled:opacity-60"
+                  className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-navy-800 border border-white/20 text-white placeholder-sky-200/50 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:border-gold-400 focus:ring-2 focus:ring-gold-400/30 transition disabled:opacity-60"
                   autoFocus
                   required
                 />
@@ -225,7 +229,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                 <button
                   type="button"
                   onClick={() => setShowHelp(!showHelp)}
-                  className="text-[11px] text-[#ffd700] hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer"
+                  className="text-[11px] text-gold-400 hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer"
                 >
                   <HelpCircle className="h-3 w-3" />
                   <span>Quên mật khẩu?</span>
@@ -247,14 +251,14 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                   onKeyUp={handleKeyDown}
                   disabled={isLoading || lockoutSeconds !== null}
                   placeholder="Nhập mật khẩu của bạn"
-                  className="w-full pl-10 pr-11 py-2.5 rounded-xl bg-[#09254d] border border-white/20 text-white placeholder-sky-200/50 text-sm font-medium focus:outline-none focus:border-[#ffd700] focus:ring-2 focus:ring-[#ffd700]/30 transition disabled:opacity-60 tracking-wider"
+                  className="w-full pl-10 pr-11 py-2.5 rounded-xl bg-navy-800 border border-white/20 text-white placeholder-sky-200/50 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:border-gold-400 focus:ring-2 focus:ring-gold-400/30 transition disabled:opacity-60 tracking-wider"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sky-300 hover:text-white p-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffd700] cursor-pointer transition"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sky-300 hover:text-white p-1 rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400 cursor-pointer transition"
                   title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                 >
                   {showPassword ? (
@@ -281,7 +285,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-white/30 bg-[#09254d] text-[#ffd700] focus:ring-[#ffd700]/50 accent-[#ffd700]"
+                  className="h-4 w-4 rounded border-white/30 bg-navy-800 text-gold-400 focus:ring-gold-400/50 accent-gold-400"
                 />
                 <span>Ghi nhớ đăng nhập trên máy này (30 ngày)</span>
               </label>
@@ -304,8 +308,8 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
 
             {/* Hướng dẫn khi quên mật khẩu */}
             {showHelp && (
-              <div className="rounded-xl bg-[#09254d] border border-[#ffd700]/40 p-3.5 text-xs text-slate-200 space-y-2 animate-fade-in">
-                <div className="flex items-center gap-1.5 font-bold text-[#ffd700]">
+              <div className="rounded-xl bg-navy-800 border border-gold-400/40 p-3.5 text-xs text-slate-200 space-y-2 animate-fade-in">
+                <div className="flex items-center gap-1.5 font-bold text-gold-400">
                   <PhoneCall className="h-4 w-4" />
                   <span>Cấp lại mật khẩu nhanh:</span>
                 </div>
@@ -338,7 +342,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
               <button
                 type="submit"
                 disabled={isLoading || lockoutSeconds !== null}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#ffd700] to-[#f5c518] hover:from-[#f5c518] hover:to-[#ffd700] text-slate-950 text-xs font-black uppercase tracking-wider transition shadow-lg hover:shadow-xl cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-gold-400 to-[#f5c518] hover:from-[#f5c518] hover:to-gold-400 text-slate-950 text-xs font-black uppercase tracking-wider transition shadow-lg hover:shadow-xl cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <>
@@ -365,7 +369,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 

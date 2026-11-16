@@ -9,7 +9,7 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const TONE_CLASSES: Record<NonNullable<CardProps["tone"]>, string> = {
   default: "bg-white border border-slate-200/90 text-slate-900 shadow-xs",
-  navy: "bg-[#0d2e5b] border border-[#17488c] text-white shadow-sm",
+  navy: "bg-navy-600 border border-navy-500 text-white shadow-sm",
   subtle: "bg-slate-50/90 border border-slate-200 text-slate-900",
 };
 
@@ -52,7 +52,7 @@ export function CardTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={`text-base sm:text-lg font-bold tracking-tight text-[#092244] ${className}`}
+      className={`text-base sm:text-lg font-bold tracking-tight text-ink-primary ${className}`}
       {...rest}
     >
       {children}
@@ -74,9 +74,9 @@ const ACCENT_MAP: Record<
   { border: string; iconBg: string; valueText: string }
 > = {
   navy: {
-    border: "border-l-4 border-l-[#0d2e5b]",
-    iconBg: "bg-[#0d2e5b]/10 text-[#0d2e5b]",
-    valueText: "text-[#092244]",
+    border: "border-l-4 border-l-navy-600",
+    iconBg: "bg-navy-600/10 text-navy-600",
+    valueText: "text-ink-primary",
   },
   emerald: {
     border: "border-l-4 border-l-emerald-600",
@@ -94,9 +94,9 @@ const ACCENT_MAP: Record<
     valueText: "text-amber-700",
   },
   gold: {
-    border: "border-l-4 border-l-[#d4af37]",
-    iconBg: "bg-amber-50 text-[#8a6d14]",
-    valueText: "text-[#092244]",
+    border: "border-l-4 border-l-gold-500",
+    iconBg: "bg-amber-50 text-gold-700",
+    valueText: "text-ink-primary",
   },
   sky: {
     border: "border-l-4 border-l-sky-600",

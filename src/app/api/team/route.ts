@@ -5,6 +5,7 @@ import {
   seedAsyncInitialDataIfNeeded,
   ensureClubPostsReady,
   ensureSponsorsReady,
+  recordAuditLog,
 } from "@/lib/db";
 import {
   getAuthSession,
@@ -1548,6 +1549,16 @@ export async function POST(req: NextRequest) {
           { error: `Hành động không hợp lệ: ${action}` },
           { status: 400 }
         );
+    }
+
+    if (session) {
+      await recordAuditLog({
+        actorId: session.playerId,
+        actorName: session.fullName,
+        actorRole: session.accessRole,
+        action,
+        summary: `Thực hiện thao tác ${action}`,
+      });
     }
 
     const updated = await getFullAppData();

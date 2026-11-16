@@ -29,14 +29,17 @@ export const metadata: Metadata = buildPageMetadata({
 
 export default function CauChuyenGoNoiPage() {
   return (
-    <div className="min-h-screen bg-[#040e1a] text-slate-100">
+    <div className="min-h-screen bg-navy-950 text-slate-100">
+      <a href="#main-content" className="skip-link">
+        Bỏ qua điều hướng, tới nội dung chính
+      </a>
       {/* Top Navigation */}
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#040e1a]/95 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-navy-950/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:border-[#d4af37]/50 hover:text-[#fde047]"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:border-gold-500/50 hover:text-gold-300"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>Trang chủ CLB</span>
@@ -44,7 +47,7 @@ export default function CauChuyenGoNoiPage() {
             <div className="hidden sm:flex items-center gap-2 text-xs text-slate-300">
               <span className="font-bold text-white">{GO_NOI_IDENTITY.clubName}</span>
               <span className="text-white/30">•</span>
-              <span className="text-[#fde047]">{GO_NOI_IDENTITY.currentLocation}</span>
+              <span className="text-gold-300">{GO_NOI_IDENTITY.currentLocation}</span>
             </div>
           </div>
 
@@ -60,7 +63,7 @@ export default function CauChuyenGoNoiPage() {
               href={GO_NOI_IDENTITY.fanpageUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#d4af37] px-3 py-1.5 text-xs font-bold text-[#040e1a] transition-colors hover:bg-[#fde047]"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gold-500 px-3 py-1.5 text-xs font-bold text-navy-950 transition-colors hover:bg-gold-300"
             >
               <span>Fanpage</span>
               <ExternalLink className="h-3.5 w-3.5" />
@@ -69,13 +72,13 @@ export default function CauChuyenGoNoiPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-10 px-4 py-8 sm:px-6 sm:py-12">
+      <main id="main-content" className="mx-auto max-w-6xl space-y-10 px-4 py-8 sm:px-6 sm:py-12">
         {/* Hero Section */}
-        <section className="overflow-hidden rounded-xl border border-[#d4af37]/30 bg-gradient-to-br from-[#081a33] via-[#0b2447] to-[#040e1a] shadow-lg">
+        <section className="overflow-hidden rounded-xl border border-gold-500/30 bg-gradient-to-br from-navy-900 via-navy-700 to-navy-950 shadow-lg">
           <div className="grid grid-cols-1 gap-6 p-6 sm:p-8 lg:grid-cols-12 lg:items-center">
             <div className="space-y-4 lg:col-span-7">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-[#d4af37]/40 bg-[#d4af37]/15 px-2.5 py-1 text-xs font-bold text-[#fde047]">
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-gold-500/40 bg-gold-500/15 px-2.5 py-1 text-xs font-bold text-gold-300">
                   <MapPin className="h-3.5 w-3.5" />
                   {GO_NOI_IDENTITY.currentLocation}
                 </span>
@@ -87,7 +90,7 @@ export default function CauChuyenGoNoiPage() {
 
               <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-4xl">
                 Câu Chuyện Gò Nổi —{" "}
-                <span className="text-[#fde047]">
+                <span className="text-gold-300">
                   Từ Bãi Bồi Thu Bồn Đến Mái Nhà Đồng Hương TP.HCM
                 </span>
               </h1>
@@ -96,7 +99,7 @@ export default function CauChuyenGoNoiPage() {
                 Gò Nổi là vùng đất bãi bồi trù phú được bao bọc bởi hai nhánh{" "}
                 <strong className="text-white">{GO_NOI_IDENTITY.riverName}</strong>.
                 Ngày nay mang tên hành chính{" "}
-                <strong className="text-[#fde047]">
+                <strong className="text-gold-300">
                   {GO_NOI_IDENTITY.currentLocation}
                 </strong>
                 , vùng đất ấy gắn liền với ký ức ba xã{" "}
@@ -110,13 +113,13 @@ export default function CauChuyenGoNoiPage() {
                 .
               </p>
 
-              <blockquote className="rounded-lg border-l-4 border-[#d4af37] bg-[#040e1a]/60 px-4 py-3 text-sm italic text-slate-200">
+              <blockquote className="rounded-lg border-l-4 border-gold-500 bg-navy-950/60 px-4 py-3 text-sm italic text-slate-200">
                 “{GO_NOI_IDENTITY.quote}”
               </blockquote>
             </div>
 
             <div className="lg:col-span-5">
-              <div className="overflow-hidden rounded-xl border border-white/15 bg-[#040e1a]">
+              <div className="overflow-hidden rounded-xl border border-white/15 bg-navy-950">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={GO_NOI_IDENTITY.coverUrl}
@@ -131,7 +134,7 @@ export default function CauChuyenGoNoiPage() {
                     <img
                       src={GO_NOI_IDENTITY.logoUrl}
                       alt="Logo FC HĐH Gò Nổi"
-                      className="h-8 w-8 rounded-lg border border-[#d4af37]/60 object-cover"
+                      className="h-8 w-8 rounded-lg border border-gold-500/60 object-cover"
                     />
                     <div>
                       <p className="text-xs font-bold text-white">
@@ -155,7 +158,7 @@ export default function CauChuyenGoNoiPage() {
         <section aria-labelledby="villages-heading" className="space-y-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#fde047]">
+              <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gold-300">
                 <Waves className="h-3.5 w-3.5 text-sky-400" />
                 {GO_NOI_IDENTITY.riverName} • {GO_NOI_IDENTITY.historicalContext}
               </p>
@@ -175,9 +178,9 @@ export default function CauChuyenGoNoiPage() {
             {GO_NOI_VILLAGES.map((village) => (
               <article
                 key={village.id}
-                className="rounded-xl border border-white/10 bg-[#081a33] p-5 transition-colors hover:border-[#d4af37]/40"
+                className="rounded-xl border border-white/10 bg-navy-900 p-5 transition-colors hover:border-gold-500/40"
               >
-                <span className="inline-block rounded-md border border-[#d4af37]/30 bg-[#d4af37]/10 px-2 py-0.5 text-[11px] font-bold text-[#fde047]">
+                <span className="inline-block rounded-md border border-gold-500/30 bg-gold-500/10 px-2 py-0.5 text-[11px] font-bold text-gold-300">
                   {village.roleLabel}
                 </span>
                 <h3 className="mt-3 text-lg font-bold text-white">
@@ -210,7 +213,7 @@ export default function CauChuyenGoNoiPage() {
             {GO_NOI_STORY_PILLARS.map((pillar) => (
               <article
                 key={pillar.id}
-                className="flex flex-col justify-between rounded-xl border border-white/10 bg-[#081a33]/90 p-5"
+                className="flex flex-col justify-between rounded-xl border border-white/10 bg-navy-900/90 p-5"
               >
                 <div>
                   <span className="inline-block rounded-md border border-emerald-400/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
@@ -234,7 +237,7 @@ export default function CauChuyenGoNoiPage() {
         <section aria-labelledby="gallery-heading" className="space-y-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#fde047]">
+              <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gold-300">
                 <Users className="h-3.5 w-3.5" />
                 Tư liệu ảnh CLB
               </p>
@@ -247,7 +250,7 @@ export default function CauChuyenGoNoiPage() {
             </div>
             <Link
               href="/hoat-dong"
-              className="inline-flex items-center gap-1 text-xs font-bold text-[#fde047] hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-bold text-gold-300 hover:underline"
             >
               <span>Xem toàn bộ bài viết hoạt động</span>
               <ArrowRight className="h-3.5 w-3.5" />
@@ -258,7 +261,7 @@ export default function CauChuyenGoNoiPage() {
             {GO_NOI_GALLERY.map((photo) => (
               <figure
                 key={photo.src}
-                className="overflow-hidden rounded-xl border border-white/10 bg-[#081a33]"
+                className="overflow-hidden rounded-xl border border-white/10 bg-navy-900"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -277,7 +280,7 @@ export default function CauChuyenGoNoiPage() {
         </section>
 
         {/* Lời mời kết nối cộng đồng */}
-        <section className="rounded-xl border border-[#d4af37]/35 bg-gradient-to-r from-[#0b2447] via-[#081a33] to-[#0b2447] p-6 sm:p-8">
+        <section className="rounded-xl border border-gold-500/35 bg-gradient-to-r from-navy-700 via-navy-900 to-navy-700 p-6 sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl space-y-2">
               <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-300">
@@ -292,7 +295,7 @@ export default function CauChuyenGoNoiPage() {
                 <strong className="text-white">{GO_NOI_IDENTITY.clubName}</strong>{" "}
                 luôn rộng mở để anh em gặp gỡ, rèn luyện sức khỏe và giữ trọn nghĩa
                 tình quê hương. Khẩu hiệu chung:{" "}
-                <span className="font-semibold text-[#fde047]">
+                <span className="font-semibold text-gold-300">
                   “{GO_NOI_IDENTITY.slogan}”
                 </span>
                 .
@@ -304,14 +307,14 @@ export default function CauChuyenGoNoiPage() {
                 href={GO_NOI_IDENTITY.fanpageUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-[#d4af37] px-4 py-2.5 text-sm font-bold text-[#040e1a] transition-colors hover:bg-[#fde047]"
+                className="inline-flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2.5 text-sm font-bold text-navy-950 transition-colors hover:bg-gold-300"
               >
                 <span>Kết nối Fanpage CLB</span>
                 <ExternalLink className="h-4 w-4" />
               </a>
               <Link
                 href="/"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:border-[#d4af37]/60 hover:text-[#fde047]"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:border-gold-500/60 hover:text-gold-300"
               >
                 <span>Về Trang Chủ & Đội Hình</span>
                 <ArrowRight className="h-4 w-4" />

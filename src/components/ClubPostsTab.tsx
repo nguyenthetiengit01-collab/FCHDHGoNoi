@@ -23,6 +23,15 @@ import {
 } from "lucide-react";
 import { ModalDialog } from "./ModalDialog";
 import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  FormField,
+  Input,
+  Select,
+  Textarea,
+} from "./ui";
+import {
   convertFileToWebp,
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
@@ -97,6 +106,9 @@ export default function ClubPostsTab({
   const [featuredWebpInfo, setFeaturedWebpInfo] = useState("");
   const [isConvertingGallery, setIsConvertingGallery] = useState(false);
   const [galleryWebpInfo, setGalleryWebpInfo] = useState("");
+  const [pendingDeletePost, setPendingDeletePost] =
+    useState<ClubActivityPost | null>(null);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
 
   const QUICK_TEMPLATES = [
     {
@@ -334,16 +346,20 @@ export default function ClubPostsTab({
     setModalOpen(false);
   }
 
-  async function handleDeletePost(post: ClubActivityPost) {
+  function handleDeletePost(post: ClubActivityPost) {
     if (!isManager) return;
-    if (
-      !window.confirm(
-        `Ban Quản Lý xác nhận xoá bài viết "${post.title}" khỏi trang Hoạt Động CLB?`
-      )
-    ) {
-      return;
+    setPendingDeletePost(post);
+  }
+
+  async function handleConfirmDeletePost() {
+    if (!pendingDeletePost || !isManager) return;
+    setIsDeletingPost(true);
+    try {
+      await onMutate("delete_club_post", { id: pendingDeletePost.id });
+      setPendingDeletePost(null);
+    } finally {
+      setIsDeletingPost(false);
     }
-    await onMutate("delete_club_post", { id: post.id });
   }
 
   const filteredPosts =
@@ -354,9 +370,9 @@ export default function ClubPostsTab({
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#0e2768] via-[#173b94] to-[#1e4fc2] p-6 text-white shadow-lg border border-[#ffc933]/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-2xl bg-gradient-to-r from-[#0e2768] via-[#173b94] to-royal-600 p-6 text-white shadow-lg border border-gold-400/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-[#ffc933]/20 border border-[#ffc933]/40 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-[#ffc933] mb-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-gold-400/20 border border-gold-400/40 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-gold-400 mb-2">
             <Newspaper className="h-3.5 w-3.5" />
             <span>Quản Lý Bài Viết & Hoạt Động CLB</span>
           </div>
@@ -377,19 +393,18 @@ export default function ClubPostsTab({
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2.5 text-xs font-bold text-white transition"
           >
-            <ExternalLink className="h-4 w-4 text-[#ffc933]" />
+            <ExternalLink className="h-4 w-4 text-gold-400" />
             <span>Xem Trang Hoạt Động Công Khai</span>
           </a>
 
           {isManager && (
-            <button
-              type="button"
+            <Button
+              variant="gold"
               onClick={openNewPostModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#ffc933] hover:bg-[#ffd65c] px-4 py-2.5 text-xs sm:text-sm font-black text-[#091b42] shadow-md transition cursor-pointer"
+              leftIcon={<Plus className="h-4 w-4" />}
             >
-              <Plus className="h-4 w-4" />
-              <span>Đăng Bài Viết Mới (Auto WebP)</span>
-            </button>
+              Đăng Bài Viết Mới (Auto WebP)
+            </Button>
           )}
         </div>
       </div>
@@ -403,7 +418,7 @@ export default function ClubPostsTab({
             onClick={() => setFilterCategory(cat.id)}
             className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
               filterCategory === cat.id
-                ? "bg-[#1e4fc2] text-[#ffc933] shadow-sm"
+                ? "bg-royal-600 text-gold-400 shadow-sm"
                 : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
             }`}
           >
@@ -413,8 +428,27 @@ export default function ClubPostsTab({
       </div>
 
       {/* Posts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredPosts.map((post) => (
+      {filteredPosts.length === 0 ? (
+        <EmptyState
+          icon={<Newspaper className="h-5 w-5" />}
+          title="Chưa có bài viết nào trong chuyên mục này"
+          description="Hãy chọn chuyên mục khác hoặc đăng bài viết hoạt động mới cho CLB."
+          action={
+            isManager ? (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={openNewPostModal}
+                leftIcon={<Plus className="h-4 w-4" />}
+              >
+                Đăng Bài Viết Mới
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredPosts.map((post) => (
           <div
             key={post.id}
             className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition"
@@ -428,11 +462,11 @@ export default function ClubPostsTab({
                   className="h-full w-full object-cover"
                 />
                 <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                  <span className="inline-flex items-center rounded-full bg-[#091b42]/85 backdrop-blur-md border border-[#ffc933]/40 px-2.5 py-1 text-[11px] font-bold text-[#ffc933]">
+                  <span className="inline-flex items-center rounded-full bg-[#091b42]/85 backdrop-blur-md border border-gold-400/40 px-2.5 py-1 text-[11px] font-bold text-gold-400">
                     {post.categoryLabel}
                   </span>
                   {post.eventYear && (
-                    <span className="inline-flex items-center rounded-full bg-[#ffc933] text-slate-950 px-2 py-0.5 text-[11px] font-black shadow-xs">
+                    <span className="inline-flex items-center rounded-full bg-gold-400 text-slate-950 px-2 py-0.5 text-[11px] font-black shadow-xs">
                       {post.eventYear}
                     </span>
                   )}
@@ -448,11 +482,11 @@ export default function ClubPostsTab({
               <div className="p-4 space-y-2.5">
                 <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
                   <span className="inline-flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-[#1e4fc2]" />
+                    <Calendar className="h-3 w-3 text-royal-600" />
                     {post.publishedDate}
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <User className="h-3 w-3 text-[#1e4fc2]" />
+                    <User className="h-3 w-3 text-royal-600" />
                     {post.author}
                   </span>
                 </div>
@@ -477,7 +511,7 @@ export default function ClubPostsTab({
                 )}
 
                 {post.galleryImages && post.galleryImages.length > 0 && (
-                  <div className="pt-1 flex items-center gap-1.5 text-[11px] font-semibold text-[#1e4fc2]">
+                  <div className="pt-1 flex items-center gap-1.5 text-[11px] font-semibold text-royal-600">
                     <ImageIcon className="h-3.5 w-3.5" />
                     <span>+{post.galleryImages.length} ảnh trong album</span>
                   </div>
@@ -490,7 +524,7 @@ export default function ClubPostsTab({
                 href={`/hoat-dong/${post.id}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs font-bold text-[#1e4fc2] hover:underline inline-flex items-center gap-1"
+                className="text-xs font-bold text-royal-600 hover:underline inline-flex items-center gap-1"
               >
                 <span>Đọc bài viết</span>
                 <ExternalLink className="h-3 w-3" />
@@ -498,28 +532,31 @@ export default function ClubPostsTab({
 
               {isManager && (
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => openEditPostModal(post)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#1e4fc2] px-2.5 py-1.5 text-xs font-bold transition cursor-pointer"
+                    leftIcon={<Edit3 className="h-3.5 w-3.5" />}
+                    className="bg-blue-50 hover:bg-blue-100 text-royal-600"
                   >
-                    <Edit3 className="h-3.5 w-3.5" />
-                    <span>Sửa</span>
-                  </button>
-                  <button
-                    type="button"
+                    Sửa
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleDeletePost(post)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 text-xs font-bold transition cursor-pointer"
+                    leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                    className="bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Xoá</span>
-                  </button>
+                    Xoá
+                  </Button>
                 </div>
               )}
             </div>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal Đăng / Chỉnh Sửa Bài Viết Mới */}
       <ModalDialog
@@ -535,7 +572,7 @@ export default function ClubPostsTab({
         <form onSubmit={handleSavePost} className="space-y-4">
           {/* Mẫu bài viết soạn nhanh (Quick Templates) */}
           <div className="rounded-xl bg-gradient-to-r from-amber-50 to-sky-50 p-3.5 border border-amber-200 space-y-2">
-            <span className="text-xs font-black uppercase text-[#1e4fc2] flex items-center gap-1.5">
+            <span className="text-xs font-black uppercase text-royal-600 flex items-center gap-1.5">
               <Sparkles className="h-4 w-4 text-[#d99b00]" />
               <span>Mẫu bài viết soạn nhanh (Bấm để điền sẵn bố cục chuẩn):</span>
             </span>
@@ -545,7 +582,7 @@ export default function ClubPostsTab({
                   key={tpl.id}
                   type="button"
                   onClick={tpl.apply}
-                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-[#1e4fc2] text-slate-800 hover:text-white border border-slate-300 hover:border-[#1e4fc2] text-xs font-bold transition shadow-xs cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-royal-600 text-slate-800 hover:text-white border border-slate-300 hover:border-royal-600 text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   {tpl.label}
                 </button>
@@ -556,7 +593,7 @@ export default function ClubPostsTab({
           {/* Upload Ảnh Đại Diện Bài Viết (Auto WebP) */}
           <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-extrabold uppercase tracking-wider text-[#1e4fc2] flex items-center gap-1.5">
+              <label className="text-xs font-extrabold uppercase tracking-wider text-royal-600 flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-[#d99b00]" />
                 <span>Ảnh Đại Diện Bài Viết (Tự động chuyển sang WebP) *</span>
               </label>
@@ -567,7 +604,7 @@ export default function ClubPostsTab({
 
             <div className="flex flex-col sm:flex-row items-center gap-4">
               {featuredImage ? (
-                <div className="relative h-28 w-44 rounded-xl overflow-hidden border-2 border-[#1e4fc2] bg-slate-900 shrink-0">
+                <div className="relative h-28 w-44 rounded-xl overflow-hidden border-2 border-royal-600 bg-slate-900 shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={featuredImage}
@@ -578,7 +615,7 @@ export default function ClubPostsTab({
               ) : null}
 
               <div className="space-y-2 flex-1">
-                <label className="inline-flex items-center gap-2 rounded-xl bg-[#1e4fc2] hover:bg-[#163d99] px-4 py-2.5 text-xs font-bold text-[#ffc933] cursor-pointer transition shadow-sm">
+                <label className="inline-flex items-center gap-2 rounded-xl bg-royal-600 hover:bg-[#163d99] px-4 py-2.5 text-xs font-bold text-gold-400 cursor-pointer transition shadow-sm">
                   <Upload className="h-4 w-4" />
                   <span>
                     {isConvertingFeatured
@@ -606,54 +643,45 @@ export default function ClubPostsTab({
 
           {/* Tiêu đề, Chuyên mục & Năm sự kiện (Dòng thời gian) */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Tiêu đề bài viết *
-              </label>
-              <input
+            <FormField label="Tiêu đề bài viết" required className="sm:col-span-2">
+              <Input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="VD: Chiến thắng giàu cảm xúc của FC HĐH Gò Nổi..."
-                className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                className="text-sm"
               />
-            </div>
+            </FormField>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Chuyên mục *
-              </label>
-              <select
+            <FormField label="Chuyên mục" required>
+              <Select
                 value={category}
                 onChange={(e) =>
                   setCategory(e.target.value as ClubActivityPost["category"])
                 }
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                className="text-sm"
               >
                 <option value="giaidau">Giải Đấu & Phong Trào</option>
                 <option value="giaoluu">Giao Lưu Kết Nối</option>
                 <option value="cauthu">Cầu Thủ Gò Nổi</option>
                 <option value="taitro">Đồng Hành & Tài Trợ</option>
                 <option value="anhbia">Ảnh Bìa & Khí Thế</option>
-              </select>
-            </div>
+              </Select>
+            </FormField>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Năm sự kiện (Timeline)
-              </label>
-              <select
+            <FormField label="Năm sự kiện (Timeline)">
+              <Select
                 value={eventYear}
                 onChange={(e) => setEventYear(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+                className="text-sm"
               >
                 <option value="2026">2026 (Chuyển Mình & Số Hóa)</option>
                 <option value="2025">2025 (Khẳng Định Bản Lĩnh)</option>
                 <option value="2024">2024 (Gieo Mầm Kết Nối)</option>
                 <option value="2023">2023 (Kỷ Niệm Khởi Đầu)</option>
-              </select>
-            </div>
+              </Select>
+            </FormField>
           </div>
 
           {/* Gắn thẻ cầu thủ tham gia */}
@@ -688,7 +716,7 @@ export default function ClubPostsTab({
                     }}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer border ${
                       isTagged
-                        ? "bg-[#1e4fc2] text-white border-[#1e4fc2] shadow-xs"
+                        ? "bg-royal-600 text-white border-royal-600 shadow-xs"
                         : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                     }`}
                   >
@@ -701,56 +729,47 @@ export default function ClubPostsTab({
 
           {/* Ngày đăng & Tác giả */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Ngày đăng
-              </label>
-              <input
+            <FormField label="Ngày đăng">
+              <Input
                 type="date"
                 value={publishedDate}
                 onChange={(e) => setPublishedDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                className="text-sm"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Tác giả / Người đăng
-              </label>
-              <input
+            </FormField>
+            <FormField label="Tác giả / Người đăng">
+              <Input
                 type="text"
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                className="text-sm"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Thời lượng đọc
-              </label>
-              <input
+            </FormField>
+            <FormField label="Thời lượng đọc">
+              <Input
                 type="text"
                 value={readingTime}
                 onChange={(e) => setReadingTime(e.target.value)}
                 placeholder="4 phút đọc"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                className="text-sm"
               />
-            </div>
+            </FormField>
           </div>
 
           {/* Tóm tắt ngắn */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Tóm tắt bài viết (hiển thị ngoài thẻ tin) *
-            </label>
-            <textarea
+          <FormField
+            label="Tóm tắt bài viết (hiển thị ngoài thẻ tin)"
+            required
+          >
+            <Textarea
               required
               rows={2}
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               placeholder="Mô tả ngắn gọn nội dung chính của bài viết..."
-              className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+              className="text-sm"
             />
-          </div>
+          </FormField>
 
           {/* Nội dung chi tiết */}
           <div>
@@ -763,7 +782,7 @@ export default function ClubPostsTab({
               value={contentText}
               onChange={(e) => setContentText(e.target.value)}
               placeholder="Nhập nội dung bài viết chi tiết..."
-              className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-[#1e4fc2] focus:outline-none"
+              className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
             />
           </div>
 
@@ -802,7 +821,7 @@ export default function ClubPostsTab({
                 Album Ảnh Đính Kèm Bài Viết ({galleryImages.length} ảnh - Tự
                 động WebP)
               </span>
-              <label className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 px-3 py-1.5 text-xs font-bold text-[#ffc933] cursor-pointer transition">
+              <label className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 px-3 py-1.5 text-xs font-bold text-gold-400 cursor-pointer transition">
                 <Upload className="h-3.5 w-3.5" />
                 <span>
                   {isConvertingGallery
@@ -854,27 +873,40 @@ export default function ClubPostsTab({
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setModalOpen(false)}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
             >
               Huỷ
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={isSaving || isConvertingFeatured || isConvertingGallery}
-              className="rounded-xl bg-[#1e4fc2] hover:bg-[#163d99] disabled:opacity-50 px-5 py-2 text-xs font-black text-[#ffc933] shadow-md cursor-pointer"
+              variant="primary"
+              size="sm"
+              loading={isSaving}
+              disabled={isConvertingFeatured || isConvertingGallery}
             >
-              {isSaving
-                ? "Đang lưu bài viết..."
-                : editingPost
-                  ? "Lưu Cập Nhật Bài Viết"
-                  : "Đăng Bài Viết Lên Trang Web"}
-            </button>
+              {editingPost
+                ? "Lưu Cập Nhật Bài Viết"
+                : "Đăng Bài Viết Lên Trang Web"}
+            </Button>
           </div>
         </form>
       </ModalDialog>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDeletePost)}
+        onClose={() => {
+          if (!isDeletingPost) setPendingDeletePost(null);
+        }}
+        onConfirm={() => void handleConfirmDeletePost()}
+        title="Xác nhận xoá bài viết"
+        description={`Ban Quản Lý xác nhận xoá bài viết "${pendingDeletePost?.title ?? ""}" khỏi trang Hoạt Động CLB?`}
+        confirmLabel="Xoá bài viết"
+        danger
+        loading={isDeletingPost}
+      />
     </div>
   );
 }
