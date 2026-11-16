@@ -281,7 +281,6 @@ export const CLUB_ACTIVITIES_POSTS: ClubActivityPost[] = [
       "/images/hinhanh-webp/cauthu/671f762b4396c2c89b871.webp",
       "/images/hinhanh-webp/cauthu/9eb2c38ff632776c2e2322.webp",
       "/images/hinhanh-webp/cauthu/420f523b6786e6d8bf973.webp",
-      "/images/hinhanh-webp/cauthu/b963f9c808d1888fd1c0.webp",
       "/images/hinhanh-webp/cauthu/c44a8e77bbca3a9463db32.webp",
     ],
     summary:

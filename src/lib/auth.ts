@@ -704,6 +704,7 @@ export function sanitizeDataForPublic(data: FullAppData): FullAppData {
       username: "",
       pin_code: "",
       notes: "",
+      gallery_urls: [],
       access_role: "player" as const,
     })),
     matches: data.matches,

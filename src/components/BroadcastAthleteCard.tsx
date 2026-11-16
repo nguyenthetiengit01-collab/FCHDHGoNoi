@@ -144,9 +144,7 @@ export function BroadcastAthleteCard({
   const allLightboxImages = buildAthleteLightboxImages(player, fallbackPhotos);
 
   const profileImageSrc =
-    player.profile_image_url ||
-    (player.gallery_urls && player.gallery_urls.length > 0 ? player.gallery_urls[0] : null) ||
-    (fallbackPhotos.length > 0 ? fallbackPhotos[0] : null);
+    player.profile_image_url || player.avatar_url || null;
 
   const profileImgIdx = allLightboxImages.findIndex(
     (img) => img.src === (player.profile_image_url || profileImageSrc || "")
@@ -268,36 +266,6 @@ export function BroadcastAthleteCard({
             )}
           </div>
         </div>
-
-        {/* Gallery thumbnails */}
-        {player.gallery_urls && player.gallery_urls.length > 0 && (
-          <div className="mt-4 pt-3 border-t border-white/15">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#ffd700] flex items-center gap-1 mb-2">
-              <Camera className="h-3.5 w-3.5" />
-              Khoảnh khắc sân cỏ ({player.gallery_urls.length} ảnh)
-            </span>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {player.gallery_urls.map((url, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() =>
-                    handleImageClick(player.avatar_url ? idx + 1 : idx)
-                  }
-                  aria-label={`Xem ảnh ${player.full_name} — khoảnh khắc #${idx + 1}`}
-                  className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group hover:border-[#ffd700] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffd700] transition cursor-pointer"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt={`Khoảnh khắc ${idx + 1}`}
-                    className="w-full h-full object-cover filter brightness-105 group-hover:scale-105 transition duration-300"
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Chân trang nhận diện bản quyền khi xuất ảnh */}
         <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between text-[9px] text-slate-300">
@@ -569,33 +537,6 @@ export function BroadcastAthleteCard({
           </div>
         </div>
 
-        {/* Gallery thumbnails */}
-        {allLightboxImages.length > 1 && (
-          <div className="pt-3 border-t border-white/15">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#ffd700] flex items-center gap-1.5 mb-2.5">
-              <Camera className="h-4 w-4" />
-              Bộ sưu tập khoảnh khắc thi đấu &amp; hoạt động ({allLightboxImages.length} ảnh)
-            </span>
-            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-              {allLightboxImages.slice(1).map((img, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => handleImageClick(i + 1)}
-                  aria-label={`Xem ảnh ${img.title || `${player.full_name} — khoảnh khắc #${i + 1}`}`}
-                  className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group hover:border-[#ffd700] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffd700] transition cursor-pointer"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={img.src}
-                    alt={img.title || `Ảnh ${i + 1}`}
-                    className="w-full h-full object-cover filter brightness-105 group-hover:scale-110 transition duration-300"
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
         {/* Chân trang nhận diện bản quyền khi xuất ảnh */}
         <div className="pt-3 border-t border-white/15 flex items-center justify-between text-[11px] text-slate-300">
           <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#ffd700]">
@@ -852,33 +793,6 @@ export function BroadcastAthleteCard({
         </p>
       </div>
 
-      {/* Bộ sưu tập ảnh thi đấu */}
-      {allLightboxImages.length > 1 && (
-        <div className="pt-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#ffd700] flex items-center gap-1.5 mb-2">
-            <Camera className="h-3.5 w-3.5" />
-            Khoảnh khắc sân cỏ ({allLightboxImages.length} ảnh)
-          </span>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {allLightboxImages.slice(1, 5).map((img, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => handleImageClick(i + 1)}
-                aria-label={`Xem ảnh ${img.title || `${player.full_name} — khoảnh khắc #${i + 1}`}`}
-                className="relative aspect-video rounded-lg overflow-hidden border border-white/20 group hover:border-[#ffd700] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffd700] transition cursor-pointer"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={img.src}
-                  alt={img.title || `Khoảnh khắc ${i + 1}`}
-                  className="w-full h-full object-cover filter brightness-105 group-hover:scale-110 transition duration-300"
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
       {/* Chân trang nhận diện bản quyền khi xuất ảnh */}
       <div className="pt-3 border-t border-white/15 flex items-center justify-between text-[11px] text-slate-300">
         <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#ffd700]">

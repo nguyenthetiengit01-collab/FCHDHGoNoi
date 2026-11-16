@@ -80,10 +80,6 @@ async function convertAll() {
     try {
       const convertedCat = await convertImage(item.fullPath, catOutputPath);
 
-      // 2. Also ensure a copy exists in root outputRoot/<name>.webp for backwards compatibility
-      const rootOutputPath = path.join(outputRoot, `${baseName}.webp`);
-      await convertImage(item.fullPath, rootOutputPath);
-
       if (convertedCat) {
         convertedCount++;
       }
