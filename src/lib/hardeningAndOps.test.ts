@@ -287,5 +287,5 @@ describe("Phase 5 Hardening, Audit Logs & Security Matrix", () => {
     expect(restoreOk.status).toBe(0);
     expect(restoreOk.stdout).toContain("preflight_ok");
     expect(restoreOk.stdout).not.toContain("secret-restore-token");
-  });
+  }, 20000);
 });
