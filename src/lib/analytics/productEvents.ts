@@ -4,28 +4,53 @@ import { ANALYTICS_RAW_RETENTION_DAYS } from "./config";
 import type { ProductEventInput } from "./types";
 import { toVNDateKey } from "./metrics";
 
-function getActorHashSecret(): string {
-  const secret =
-    process.env.ANALYTICS_ACTOR_SECRET ||
-    process.env.APP_SECRET ||
-    process.env.AUTH_SECRET ||
-    process.env.NEXTAUTH_SECRET;
+export const ANALYTICS_ACTOR_SECRET_MIN_LENGTH = 32;
 
-  if (secret && secret.trim().length >= 16) {
-    return secret.trim();
+export class AnalyticsSecretError extends Error {
+  readonly code = "ANALYTICS_SECRET_INVALID" as const;
+  constructor(message = "ANALYTICS_ACTOR_SECRET không hợp lệ hoặc chưa được cấu hình.") {
+    super(message);
+    this.name = "AnalyticsSecretError";
   }
-  return "fc-hdh-go-noi-analytics-actor-hmac-fallback-key";
+}
+
+/**
+ * Resolves the dedicated ANALYTICS_ACTOR_SECRET for actor_key_hash.
+ * Fails closed when absent, blank, or shorter than 32 characters after trimming.
+ */
+export function getActorHashSecret(
+  env: Record<string, string | undefined> = process.env
+): string {
+  const raw = typeof env.ANALYTICS_ACTOR_SECRET === "string" ? env.ANALYTICS_ACTOR_SECRET.trim() : "";
+  if (raw.length < ANALYTICS_ACTOR_SECRET_MIN_LENGTH) {
+    throw new AnalyticsSecretError(
+      `ANALYTICS_ACTOR_SECRET phải có tối thiểu ${ANALYTICS_ACTOR_SECRET_MIN_LENGTH} ký tự.`
+    );
+  }
+  return raw;
+}
+
+export function hasValidActorHashSecret(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  try {
+    getActorHashSecret(env);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function deriveActorKeyHash(
   actorRole: "guest" | "player" | "manager",
-  playerId?: number | null
+  playerId?: number | null,
+  env: Record<string, string | undefined> = process.env
 ): string | null {
   if (actorRole === "guest" || !playerId || playerId <= 0) {
     return null;
   }
   return crypto
-    .createHmac("sha256", getActorHashSecret())
+    .createHmac("sha256", getActorHashSecret(env))
     .update(`${actorRole}:${playerId}`)
     .digest("hex");
 }
@@ -50,15 +75,15 @@ export async function ingestProductEvents(params: {
 }): Promise<{ accepted: number; deduped: number }> {
   const { db, events, actorRole, playerId, now = new Date() } = params;
 
-  const hasTables = await ensureAnalyticsTablesExist(db);
-  if (!hasTables) {
-    return { accepted: 0, deduped: 0 };
-  }
-
   const occurredAt = now.toISOString();
   const eventDate = toVNDateKey(occurredAt);
   const monthKey = eventDate.slice(0, 7);
   const actorKeyHash = deriveActorKeyHash(actorRole, playerId);
+
+  const hasTables = await ensureAnalyticsTablesExist(db);
+  if (!hasTables) {
+    return { accepted: 0, deduped: 0 };
+  }
 
   let accepted = 0;
   let deduped = 0;

@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthSession, verifyCsrfOrigin } from "@/lib/auth";
 import { getAsyncDb } from "@/lib/db";
 import { isAnalyticsEnabled } from "@/lib/analytics/config";
-import { ingestProductEvents } from "@/lib/analytics/productEvents";
+import { logAnalyticsEvent } from "@/lib/analytics/observability";
+import {
+  AnalyticsSecretError,
+  getActorHashSecret,
+  ingestProductEvents,
+} from "@/lib/analytics/productEvents";
+import { evaluateAnalyticsEventRateLimit } from "@/lib/analytics/rateLimit";
 import { validateProductEventBatch } from "@/lib/analytics/validation";
 
 export const dynamic = "force-dynamic";
@@ -12,25 +18,9 @@ const NO_STORE_HEADERS = {
 };
 
 const MAX_BODY_BYTES = 32 * 1024;
-const RATE_WINDOW_MS = 60_000;
-const RATE_MAX_REQUESTS = 60;
-const rateBuckets = new Map<string, { count: number; resetAt: number }>();
-
-function checkEventRateLimit(key: string): boolean {
-  const now = Date.now();
-  const bucket = rateBuckets.get(key);
-  if (!bucket || now >= bucket.resetAt) {
-    rateBuckets.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  if (bucket.count >= RATE_MAX_REQUESTS) {
-    return false;
-  }
-  bucket.count += 1;
-  return true;
-}
 
 export async function POST(req: NextRequest) {
+  const startedAt = Date.now();
   try {
     if (!verifyCsrfOrigin(req)) {
       return NextResponse.json(
@@ -44,18 +34,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Payload vượt quá giới hạn cho phép" },
         { status: 413, headers: NO_STORE_HEADERS }
-      );
-    }
-
-    const session = getAuthSession(req);
-    const rateKey = session
-      ? `actor:${session.playerId}`
-      : `ip:${req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon"}`;
-
-    if (!checkEventRateLimit(rateKey)) {
-      return NextResponse.json(
-        { error: "Quá nhiều yêu cầu analytics, vui lòng thử lại sau" },
-        { status: 429, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -97,6 +75,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    try {
+      getActorHashSecret();
+    } catch (err) {
+      logAnalyticsEvent("error", {
+        event: "analytics_secret_invalid",
+        status: 503,
+        errorCode:
+          err instanceof AnalyticsSecretError ? err.code : "ANALYTICS_SECRET_INVALID",
+        durationMs: Date.now() - startedAt,
+      });
+      return NextResponse.json(
+        { error: "Dịch vụ analytics chưa sẵn sàng" },
+        { status: 503, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    const session = getAuthSession(req);
+    const rateLimit = await evaluateAnalyticsEventRateLimit({
+      playerId: session?.playerId ?? null,
+      headers: req.headers,
+    });
+    if (!rateLimit.allowed) {
+      if (rateLimit.status === 503) {
+        return NextResponse.json(
+          { error: "Dịch vụ giới hạn tần suất analytics chưa sẵn sàng" },
+          { status: 503, headers: NO_STORE_HEADERS }
+        );
+      }
+      return NextResponse.json(
+        { error: "Quá nhiều yêu cầu analytics, vui lòng thử lại sau" },
+        { status: 429, headers: NO_STORE_HEADERS }
+      );
+    }
+
     const actorRole: "guest" | "player" | "manager" = session
       ? session.accessRole === "manager"
         ? "manager"
@@ -115,8 +127,25 @@ export async function POST(req: NextRequest) {
       { ok: true, enabled: true, ...result },
       { status: 200, headers: NO_STORE_HEADERS }
     );
-  } catch (error) {
-    console.error("POST /api/analytics/events error:", error);
+  } catch (err) {
+    if (err instanceof AnalyticsSecretError) {
+      logAnalyticsEvent("error", {
+        event: "analytics_secret_invalid",
+        status: 503,
+        errorCode: err.code,
+        durationMs: Date.now() - startedAt,
+      });
+      return NextResponse.json(
+        { error: "Dịch vụ analytics chưa sẵn sàng" },
+        { status: 503, headers: NO_STORE_HEADERS }
+      );
+    }
+    logAnalyticsEvent("error", {
+      event: "analytics_event_ingestion_failed",
+      status: 500,
+      errorCode: "INGESTION_FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     return NextResponse.json(
       { error: "Không thể ghi nhận analytics events" },
       { status: 500, headers: NO_STORE_HEADERS }

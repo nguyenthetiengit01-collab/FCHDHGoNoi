@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { NextRequest } from "next/server";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 import { runPhase4Migration } from "../../../scripts/migrations/phase4-analytics-v1.mjs";
 import {
@@ -22,6 +22,10 @@ import {
   ingestProductEvents,
   rebuildAnalyticsRollups,
 } from "./productEvents";
+import {
+  __resetRateLimitStateForTest,
+  __setRateLimiterForTest,
+} from "./rateLimit";
 import { queryAnalyticsSection } from "./queries";
 import {
   computePreviousPeriod,
@@ -98,10 +102,17 @@ function createTempSqliteAsyncDb(): { sqlitePath: string; db: AsyncDb; raw: Data
   return { sqlitePath, db, raw };
 }
 
+beforeEach(() => {
+  process.env.ANALYTICS_ACTOR_SECRET = "test-analytics-actor-secret-32-chars-min";
+  __setRateLimiterForTest({ limit: async () => ({ success: true }) });
+});
+
 afterEach(() => {
   delete process.env.ANALYTICS_ENABLED;
+  delete process.env.ANALYTICS_ACTOR_SECRET;
   delete process.env.USE_LOCAL_SQLITE;
   delete process.env.SQLITE_DB_PATH;
+  __resetRateLimitStateForTest();
   for (const dir of tempDirs.splice(0)) {
     try {
       fs.rmSync(dir, { recursive: true, force: true });

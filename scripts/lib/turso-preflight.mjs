@@ -98,3 +98,56 @@ export function validateStagingTarget({
 
   return { dbName, safeHost, allowedBaseName, role };
 }
+
+export function isAllowedProductionDbName(dbName) {
+  return dbName === "fchdhgonoi" || dbName.startsWith("fchdhgonoi-nguyenthetiengit01");
+}
+
+export function validateProductionTarget({
+  url,
+  token,
+  envUrlName = "TURSO_DATABASE_URL",
+  envTokenName = "TURSO_AUTH_TOKEN",
+  disallowUrls = [],
+}) {
+  const cleanUrl = typeof url === "string" ? url.trim() : "";
+  const cleanToken = typeof token === "string" ? token.trim() : "";
+
+  if (!cleanUrl || !cleanToken) {
+    throw new Error(
+      `Preflight blocked: missing ${envUrlName} or ${envTokenName} for Production target.`
+    );
+  }
+
+  const { dbName, safeHost } = extractTursoDbName(cleanUrl);
+
+  for (const disallowed of disallowUrls) {
+    if (!disallowed || typeof disallowed !== "string") continue;
+    try {
+      const disallowedParsed = extractTursoDbName(disallowed);
+      if (disallowedParsed.safeHost === safeHost || disallowed.trim() === cleanUrl) {
+        throw new Error(
+          `Preflight blocked: ${envUrlName} overlaps with a disallowed Staging database (${safeHost}).`
+        );
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("Preflight blocked:")) {
+        throw err;
+      }
+    }
+  }
+
+  if (dbName.startsWith("fchdhgonoi-staging")) {
+    throw new Error(
+      `Preflight blocked: database "${dbName}" is a Staging database, not Production.`
+    );
+  }
+
+  if (!isAllowedProductionDbName(dbName)) {
+    throw new Error(
+      `Preflight blocked: database "${dbName}" is not in the exact Production allowlist.`
+    );
+  }
+
+  return { dbName, safeHost, role: "production" };
+}
