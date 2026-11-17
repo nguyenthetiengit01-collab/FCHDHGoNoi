@@ -731,13 +731,13 @@ describe("Workstream B Remediation — Legacy Post TEXT IDs, Gallery Compatibili
     }
   });
 
-  it("enforces CLI safety guards (--env production, remote URL, missing Blob token)", async () => {
-    const { execFileSync } = await import("node:child_process");
+  it("enforces CLI --env, remote URL, and local-only environment guards before write", async () => {
+    const { spawnSync } = await import("node:child_process");
     const fs = await import("node:fs");
     const os = await import("node:os");
     const path = await import("node:path");
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gonoi-cli-guard-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gonoi-cli-env-guard-"));
     const tmpDbPath = path.join(tmpDir, "guard.sqlite");
     const raw = new DatabaseSync(tmpDbPath);
     raw.exec("CREATE TABLE players (id INTEGER PRIMARY KEY, avatar_url TEXT);");
@@ -745,28 +745,101 @@ describe("Workstream B Remediation — Legacy Post TEXT IDs, Gallery Compatibili
 
     try {
       const cliPath = path.resolve(process.cwd(), "scripts/migrations/migrate-legacy-media.mjs");
+      const baseLocalEnv: NodeJS.ProcessEnv = {
+        ...process.env,
+        VERCEL: "",
+        VERCEL_ENV: "",
+        NODE_ENV: "development",
+        APP_ENV: "",
+        DEPLOY_ENV: "",
+        ENVIRONMENT: "",
+        CI: "",
+        GITHUB_ACTIONS: "",
+        BLOB_READ_WRITE_TOKEN: "",
+        MIGRATION_BLOB_READ_WRITE_TOKEN: "dummy_nonprod_migration_token",
+      };
 
-      expect(() =>
-        execFileSync(process.execPath, [cliPath, "--sqlite", tmpDbPath, "--env", "production"], {
+      const runCli = (args: string[], envOverrides: Record<string, string | undefined> = {}) =>
+        spawnSync(process.execPath, [cliPath, ...args], {
           encoding: "utf8",
-          stdio: "pipe",
-        })
-      ).toThrow();
+          env: { ...baseLocalEnv, ...envOverrides },
+        });
 
-      expect(() =>
-        execFileSync(process.execPath, [cliPath, "--sqlite", "libsql://prod.turso.io"], {
-          encoding: "utf8",
-          stdio: "pipe",
-        })
-      ).toThrow();
+      expect(runCli(["--sqlite", tmpDbPath, "--env", "production"]).status).not.toBe(0);
+      expect(runCli(["--sqlite", "libsql://prod.turso.io"]).status).not.toBe(0);
 
-      expect(() =>
-        execFileSync(process.execPath, [cliPath, "--sqlite", tmpDbPath, "--write"], {
+      const writeArgs = ["--sqlite", tmpDbPath, "--write", "--confirm-non-production-blob"];
+      expect(runCli(writeArgs, { VERCEL: "1" }).status).not.toBe(0);
+      expect(runCli(writeArgs, { VERCEL_ENV: "production" }).status).not.toBe(0);
+      expect(runCli(writeArgs, { NODE_ENV: "production" }).status).not.toBe(0);
+      expect(runCli(writeArgs, { DEPLOY_ENV: "staging" }).status).not.toBe(0);
+      expect(runCli(writeArgs, { CI: "true" }).status).not.toBe(0);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("enforces CLI --write confirmation flag and dedicated MIGRATION_BLOB_READ_WRITE_TOKEN", async () => {
+    const { spawnSync } = await import("node:child_process");
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gonoi-cli-tok-guard-"));
+    const tmpDbPath = path.join(tmpDir, "guard-tok.sqlite");
+    const raw = new DatabaseSync(tmpDbPath);
+    raw.exec("CREATE TABLE players (id INTEGER PRIMARY KEY, avatar_url TEXT);");
+    raw.close();
+
+    try {
+      const cliPath = path.resolve(process.cwd(), "scripts/migrations/migrate-legacy-media.mjs");
+      const baseLocalEnv: NodeJS.ProcessEnv = {
+        ...process.env,
+        VERCEL: "",
+        VERCEL_ENV: "",
+        NODE_ENV: "development",
+        APP_ENV: "",
+        DEPLOY_ENV: "",
+        ENVIRONMENT: "",
+        CI: "",
+        GITHUB_ACTIONS: "",
+      };
+
+      const runCli = (args: string[], envOverrides: Record<string, string | undefined> = {}) =>
+        spawnSync(process.execPath, [cliPath, ...args], {
           encoding: "utf8",
-          stdio: "pipe",
-          env: { ...process.env, BLOB_READ_WRITE_TOKEN: "" },
-        })
-      ).toThrow();
+          env: { ...baseLocalEnv, ...envOverrides },
+        });
+
+      // --write without --confirm-non-production-blob fails
+      const missingConfirm = runCli(["--sqlite", tmpDbPath, "--write"], {
+        BLOB_READ_WRITE_TOKEN: "",
+        MIGRATION_BLOB_READ_WRITE_TOKEN: "dummy_nonprod_migration_token",
+      });
+      expect(missingConfirm.status).not.toBe(0);
+      expect(missingConfirm.stderr).toContain("--confirm-non-production-blob");
+
+      // --write without MIGRATION_BLOB_READ_WRITE_TOKEN fails even if BLOB_READ_WRITE_TOKEN is set
+      const missingMigrationToken = runCli(
+        ["--sqlite", tmpDbPath, "--write", "--confirm-non-production-blob"],
+        {
+          BLOB_READ_WRITE_TOKEN: "dummy_prod_like_token",
+          MIGRATION_BLOB_READ_WRITE_TOKEN: "",
+        }
+      );
+      expect(missingMigrationToken.status).not.toBe(0);
+      expect(missingMigrationToken.stderr).toContain("MIGRATION_BLOB_READ_WRITE_TOKEN");
+
+      // --write when MIGRATION_BLOB_READ_WRITE_TOKEN matches BLOB_READ_WRITE_TOKEN fails
+      const sameToken = runCli(
+        ["--sqlite", tmpDbPath, "--write", "--confirm-non-production-blob"],
+        {
+          BLOB_READ_WRITE_TOKEN: "identical_dummy_token",
+          MIGRATION_BLOB_READ_WRITE_TOKEN: "identical_dummy_token",
+        }
+      );
+      expect(sameToken.status).not.toBe(0);
+      expect(sameToken.stderr).toContain("must not match BLOB_READ_WRITE_TOKEN");
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

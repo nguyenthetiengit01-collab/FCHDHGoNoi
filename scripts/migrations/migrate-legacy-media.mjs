@@ -169,6 +169,67 @@ function sanitizeReport(report, targetBasename) {
   };
 }
 
+const FORBIDDEN_WRITE_ENV_VALUES = new Set(["production", "prod", "staging", "stage"]);
+
+function assertSafeWriteEnvironment() {
+  if (process.env.VERCEL?.trim() || process.env.VERCEL_ENV?.trim()) {
+    throw new Error(
+      "Refusing --write: VERCEL / VERCEL_ENV is set. Migration --write is restricted to local environments only."
+    );
+  }
+
+  if (process.env.NODE_ENV?.trim().toLowerCase() === "production") {
+    throw new Error(
+      "Refusing --write: NODE_ENV=production is forbidden for local SQLite media migration."
+    );
+  }
+
+  for (const key of ["APP_ENV", "DEPLOY_ENV", "ENVIRONMENT"]) {
+    const val = process.env[key]?.trim().toLowerCase();
+    if (val && FORBIDDEN_WRITE_ENV_VALUES.has(val)) {
+      throw new Error(
+        `Refusing --write: ${key}=${val} is forbidden for local SQLite media migration.`
+      );
+    }
+  }
+
+  if (process.env.CI?.trim() || process.env.GITHUB_ACTIONS?.trim()) {
+    throw new Error(
+      "Refusing --write: CI / GitHub Actions environments are forbidden for local SQLite media migration."
+    );
+  }
+}
+
+function assertWriteConfirmationAndToken() {
+  if (!hasFlag("--confirm-non-production-blob")) {
+    throw new Error(
+      "Refusing --write without --confirm-non-production-blob. Confirm that MIGRATION_BLOB_READ_WRITE_TOKEN belongs to a dedicated non-production Blob Store for migration."
+    );
+  }
+
+  const migrationToken =
+    typeof process.env.MIGRATION_BLOB_READ_WRITE_TOKEN === "string"
+      ? process.env.MIGRATION_BLOB_READ_WRITE_TOKEN.trim()
+      : "";
+  if (!migrationToken) {
+    throw new Error(
+      "Missing MIGRATION_BLOB_READ_WRITE_TOKEN. --write requires a dedicated non-production migration token and never falls back to BLOB_READ_WRITE_TOKEN."
+    );
+  }
+
+  const standardToken =
+    typeof process.env.BLOB_READ_WRITE_TOKEN === "string"
+      ? process.env.BLOB_READ_WRITE_TOKEN.trim()
+      : "";
+  if (standardToken && standardToken === migrationToken) {
+    throw new Error(
+      "Refusing --write: MIGRATION_BLOB_READ_WRITE_TOKEN must not match BLOB_READ_WRITE_TOKEN. Use a separate non-production Blob Store token."
+    );
+  }
+
+  return migrationToken;
+}
+
 async function main() {
   if (hasFlag("--env")) {
     const envArg = getArg("--env") || "(empty)";
@@ -194,6 +255,12 @@ async function main() {
     throw new Error(`SQLite target not found: ${sqlitePath}`);
   }
 
+  let migrationToken = null;
+  if (!dryRun) {
+    assertSafeWriteEnvironment();
+    migrationToken = assertWriteConfirmationAndToken();
+  }
+
   installTsLoader();
   const { migrateLegacyMedia } = await import(
     pathToFileURL(path.join(REPO_ROOT, "src/lib/media/migration.ts")).href
@@ -208,7 +275,7 @@ async function main() {
           throw new Error("Dry-run mode must never invoke uploadPublicAsset.");
         },
       }
-    : getMediaStorageProvider();
+    : getMediaStorageProvider({ BLOB_READ_WRITE_TOKEN: migrationToken });
 
   const sqliteDb = new DatabaseSync(sqlitePath);
   try {
