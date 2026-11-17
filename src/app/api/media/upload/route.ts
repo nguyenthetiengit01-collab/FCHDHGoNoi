@@ -7,7 +7,7 @@ import {
 } from "@/lib/media/storage";
 import {
   ALLOWED_IMAGE_MIME_TYPES,
-  MAX_MEDIA_UPLOAD_BYTES,
+  MAX_SERVER_MULTIPART_UPLOAD_BYTES,
   buildSafePublicMediaPathname,
   hasValidImageMagicBytes,
   isMediaStorageEnabled,
@@ -101,9 +101,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (file.size > MAX_MEDIA_UPLOAD_BYTES) {
+    if (file.size > MAX_SERVER_MULTIPART_UPLOAD_BYTES) {
       return NextResponse.json(
-        { error: "Kích thước ảnh vượt quá giới hạn tối đa 10MB." },
+        {
+          error:
+            "Kích thước ảnh vượt quá giới hạn upload qua server (tối đa 4MB). Vui lòng dùng client upload trực tiếp cho ảnh tới 10MB.",
+        },
         { status: 413, headers: NO_STORE_HEADERS }
       );
     }

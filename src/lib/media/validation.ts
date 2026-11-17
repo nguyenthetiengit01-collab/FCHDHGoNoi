@@ -10,7 +10,8 @@ export const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/avif",
 ]);
 
-export const MAX_MEDIA_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+export const MAX_MEDIA_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB (Direct Client Upload)
+export const MAX_SERVER_MULTIPART_UPLOAD_BYTES = 4 * 1024 * 1024; // 4MB (under Vercel 4.5MB Function body limit)
 
 export function isMediaStorageEnabled(
   env: Record<string, string | undefined> = process.env
@@ -140,4 +141,17 @@ export function buildSafePublicMediaPathname(params: {
   const prefix = params.prefix || "uploads";
   const ext = params.extension || "webp";
   return `public-media/${prefix}/${params.entity}/${hash.slice(0, 32)}.${ext}`;
+}
+
+export function isValidSafePublicMediaPathname(
+  pathname: string,
+  expectedEntity?: MediaEntityType
+): boolean {
+  if (typeof pathname !== "string") return false;
+  const match = /^public-media\/(uploads|migrated)\/(player|post|sponsor)\/([a-f0-9-]{16,64})\.webp$/.exec(
+    pathname.trim()
+  );
+  if (!match) return false;
+  if (expectedEntity && match[2] !== expectedEntity) return false;
+  return true;
 }

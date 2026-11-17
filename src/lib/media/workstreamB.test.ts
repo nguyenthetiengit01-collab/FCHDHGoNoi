@@ -8,9 +8,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET as getLegacyMediaRoute } from "@/app/api/media/legacy/route";
 import { POST as postMediaUploadRoute } from "@/app/api/media/upload/route";
 import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
+import * as dbModule from "@/lib/db";
 import type { AsyncDb } from "@/lib/db";
 import { ensureWebpDataUrlServer, MediaValidationError } from "@/lib/serverWebp";
-import { getPublicHomePageData, toPublicMediaSrc } from "@/lib/publicHome";
+import { getPublicHomePageData, getPublicPlayerProfileByIdOrJersey, toPublicMediaSrc } from "@/lib/publicHome";
 import { migrateLegacyMedia } from "./migration";
 import {
   __setMediaStorageProviderForTest,
@@ -188,7 +189,7 @@ describe("Workstream B — Public Homepage DTO & Legacy Compatibility", () => {
       expect(home.players[0].avatar_url).toBe("/api/media/legacy?entity=player&id=1&field=avatar");
       expect(home.players[0].profile_image_url).toBe("https://blob.example/p1.webp");
       expect(home.players[0].gallery_urls).toEqual([]);
-      expect(home.posts?.[0].featuredImage).toBe("/api/media/legacy?entity=post&id=1&field=featured");
+      expect(home.posts?.[0].featuredImage).toBe("/api/media/legacy?entity=post&id=post-1&field=featured");
       expect(home.posts?.[0].paragraphs).toEqual([]);
       expect(home.posts?.[0].galleryImages).toEqual([]);
       expect(home.sponsors?.[0].logo_url).toBe("/api/media/legacy?entity=sponsor&id=1&field=logo");
@@ -407,7 +408,367 @@ describe("Workstream B — Idempotent Legacy Media Migration", () => {
       expect(casReport.orphanObjects.length).toBe(1);
       expect(casReport.entries.some((e) => e.status === "db_cas_conflict_or_failed")).toBe(true);
     } finally {
-      raw.close();
+      try {
+        raw.close();
+      } catch {
+        // Already closed
+      }
+    }
+  });
+});
+
+describe("Workstream B Remediation — Legacy Post TEXT IDs, Gallery Compatibility, Upload Cap & Real CLI", () => {
+  const makeTestPlayer = (id: number, accessRole: "player" | "manager") => ({
+    id,
+    code_order: id,
+    full_name: `User ${id}`,
+    short_name: `U${id}`,
+    jersey_number: id,
+    position: "Tiền đạo",
+    phone: "",
+    birth_year: "1995",
+    avatar_url: "",
+    role: accessRole === "manager" ? "Ban Quản Lý" : "Thành viên",
+    access_role: accessRole,
+    pin_code: "hash",
+    status: "Đang sinh hoạt",
+    notes: "",
+  });
+
+  const makeUploadReqLocal = (file: File, entity: string, cookie?: string) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("entity", entity);
+    return new NextRequest("http://localhost:3000/api/media/upload", {
+      method: "POST",
+      headers: {
+        origin: "http://localhost:3000",
+        host: "localhost:3000",
+        ...(cookie ? { cookie: `${SESSION_COOKIE_NAME}=${cookie}` } : {}),
+      },
+      body: fd,
+    });
+  };
+
+  it("maps club_posts TEXT primary keys and player/post legacy galleries safely without Base64 leakage", async () => {
+    const webpBuf = await makeTinyWebpBuffer();
+    const dataUri = `data:image/webp;base64,${webpBuf.toString("base64")}`;
+    const { raw, db } = createTempAppDb();
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(db);
+
+    try {
+      raw.prepare(
+        `INSERT INTO players (code_order, full_name, short_name, jersey_number, position, avatar_url, profile_image_url, gallery_urls_json)
+         VALUES (1, 'Test Player', 'TP', 10, 'Tiền đạo', ?, ?, ?)`
+      ).run(dataUri, dataUri, JSON.stringify(["/images/static-0.webp", dataUri, "/images/static-2.webp"]));
+
+      raw.prepare(
+        `INSERT INTO club_posts (id, category, category_label, category_badge_class, title, slug, summary, published_date, event_year, author, featured_image, gallery_images_json, reading_time, paragraphs_json, highlights_json, tagged_players_json)
+         VALUES ('post-gd-1', 'giaidau', 'Giải Đấu', 'badge', 'Giải 1', 'giai-1', 'Tóm tắt 1', '2026-10-01', '2026', 'BQL', ?, ?, '3 phút', '["Đoạn 1"]', '["Điểm 1"]', '[]'),
+                ('post-2026-example', 'giaoluu', 'Giao Lưu', 'badge', 'Giải 2', 'giai-2', 'Tóm tắt 2', '2026-10-02', '2026', 'BQL', ?, ?, '2 phút', '["Đoạn 2"]', '[]', '[]')`
+      ).run(
+        dataUri,
+        JSON.stringify([dataUri, "/images/post-1.webp"]),
+        dataUri,
+        JSON.stringify(["/images/post-a.webp", dataUri])
+      );
+
+      // 1. Homepage uses canonical TEXT post IDs (not rowid)
+      const home = await getPublicHomePageData();
+      const post1 = home.posts?.find((p) => p.id === "post-gd-1");
+      const post2 = home.posts?.find((p) => p.id === "post-2026-example");
+      expect(post1?.featuredImage).toBe("/api/media/legacy?entity=post&id=post-gd-1&field=featured");
+      expect(post2?.featuredImage).toBe("/api/media/legacy?entity=post&id=post-2026-example&field=featured");
+
+      // 2. Player profile converts legacy gallery_urls to safe /api/media/legacy?entity=player&id=1&field=gallery&index=...
+      const profile = await getPublicPlayerProfileByIdOrJersey("1");
+      expect(profile.player?.gallery_urls).toEqual([
+        "/images/static-0.webp",
+        "/api/media/legacy?entity=player&id=1&field=gallery&index=1",
+        "/images/static-2.webp",
+      ]);
+      expect(JSON.stringify(profile.player)).not.toContain("data:image/");
+
+      // 3. Public activities list excludes galleryImages Base64 & validates limit
+      const { GET: getActivities } = await import("@/app/api/public/activities/route");
+      const listRes = await getActivities(new NextRequest("http://localhost:3000/api/public/activities?limit=10"));
+      expect(listRes.status).toBe(200);
+      const listJson = (await listRes.json()) as { posts: Array<{ id: string; featuredImage: string; galleryImages: string[] }> };
+      expect(JSON.stringify(listJson)).not.toContain("data:image/");
+      const listedPost = listJson.posts.find((p) => p.id === "post-gd-1");
+      expect(listedPost?.featuredImage).toBe("/api/media/legacy?entity=post&id=post-gd-1&field=featured");
+      expect(listedPost?.galleryImages).toEqual([]);
+
+      const badLimitRes = await getActivities(new NextRequest("http://localhost:3000/api/public/activities?limit=-1"));
+      expect(badLimitRes.status).toBe(400);
+
+      // 4. Activity detail converts galleryImages to ordered legacy URLs without Base64
+      const detailRes = await getActivities(new NextRequest("http://localhost:3000/api/public/activities?id=post-gd-1"));
+      expect(detailRes.status).toBe(200);
+      const detailJson = (await detailRes.json()) as { post: { galleryImages: string[] } };
+      expect(detailJson.post.galleryImages).toEqual([
+        "/api/media/legacy?entity=post&id=post-gd-1&field=gallery&index=0",
+        "/images/post-1.webp",
+      ]);
+      expect(JSON.stringify(detailJson)).not.toContain("data:image/");
+
+      // 5. Legacy media route handles TEXT post IDs, player/post galleries, SQL injection, and missing rows
+      const legacyPost1 = await getLegacyMediaRoute(
+        new NextRequest("http://localhost:3000/api/media/legacy?entity=post&id=post-gd-1&field=featured")
+      );
+      expect(legacyPost1.status).toBe(200);
+      expect(legacyPost1.headers.get("content-type")).toBe("image/webp");
+      expect(legacyPost1.headers.get("x-content-type-options")).toBe("nosniff");
+
+      const legacyPost2 = await getLegacyMediaRoute(
+        new NextRequest("http://localhost:3000/api/media/legacy?entity=post&id=post-2026-example&field=featured")
+      );
+      expect(legacyPost2.status).toBe(200);
+
+      const legacyPlayerGallery = await getLegacyMediaRoute(
+        new NextRequest("http://localhost:3000/api/media/legacy?entity=player&id=1&field=gallery&index=1")
+      );
+      expect(legacyPlayerGallery.status).toBe(200);
+
+      const legacyPostGallery = await getLegacyMediaRoute(
+        new NextRequest("http://localhost:3000/api/media/legacy?entity=post&id=post-gd-1&field=gallery&index=0")
+      );
+      expect(legacyPostGallery.status).toBe(200);
+
+      const missingPost = await getLegacyMediaRoute(
+        new NextRequest("http://localhost:3000/api/media/legacy?entity=post&id=post-missing&field=featured")
+      );
+      expect(missingPost.status).toBe(404);
+
+      const oobGallery = await getLegacyMediaRoute(
+        new NextRequest("http://localhost:3000/api/media/legacy?entity=player&id=1&field=gallery&index=99")
+      );
+      expect(oobGallery.status).toBe(404);
+
+      const sqliRes = await getLegacyMediaRoute(
+        new NextRequest("http://localhost:3000/api/media/legacy?entity=post&id=post-gd-1'%20OR%20'1'='1&field=featured")
+      );
+      expect(sqliRes.status).toBe(400);
+
+      const badTableRes = await getLegacyMediaRoute(
+        new NextRequest("http://localhost:3000/api/media/legacy?entity=users&id=1&field=pin_code")
+      );
+      expect(badTableRes.status).toBe(400);
+    } finally {
+      try {
+        raw.close();
+      } catch {
+        // Already closed
+      }
+    }
+  });
+
+  it("enforces truthful 4MB server multipart cap and secures 10MB direct client upload token endpoint", async () => {
+    const webpBuf = await makeTinyWebpBuffer();
+    const managerCookie = createSessionToken(makeTestPlayer(1, "manager"));
+    const playerCookie = createSessionToken(makeTestPlayer(7, "player"));
+
+    process.env.MEDIA_STORAGE_ENABLED = "true";
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_test_token";
+
+    // Server multipart route rejects > 4MB (4 * 1024 * 1024 + 1)
+    const oversizedServerFile = new File(
+      [new Uint8Array(4 * 1024 * 1024 + 1)],
+      "too-big-for-server.webp",
+      { type: "image/webp" }
+    );
+    const overServerRes = await postMediaUploadRoute(
+      makeUploadReqLocal(oversizedServerFile, "post", managerCookie)
+    );
+    expect(overServerRes.status).toBe(413);
+
+    // Direct client upload route checks CSRF, auth, flag, token, RBAC, pathname, and 10MB limit
+    const { POST: postClientUploadRoute } = await import("@/app/api/media/client-upload/route");
+    const makeClientUploadReq = (bodyObj: unknown, cookie?: string, origin = "http://localhost:3000") =>
+      new NextRequest("http://localhost:3000/api/media/client-upload", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin,
+          host: "localhost:3000",
+          ...(cookie ? { cookie: `${SESSION_COOKIE_NAME}=${cookie}` } : {}),
+        },
+        body: JSON.stringify(bodyObj),
+      });
+
+    const tokenBody = (entity: string, sizeBytes: number, pathname: string, playerId?: number) => ({
+      type: "blob.generate-client-token",
+      payload: {
+        pathname,
+        multipart: false,
+        clientPayload: JSON.stringify({
+          entity,
+          playerId,
+          contentType: "image/webp",
+          sizeBytes,
+        }),
+      },
+    });
+
+    // Unauthenticated rejected 401
+    const unauthRes = await postClientUploadRoute(
+      makeClientUploadReq(
+        tokenBody("post", webpBuf.length, "public-media/uploads/post/0123456789abcdef0123456789abcdef.webp")
+      )
+    );
+    expect(unauthRes.status).toBe(401);
+
+    // CSRF rejected 403
+    const csrfRes = await postClientUploadRoute(
+      makeClientUploadReq(
+        tokenBody("post", webpBuf.length, "public-media/uploads/post/0123456789abcdef0123456789abcdef.webp"),
+        managerCookie,
+        "https://evil.example"
+      )
+    );
+    expect(csrfRes.status).toBe(403);
+
+    // Player cannot upload post asset
+    const playerPostRes = await postClientUploadRoute(
+      makeClientUploadReq(
+        tokenBody("post", webpBuf.length, "public-media/uploads/post/0123456789abcdef0123456789abcdef.webp"),
+        playerCookie
+      )
+    );
+    expect(playerPostRes.status).toBe(403);
+
+    // Arbitrary caller-controlled pathname rejected
+    const badPathRes = await postClientUploadRoute(
+      makeClientUploadReq(
+        tokenBody("player", webpBuf.length, "../secrets/admin-avatar.webp", 7),
+        playerCookie
+      )
+    );
+    expect(badPathRes.status).toBe(400);
+
+    // > 10MB rejected
+    const over10MbRes = await postClientUploadRoute(
+      makeClientUploadReq(
+        tokenBody(
+          "post",
+          10 * 1024 * 1024 + 1,
+          "public-media/uploads/post/0123456789abcdef0123456789abcdef.webp"
+        ),
+        managerCookie
+      )
+    );
+    expect(over10MbRes.status).toBe(400);
+
+    // Disabled flag returns 503 without code
+    process.env.MEDIA_STORAGE_ENABLED = "false";
+    const disabledRes = await postClientUploadRoute(
+      makeClientUploadReq(
+        tokenBody("post", webpBuf.length, "public-media/uploads/post/0123456789abcdef0123456789abcdef.webp"),
+        managerCookie
+      )
+    );
+    expect(disabledRes.status).toBe(503);
+    const disabledJson = (await disabledRes.json()) as { code?: string };
+    expect(disabledJson.code).toBeUndefined();
+  });
+
+  it("executes real migrate-legacy-media CLI on disposable OS temp SQLite (dry-run, env guard, remote guard)", async () => {
+    const { execFileSync } = await import("node:child_process");
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+
+    const webpBuf = await makeTinyWebpBuffer();
+    const dataUri = `data:image/webp;base64,${webpBuf.toString("base64")}`;
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gonoi-cli-test-"));
+    const tmpDbPath = path.join(tmpDir, "disposable.sqlite");
+
+    const raw = new DatabaseSync(tmpDbPath);
+    try {
+      raw.exec(`
+        CREATE TABLE players (id INTEGER PRIMARY KEY AUTOINCREMENT, avatar_url TEXT, profile_image_url TEXT, gallery_urls_json TEXT);
+        CREATE TABLE club_posts (id TEXT PRIMARY KEY, featured_image TEXT, gallery_images_json TEXT);
+        CREATE TABLE sponsors (id INTEGER PRIMARY KEY AUTOINCREMENT, logo_url TEXT, banner_url TEXT);
+      `);
+      raw.prepare("INSERT INTO players (avatar_url, profile_image_url, gallery_urls_json) VALUES (?, '', '[]')").run(dataUri);
+      raw.prepare("INSERT INTO club_posts (id, featured_image, gallery_images_json) VALUES ('post-gd-1', ?, '[]')").run(dataUri);
+    } finally {
+      try {
+        raw.close();
+      } catch {
+        // Already closed
+      }
+    }
+
+    try {
+      const cliPath = path.resolve(process.cwd(), "scripts/migrations/migrate-legacy-media.mjs");
+
+      // 1. Default dry-run succeeds, emits sanitized JSON without Base64, and performs zero writes
+      const stdout = execFileSync(process.execPath, [cliPath, "--sqlite", tmpDbPath], {
+        encoding: "utf8",
+      });
+      expect(stdout).not.toContain("data:image/");
+      const report = JSON.parse(stdout) as {
+        status: string;
+        dryRun: boolean;
+        migratedFields: number;
+        failedFields: number;
+      };
+      expect(report.status).toBe("ok");
+      expect(report.dryRun).toBe(true);
+      expect(report.migratedFields).toBe(2);
+      expect(report.failedFields).toBe(0);
+
+      const verifyDb = new DatabaseSync(tmpDbPath);
+      try {
+        const row = verifyDb.prepare("SELECT avatar_url FROM players WHERE id = 1").get() as { avatar_url: string };
+        expect(row.avatar_url).toBe(dataUri);
+      } finally {
+        verifyDb.close();
+      }
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("enforces CLI safety guards (--env production, remote URL, missing Blob token)", async () => {
+    const { execFileSync } = await import("node:child_process");
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gonoi-cli-guard-"));
+    const tmpDbPath = path.join(tmpDir, "guard.sqlite");
+    const raw = new DatabaseSync(tmpDbPath);
+    raw.exec("CREATE TABLE players (id INTEGER PRIMARY KEY, avatar_url TEXT);");
+    raw.close();
+
+    try {
+      const cliPath = path.resolve(process.cwd(), "scripts/migrations/migrate-legacy-media.mjs");
+
+      expect(() =>
+        execFileSync(process.execPath, [cliPath, "--sqlite", tmpDbPath, "--env", "production"], {
+          encoding: "utf8",
+          stdio: "pipe",
+        })
+      ).toThrow();
+
+      expect(() =>
+        execFileSync(process.execPath, [cliPath, "--sqlite", "libsql://prod.turso.io"], {
+          encoding: "utf8",
+          stdio: "pipe",
+        })
+      ).toThrow();
+
+      expect(() =>
+        execFileSync(process.execPath, [cliPath, "--sqlite", tmpDbPath, "--write"], {
+          encoding: "utf8",
+          stdio: "pipe",
+          env: { ...process.env, BLOB_READ_WRITE_TOKEN: "" },
+        })
+      ).toThrow();
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 });

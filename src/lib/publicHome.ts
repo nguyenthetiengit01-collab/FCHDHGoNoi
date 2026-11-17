@@ -29,16 +29,55 @@ function safeParseStringArray(raw: string | null | undefined): string[] {
 
 export function toPublicMediaSrc(
   rawValue: string | null | undefined,
-  ref: { entity: MediaEntityType; id: number; field: "avatar" | "profile" | "featured" | "logo" | "banner" }
+  ref: {
+    entity: MediaEntityType;
+    id: number | string;
+    field: "avatar" | "profile" | "featured" | "logo" | "banner" | "gallery";
+    index?: number;
+  }
 ): string {
   if (!rawValue || typeof rawValue !== "string") return "";
   const trimmed = rawValue.trim();
   if (!trimmed) return "";
 
   if (isDataImageUri(trimmed)) {
-    return `/api/media/legacy?entity=${ref.entity}&id=${ref.id}&field=${ref.field}`;
+    const encodedId = encodeURIComponent(String(ref.id));
+    if (ref.field === "gallery" && typeof ref.index === "number" && Number.isInteger(ref.index) && ref.index >= 0) {
+      return `/api/media/legacy?entity=${ref.entity}&id=${encodedId}&field=gallery&index=${ref.index}`;
+    }
+    return `/api/media/legacy?entity=${ref.entity}&id=${encodedId}&field=${ref.field}`;
   }
   return isSafeMediaUrl(trimmed) ? trimmed : "";
+}
+
+export function toPublicGalleryArray(
+  rawJson: string | null | undefined,
+  ref: { entity: "player" | "post"; id: number | string }
+): string[] {
+  if (!rawJson || typeof rawJson !== "string") return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+
+  const result: string[] = [];
+  for (let i = 0; i < parsed.length; i++) {
+    const item = parsed[i];
+    if (typeof item !== "string") continue;
+    const mapped = toPublicMediaSrc(item, {
+      entity: ref.entity,
+      id: ref.id,
+      field: "gallery",
+      index: i,
+    });
+    if (mapped) {
+      result.push(mapped);
+    }
+  }
+  return result;
 }
 
 /**
@@ -122,9 +161,8 @@ export async function getPublicHomePageData(): Promise<FullAppData> {
         featured_image: string;
         reading_time: string;
         tagged_players_json: string;
-        rowid: number;
       }>(
-        `SELECT rowid, id, category, category_label, category_badge_class, title,
+        `SELECT id, category, category_label, category_badge_class, title,
                 slug, summary, published_date, event_year, author, featured_image,
                 reading_time, tagged_players_json
          FROM club_posts
@@ -228,7 +266,7 @@ export async function getPublicHomePageData(): Promise<FullAppData> {
           author: r.author,
           featuredImage: toPublicMediaSrc(r.featured_image, {
             entity: "post",
-            id: Number(r.rowid || 0),
+            id: r.id,
             field: "featured",
           }),
           galleryImages: [],
@@ -392,7 +430,10 @@ export const getPublicPlayerProfileByIdOrJersey = cache(
         id: playerId,
         field: "profile",
       }),
-      gallery_urls: safeParseStringArray(row.gallery_urls_json),
+      gallery_urls: toPublicGalleryArray(row.gallery_urls_json, {
+        entity: "player",
+        id: playerId,
+      }),
     };
 
     return {

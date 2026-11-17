@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAsyncDb } from "@/lib/db";
 import { CLUB_ACTIVITIES_POSTS, type ClubActivityPost } from "@/data/clubActivities";
-import { toPublicMediaSrc } from "@/lib/publicHome";
+import { toPublicGalleryArray, toPublicMediaSrc } from "@/lib/publicHome";
 
 export const dynamic = "force-dynamic";
 
@@ -15,19 +15,36 @@ function safeParseArr(raw: string | null | undefined): string[] {
   }
 }
 
+function parseActivitiesLimit(raw: string | null): { ok: true; value: number } | { ok: false } {
+  if (raw === null || raw.trim() === "") {
+    return { ok: true, value: 50 };
+  }
+  const trimmed = raw.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return { ok: false };
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    return { ok: false };
+  }
+  return { ok: true, value: Math.min(100, parsed) };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const sp = req.nextUrl.searchParams;
     const idParam = (sp.get("id") || "").trim();
-    const limitRaw = Number(sp.get("limit") || "50");
-    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(100, Math.floor(limitRaw)) : 50;
+    const limitParsed = parseActivitiesLimit(sp.get("limit"));
+    if (!limitParsed.ok) {
+      return NextResponse.json({ error: "Tham số limit không hợp lệ" }, { status: 400 });
+    }
+    const limit = limitParsed.value;
 
     const db = getAsyncDb();
 
     if (idParam) {
       const row = await db
         .queryOne<{
-          rowid: number;
           id: string;
           category: string;
           category_label: string;
@@ -46,7 +63,7 @@ export async function GET(req: NextRequest) {
           highlights_json: string;
           tagged_players_json: string;
         }>(
-          `SELECT rowid, id, category, category_label, category_badge_class, title, slug, summary,
+          `SELECT id, category, category_label, category_badge_class, title, slug, summary,
                   published_date, event_year, author, featured_image, gallery_images_json,
                   reading_time, paragraphs_json, quote, highlights_json, tagged_players_json
            FROM club_posts
@@ -70,10 +87,13 @@ export async function GET(req: NextRequest) {
             author: row.author,
             featuredImage: toPublicMediaSrc(row.featured_image, {
               entity: "post",
-              id: Number(row.rowid || 0),
+              id: row.id,
               field: "featured",
             }),
-            galleryImages: safeParseArr(row.gallery_images_json),
+            galleryImages: toPublicGalleryArray(row.gallery_images_json, {
+              entity: "post",
+              id: row.id,
+            }),
             readingTime: row.reading_time || "3 phút đọc",
             paragraphs: safeParseArr(row.paragraphs_json),
             quote: row.quote || undefined,
@@ -94,7 +114,6 @@ export async function GET(req: NextRequest) {
 
     const rows = await db
       .query<{
-        rowid: number;
         id: string;
         category: string;
         category_label: string;
@@ -106,12 +125,11 @@ export async function GET(req: NextRequest) {
         event_year: string;
         author: string;
         featured_image: string;
-        gallery_images_json: string;
         reading_time: string;
         tagged_players_json: string;
       }>(
-        `SELECT rowid, id, category, category_label, category_badge_class, title, slug, summary,
-                published_date, event_year, author, featured_image, gallery_images_json,
+        `SELECT id, category, category_label, category_badge_class, title, slug, summary,
+                published_date, event_year, author, featured_image,
                 reading_time, tagged_players_json
          FROM club_posts
          ORDER BY published_date DESC, rowid DESC
@@ -135,16 +153,21 @@ export async function GET(req: NextRequest) {
             author: row.author,
             featuredImage: toPublicMediaSrc(row.featured_image, {
               entity: "post",
-              id: Number(row.rowid || 0),
+              id: row.id,
               field: "featured",
             }),
-            galleryImages: safeParseArr(row.gallery_images_json),
+            galleryImages: [],
             readingTime: row.reading_time || "3 phút đọc",
             paragraphs: [],
             highlights: [],
             taggedPlayerNames: safeParseArr(row.tagged_players_json),
           }))
-        : CLUB_ACTIVITIES_POSTS.slice(0, limit);
+        : CLUB_ACTIVITIES_POSTS.slice(0, limit).map((p) => ({
+            ...p,
+            galleryImages: [],
+            paragraphs: [],
+            highlights: [],
+          }));
 
     return NextResponse.json(
       { posts },
