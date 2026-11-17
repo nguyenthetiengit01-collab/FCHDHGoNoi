@@ -1,6 +1,7 @@
 # Phase 4 — Implementation Notes & File Mapping
 
 - **Branch**: `feat/phase-4-product-growth-analytics`
+- **Commit (HEAD)**: `b4664e786c66c0a75908cbd0b4c936d9cb8e405b`
 - **Base (`main`)**: `29efe831f80976ae2f5878a2044c5bcbdebf0404` (`v2.0.2`)
 
 | File | Vai trò & Thay đổi |
@@ -8,6 +9,7 @@
 | `src/lib/analytics/config.ts` | Feature flag `ANALYTICS_ENABLED` (mặc định `false`), ngưỡng coverage `0.95`, retention `90` ngày, batch max `20`. |
 | `src/lib/analytics/types.ts` | TypeScript contracts cho `AnalyticsEnvelope<T>`, 8 sections, `SmartInsight`, `ProductEventInput`. |
 | `src/lib/analytics/validation.ts` | Chuẩn hóa kỳ lọc `Asia/Ho_Chi_Minh`, `computePreviousPeriod`, allowlist `section` / `eventName` / `routeKey` / `metadata` (chặn PII). |
+| `src/lib/analytics/uiState.ts` | `buildAnalyticsSearchParams()` (validate đủ `from`/`to`, `YYYY-MM-DD`, `from <= to`, chặn gửi `preset=custom` đơn độc) và `hasValidSectionEnvelope()` (xác thực `envelope.section === section` và schema 6 sub-tabs). |
 | `src/lib/analytics/metrics.ts` | Pure KPI engine (Club Health, Match Performance, Retention 30/90d, Finance Intelligence, Personal Insights, Smart Insights). |
 | `src/lib/analytics/lifecycle.ts` | Ghi `player_lifecycle_events` (`joined`, `status_changed`) và kiểm chứng `other_incomes.sponsor_id`. |
 | `src/lib/analytics/productEvents.ts` | `deriveActorKeyHash` (HMAC-SHA256), `ingestProductEvents` (idempotent `event_uuid` + rollup), `rebuildAnalyticsRollups`, `cleanupExpiredRawEvents`. |
@@ -18,7 +20,7 @@
 | `src/app/api/analytics/events/route.ts` | `POST /api/analytics/events` với CSRF/Origin check, rate limit, batch <=20, strict allowlist. |
 | `src/app/api/team/route.ts` | Tích hợp lifecycle events khi tạo/sửa trạng thái cầu thủ và `sponsor_id` cho `upsert_other_income`. |
 | `src/app/api/import/route.ts` | Ghi lifecycle events (`source: "import"`) khi import Excel có thay đổi trạng thái hoặc cầu thủ mới. |
-| `src/components/AnalyticsCenterTab.tsx` | Tab **Thống kê & Phân tích** cho Ban Quản Lý (6 phân hệ, bộ lọc kỳ, so sánh kỳ trước, Smart Insights, CSV Export). |
+| `src/components/AnalyticsCenterTab.tsx` | Tab **Thống kê & Phân tích** cho Ban Quản Lý (6 phân hệ, kiểm tra `envelope.section === section` & schema, `AbortController`, request sequence guard chống race condition, custom date validation, sửa DEF-P4-01 & DEF-P4-02, Smart Insights, CSV Export). |
 | `src/components/PlayerInsights.tsx` | Thống kê chuyên cần & RSVP cá nhân trong `PlayerPersonalTab.tsx`. |
 | `src/components/TeamManagerApp.tsx` | Gắn tab lazy-load `analytics` cho Manager. |
 | `src/components/FinanceTab.tsx` | Bổ sung chọn Nhà tài trợ (`sponsor_id`) tùy chọn trong modal Thu khác. |
@@ -26,3 +28,4 @@
 | `scripts/migrations/phase4-analytics-v1.mjs` | Migration idempotent (hỗ trợ `--sqlite`, `--env staging`, `--dry-run`). |
 | `scripts/analytics-cleanup.mjs` | Dọn raw events quá hạn 90 ngày, giữ nguyên daily/monthly rollups. |
 | `src/lib/analytics/analyticsPhase4.test.ts` | Bộ test KPI, migration, rollup, retention, security RBAC/CSRF/PII và stress 100k rows. |
+| `src/lib/analytics/uiState.test.ts` | Regression tests cho DEF-P4-01 (6 sub-tabs, stale/mismatched section, malformed schema) và DEF-P4-02 (custom date `2020-01-01..2020-01-31`, presets chuẩn). |
