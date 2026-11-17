@@ -6,11 +6,16 @@
  * Usage:
  *   node scripts/analytics-cleanup.mjs --sqlite data/gonoifc.sqlite [--days 90] [--dry-run]
  *   node scripts/analytics-cleanup.mjs --env staging [--days 90] [--dry-run]
+ *   node scripts/analytics-cleanup.mjs --env production --confirm-production [--days 90] [--dry-run]
  */
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@libsql/client";
-import { validateStagingTarget } from "./lib/turso-preflight.mjs";
+import { validateProductionTarget, validateStagingTarget } from "./lib/turso-preflight.mjs";
+
+const DEFAULT_BATCH_SIZE = 5000;
+const MAX_BATCHES_PER_RUN = 10;
+const MAX_DURATION_MS = 8000;
 
 function getArg(flag) {
   const idx = process.argv.indexOf(flag);
@@ -20,8 +25,104 @@ function getArg(flag) {
   return null;
 }
 
+async function runLibsqlBoundedCleanup({ client, targetLabel, dryRun, retentionDays, cutoffIso }) {
+  const tableRes = await client.execute(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='product_analytics_events' LIMIT 1"
+  );
+  if (tableRes.rows.length === 0) {
+    return {
+      status: "ok",
+      target: targetLabel,
+      dryRun,
+      retentionDays,
+      cutoffIso,
+      preservedRollups: true,
+      deletedCount: 0,
+      remainingEligible: 0,
+      partial: false,
+    };
+  }
+
+  const cntRes = await client.execute({
+    sql: "SELECT COUNT(*) AS cnt FROM product_analytics_events WHERE occurred_at < ?",
+    args: [cutoffIso],
+  });
+  const initialEligible = Number(cntRes.rows[0]?.cnt || 0);
+
+  if (dryRun || initialEligible === 0) {
+    return {
+      status: "ok",
+      target: targetLabel,
+      dryRun,
+      retentionDays,
+      cutoffIso,
+      preservedRollups: true,
+      deletedCount: 0,
+      remainingEligible: initialEligible,
+      partial: dryRun ? initialEligible > 0 : false,
+    };
+  }
+
+  const startedAt = Date.now();
+  let deletedCount = 0;
+
+  for (let i = 0; i < MAX_BATCHES_PER_RUN; i++) {
+    if (i > 0 && Date.now() - startedAt >= MAX_DURATION_MS) {
+      break;
+    }
+
+    const tx = await client.transaction("write");
+    let batchDeleted = 0;
+    try {
+      const delRes = await tx.execute({
+        sql: `DELETE FROM product_analytics_events
+              WHERE id IN (
+                SELECT id FROM product_analytics_events
+                WHERE occurred_at < ?
+                ORDER BY id ASC
+                LIMIT ?
+              )`,
+        args: [cutoffIso, DEFAULT_BATCH_SIZE],
+      });
+      batchDeleted = Number(delRes.rowsAffected || 0);
+      await tx.commit();
+    } catch (err) {
+      try {
+        await tx.rollback();
+      } catch {
+        // Ignore rollback failure
+      }
+      throw err;
+    }
+
+    deletedCount += batchDeleted;
+    if (batchDeleted < DEFAULT_BATCH_SIZE) {
+      break;
+    }
+  }
+
+  const afterRes = await client.execute({
+    sql: "SELECT COUNT(*) AS cnt FROM product_analytics_events WHERE occurred_at < ?",
+    args: [cutoffIso],
+  });
+  const remainingEligible = Number(afterRes.rows[0]?.cnt || 0);
+
+  return {
+    status: "ok",
+    target: targetLabel,
+    dryRun: false,
+    retentionDays,
+    cutoffIso,
+    preservedRollups: true,
+    deletedCount,
+    remainingEligible,
+    partial: remainingEligible > 0,
+  };
+}
+
 async function main() {
   const dryRun = process.argv.includes("--dry-run");
+  const confirmProduction = process.argv.includes("--confirm-production");
   const envMode = getArg("--env");
   const sqliteArg = getArg("--sqlite");
   const daysRaw = Number(getArg("--days") || "90");
@@ -42,26 +143,50 @@ async function main() {
 
     const client = createClient({ url: stagingUrl, authToken: stagingToken });
     try {
-      const cntRes = await client.execute({
-        sql: "SELECT COUNT(*) AS cnt FROM product_analytics_events WHERE occurred_at < ?",
-        args: [cutoffIso],
+      const summary = await runLibsqlBoundedCleanup({
+        client,
+        targetLabel: "staging",
+        dryRun,
+        retentionDays,
+        cutoffIso,
       });
-      const expiredCount = Number(cntRes.rows[0]?.cnt || 0);
-      let deletedCount = 0;
-      if (!dryRun && expiredCount > 0) {
-        const delRes = await client.execute({
-          sql: "DELETE FROM product_analytics_events WHERE occurred_at < ?",
-          args: [cutoffIso],
-        });
-        deletedCount = Number(delRes.rowsAffected || 0);
-      }
-      console.log(
-        JSON.stringify(
-          { status: "ok", target: "staging", dryRun, retentionDays, cutoffIso, expiredCount, deletedCount },
-          null,
-          2
-        )
+      console.log(JSON.stringify(summary, null, 2));
+    } finally {
+      client.close();
+    }
+    return;
+  }
+
+  if (envMode === "production") {
+    if (!confirmProduction) {
+      throw new Error(
+        "Refusing Production cleanup without explicit --confirm-production flag."
       );
+    }
+
+    const prodUrl = process.env.TURSO_DATABASE_URL;
+    const prodToken = process.env.TURSO_AUTH_TOKEN;
+    validateProductionTarget({
+      url: prodUrl,
+      token: prodToken,
+      envUrlName: "TURSO_DATABASE_URL",
+      envTokenName: "TURSO_AUTH_TOKEN",
+      disallowUrls: [
+        process.env.TURSO_STAGING_DATABASE_URL,
+        process.env.TURSO_STAGING_RESTORE_DATABASE_URL,
+      ],
+    });
+
+    const client = createClient({ url: prodUrl, authToken: prodToken });
+    try {
+      const summary = await runLibsqlBoundedCleanup({
+        client,
+        targetLabel: "production",
+        dryRun,
+        retentionDays,
+        cutoffIso,
+      });
+      console.log(JSON.stringify(summary, null, 2));
     } finally {
       client.close();
     }
@@ -81,7 +206,21 @@ async function main() {
       .get();
     if (!hasTable) {
       console.log(
-        JSON.stringify({ status: "ok", target: sqlitePath, dryRun, retentionDays, cutoffIso, expiredCount: 0, deletedCount: 0 }, null, 2)
+        JSON.stringify(
+          {
+            status: "ok",
+            target: path.basename(sqlitePath),
+            dryRun,
+            retentionDays,
+            cutoffIso,
+            preservedRollups: true,
+            deletedCount: 0,
+            remainingEligible: 0,
+            partial: false,
+          },
+          null,
+          2
+        )
       );
       return;
     }
@@ -89,18 +228,60 @@ async function main() {
     const row = db
       .prepare("SELECT COUNT(*) AS cnt FROM product_analytics_events WHERE occurred_at < ?")
       .get(cutoffIso);
-    const expiredCount = Number(row?.cnt || 0);
+    const initialEligible = Number(row?.cnt || 0);
     let deletedCount = 0;
-    if (!dryRun && expiredCount > 0) {
-      const res = db
-        .prepare("DELETE FROM product_analytics_events WHERE occurred_at < ?")
-        .run(cutoffIso);
-      deletedCount = Number(res.changes || 0);
+
+    if (!dryRun && initialEligible > 0) {
+      const startedAt = Date.now();
+      for (let i = 0; i < MAX_BATCHES_PER_RUN; i++) {
+        if (i > 0 && Date.now() - startedAt >= MAX_DURATION_MS) break;
+        db.exec("BEGIN IMMEDIATE;");
+        let batchDeleted = 0;
+        try {
+          const res = db
+            .prepare(
+              `DELETE FROM product_analytics_events
+               WHERE id IN (
+                 SELECT id FROM product_analytics_events
+                 WHERE occurred_at < ?
+                 ORDER BY id ASC
+                 LIMIT ?
+               )`
+            )
+            .run(cutoffIso, DEFAULT_BATCH_SIZE);
+          batchDeleted = Number(res.changes || 0);
+          db.exec("COMMIT;");
+        } catch (err) {
+          try {
+            db.exec("ROLLBACK;");
+          } catch {
+            // Ignore
+          }
+          throw err;
+        }
+        deletedCount += batchDeleted;
+        if (batchDeleted < DEFAULT_BATCH_SIZE) break;
+      }
     }
+
+    const afterRow = db
+      .prepare("SELECT COUNT(*) AS cnt FROM product_analytics_events WHERE occurred_at < ?")
+      .get(cutoffIso);
+    const remainingEligible = Number(afterRow?.cnt || 0);
 
     console.log(
       JSON.stringify(
-        { status: "ok", target: sqlitePath, dryRun, retentionDays, cutoffIso, expiredCount, deletedCount },
+        {
+          status: "ok",
+          target: path.basename(sqlitePath),
+          dryRun,
+          retentionDays,
+          cutoffIso,
+          preservedRollups: true,
+          deletedCount,
+          remainingEligible,
+          partial: dryRun ? initialEligible > 0 : remainingEligible > 0,
+        },
         null,
         2
       )
