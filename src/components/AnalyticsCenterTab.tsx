@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -30,10 +30,14 @@ import {
 } from "@/components/ui";
 import { formatVND } from "@/lib/format";
 import { buildAnalyticsCsv } from "@/lib/analytics/exportCsv";
+import {
+  buildAnalyticsSearchParams,
+  hasValidSectionEnvelope,
+  type ManagerAnalyticsSection,
+} from "@/lib/analytics/uiState";
 import type {
   AnalyticsEnvelope,
   AnalyticsPreset,
-  AnalyticsSection,
   EngagementMetrics,
   FinanceAnalyticsMetrics,
   MatchPerformanceMetrics,
@@ -49,7 +53,7 @@ interface AnalyticsCenterTabProps {
 }
 
 const SECTION_TABS: Array<{
-  id: Exclude<AnalyticsSection, "community" | "my-insights">;
+  id: ManagerAnalyticsSection;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
@@ -72,8 +76,7 @@ function fmtDeltaPp(delta: number | null | undefined): string {
 }
 
 export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
-  const [section, setSection] =
-    useState<Exclude<AnalyticsSection, "community" | "my-insights">>("overview");
+  const [section, setSection] = useState<ManagerAnalyticsSection>("overview");
   const [preset, setPreset] = useState<AnalyticsPreset>("90d");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -81,37 +84,63 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [envelope, setEnvelope] = useState<AnalyticsEnvelope<unknown> | null>(null);
+  const requestSeqRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchAnalytics = useCallback(async () => {
+    const built = buildAnalyticsSearchParams({
+      section,
+      preset,
+      customFrom,
+      customTo,
+      comparePrevious,
+    });
+    if (!built.ok) {
+      abortControllerRef.current?.abort();
+      setLoading(false);
+      setError(built.error);
+      setEnvelope(null);
+      return;
+    }
+
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const reqId = ++requestSeqRef.current;
+
     setLoading(true);
     setError(null);
     try {
-      const qs = new URLSearchParams({ section });
-      if (preset === "custom" && customFrom && customTo) {
-        qs.set("from", customFrom);
-        qs.set("to", customTo);
-      } else {
-        qs.set("preset", preset);
-      }
-      if (comparePrevious) {
-        qs.set("compare", "previous");
-      }
-
-      const res = await fetch(`/api/analytics?${qs.toString()}`, {
+      const res = await fetch(`/api/analytics?${built.params.toString()}`, {
         cache: "no-store",
+        signal: controller.signal,
       });
       const json = await res.json();
+      if (reqId !== requestSeqRef.current) return;
+
       if (!res.ok) {
         setError(json?.error || "Không thể tải dữ liệu phân tích");
         setEnvelope(null);
         return;
       }
-      setEnvelope(json as AnalyticsEnvelope<unknown>);
-    } catch {
+
+      const nextEnvelope = json as AnalyticsEnvelope<unknown>;
+      if (nextEnvelope.section !== section) {
+        setError("Phản hồi Analytics không khớp phân hệ đang chọn.");
+        setEnvelope(null);
+        return;
+      }
+
+      setEnvelope(nextEnvelope);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (reqId !== requestSeqRef.current) return;
       setError("Lỗi kết nối khi tải dữ liệu phân tích");
       setEnvelope(null);
     } finally {
-      setLoading(false);
+      if (reqId === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [section, preset, customFrom, customTo, comparePrevious]);
 
@@ -120,14 +149,40 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
     void fetchAnalytics();
   }, [fetchAnalytics, preset, customFrom, customTo]);
 
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  const handleSelectSection = (nextSection: ManagerAnalyticsSection) => {
+    if (nextSection === section) return;
+    abortControllerRef.current?.abort();
+    requestSeqRef.current += 1;
+    setEnvelope(null);
+    setError(null);
+    setLoading(true);
+    setSection(nextSection);
+  };
+
+  const activeEnvelope =
+    envelope && envelope.section === section ? envelope : null;
+  const isSectionRenderable = hasValidSectionEnvelope(section, activeEnvelope);
+  const hasMalformedPayload =
+    !loading &&
+    !error &&
+    activeEnvelope !== null &&
+    activeEnvelope.enabled &&
+    !isSectionRenderable;
+
   const handleExportCsv = () => {
-    if (!envelope) return;
-    const csv = buildAnalyticsCsv({ section, envelope });
+    if (!activeEnvelope || !isSectionRenderable) return;
+    const csv = buildAnalyticsCsv({ section, envelope: activeEnvelope });
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `fc-gonoi-analytics-${section}-${envelope.period.from}_${envelope.period.to}.csv`;
+    link.download = `fc-gonoi-analytics-${section}-${activeEnvelope.period.from}_${activeEnvelope.period.to}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -165,7 +220,7 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
               variant="gold"
               size="sm"
               onClick={handleExportCsv}
-              disabled={!envelope || !envelope.enabled || !envelope.data}
+              disabled={!isSectionRenderable}
             >
               <Download className="h-4 w-4" />
               <span>Xuất CSV</span>
@@ -243,11 +298,11 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
             <span>So sánh với kỳ liền trước</span>
           </label>
 
-          {envelope && (
+          {activeEnvelope && (
             <div className="ml-auto text-xs text-slate-300 flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-gold-400" />
               <span className="tabular-nums">
-                {envelope.period.from} → {envelope.period.to}
+                {activeEnvelope.period.from} → {activeEnvelope.period.to}
               </span>
             </div>
           )}
@@ -263,7 +318,7 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
             <button
               key={t.id}
               type="button"
-              onClick={() => setSection(t.id)}
+              onClick={() => handleSelectSection(t.id)}
               aria-current={active ? "page" : undefined}
               className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition min-h-10 cursor-pointer ${
                 active
@@ -283,38 +338,45 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
       {!loading && error && (
         <ErrorState title="Không thể tải Analytics" description={error} onRetry={fetchAnalytics} />
       )}
-      {!loading && !error && envelope && !envelope.enabled && (
+      {!loading && !error && activeEnvelope && !activeEnvelope.enabled && (
         <EmptyState
           icon={<ShieldCheck className="h-7 w-7 text-slate-500" />}
           title="Analytics đang tắt theo Feature Flag"
           description="Biến môi trường ANALYTICS_ENABLED chưa được bật (mặc định OFF để bảo đảm an toàn trước khi chạy migration trên Staging/Production)."
         />
       )}
+      {hasMalformedPayload && (
+        <ErrorState
+          title="Dữ liệu Analytics không đúng định dạng"
+          description="Phản hồi từ máy chủ không khớp cấu trúc phân hệ hiện tại. Vui lòng thử tải lại."
+          onRetry={fetchAnalytics}
+        />
+      )}
 
       {/* Coverage Banner */}
-      {!loading && !error && envelope && envelope.enabled && (
+      {!loading && !error && isSectionRenderable && activeEnvelope && (
         <Card tone="subtle" className="p-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant={envelope.coverage.isLowCoverage ? "warning" : "success"}>
-                {envelope.coverage.isLowCoverage
+              <Badge variant={activeEnvelope.coverage.isLowCoverage ? "warning" : "success"}>
+                {activeEnvelope.coverage.isLowCoverage
                   ? "Dữ liệu chưa đầy đủ"
                   : "Độ phủ đạt ngưỡng tin cậy (>=95%)"}
               </Badge>
               <span className="text-slate-700 font-medium tabular-nums">
-                Độ phủ: {fmtPct(envelope.coverage.rate)} ({envelope.coverage.knownRecords}/
-                {envelope.coverage.eligibleRecords})
+                Độ phủ: {fmtPct(activeEnvelope.coverage.rate)} ({activeEnvelope.coverage.knownRecords}/
+                {activeEnvelope.coverage.eligibleRecords})
               </span>
-              {envelope.coverage.baselineAt && (
+              {activeEnvelope.coverage.baselineAt && (
                 <span className="text-slate-500">
-                  • Baseline: {envelope.coverage.baselineAt.slice(0, 10)}
+                  • Baseline: {activeEnvelope.coverage.baselineAt.slice(0, 10)}
                 </span>
               )}
             </div>
-            {envelope.coverage.limitations.length > 0 && (
+            {activeEnvelope.coverage.limitations.length > 0 && (
               <div className="text-amber-800 flex items-center gap-1">
                 <Info className="h-3.5 w-3.5 shrink-0" />
-                <span>{envelope.coverage.limitations[0]}</span>
+                <span>{activeEnvelope.coverage.limitations[0]}</span>
               </div>
             )}
           </div>
@@ -322,8 +384,8 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
       )}
 
       {/* SECTION 1: OVERVIEW */}
-      {!loading && !error && envelope?.enabled && section === "overview" && envelope.data != null && (() => {
-        const d = envelope.data as OverviewAnalyticsData;
+      {!loading && !error && isSectionRenderable && activeEnvelope && section === "overview" && (() => {
+        const d = activeEnvelope.data as OverviewAnalyticsData;
         return (
           <div className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
@@ -337,7 +399,7 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
                 label="Tỷ lệ ra sân (Attendance)"
                 value={fmtPct(d.clubHealth.teamAttendanceRate)}
                 hint={`Độ phủ: ${fmtPct(d.clubHealth.attendanceCoverage)}${
-                  envelope.comparison && d.comparisonSummary
+                  activeEnvelope.comparison && d.comparisonSummary
                     ? ` • So kỳ trước: ${fmtDeltaPp(d.comparisonSummary.attendanceRateDeltaPp)}`
                     : ""
                 }`}
@@ -359,7 +421,7 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
                 label="Tỷ lệ thu quỹ trận"
                 value={fmtPct(d.finance.collectionRate)}
                 hint={
-                  envelope.comparison && d.comparisonSummary
+                  activeEnvelope.comparison && d.comparisonSummary
                     ? `So kỳ trước: ${fmtDeltaPp(d.comparisonSummary.collectionRateDeltaPp)}`
                     : "Mandatory collected / expected"
                 }
@@ -493,8 +555,8 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
       })()}
 
       {/* SECTION 2: MATCHES */}
-      {!loading && !error && envelope?.enabled && section === "matches" && envelope.data != null && (() => {
-        const d = envelope.data as MatchPerformanceMetrics;
+      {!loading && !error && isSectionRenderable && activeEnvelope && section === "matches" && (() => {
+        const d = activeEnvelope.data as MatchPerformanceMetrics;
         return (
           <div className="space-y-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -561,8 +623,8 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
       })()}
 
       {/* SECTION 3: ENGAGEMENT */}
-      {!loading && !error && envelope?.enabled && section === "engagement" && envelope.data != null && (() => {
-        const d = envelope.data as EngagementMetrics;
+      {!loading && !error && isSectionRenderable && activeEnvelope && section === "engagement" && (() => {
+        const d = activeEnvelope.data as EngagementMetrics;
         return (
           <div className="space-y-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -591,8 +653,8 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
       })()}
 
       {/* SECTION 4: FINANCE */}
-      {!loading && !error && envelope?.enabled && section === "finance" && envelope.data != null && (() => {
-        const d = envelope.data as FinanceAnalyticsMetrics;
+      {!loading && !error && isSectionRenderable && activeEnvelope && section === "finance" && (() => {
+        const d = activeEnvelope.data as FinanceAnalyticsMetrics;
         return (
           <div className="space-y-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -631,8 +693,8 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
       })()}
 
       {/* SECTION 5: SPONSORS & COMMUNITY */}
-      {!loading && !error && envelope?.enabled && section === "sponsors" && envelope.data != null && (() => {
-        const d = envelope.data as SponsorCommunityMetrics;
+      {!loading && !error && isSectionRenderable && activeEnvelope && section === "sponsors" && (() => {
+        const d = activeEnvelope.data as SponsorCommunityMetrics;
         return (
           <div className="space-y-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -678,8 +740,8 @@ export function AnalyticsCenterTab({ onNavigateTab }: AnalyticsCenterTabProps) {
       })()}
 
       {/* SECTION 6: PRODUCT ANALYTICS */}
-      {!loading && !error && envelope?.enabled && section === "product" && envelope.data != null && (() => {
-        const d = envelope.data as ProductAnalyticsMetrics;
+      {!loading && !error && isSectionRenderable && activeEnvelope && section === "product" && (() => {
+        const d = activeEnvelope.data as ProductAnalyticsMetrics;
         return (
           <div className="space-y-4">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
