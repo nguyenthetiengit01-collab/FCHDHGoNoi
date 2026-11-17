@@ -1,8 +1,17 @@
 import sharp from "sharp";
+import { isMediaStorageEnabled, isSafeMediaUrl } from "@/lib/media/validation";
+
+export class MediaValidationError extends Error {
+  readonly status = 400 as const;
+  constructor(message: string) {
+    super(message);
+    this.name = "MediaValidationError";
+  }
+}
 
 /**
- * Đảm bảo mọi chuỗi ảnh Data URL gửi lên máy chủ đều được chuẩn hóa sang định dạng WebP (data:image/webp;base64,...).
- * Nếu đã là data:image/webp hoặc đường dẫn tĩnh (/uploads/..., /images/...), giữ nguyên để tối ưu tốc độ.
+ * Normalizes legacy Data URLs to WebP when MEDIA_STORAGE_ENABLED is off.
+ * When MEDIA_STORAGE_ENABLED=true, rejects new Base64 data:image writes and validates safe URLs.
  */
 export async function ensureWebpDataUrlServer(
   input: string | undefined | null,
@@ -10,11 +19,21 @@ export async function ensureWebpDataUrlServer(
 ): Promise<string> {
   if (!input || typeof input !== "string") return "";
   const trimmed = input.trim();
+  if (!trimmed) return "";
 
-  // Nếu là đường dẫn tĩnh hoặc đã là chuẩn WebP thì trả về ngay
   if (!trimmed.startsWith("data:image/")) {
+    if (!isSafeMediaUrl(trimmed)) {
+      throw new MediaValidationError("URL hình ảnh không hợp lệ hoặc giao thức không an toàn.");
+    }
     return trimmed;
   }
+
+  if (isMediaStorageEnabled()) {
+    throw new MediaValidationError(
+      "Kho lưu trữ Object Storage đang bật; không chấp nhận lưu chuỗi Base64 mới."
+    );
+  }
+
   if (trimmed.startsWith("data:image/webp;base64,")) {
     return trimmed;
   }
@@ -28,7 +47,7 @@ export async function ensureWebpDataUrlServer(
     const { maxWidth = 1280, maxHeight = 960, quality = 84 } = options;
 
     const webpBuffer = await sharp(buffer)
-      .rotate() // Tự động xoay đúng chiều EXIF của điện thoại
+      .rotate()
       .resize({
         width: maxWidth,
         height: maxHeight,
@@ -44,4 +63,3 @@ export async function ensureWebpDataUrlServer(
     return trimmed;
   }
 }
-

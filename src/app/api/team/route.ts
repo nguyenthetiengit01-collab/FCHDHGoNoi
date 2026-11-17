@@ -20,7 +20,7 @@ import {
   sanitizeDataForPublic,
   sanitizeDataForPlayer,
 } from "@/lib/auth";
-import { ensureWebpDataUrlServer } from "@/lib/serverWebp";
+import { ensureWebpDataUrlServer, MediaValidationError } from "@/lib/serverWebp";
 import { formatBirthYear } from "@/lib/athleteProfile";
 import { getTeamStatistics } from "@/lib/teamStatistics";
 import {
@@ -1645,6 +1645,12 @@ export async function POST(req: NextRequest) {
 
     return res;
   } catch (error) {
+    if (error instanceof MediaValidationError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      );
+    }
     console.error("POST /api/team error:", error);
     return NextResponse.json(
       { error: "Đã xảy ra lỗi khi lưu dữ liệu" },

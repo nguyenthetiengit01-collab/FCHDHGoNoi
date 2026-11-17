@@ -60,7 +60,7 @@ export default function HoatDongPage() {
   };
 
   useEffect(() => {
-    fetch("/api/team")
+    fetch("/api/public/activities?limit=100")
       .then((res) => res.json())
       .then((json) => {
         if (json && Array.isArray(json.posts) && json.posts.length > 0) {

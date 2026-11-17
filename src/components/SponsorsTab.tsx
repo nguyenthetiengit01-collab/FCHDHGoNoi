@@ -21,6 +21,7 @@ import {
   getSponsorStatus,
 } from "@/lib/sponsors";
 import { convertFileToWebp } from "@/lib/imageToWebp";
+import { resolvePublicMediaUpload } from "@/lib/media/clientUpload";
 import { ModalDialog } from "./ModalDialog";
 import {
   Button,
@@ -140,7 +141,13 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
       setFormError(null);
       setUploadingLogo(true);
       const res = await convertFileToWebp(file, { maxWidth: 600, quality: 0.9 });
-      setFormData((prev) => ({ ...prev, logo_url: res.dataUrl }));
+      const finalUrl = await resolvePublicMediaUpload({
+        dataUrl: res.dataUrl,
+        entity: "sponsor",
+        maxWidth: 600,
+        quality: 0.9,
+      });
+      setFormData((prev) => ({ ...prev, logo_url: finalUrl }));
     } catch (err) {
       setFormError(
         "Lỗi tải ảnh logo: " + (err instanceof Error ? err.message : String(err))
@@ -157,7 +164,13 @@ export function SponsorsTab({ data, onMutate, isSaving }: SponsorsTabProps) {
       setFormError(null);
       setUploadingBanner(true);
       const res = await convertFileToWebp(file, { maxWidth: 1600, quality: 0.85 });
-      setFormData((prev) => ({ ...prev, banner_url: res.dataUrl }));
+      const finalUrl = await resolvePublicMediaUpload({
+        dataUrl: res.dataUrl,
+        entity: "sponsor",
+        maxWidth: 1600,
+        quality: 0.85,
+      });
+      setFormData((prev) => ({ ...prev, banner_url: finalUrl }));
     } catch (err) {
       setFormError(
         "Lỗi tải ảnh banner: " + (err instanceof Error ? err.message : String(err))
