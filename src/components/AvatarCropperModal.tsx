@@ -23,6 +23,7 @@ import {
   loadImageElement,
   type WebpConversionResult,
 } from "@/lib/imageToWebp";
+import { resolvePublicMediaUpload } from "@/lib/media/clientUpload";
 
 export interface AvatarCropperModalProps {
   isOpen: boolean;
@@ -245,7 +246,7 @@ export function AvatarCropperModal({
         ? activeSource.name
         : `${prefix}-${jerseyNumber ?? "vdv"}.webp`;
 
-    return await renderCroppedAvatarWebp(loadedImg, {
+    const cropped = await renderCroppedAvatarWebp(loadedImg, {
       zoom,
       panX,
       panY,
@@ -260,6 +261,19 @@ export function AvatarCropperModal({
       quality: 0.88,
       fileName,
     });
+
+    const finalUrl = await resolvePublicMediaUpload({
+      dataUrl: cropped.dataUrl,
+      entity: "player",
+      maxWidth: targetWidth,
+      maxHeight: targetHeight,
+      quality: 0.88,
+    });
+
+    return {
+      ...cropped,
+      dataUrl: finalUrl,
+    };
   };
 
   // Action 1: Áp dụng vào biểu mẫu đang sửa

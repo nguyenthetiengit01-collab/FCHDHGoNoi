@@ -1,7 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getFullAppData } from "@/lib/db";
+import { getPublicPlayerProfileByIdOrJersey } from "@/lib/publicHome";
 import { getPlayerPositionBadge, getPlayerHamlet } from "@/lib/athleteProfile";
 import { PlayerProfileClient } from "@/components/PlayerProfileClient";
 import { ArrowLeft, UserX } from "lucide-react";
@@ -14,10 +14,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const data = await getFullAppData();
-  const player = data.players.find(
-    (p) => String(p.id) === id || String(p.jersey_number) === id
-  );
+  const { player } = await getPublicPlayerProfileByIdOrJersey(id);
 
   if (!player) {
     return {
@@ -71,10 +68,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CauThuProfilePage({ params }: PageProps) {
   const { id } = await params;
-  const data = await getFullAppData();
-  const player = data.players.find(
-    (p) => String(p.id) === id || String(p.jersey_number) === id
-  );
+  const { player, matches, attendances } = await getPublicPlayerProfileByIdOrJersey(id);
 
   if (!player) {
     return (
@@ -108,19 +102,13 @@ export default async function CauThuProfilePage({ params }: PageProps) {
     pin_code: "",
     notes: "",
   };
-  const safeAllPlayers = data.players.map((p) => ({
-    ...p,
-    phone: "",
-    username: "",
-    pin_code: "",
-    notes: "",
-  }));
+  const safeAllPlayers = [safePlayer];
 
   return (
     <PlayerProfileClient
       player={safePlayer}
-      attendances={data.attendances}
-      matches={data.matches}
+      attendances={attendances}
+      matches={matches}
       allPlayers={safeAllPlayers}
     />
   );

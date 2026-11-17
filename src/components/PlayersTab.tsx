@@ -42,6 +42,7 @@ import {
 } from "@/lib/teamStatistics";
 import { formatVND, formatDateVN } from "@/lib/format";
 import { convertMultipleFilesToWebp } from "@/lib/imageToWebp";
+import { resolvePublicMediaUpload } from "@/lib/media/clientUpload";
 import { ModalDialog } from "./ModalDialog";
 import {
   Badge,
@@ -242,7 +243,18 @@ export function PlayersTab({
         maxHeight: 900,
         quality: 0.85,
       });
-      const newUrls = results.map((r) => r.dataUrl);
+      const newUrls = await Promise.all(
+        results.map((r) =>
+          resolvePublicMediaUpload({
+            dataUrl: r.dataUrl,
+            entity: "player",
+            playerId: editingPlayer?.id ?? null,
+            maxWidth: 1200,
+            maxHeight: 900,
+            quality: 0.85,
+          })
+        )
+      );
       setGalleryUrls((prev) => [...prev, ...newUrls]);
       setGalleryWebpInfo(`✅ Đã chuyển thành công ${results.length} ảnh sang WebP.`);
     } catch {

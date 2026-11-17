@@ -43,6 +43,7 @@ import { formatVND, formatDateVN } from "@/lib/format";
 import {
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
+import { resolvePublicMediaUpload } from "@/lib/media/clientUpload";
 import { ModalDialog } from "./ModalDialog";
 import { Badge, ConfirmDialog, EmptyState, PositionBadge } from "./ui";
 import { MatchdayRosterPosterModal } from "./MatchdayRosterPoster";
@@ -470,7 +471,18 @@ export function ScheduleTab({
         maxHeight: 900,
         quality: 0.85,
       });
-      const newUrls = results.map((r) => r.dataUrl);
+      const newUrls = await Promise.all(
+        results.map((r) =>
+          resolvePublicMediaUpload({
+            dataUrl: r.dataUrl,
+            entity: "player",
+            playerId: me?.id ?? null,
+            maxWidth: 1200,
+            maxHeight: 900,
+            quality: 0.85,
+          })
+        )
+      );
       setProfileGalleryUrls((prev) => [...prev, ...newUrls]);
       setProfileGalleryWebpInfo(`✅ Đã chuyển thành công ${results.length} ảnh sang WebP.`);
     } catch {

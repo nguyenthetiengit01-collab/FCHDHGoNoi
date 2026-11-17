@@ -48,16 +48,19 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
   };
 
   useEffect(() => {
-    fetch("/api/team")
+    fetch(`/api/public/activities?id=${encodeURIComponent(postId)}`)
       .then((res) => res.json())
       .then((json) => {
-        if (json && Array.isArray(json.posts) && json.posts.length > 0) {
-          setPosts(json.posts);
+        if (json && json.post) {
+          setPosts((prev) => [
+            json.post,
+            ...prev.filter((p) => p.id !== json.post.id && p.slug !== json.post.slug),
+          ]);
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [postId]);
 
   const post: ClubActivityPost | undefined = posts.find(
     (p) => p.id === postId || p.slug === postId

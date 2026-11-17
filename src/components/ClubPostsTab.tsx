@@ -35,6 +35,7 @@ import {
   convertFileToWebp,
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
+import { resolvePublicMediaUpload } from "@/lib/media/clientUpload";
 
 interface Props {
   data: FullAppData;
@@ -253,7 +254,14 @@ export default function ClubPostsTab({
         quality: 0.85,
         mode: "contain",
       });
-      setFeaturedImage(converted.dataUrl);
+      const finalUrl = await resolvePublicMediaUpload({
+        dataUrl: converted.dataUrl,
+        entity: "post",
+        maxWidth: 1280,
+        maxHeight: 960,
+        quality: 0.85,
+      });
+      setFeaturedImage(finalUrl);
       setFeaturedWebpInfo(
         `Đã tự động chuyển sang WebP (${converted.originalSizeKB}KB -> ${converted.webpSizeKB}KB, tiết kiệm ${converted.savedPercent}%)`
       );
@@ -280,7 +288,17 @@ export default function ClubPostsTab({
         quality: 0.85,
         mode: "contain",
       });
-      const newUrls = convertedList.map((c) => c.dataUrl);
+      const newUrls = await Promise.all(
+        convertedList.map((c) =>
+          resolvePublicMediaUpload({
+            dataUrl: c.dataUrl,
+            entity: "post",
+            maxWidth: 1280,
+            maxHeight: 960,
+            quality: 0.85,
+          })
+        )
+      );
       const totalOrig = convertedList.reduce((s, c) => s + c.originalSizeKB, 0);
       const totalWebp = convertedList.reduce((s, c) => s + c.webpSizeKB, 0);
       setGalleryImages((prev) => [...prev, ...newUrls]);
