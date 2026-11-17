@@ -8,6 +8,7 @@ import {
   verifyCsrfOrigin,
   hashPassword,
 } from "@/lib/auth";
+import { recordPlayerLifecycleEvent } from "@/lib/analytics/lifecycle";
 import type { Player } from "@/types/app";
 
 const MAX_IMPORT_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn 5MB chống cạn kiệt bộ nhớ
@@ -351,6 +352,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const prevStatusByName = new Map(
+      existingPlayers.map((ep) => [ep.full_name.trim().toLowerCase(), ep.status])
+    );
+
     // 6. Thực thi ghi dữ liệu an toàn theo lô (Batch Execution)
     // Sau khi đã parse và validate toàn bộ thành công
     await db.exec(`
@@ -393,7 +398,30 @@ export async function POST(req: NextRequest) {
           p.galleryUrlsJson,
         ]
       );
-      playerIdByName.set(p.fullName, Number(res.lastInsertRowid));
+      const insertedPlayerId = Number(res.lastInsertRowid);
+      playerIdByName.set(p.fullName, insertedPlayerId);
+      const prevStatus = prevStatusByName.get(p.fullName.trim().toLowerCase());
+      if (prevStatus && prevStatus !== p.status) {
+        await recordPlayerLifecycleEvent({
+          db,
+          playerId: insertedPlayerId,
+          eventType: "status_changed",
+          fromStatus: prevStatus,
+          toStatus: p.status,
+          actorId: auth.session?.playerId ?? null,
+          source: "import",
+        });
+      } else if (!prevStatus) {
+        await recordPlayerLifecycleEvent({
+          db,
+          playerId: insertedPlayerId,
+          eventType: "joined",
+          fromStatus: null,
+          toStatus: p.status,
+          actorId: auth.session?.playerId ?? null,
+          source: "import",
+        });
+      }
     }
 
     // 7. ĐỘNG HÓA TÌM CỘT VÀ DÒNG CHO SHEET '3. Thu Trận (Tích chọn)'

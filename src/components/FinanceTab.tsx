@@ -107,6 +107,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
   const [incContributor, setIncContributor] = useState("");
   const [incAmount, setIncAmount] = useState("");
   const [incFundType, setIncFundType] = useState("Quỹ sinh hoạt");
+  const [incSponsorId, setIncSponsorId] = useState("");
   const [incNote, setIncNote] = useState("");
 
   // Settings form state
@@ -168,6 +169,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
     setIncContributor("");
     setIncAmount("");
     setIncFundType("Quỹ sinh hoạt");
+    setIncSponsorId("");
     setIncNote("");
     setIncModalOpen(true);
   }
@@ -178,6 +180,8 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
     setIncContributor(inc.contributor);
     setIncAmount(String(inc.amount));
     setIncFundType(inc.fund_type);
+    const sid = (inc as OtherIncome & { sponsor_id?: number | null }).sponsor_id;
+    setIncSponsorId(sid ? String(sid) : "");
     setIncNote(inc.note);
     setIncModalOpen(true);
   }
@@ -191,6 +195,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
       contributor: incContributor,
       amount: Number(incAmount) || 0,
       fund_type: incFundType,
+      sponsor_id: incSponsorId ? Number(incSponsorId) : null,
       note: incNote,
     });
     setIncModalOpen(false);
@@ -1528,6 +1533,24 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
               </div>
             </fieldset>
           </div>
+
+          {(data.sponsors || []).length > 0 && (
+            <FormField label="Liên kết Nhà tài trợ (tùy chọn)" htmlFor="inc-sponsor">
+              <Select
+                id="inc-sponsor"
+                name="sponsor_id"
+                value={incSponsorId}
+                onChange={(e) => setIncSponsorId(e.target.value)}
+              >
+                <option value="">— Chưa phân bổ —</option>
+                {(data.sponsors || []).map((s) => (
+                  <option key={s.id} value={String(s.id)}>
+                    {s.name} ({s.tier})
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          )}
 
           <FormField label="Ghi chú / Mục đích" htmlFor="inc-note">
             <Input
