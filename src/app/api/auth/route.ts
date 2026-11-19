@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  AUTH_PLAYER_PROFILE_COLUMNS,
+  AuthSecretError,
   verifyCredentials,
   createSessionToken,
+  getAuthSecret,
   getAuthSession,
   getPasswordFingerprint,
   isDefaultPassword,
@@ -9,6 +12,7 @@ import {
   requireManagerSession,
   verifyCsrfOrigin,
 } from "@/lib/auth";
+import { extractTrustedClientIp } from "@/lib/authRateLimit";
 import { getAsyncDb } from "@/lib/db";
 import type { Player } from "@/types/app";
 
@@ -17,18 +21,36 @@ import type { Player } from "@/types/app";
  */
 export async function GET(req: NextRequest) {
   try {
+    try {
+      getAuthSecret();
+    } catch (err) {
+      if (err instanceof AuthSecretError) {
+        return NextResponse.json(
+          {
+            authenticated: false,
+            player: null,
+            error: "Hệ thống xác thực chưa được cấu hình đầy đủ trên máy chủ.",
+            code: err.code,
+          },
+          { status: 503 }
+        );
+      }
+      throw err;
+    }
+
     const session = getAuthSession(req);
     if (!session) {
       return NextResponse.json({ authenticated: false, player: null });
     }
 
     const db = getAsyncDb();
-    const playerRow = (await db.queryOne<Player>(
-      "SELECT * FROM players WHERE id = ?",
-      [session.playerId]
-    )) || undefined;
+    const playerRow =
+      (await db.queryOne<Player>(
+        `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+        [session.playerId]
+      )) || undefined;
 
-    if (!playerRow) {
+    if (!playerRow || playerRow.status === "inactive") {
       const res = NextResponse.json({ authenticated: false, player: null });
       res.cookies.delete(SESSION_COOKIE_NAME);
       return res;
@@ -63,7 +85,7 @@ export async function GET(req: NextRequest) {
       mustChangePassword,
     });
   } catch (error) {
-    console.error("GET /api/auth error:", error);
+    console.error("GET /api/auth error:", error instanceof Error ? error.name : "UNKNOWN");
     return NextResponse.json(
       { error: "Lỗi kiểm tra phiên làm việc" },
       { status: 500 }
@@ -100,6 +122,22 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
+    try {
+      getAuthSecret();
+    } catch (err) {
+      if (err instanceof AuthSecretError) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Hệ thống xác thực tạm thời không khả dụng do thiếu cấu hình bảo mật máy chủ.",
+            code: err.code,
+          },
+          { status: 503 }
+        );
+      }
+      throw err;
+    }
+
     if (action === "switch_role" || action === "quick_login") {
       const auth = await requireManagerSession(req);
       if (!auth.authorized) {
@@ -118,10 +156,11 @@ export async function POST(req: NextRequest) {
       }
 
       const db = getAsyncDb();
-      const playerRow = (await db.queryOne<Player>(
-        "SELECT * FROM players WHERE id = ?",
-        [playerId]
-      )) || undefined;
+      const playerRow =
+        (await db.queryOne<Player>(
+          `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+          [playerId]
+        )) || undefined;
 
       if (!playerRow) {
         return NextResponse.json(
@@ -157,17 +196,23 @@ export async function POST(req: NextRequest) {
 
     if (action === "login") {
       const { username, pin, rememberMe } = body;
-      const clientIp =
-        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        req.headers.get("x-real-ip") ||
-        "local";
+      const clientIp = extractTrustedClientIp(req.headers);
 
       const verifyRes = await verifyCredentials(username, pin, clientIp);
 
       if (!verifyRes.success || !verifyRes.player) {
         return NextResponse.json(
-          { success: false, error: verifyRes.error || "Đăng nhập thất bại" },
-          { status: 401 }
+          {
+            success: false,
+            error: verifyRes.error || "Đăng nhập thất bại",
+            ...(verifyRes.errorCode ? { code: verifyRes.errorCode } : {}),
+          },
+          {
+            status: verifyRes.status || 401,
+            headers: verifyRes.waitSeconds
+              ? { "Retry-After": String(verifyRes.waitSeconds) }
+              : undefined,
+          }
         );
       }
 
@@ -208,15 +253,18 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
-    console.error("POST /api/auth error:", error);
-    const isSecretMissing =
-      error instanceof Error && error.message.includes("AUTH_SECRET");
+    console.error("POST /api/auth error:", error instanceof Error ? error.name : "UNKNOWN");
+    if (error instanceof AuthSecretError) {
+      return NextResponse.json(
+        {
+          error: "Hệ thống xác thực tạm thời không khả dụng do thiếu cấu hình bảo mật máy chủ.",
+          code: error.code,
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      {
-        error: isSecretMissing
-          ? "Máy chủ chưa được cấu hình biến môi trường AUTH_SECRET (tối thiểu 32 ký tự) trên Vercel. Vui lòng thêm AUTH_SECRET trong Vercel Project Settings."
-          : "Lỗi xử lý xác thực trên máy chủ",
-      },
+      { error: "Lỗi xử lý xác thực trên máy chủ" },
       { status: 500 }
     );
   }
