@@ -562,7 +562,7 @@ export function ScheduleTab({
           <button
             type="button"
             onClick={() => setSpaceMode("upcoming")}
-            className={`inline-flex items-center gap-2 min-h-11 sm:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "upcoming"
+            className={`inline-flex items-center gap-2 min-h-11 md:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "upcoming"
                 ? "bg-navy-600 text-gold-300 shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
               }`}
@@ -574,7 +574,7 @@ export function ScheduleTab({
           <button
             type="button"
             onClick={() => setSpaceMode("finished")}
-            className={`inline-flex items-center gap-2 min-h-11 sm:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "finished"
+            className={`inline-flex items-center gap-2 min-h-11 md:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "finished"
                 ? "bg-navy-600 text-gold-300 shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
               }`}
@@ -589,7 +589,7 @@ export function ScheduleTab({
             <button
               type="button"
               onClick={onGoToCollection}
-              className="inline-flex items-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg border border-navy-600/30 bg-slate-50 px-3.5 py-2 text-xs font-bold text-navy-600 hover:bg-slate-100 transition"
+              className="inline-flex items-center gap-1.5 min-h-11 md:min-h-10 rounded-lg border border-navy-600/30 bg-slate-50 px-3.5 py-2 text-xs font-bold text-navy-600 hover:bg-slate-100 transition"
             >
               <Wallet className="h-4 w-4 text-brand-sky" />
               <span>Sang Mục Thu Tiền Trận →</span>
@@ -599,7 +599,7 @@ export function ScheduleTab({
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center justify-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg bg-navy-600 px-4 py-2 text-xs font-bold text-gold-300 hover:bg-navy-500 transition"
+              className="inline-flex items-center justify-center gap-1.5 min-h-11 md:min-h-10 rounded-lg bg-navy-600 px-4 py-2 text-xs font-bold text-gold-300 hover:bg-navy-500 transition"
             >
               <Plus className="h-4 w-4" />
               <span>Tạo Lịch Tuần Mới</span>
@@ -1298,7 +1298,7 @@ export function ScheduleTab({
                               opt.key as "all" | "registered" | "absent_notice" | "none"
                             )
                           }
-                          className={`min-h-11 sm:min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${rosterRsvpFilter === opt.key
+                          className={`min-h-11 md:min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${rosterRsvpFilter === opt.key
                               ? "bg-navy-600 text-gold-300 border-navy-600"
                               : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
                             }`}
@@ -1424,7 +1424,7 @@ export function ScheduleTab({
                                       rsvp === "registered" ? "none" : "registered"
                                     )
                                   }
-                                  className={`min-h-11 sm:min-h-9 px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition ${!canToggle
+                                  className={`min-h-11 md:min-h-9 px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition ${!canToggle
                                       ? "opacity-70 cursor-default"
                                       : "cursor-pointer"
                                     } ${rsvp === "registered"
@@ -1450,7 +1450,7 @@ export function ScheduleTab({
                                     )
                                   }
                                   title="Báo vắng trận này"
-                                  className={`min-h-11 min-w-11 sm:min-h-9 sm:min-w-9 inline-flex items-center justify-center px-2 py-1.5 rounded-lg text-xs font-bold transition ${!canToggle
+                                  className={`min-h-11 min-w-11 md:min-h-9 md:min-w-9 inline-flex items-center justify-center px-2 py-1.5 rounded-lg text-xs font-bold transition ${!canToggle
                                       ? "opacity-70 cursor-default"
                                       : "cursor-pointer"
                                     } ${rsvp === "absent_notice"
@@ -2405,7 +2405,7 @@ export function ScheduleTab({
                         )}
 
                         {/* Nút hành động nổi lên khi hover / luôn hiện trên touch */}
-                        <div className="absolute inset-0 bg-black/60 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition flex flex-wrap items-center justify-center gap-1.5 p-1.5">
+                        <div className="absolute inset-0 bg-black/60 opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition flex flex-wrap items-center justify-center gap-1.5 p-1.5">
                           <button
                             type="button"
                             onClick={() => {
@@ -2413,7 +2413,7 @@ export function ScheduleTab({
                               setProfileProfileWebpInfo(`✅ Đã chọn ảnh #${idx + 1} làm ảnh Profile rộng!`);
                             }}
                             aria-label={`Đặt ảnh #${idx + 1} làm ảnh Profile rộng`}
-                            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 sm:h-8 sm:w-8 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
+                            className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                             title="Đặt ảnh này làm ảnh Giới thiệu Profile rộng"
                           >
                             <ImageIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
@@ -2426,7 +2426,7 @@ export function ScheduleTab({
                               setProfileCropperOpen(true);
                             }}
                             aria-label={`Cắt ảnh #${idx + 1} làm ảnh Profile rộng`}
-                            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 sm:h-8 sm:w-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
+                            className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                             title="Canh chỉnh & cắt ảnh này làm Profile rộng"
                           >
                             <Crop className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
@@ -2435,7 +2435,7 @@ export function ScheduleTab({
                             type="button"
                             onClick={() => handleRemoveProfileGalleryImage(idx)}
                             aria-label={`Xoá ảnh #${idx + 1} khỏi Album`}
-                            className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 sm:h-8 sm:w-8 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
+                            className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                             title="Xoá ảnh này khỏi Album"
                           >
                             <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />

@@ -175,8 +175,35 @@ describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
     });
   });
 
-  describe("4. Mobile Touch Targets (>=44px on mobile)", () => {
-    it("Button size='sm' renders min-h-11 sm:min-h-9", () => {
+  describe("4. Mobile Touch Targets (>=44px below 768px; md: desktop reduction only)", () => {
+    function resolveMinPxAtViewport(
+      classList: string,
+      axis: "h" | "w",
+      viewportWidth: number
+    ): number {
+      const tokens = classList.trim().split(/\s+/);
+      const scaleToPx = (scale: string) =>
+        scale === "0" ? 0 : Number(scale) * 4;
+      let minPx = 0;
+
+      for (const token of tokens) {
+        const baseMatch = new RegExp(`^min-${axis}-(\\d+)$`).exec(token);
+        if (baseMatch) {
+          minPx = scaleToPx(baseMatch[1]);
+        }
+        const smMatch = new RegExp(`^sm:min-${axis}-(\\d+)$`).exec(token);
+        if (smMatch && viewportWidth >= 640) {
+          minPx = scaleToPx(smMatch[1]);
+        }
+        const mdMatch = new RegExp(`^md:min-${axis}-(\\d+)$`).exec(token);
+        if (mdMatch && viewportWidth >= 768) {
+          minPx = scaleToPx(mdMatch[1]);
+        }
+      }
+      return minPx;
+    }
+
+    it("Button size='sm' stays >=44px at 320, 375, 639, 640, and 767px and reduces only at 768px (md:)", () => {
       const ButtonMod = loadTsxModule<{
         Button: React.ComponentType<{
           size?: "sm" | "md" | "lg";
@@ -186,67 +213,110 @@ describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
       const html = renderToStaticMarkup(
         React.createElement(ButtonMod.Button, { size: "sm" }, "Lưu")
       );
-      expect(html).toContain("min-h-11 sm:min-h-9");
+      expect(html).toContain("min-h-11 md:min-h-9");
+      expect(html).not.toContain("sm:min-h-9");
+
+      const classMatch = html.match(/class="([^"]+)"/);
+      expect(classMatch).toBeTruthy();
+      for (const vw of [320, 375, 639, 640, 767]) {
+        expect(resolveMinPxAtViewport(classMatch![1], "h", vw)).toBeGreaterThanOrEqual(44);
+      }
+      expect(resolveMinPxAtViewport(classMatch![1], "h", 768)).toBe(36);
     });
 
-    it("ScheduleTab & PlayerPersonalTab gallery actions use >=44px mobile targets, touch visibility, and aria-labels", () => {
+    it("rejects any sm: touch-target size reduction or sm:opacity-0 across all Phase 6.3 in-scope components", () => {
+      const inScopeFiles = [
+        "src/components/FinanceTab.tsx",
+        "src/components/PlayersTab.tsx",
+        "src/components/TeamManagerApp.tsx",
+        "src/components/CollectionTab.tsx",
+        "src/components/PlayerPersonalTab.tsx",
+        "src/components/ScheduleTab.tsx",
+        "src/components/ui/Button.tsx",
+        "src/components/PublicGuestPortal.tsx",
+        "src/components/ModalDialog.tsx",
+      ];
+      for (const file of inScopeFiles) {
+        const src = readSrc(file);
+        expect(src, `${file} must not use sm:min-h-<44px`).not.toMatch(
+          /\bsm:min-h-(?:[0-9]|10)\b/
+        );
+        expect(src, `${file} must not use sm:min-w-<44px`).not.toMatch(
+          /\bsm:min-w-(?:[0-9]|10)\b/
+        );
+        expect(src, `${file} must not hide touch controls at sm:`).not.toContain(
+          "sm:opacity-0"
+        );
+      }
+    });
+
+    it("ScheduleTab & PlayerPersonalTab gallery actions stay >=44px below 768px, visible on touch, with aria-labels", () => {
       for (const file of [
         "src/components/ScheduleTab.tsx",
         "src/components/PlayerPersonalTab.tsx",
       ]) {
         const src = readSrc(file);
         expect(src).not.toContain("h-7 w-7");
-        expect(src).toContain("opacity-100 sm:opacity-0 sm:group-hover:opacity-100");
-        expect(src).toContain("min-h-11 min-w-11");
+        expect(src).toContain(
+          "opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+        );
+        expect(src).toContain("min-h-11 min-w-11 md:min-h-8 md:min-w-8");
         expect(src).toContain("aria-label={`Đặt ảnh #${idx + 1} làm ảnh Profile rộng`}");
         expect(src).toContain("aria-label={`Cắt ảnh #${idx + 1} làm ảnh Profile rộng`}");
         expect(src).toContain("aria-label={`Xoá ảnh #${idx + 1} khỏi Album`}");
       }
     });
 
-    it("PlayersTab, FinanceTab, and CollectionTab upgrade mobile interactive controls to >=44px", () => {
+    it("PlayersTab, FinanceTab, and CollectionTab keep 44px targets below 768px and reduce only at md:", () => {
       const playersSrc = readSrc("src/components/PlayersTab.tsx");
       expect(playersSrc).not.toContain("h-7 w-7");
-      expect(playersSrc).toContain("min-h-11 sm:min-h-9");
-      expect(playersSrc).toContain("min-h-11 sm:min-h-8");
-      expect(playersSrc).toContain("min-h-11 min-w-11 sm:min-h-8 sm:min-w-8");
+      expect(playersSrc).toContain("min-h-11 md:min-h-9");
+      expect(playersSrc).toContain("min-h-11 md:min-h-8");
+      expect(playersSrc).toContain("min-h-11 md:min-h-10");
+      expect(playersSrc).toContain("min-h-11 min-w-11 md:min-h-8 md:min-w-8");
       // 4. PlayersTab search clear target
       expect(playersSrc).toMatch(
         /aria-label="Xoá từ khoá tìm kiếm"[\s\S]*?min-h-11 min-w-11/
       );
-      // 5. PlayersTab activity gallery crop visible on touch + dynamic aria-label
+      // 5. PlayersTab activity gallery crop visible on touch + dynamic aria-label + >=44px below 768px
       expect(playersSrc).toMatch(
-        /aria-label=\{`Canh chỉnh & cắt ảnh hoạt động #\$\{idx \+ 1\}`\}[\s\S]*?min-h-11 min-w-11[\s\S]*?opacity-100 sm:opacity-0 sm:group-hover:opacity-100/
+        /aria-label=\{`Canh chỉnh & cắt ảnh hoạt động #\$\{idx \+ 1\}`\}[\s\S]*?min-h-11 min-w-11 md:min-h-7 md:min-w-7[\s\S]*?opacity-100 \[@media\(hover:none\)\]:opacity-100 md:opacity-0 md:group-hover:opacity-100/
       );
 
       const financeSrc = readSrc("src/components/FinanceTab.tsx");
-      expect(financeSrc).toContain("min-h-11 min-w-11 sm:min-h-9 sm:min-w-9");
-      expect(financeSrc).toContain("min-h-11 sm:min-h-9");
-      // 1. Finance mobile expense edit/delete >=44x44
+      expect(financeSrc).toContain("min-h-11 min-w-11 md:min-h-9 md:min-w-9");
+      expect(financeSrc).toContain("min-h-11 md:min-h-9");
+      // 1. Finance mobile expense edit/delete >=44x44 below 768px
       expect(financeSrc).toMatch(
-        /aria-label=\{`Sửa khoản chi \$\{exp\.description\}`\}[\s\S]*?min-h-11 min-w-11 sm:min-h-9 sm:min-w-9/
+        /aria-label=\{`Sửa khoản chi \$\{exp\.description\}`\}[\s\S]*?min-h-11 min-w-11 md:min-h-9 md:min-w-9/
       );
       expect(financeSrc).toMatch(
-        /aria-label=\{`Xoá khoản chi \$\{exp\.description\}`\}[\s\S]*?min-h-11 min-w-11 sm:min-h-9 sm:min-w-9/
+        /aria-label=\{`Xoá khoản chi \$\{exp\.description\}`\}[\s\S]*?min-h-11 min-w-11 md:min-h-9 md:min-w-9/
       );
-      // 2. Finance mobile income edit/delete >=44x44
+      // 2. Finance mobile income edit/delete >=44x44 below 768px
       expect(financeSrc).toMatch(
-        /aria-label=\{`Sửa khoản thu \$\{inc\.contributor\}`\}[\s\S]*?min-h-11 min-w-11 sm:min-h-9 sm:min-w-9/
+        /aria-label=\{`Sửa khoản thu \$\{inc\.contributor\}`\}[\s\S]*?min-h-11 min-w-11 md:min-h-9 md:min-w-9/
       );
       expect(financeSrc).toMatch(
-        /aria-label=\{`Xoá khoản thu \$\{inc\.contributor\}`\}[\s\S]*?min-h-11 min-w-11 sm:min-h-9 sm:min-w-9/
+        /aria-label=\{`Xoá khoản thu \$\{inc\.contributor\}`\}[\s\S]*?min-h-11 min-w-11 md:min-h-9 md:min-w-9/
       );
-      // 3. Finance category selector interactive target >=44px on mobile
+      // 3. Finance category selector interactive target >=44px below 768px
       expect(financeSrc).toMatch(
-        /setFilterCategory\(item\.category\)[\s\S]*?min-h-11 sm:min-h-0/
+        /setFilterCategory\(item\.category\)[\s\S]*?min-h-11 md:min-h-0/
       );
+      for (const vw of [320, 375, 639, 640, 767]) {
+        expect(resolveMinPxAtViewport("min-h-11 min-w-11 md:min-h-9 md:min-w-9", "h", vw)).toBe(44);
+        expect(resolveMinPxAtViewport("min-h-11 min-w-11 md:min-h-9 md:min-w-9", "w", vw)).toBe(44);
+        expect(resolveMinPxAtViewport("min-h-11 md:min-h-0", "h", vw)).toBe(44);
+      }
+      expect(resolveMinPxAtViewport("min-h-11 min-w-11 md:min-h-9 md:min-w-9", "h", 768)).toBe(36);
 
       const collectionSrc = readSrc("src/components/CollectionTab.tsx");
-      expect(collectionSrc).toContain("min-h-11 sm:min-h-9");
-      expect(collectionSrc).not.toMatch(/className="[^"]*(?<!sm:)\bmin-h-9\b/);
+      expect(collectionSrc).toContain("min-h-11 md:min-h-9");
+      expect(collectionSrc).not.toMatch(/className="[^"]*(?<!md:)\bmin-h-9\b/);
     });
 
-    it("PublicGuestPortal header login, ModalDialog close, and TeamManagerApp security banner targets meet >=44px on mobile", () => {
+    it("PublicGuestPortal header login, ModalDialog close, and TeamManagerApp security banner targets meet >=44px below 768px", () => {
       // 6. PublicGuestPortal header login min-h-11
       const portalSrc = readSrc("src/components/PublicGuestPortal.tsx");
       expect(portalSrc).toMatch(
@@ -259,14 +329,19 @@ describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
         /aria-label="Đóng hộp thoại"[\s\S]*?min-h-11 min-w-11/
       );
 
-      // 8. TeamManagerApp security banner targets
+      // 8. TeamManagerApp security banner targets (reduce only at md:)
       const appSrc = readSrc("src/components/TeamManagerApp.tsx");
       expect(appSrc).toMatch(
-        /onClick=\{\(\) => setActiveTab\("personal"\)\}[\s\S]*?min-h-11 sm:min-h-9[\s\S]*?Đổi mật khẩu ngay/
+        /onClick=\{\(\) => setActiveTab\("personal"\)\}[\s\S]*?min-h-11 md:min-h-9[\s\S]*?Đổi mật khẩu ngay/
       );
       expect(appSrc).toMatch(
-        /aria-label="Đóng cảnh báo bảo mật"[\s\S]*?min-h-11 min-w-11 sm:min-h-9 sm:min-w-9/
+        /aria-label="Đóng cảnh báo bảo mật"[\s\S]*?min-h-11 min-w-11 md:min-h-9 md:min-w-9/
       );
+      for (const vw of [320, 375, 639, 640, 767]) {
+        expect(resolveMinPxAtViewport("min-h-11 md:min-h-9", "h", vw)).toBe(44);
+        expect(resolveMinPxAtViewport("min-h-11 min-w-11 md:min-h-9 md:min-w-9", "w", vw)).toBe(44);
+      }
+      expect(resolveMinPxAtViewport("min-h-11 md:min-h-9", "h", 768)).toBe(36);
     });
   });
 

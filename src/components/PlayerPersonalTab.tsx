@@ -1013,7 +1013,7 @@ export function PlayerPersonalTab({
                       )}
 
                       {/* Nút hành động nổi lên khi hover / luôn hiện trên touch */}
-                      <div className="absolute inset-0 bg-black/60 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition flex flex-wrap items-center justify-center gap-1.5 p-1.5">
+                      <div className="absolute inset-0 bg-black/60 opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition flex flex-wrap items-center justify-center gap-1.5 p-1.5">
                         <button
                           type="button"
                           onClick={() => {
@@ -1021,7 +1021,7 @@ export function PlayerPersonalTab({
                             setProfileWebpInfo(`✅ Đã chọn ảnh #${idx + 1} làm ảnh Profile rộng!`);
                           }}
                           aria-label={`Đặt ảnh #${idx + 1} làm ảnh Profile rộng`}
-                          className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 sm:h-8 sm:w-8 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
+                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Đặt ảnh này làm ảnh Giới thiệu Profile rộng"
                         >
                           <ImageIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
@@ -1034,7 +1034,7 @@ export function PlayerPersonalTab({
                             setCropperOpen(true);
                           }}
                           aria-label={`Cắt ảnh #${idx + 1} làm ảnh Profile rộng`}
-                          className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 sm:h-8 sm:w-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
+                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Canh chỉnh & cắt ảnh này làm Profile rộng"
                         >
                           <Crop className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
@@ -1043,7 +1043,7 @@ export function PlayerPersonalTab({
                           type="button"
                           onClick={() => handleRemoveGalleryImage(idx)}
                           aria-label={`Xoá ảnh #${idx + 1} khỏi Album`}
-                          className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 sm:h-8 sm:w-8 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
+                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Xoá ảnh này khỏi Album"
                         >
                           <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
