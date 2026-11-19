@@ -118,9 +118,7 @@ test.describe("Phase 6.5 – Live Browser Visual, Contrast & Layout QA", () => {
     await context.close();
   });
 
-  test("measures lab LCP and CLS on / and checks public routes for overflow & axe-core", async ({
-    page,
-  }) => {
+  test("measures lab LCP and CLS on /", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
 
     await page.addInitScript(() => {
@@ -156,8 +154,10 @@ test.describe("Phase 6.5 – Live Browser Visual, Contrast & Layout QA", () => {
     console.log("LAB_VITALS_HOME:", JSON.stringify(vitals));
     expect(vitals.cls).toBeLessThan(0.1);
     expect(vitals.lcp).toBeGreaterThan(0);
+  });
 
-    for (const route of ROUTES.slice(1)) {
+  for (const route of ROUTES.slice(1)) {
+    test(`public route ${route} passes overflow and axe-core WCAG 2.2 AA`, async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(route, { waitUntil: "load" });
       await expect(page.locator("main#main-content")).toBeVisible();
@@ -174,8 +174,8 @@ test.describe("Phase 6.5 – Live Browser Visual, Contrast & Layout QA", () => {
         .withTags(["wcag2a", "wcag2aa", "wcag22aa"])
         .analyze();
       expect(axeResults.violations, `${route}: ${JSON.stringify(axeResults.violations, null, 2)}`).toEqual([]);
-    }
-  });
+    });
+  }
 
   test("prefers-reduced-motion suppresses CSS animations", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
