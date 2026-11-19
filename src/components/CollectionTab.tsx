@@ -501,7 +501,7 @@ export function CollectionTab({
                       setPitchVenue(preset.venue);
                       setPitchCostInput(String(preset.cost));
                     }}
-                    className={`min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                    className={`min-h-11 md:min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
                       isSelected
                         ? "bg-navy-600 text-gold-300 border-navy-600"
                         : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
@@ -542,7 +542,7 @@ export function CollectionTab({
                   key={pName}
                   type="button"
                   onClick={() => setPitchPayer(pName)}
-                  className={`min-h-9 px-2.5 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${
+                  className={`min-h-11 md:min-h-9 px-2.5 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${
                     pitchPayer === pName
                       ? "bg-navy-600 text-gold-300 border-navy-600"
                       : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
@@ -567,7 +567,7 @@ export function CollectionTab({
                     payer_name: pitchPayer,
                   })
                 }
-                className="w-full min-h-10 sm:min-h-9"
+                className="w-full min-h-11 md:min-h-9"
               >
                 Lưu Chi Sân
               </Button>
@@ -646,7 +646,7 @@ export function CollectionTab({
                     key={item.key}
                     type="button"
                     onClick={() => setStatusFilter(item.key)}
-                    className={`min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                    className={`min-h-11 md:min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
                       statusFilter === item.key
                         ? "bg-navy-600 text-white border-navy-600"
                         : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -754,7 +754,7 @@ export function CollectionTab({
                           onChange={(e) =>
                             handleAmountChangeDraft(p.id, e.target.value)
                           }
-                          className="w-full min-h-11 sm:min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 pr-6 text-right text-sm font-bold text-ink-primary tabular-nums focus-visible:outline-2 focus-visible:outline-navy-600"
+                          className="w-full min-h-11 md:min-h-9 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 pr-6 text-right text-sm font-bold text-ink-primary tabular-nums focus-visible:outline-2 focus-visible:outline-navy-600"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400 pointer-events-none">
                           đ
@@ -770,7 +770,7 @@ export function CollectionTab({
                             ? "Cầu thủ có mặt ra sân (Bấm để chuyển vắng)"
                             : "Cầu thủ vắng mặt (Bấm để xác nhận có mặt ra sân)"
                         }
-                        className={`inline-flex items-center gap-1 min-h-11 sm:min-h-9 rounded-lg px-2.5 py-2 text-xs font-bold transition cursor-pointer select-none ${
+                        className={`inline-flex items-center gap-1 min-h-11 md:min-h-9 rounded-lg px-2.5 py-2 text-xs font-bold transition cursor-pointer select-none ${
                           eff.attended === 1
                             ? "bg-navy-800 text-emerald-400 hover:bg-navy-600"
                             : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -789,7 +789,7 @@ export function CollectionTab({
                       <button
                         type="button"
                         onClick={() => handleTogglePaidDraft(p.id)}
-                        className={`inline-flex items-center gap-1.5 min-h-11 sm:min-h-9 rounded-lg px-3.5 py-2 text-xs font-extrabold transition cursor-pointer select-none ${
+                        className={`inline-flex items-center gap-1.5 min-h-11 md:min-h-9 rounded-lg px-3.5 py-2 text-xs font-extrabold transition cursor-pointer select-none ${
                           isPaid
                             ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs"
                             : "bg-amber-400 text-slate-950 hover:bg-amber-500"
@@ -813,7 +813,7 @@ export function CollectionTab({
                         onClick={() => handleRemoveFromMatchDraft(p.id)}
                         aria-label={`Bỏ ${p.full_name} khỏi danh sách thu`}
                         title="Cầu thủ này thực tế không ra sân (Bỏ khỏi danh sách thu)"
-                        className="inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-9 sm:min-w-9 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
                       >
                         <XCircle className="h-4 w-4" />
                       </button>
@@ -886,7 +886,7 @@ export function CollectionTab({
                 onClick={() =>
                   handleAddWalkInMemberToDraft(Number(selectedWalkInPlayerId))
                 }
-                className="shrink-0 min-h-11 sm:min-h-9"
+                className="shrink-0 min-h-11 md:min-h-9"
               >
                 + Thêm & Thu
               </Button>
@@ -904,7 +904,7 @@ export function CollectionTab({
                       key={p.id}
                       type="button"
                       onClick={() => handleAddWalkInMemberToDraft(p.id)}
-                      className="inline-flex items-center gap-1 min-h-9 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-emerald-900 transition cursor-pointer"
+                      className="inline-flex items-center gap-1 min-h-11 md:min-h-9 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-emerald-900 transition cursor-pointer"
                     >
                       <Plus className="h-3 w-3 text-emerald-600" />
                       <span>
@@ -943,7 +943,7 @@ export function CollectionTab({
                 size="sm"
                 loading={isSaving}
                 disabled={!newWalkInName.trim() || isSaving}
-                className="shrink-0 min-h-11 sm:min-h-9"
+                className="shrink-0 min-h-11 md:min-h-9"
               >
                 Thêm & Thu
               </Button>
@@ -989,7 +989,7 @@ export function CollectionTab({
                 disabled={isSaving}
                 onClick={handleDiscardDraft}
                 leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
-                className="min-h-11 sm:min-h-9 border-slate-600 bg-slate-800/80 text-slate-200 hover:bg-slate-700 hover:text-white"
+                className="min-h-11 md:min-h-9 border-slate-600 bg-slate-800/80 text-slate-200 hover:bg-slate-700 hover:text-white"
               >
                 Huỷ Thay Đổi
               </Button>
@@ -1003,7 +1003,7 @@ export function CollectionTab({
               disabled={dirtyCount === 0 || isSaving}
               onClick={handleSaveBatch}
               leftIcon={<Save className="h-4 w-4" />}
-              className={`min-h-11 sm:min-h-10 font-extrabold ${
+              className={`min-h-11 md:min-h-10 font-extrabold ${
                 dirtyCount > 0 && !isSaving
                   ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-500"
                   : ""

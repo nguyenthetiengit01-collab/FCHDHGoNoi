@@ -446,7 +446,7 @@ export function PlayersTab({
               type="button"
               aria-pressed={viewMode === "cards"}
               onClick={() => setViewMode("cards")}
-              className={`inline-flex items-center gap-1.5 min-h-11 sm:min-h-9 rounded-md px-3 py-1.5 text-xs font-bold transition ${viewMode === "cards"
+              className={`inline-flex items-center gap-1.5 min-h-11 md:min-h-9 rounded-md px-3 py-1.5 text-xs font-bold transition ${viewMode === "cards"
                 ? "bg-navy-600 text-gold-300 shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
                 }`}
@@ -458,7 +458,7 @@ export function PlayersTab({
               type="button"
               aria-pressed={viewMode === "roster"}
               onClick={() => setViewMode("roster")}
-              className={`inline-flex items-center gap-1.5 min-h-11 sm:min-h-9 rounded-md px-3 py-1.5 text-xs font-bold transition ${viewMode === "roster"
+              className={`inline-flex items-center gap-1.5 min-h-11 md:min-h-9 rounded-md px-3 py-1.5 text-xs font-bold transition ${viewMode === "roster"
                 ? "bg-navy-600 text-gold-300 shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
                 }`}
@@ -530,7 +530,7 @@ export function PlayersTab({
                   type="button"
                   aria-pressed={filterPosition === pos}
                   onClick={() => setFilterPosition(pos)}
-                  className={`min-h-11 sm:min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${filterPosition === pos
+                  className={`min-h-11 md:min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${filterPosition === pos
                     ? "bg-navy-600 text-gold-300 border-navy-600"
                     : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                     }`}
@@ -546,7 +546,7 @@ export function PlayersTab({
               aria-label="Lọc theo trạng thái sinh hoạt"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-ink-primary"
+              className="min-h-11 md:min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-ink-primary"
             >
               <option value="Tất cả">Tất cả trạng thái</option>
               <option value="Đang sinh hoạt">Đang sinh hoạt ({activePlayersCount})</option>
@@ -561,16 +561,16 @@ export function PlayersTab({
                 placeholder="Tìm tên, số áo, vị trí..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-8 py-2 text-xs sm:text-sm text-ink-primary focus-visible:outline-2 focus-visible:outline-focus-on-light"
+                className="min-h-11 md:min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-12 py-2 text-xs sm:text-sm text-ink-primary focus-visible:outline-2 focus-visible:outline-focus-on-light"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
                   aria-label="Xoá từ khoá tìm kiếm"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-700"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 cursor-pointer"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -610,14 +610,14 @@ export function PlayersTab({
               <button
                 type="button"
                 onClick={() => setSelectedRosterIds(players.map((p) => p.id))}
-                className="min-h-9 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                className="min-h-11 md:min-h-9 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
               >
                 Chọn tất cả ({players.length})
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedRosterIds([])}
-                className="min-h-9 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                className="min-h-11 md:min-h-9 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100"
               >
                 Bỏ chọn
               </button>
@@ -645,7 +645,7 @@ export function PlayersTab({
                   type="button"
                   aria-pressed={checked}
                   onClick={() => toggleRosterPlayer(p.id)}
-                  className={`min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${checked
+                  className={`min-h-11 md:min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${checked
                     ? "bg-navy-600 text-gold-300 border-navy-600"
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
                     }`}
@@ -830,7 +830,7 @@ export function PlayersTab({
                         <button
                           type="button"
                           onClick={() => handleResetPassword(p)}
-                          className="inline-flex items-center gap-1 min-h-8 rounded-md bg-slate-100 hover:bg-amber-100 border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:text-amber-900 transition"
+                          className="inline-flex items-center gap-1 min-h-11 md:min-h-8 rounded-md bg-slate-100 hover:bg-amber-100 border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:text-amber-900 transition"
                           title="Đặt lại mật khẩu mặc định (1234)"
                         >
                           <KeyRound className="h-3 w-3 text-slate-500" />
@@ -853,7 +853,7 @@ export function PlayersTab({
                   <button
                     type="button"
                     onClick={() => setDetailPlayer(p)}
-                    className="inline-flex items-center gap-1 min-h-9 text-xs font-bold text-navy-600 hover:text-brand-sky"
+                    className="inline-flex items-center gap-1 min-h-11 md:min-h-9 text-xs font-bold text-navy-600 hover:text-brand-sky"
                   >
                     <Eye className="h-3.5 w-3.5" />
                     <span>Lịch sử {p.matchesPlayed} trận</span>
@@ -865,7 +865,7 @@ export function PlayersTab({
                       <button
                         type="button"
                         onClick={() => openEditPlayer(p)}
-                        className="inline-flex items-center gap-1 min-h-9 rounded-lg bg-navy-600 px-2.5 py-1 text-xs font-bold text-gold-300 hover:bg-navy-500"
+                        className="inline-flex items-center gap-1 min-h-11 md:min-h-9 rounded-lg bg-navy-600 px-2.5 py-1 text-xs font-bold text-gold-300 hover:bg-navy-500"
                       >
                         <Edit3 className="h-3 w-3" />
                         <span>Sửa hồ sơ của tôi</span>
@@ -876,7 +876,7 @@ export function PlayersTab({
                           setPwdError("");
                           setPwdModalOpen(true);
                         }}
-                        className="inline-flex items-center gap-1 min-h-9 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                        className="inline-flex items-center gap-1 min-h-11 md:min-h-9 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100"
                       >
                         <KeyRound className="h-3 w-3" />
                         <span>Đổi PIN</span>
@@ -886,32 +886,32 @@ export function PlayersTab({
 
                   {/* Nếu là Ban Quản Lý -> Hiện nút Sửa toàn bộ, Reset mật khẩu giúp cầu thủ, Xoá */}
                   {isManager && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => handleResetPassword(p)}
                         title={`Reset mật khẩu của ${p.full_name} về 1234`}
-                        className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-100 cursor-pointer"
+                        className="inline-flex items-center gap-1 min-h-11 md:min-h-8 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-100 cursor-pointer"
                       >
-                        <RotateCcw className="h-3 w-3" />
+                        <RotateCcw className="h-3 w-3" aria-hidden="true" />
                         <span>Reset PIN</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => openEditPlayer(p)}
                         aria-label={`Sửa hồ sơ ${p.full_name}`}
-                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                        className="inline-flex items-center gap-1 min-h-11 md:min-h-8 rounded-md border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
                       >
-                        <Edit3 className="h-3.5 w-3.5" />
+                        <Edit3 className="h-3.5 w-3.5" aria-hidden="true" />
                         <span>Sửa</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeletePlayer(p)}
                         aria-label={`Xoá hồ sơ ${p.full_name}`}
-                        className="inline-flex items-center justify-center rounded-md border border-rose-200 p-1 text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-8 md:min-w-8 rounded-md border border-rose-200 p-1.5 text-rose-600 hover:bg-rose-50 cursor-pointer"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
                       </button>
                     </div>
                   )}
@@ -1305,10 +1305,11 @@ export function PlayersTab({
                             setCropperSource(url);
                             setCropperOpen(true);
                           }}
-                          className="absolute top-1 right-1 bg-black/80 hover:bg-black text-gold-400 p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                          aria-label={`Canh chỉnh & cắt ảnh hoạt động #${idx + 1}`}
+                          className="absolute top-1 right-1 inline-flex min-h-11 min-w-11 md:min-h-7 md:min-w-7 items-center justify-center bg-black/80 hover:bg-black text-gold-400 p-1.5 md:p-1 rounded-md opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
                         >
-                          <Crop className="h-3 w-3" />
+                          <Crop className="h-3.5 w-3.5 md:h-3 md:w-3" aria-hidden="true" />
                         </button>
                       </div>
                     );
@@ -1563,7 +1564,7 @@ export function PlayersTab({
               </p>
             )}
             {galleryUrls.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
                 {galleryUrls.map((url, idx) => {
                   const isProfile = profileImageUrl === url;
                   return (
@@ -1588,18 +1589,19 @@ export function PlayersTab({
                         </div>
                       )}
 
-                      {/* Nút hành động nổi lên khi hover */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5 p-1">
+                      {/* Nút hành động nổi lên khi hover / luôn hiện trên touch */}
+                      <div className="absolute inset-0 bg-black/60 opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition flex flex-wrap items-center justify-center gap-1.5 p-1.5">
                         <button
                           type="button"
                           onClick={() => {
                             setProfileImageUrl(url);
                             setProfileWebpInfo(`✅ Đã chọn ảnh #${idx + 1} làm ảnh Profile rộng!`);
                           }}
-                          className="h-7 w-7 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer"
+                          aria-label={`Đặt ảnh #${idx + 1} làm ảnh Profile rộng`}
+                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Đặt ảnh này làm ảnh Giới thiệu Profile rộng"
                         >
-                          <ImageIcon className="h-3.5 w-3.5" />
+                          <ImageIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -1608,18 +1610,20 @@ export function PlayersTab({
                             setCropperSource(url);
                             setCropperOpen(true);
                           }}
-                          className="h-7 w-7 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer"
+                          aria-label={`Cắt ảnh #${idx + 1} làm ảnh Profile rộng`}
+                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Canh chỉnh & cắt ảnh này làm Profile rộng"
                         >
-                          <Crop className="h-3.5 w-3.5" />
+                          <Crop className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRemoveGalleryImage(idx)}
-                          className="h-7 w-7 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer"
+                          aria-label={`Xoá ảnh #${idx + 1} khỏi Album`}
+                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Xoá ảnh này khỏi Album"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
                         </button>
                       </div>
                     </div>

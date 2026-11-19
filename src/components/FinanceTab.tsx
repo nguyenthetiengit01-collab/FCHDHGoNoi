@@ -334,7 +334,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                     setSubView("expenses");
                     setFilterCategory(item.category);
                   }}
-                  className="w-full text-left group cursor-pointer rounded-lg p-1.5 -mx-1.5 hover:bg-slate-50 transition"
+                  className="w-full min-h-11 md:min-h-0 text-left group cursor-pointer rounded-lg p-1.5 -mx-1.5 hover:bg-slate-50 transition"
                 >
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="font-semibold text-ink-primary group-hover:text-navy-500">
@@ -448,7 +448,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
           <button
             type="button"
             onClick={() => setSubView("expenses")}
-            className={`inline-flex items-center gap-2 min-h-11 sm:min-h-10 px-4 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
+            className={`inline-flex items-center gap-2 min-h-11 md:min-h-10 px-4 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
               subView === "expenses"
                 ? "bg-navy-600 text-gold-300"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -461,7 +461,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
           <button
             type="button"
             onClick={() => setSubView("incomes")}
-            className={`inline-flex items-center gap-2 min-h-11 sm:min-h-10 px-4 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
+            className={`inline-flex items-center gap-2 min-h-11 md:min-h-10 px-4 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
               subView === "incomes"
                 ? "bg-navy-600 text-gold-300"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -474,7 +474,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
           <button
             type="button"
             onClick={() => setSubView("settings")}
-            className={`inline-flex items-center gap-2 min-h-11 sm:min-h-10 px-4 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
+            className={`inline-flex items-center gap-2 min-h-11 md:min-h-10 px-4 py-2 rounded-lg text-sm font-bold transition cursor-pointer ${
               subView === "settings"
                 ? "bg-navy-600 text-gold-300"
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -488,7 +488,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
         <div className="flex flex-wrap items-center gap-2.5">
           <a
             href="/api/export"
-            className="inline-flex items-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg border border-navy-600/25 bg-slate-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-navy-600 hover:bg-slate-100 transition"
+            className="inline-flex items-center gap-1.5 min-h-11 md:min-h-10 rounded-lg border border-navy-600/25 bg-slate-50 px-3.5 py-2 text-xs sm:text-sm font-bold text-navy-600 hover:bg-slate-100 transition"
           >
             <Download className="h-4 w-4" />
             <span>Xuất File Excel (.xlsx)</span>
@@ -501,7 +501,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
               size="md"
               onClick={openAddExpense}
               leftIcon={<Plus className="h-4 w-4" />}
-              className="min-h-11 sm:min-h-10"
+              className="min-h-11 md:min-h-10"
             >
               Ghi Khoản Chi Mới
             </Button>
@@ -514,7 +514,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
               size="md"
               onClick={openAddIncome}
               leftIcon={<Plus className="h-4 w-4" />}
-              className="min-h-11 sm:min-h-10"
+              className="min-h-11 md:min-h-10"
             >
               Ghi Khoản Thu Khác
             </Button>
@@ -546,7 +546,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                       setQuickVenue(preset.venue);
                       setQuickCost(String(preset.cost));
                     }}
-                    className={`min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                    className={`min-h-11 md:min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
                       quickVenue === preset.venue &&
                       Number(quickCost) === preset.cost
                         ? "bg-navy-600 text-gold-300 border-navy-600"
@@ -617,7 +617,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                     key={pName}
                     type="button"
                     onClick={() => setQuickPayer(pName)}
-                    className={`min-h-9 px-2 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${
+                    className={`min-h-11 md:min-h-9 px-2 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${
                       quickPayer === pName
                         ? "bg-navy-600 text-gold-300 border-navy-600"
                         : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
@@ -642,7 +642,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                       payer_name: quickPayer,
                     })
                   }
-                  className="w-full min-h-10 sm:min-h-9"
+                  className="w-full min-h-11 md:min-h-9"
                 >
                   Lưu Chi Tiền Sân
                 </Button>
@@ -658,7 +658,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                   key={cat}
                   type="button"
                   onClick={() => setFilterCategory(cat)}
-                  className={`min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
+                  className={`min-h-11 md:min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
                     filterCategory === cat
                       ? "bg-navy-600 text-white border-navy-600"
                       : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
@@ -771,7 +771,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                       type="button"
                       onClick={() => openEditExpense(exp)}
                       aria-label={`Sửa khoản chi ${exp.description}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
                     >
                       <Edit3 className="h-4 w-4" />
                     </button>
@@ -785,7 +785,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                         })
                       }
                       aria-label={`Xoá khoản chi ${exp.description}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -888,7 +888,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                           type="button"
                           onClick={() => openEditExpense(exp)}
                           aria-label={`Sửa khoản chi ${exp.description}`}
-                          className="inline-flex items-center justify-center min-h-9 min-w-9 p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 cursor-pointer"
+                          className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 cursor-pointer"
                         >
                           <Edit3 className="h-4 w-4" />
                         </button>
@@ -902,7 +902,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                             })
                           }
                           aria-label={`Xoá khoản chi ${exp.description}`}
-                          className="inline-flex items-center justify-center min-h-9 min-w-9 p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
+                          className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -1037,7 +1037,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                       type="button"
                       onClick={() => openEditIncome(inc)}
                       aria-label={`Sửa khoản thu ${inc.contributor}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
                     >
                       <Edit3 className="h-4 w-4" />
                     </button>
@@ -1051,7 +1051,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                         })
                       }
                       aria-label={`Xoá khoản thu ${inc.contributor}`}
-                      className="inline-flex items-center justify-center min-h-10 min-w-10 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
+                      className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1153,7 +1153,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                           type="button"
                           onClick={() => openEditIncome(inc)}
                           aria-label={`Sửa khoản thu ${inc.contributor}`}
-                          className="inline-flex items-center justify-center min-h-9 min-w-9 p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 cursor-pointer"
+                          className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 cursor-pointer"
                         >
                           <Edit3 className="h-4 w-4" />
                         </button>
@@ -1167,7 +1167,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                             })
                           }
                           aria-label={`Xoá khoản thu ${inc.contributor}`}
-                          className="inline-flex items-center justify-center min-h-9 min-w-9 p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
+                          className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -1329,7 +1329,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                 disabled={isSaving}
                 onClick={() => setPendingResetExcel(true)}
                 leftIcon={<RotateCcw className="h-4 w-4" />}
-                className="min-h-11 sm:min-h-10 border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                className="min-h-11 md:min-h-10 border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
               >
                 Khôi phục dữ liệu khởi tạo
               </Button>
@@ -1340,7 +1340,7 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
                 size="md"
                 loading={isSaving}
                 disabled={isSaving}
-                className="min-h-11 sm:min-h-10"
+                className="min-h-11 md:min-h-10"
               >
                 Lưu Cấu Hình Đội Bóng
               </Button>

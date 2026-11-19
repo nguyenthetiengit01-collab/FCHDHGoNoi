@@ -562,7 +562,7 @@ export function ScheduleTab({
           <button
             type="button"
             onClick={() => setSpaceMode("upcoming")}
-            className={`inline-flex items-center gap-2 min-h-11 sm:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "upcoming"
+            className={`inline-flex items-center gap-2 min-h-11 md:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "upcoming"
                 ? "bg-navy-600 text-gold-300 shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
               }`}
@@ -574,7 +574,7 @@ export function ScheduleTab({
           <button
             type="button"
             onClick={() => setSpaceMode("finished")}
-            className={`inline-flex items-center gap-2 min-h-11 sm:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "finished"
+            className={`inline-flex items-center gap-2 min-h-11 md:min-h-9 rounded-md px-3.5 py-1.5 text-xs sm:text-sm font-extrabold transition ${spaceMode === "finished"
                 ? "bg-navy-600 text-gold-300 shadow-xs"
                 : "text-slate-700 hover:text-slate-900"
               }`}
@@ -589,7 +589,7 @@ export function ScheduleTab({
             <button
               type="button"
               onClick={onGoToCollection}
-              className="inline-flex items-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg border border-navy-600/30 bg-slate-50 px-3.5 py-2 text-xs font-bold text-navy-600 hover:bg-slate-100 transition"
+              className="inline-flex items-center gap-1.5 min-h-11 md:min-h-10 rounded-lg border border-navy-600/30 bg-slate-50 px-3.5 py-2 text-xs font-bold text-navy-600 hover:bg-slate-100 transition"
             >
               <Wallet className="h-4 w-4 text-brand-sky" />
               <span>Sang Mục Thu Tiền Trận →</span>
@@ -599,7 +599,7 @@ export function ScheduleTab({
             <button
               type="button"
               onClick={openCreateModal}
-              className="inline-flex items-center justify-center gap-1.5 min-h-11 sm:min-h-10 rounded-lg bg-navy-600 px-4 py-2 text-xs font-bold text-gold-300 hover:bg-navy-500 transition"
+              className="inline-flex items-center justify-center gap-1.5 min-h-11 md:min-h-10 rounded-lg bg-navy-600 px-4 py-2 text-xs font-bold text-gold-300 hover:bg-navy-500 transition"
             >
               <Plus className="h-4 w-4" />
               <span>Tạo Lịch Tuần Mới</span>
@@ -1298,7 +1298,7 @@ export function ScheduleTab({
                               opt.key as "all" | "registered" | "absent_notice" | "none"
                             )
                           }
-                          className={`min-h-11 sm:min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${rosterRsvpFilter === opt.key
+                          className={`min-h-11 md:min-h-8 px-2.5 py-1 rounded-md text-xs font-bold border transition ${rosterRsvpFilter === opt.key
                               ? "bg-navy-600 text-gold-300 border-navy-600"
                               : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
                             }`}
@@ -1424,7 +1424,7 @@ export function ScheduleTab({
                                       rsvp === "registered" ? "none" : "registered"
                                     )
                                   }
-                                  className={`min-h-11 sm:min-h-9 px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition ${!canToggle
+                                  className={`min-h-11 md:min-h-9 px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 transition ${!canToggle
                                       ? "opacity-70 cursor-default"
                                       : "cursor-pointer"
                                     } ${rsvp === "registered"
@@ -1450,7 +1450,7 @@ export function ScheduleTab({
                                     )
                                   }
                                   title="Báo vắng trận này"
-                                  className={`min-h-11 min-w-11 sm:min-h-9 sm:min-w-9 inline-flex items-center justify-center px-2 py-1.5 rounded-lg text-xs font-bold transition ${!canToggle
+                                  className={`min-h-11 min-w-11 md:min-h-9 md:min-w-9 inline-flex items-center justify-center px-2 py-1.5 rounded-lg text-xs font-bold transition ${!canToggle
                                       ? "opacity-70 cursor-default"
                                       : "cursor-pointer"
                                     } ${rsvp === "absent_notice"
@@ -2224,10 +2224,11 @@ export function ScheduleTab({
                               setProfileCropperSource(url);
                               setProfileCropperOpen(true);
                             }}
-                            className="absolute top-1 right-1 bg-black/80 hover:bg-black text-gold-400 p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                            aria-label={`Canh chỉnh & cắt ảnh hoạt động #${idx + 1}`}
+                            className="absolute top-1 right-1 inline-flex min-h-11 min-w-11 md:min-h-7 md:min-w-7 items-center justify-center bg-black/80 hover:bg-black text-gold-400 p-1.5 md:p-1 rounded-md opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                             title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
                           >
-                            <Crop className="h-3 w-3" />
+                            <Crop className="h-3.5 w-3.5 md:h-3 md:w-3" aria-hidden="true" />
                           </button>
                         </div>
                       );
@@ -2382,7 +2383,7 @@ export function ScheduleTab({
                 <p className="text-xs text-emerald-800 font-medium">{profileGalleryWebpInfo}</p>
               )}
               {profileGalleryUrls.length > 0 && (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
                   {profileGalleryUrls.map((url, idx) => {
                     const isProfile = profileProfileImageUrl === url;
                     return (
@@ -2404,18 +2405,19 @@ export function ScheduleTab({
                           </div>
                         )}
 
-                        {/* Nút hành động nổi lên khi hover */}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5 p-1">
+                        {/* Nút hành động nổi lên khi hover / luôn hiện trên touch */}
+                        <div className="absolute inset-0 bg-black/60 opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition flex flex-wrap items-center justify-center gap-1.5 p-1.5">
                           <button
                             type="button"
                             onClick={() => {
                               setProfileProfileImageUrl(url);
                               setProfileProfileWebpInfo(`✅ Đã chọn ảnh #${idx + 1} làm ảnh Profile rộng!`);
                             }}
-                            className="h-7 w-7 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer"
+                            aria-label={`Đặt ảnh #${idx + 1} làm ảnh Profile rộng`}
+                            className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                             title="Đặt ảnh này làm ảnh Giới thiệu Profile rộng"
                           >
-                            <ImageIcon className="h-3.5 w-3.5" />
+                            <ImageIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
                           </button>
                           <button
                             type="button"
@@ -2424,18 +2426,20 @@ export function ScheduleTab({
                               setProfileCropperSource(url);
                               setProfileCropperOpen(true);
                             }}
-                            className="h-7 w-7 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer"
+                            aria-label={`Cắt ảnh #${idx + 1} làm ảnh Profile rộng`}
+                            className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                             title="Canh chỉnh & cắt ảnh này làm Profile rộng"
                           >
-                            <Crop className="h-3.5 w-3.5" />
+                            <Crop className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleRemoveProfileGalleryImage(idx)}
-                            className="h-7 w-7 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer"
+                            aria-label={`Xoá ảnh #${idx + 1} khỏi Album`}
+                            className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                             title="Xoá ảnh này khỏi Album"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
                           </button>
                         </div>
                       </div>
@@ -2531,7 +2535,7 @@ export function ScheduleTab({
                   value={pwdOldPin}
                   onChange={(e) => setPwdOldPin(e.target.value)}
                   placeholder="Nhập mật khẩu hiện tại (mặc định 1234)"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-12 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
                 <button
                   type="button"
@@ -2541,8 +2545,7 @@ export function ScheduleTab({
                       ? "Ẩn mật khẩu hiện tại"
                       : "Hiện mật khẩu hiện tại"
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  tabIndex={-1}
+                  className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 >
                   {pwdShowOldPin ? (
                     <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -2564,7 +2567,7 @@ export function ScheduleTab({
                   value={pwdNewPin}
                   onChange={(e) => setPwdNewPin(e.target.value)}
                   placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-12 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
                 <button
                   type="button"
@@ -2572,8 +2575,7 @@ export function ScheduleTab({
                   aria-label={
                     pwdShowNewPin ? "Ẩn mật khẩu mới" : "Hiện mật khẩu mới"
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  tabIndex={-1}
+                  className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 >
                   {pwdShowNewPin ? (
                     <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -2633,7 +2635,7 @@ export function ScheduleTab({
                   value={pwdConfirmPin}
                   onChange={(e) => setPwdConfirmPin(e.target.value)}
                   placeholder="Nhập lại mật khẩu mới"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-12 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
                 <button
                   type="button"
@@ -2643,8 +2645,7 @@ export function ScheduleTab({
                       ? "Ẩn xác nhận mật khẩu mới"
                       : "Hiện xác nhận mật khẩu mới"
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  tabIndex={-1}
+                  className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 >
                   {pwdShowConfirmPin ? (
                     <EyeOff className="h-4 w-4" aria-hidden="true" />

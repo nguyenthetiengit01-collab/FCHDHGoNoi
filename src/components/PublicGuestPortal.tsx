@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import {
   MapPin,
@@ -59,6 +59,7 @@ import {
   getPlayerHamlet,
 } from "./BroadcastAthleteCard";
 import { MatchdayRosterPosterModal } from "./MatchdayRosterPoster";
+import { useDialogA11y } from "./useDialogA11y";
 
 interface PublicGuestPortalProps {
   data: FullAppData;
@@ -425,6 +426,17 @@ export function PublicGuestPortal({
   });
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
+  const mobileNavCloseRef = useRef<HTMLButtonElement>(null);
+  const mobileNavTitleId = useId();
+  const mobileNavDrawerId = useId();
+
+  useDialogA11y({
+    isOpen: mobileNavOpen,
+    onClose: () => setMobileNavOpen(false),
+    containerRef: mobileNavRef,
+    initialFocusRef: mobileNavCloseRef,
+  });
 
   const go = (id: string) => {
     setMobileNavOpen(false);
@@ -531,7 +543,7 @@ export function PublicGuestPortal({
             <button
               type="button"
               onClick={onOpenLogin}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-3.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition"
+              className="inline-flex min-h-11 items-center gap-2 bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-3.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition"
             >
               <LogIn className="h-4 w-4" />
               <span>Đăng nhập</span>
@@ -541,26 +553,49 @@ export function PublicGuestPortal({
             <button
               type="button"
               onClick={() => setMobileNavOpen((prev) => !prev)}
-              aria-label="Mở menu điều hướng"
+              aria-label={mobileNavOpen ? "Đóng menu điều hướng" : "Mở menu điều hướng"}
               aria-expanded={mobileNavOpen}
-              className="lg:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 transition cursor-pointer"
+              aria-controls={mobileNavDrawerId}
+              className="lg:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark"
             >
-              {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {mobileNavOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
             </button>
           </div>
         </div>
 
         {/* ===================== MOBILE NAVIGATION DRAWER ===================== */}
         {mobileNavOpen && (
-          <div className="lg:hidden fixed inset-x-0 top-[60px] sm:top-[68px] bottom-0 bg-[#061730]/98 backdrop-blur-xl z-50 overflow-y-auto border-t border-gold-500/30 shadow-2xl p-5 flex flex-col justify-between">
+          <div
+            id={mobileNavDrawerId}
+            ref={mobileNavRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={mobileNavTitleId}
+            tabIndex={-1}
+            className="lg:hidden fixed inset-x-0 top-[60px] sm:top-[68px] bottom-0 bg-[#061730]/98 backdrop-blur-xl z-50 overflow-y-auto border-t border-gold-500/30 shadow-2xl p-5 flex flex-col justify-between focus-visible:outline-2 focus-visible:outline-focus-on-dark"
+          >
             <div className="space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-white/15">
-                <span className="text-[11px] font-black uppercase tracking-[0.25em] text-gold-400">
-                  DANH MỤC TRANG CHỦ
-                </span>
-                <span className="text-xs text-sky-200">
-                  FC HĐH Gò Nổi
-                </span>
+              <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/15">
+                <div>
+                  <span
+                    id={mobileNavTitleId}
+                    className="text-[11px] font-black uppercase tracking-[0.25em] text-gold-400 block"
+                  >
+                    DANH MỤC TRANG CHỦ
+                  </span>
+                  <span className="text-xs text-sky-200">
+                    FC HĐH Gò Nổi
+                  </span>
+                </div>
+                <button
+                  ref={mobileNavCloseRef}
+                  type="button"
+                  onClick={() => setMobileNavOpen(false)}
+                  aria-label="Đóng menu điều hướng"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/15 transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
               </div>
 
               <div className="grid grid-cols-1 gap-2">
@@ -571,7 +606,7 @@ export function PublicGuestPortal({
                       key={l.id}
                       type="button"
                       onClick={() => go(l.id)}
-                      className="flex items-center justify-between p-3.5 rounded-xl bg-navy-700 hover:bg-navy-500 border border-white/10 text-left transition cursor-pointer group"
+                      className="min-h-11 flex items-center justify-between p-3.5 rounded-xl bg-navy-700 hover:bg-navy-500 border border-white/10 text-left transition cursor-pointer group"
                     >
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-navy-900 text-gold-400 border border-gold-400/30 group-hover:scale-110 transition">
@@ -620,7 +655,7 @@ export function PublicGuestPortal({
                   setMobileNavOpen(false);
                   onOpenLogin();
                 }}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-gold-500 to-[#e6c466] text-slate-950 font-black py-3.5 rounded-xl uppercase text-xs tracking-wider shadow-lg"
+                className="w-full min-h-11 flex items-center justify-center gap-2 bg-gradient-to-r from-gold-500 to-[#e6c466] text-slate-950 font-black py-3.5 rounded-xl uppercase text-xs tracking-wider shadow-lg"
               >
                 <LogIn className="h-4 w-4" />
                 <span>Đăng Nhập Thành Viên & Ban Quản Lý</span>

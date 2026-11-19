@@ -77,7 +77,7 @@ export function ModalDialog({
             type="button"
             onClick={() => (dialogRef.current?.open ? dialogRef.current.close() : onClose())}
             aria-label="Đóng hộp thoại"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200/70 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-light"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200/70 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-light"
           >
             <X className="h-5 w-5" />
           </button>

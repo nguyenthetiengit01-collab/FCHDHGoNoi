@@ -36,7 +36,7 @@ import {
 } from "@/lib/sessionHydration";
 import { PublicGuestPortal } from "./PublicGuestPortal";
 import { useDialogA11y } from "./useDialogA11y";
-import { Toast, type ToastVariant } from "./ui";
+import { Button, ModalDialog, Toast, type ToastVariant } from "./ui";
 
 const DashboardTab = dynamic(
   () => import("./DashboardTab").then((m) => m.DashboardTab),
@@ -141,6 +141,9 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const [dismissSecurityBanner, setDismissSecurityBanner] = useState(false);
   const [isHydratingSession, setIsHydratingSession] = useState(false);
   const [hydrationError, setHydrationError] = useState<string | null>(null);
+  const [importErrorMessage, setImportErrorMessage] = useState<string | null>(null);
+  const [importErrorFileName, setImportErrorFileName] = useState<string | null>(null);
+  const [importErrorModalOpen, setImportErrorModalOpen] = useState(false);
 
   const isMountedRef = useRef(true);
   const hydrationEpochRef = useRef(0);
@@ -293,21 +296,39 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
         method: "POST",
         body: formData,
       });
-      const json = await res.json();
+      const json: unknown = await res.json().catch(() => null);
       if (!res.ok) {
-        showToast(json.error || "Không thể nhập file Excel", "error");
+        const apiError =
+          json &&
+          typeof json === "object" &&
+          "error" in json &&
+          typeof (json as { error?: unknown }).error === "string" &&
+          (json as { error: string }).error.trim().length > 0
+            ? (json as { error: string }).error.trim()
+            : "Không thể nhập file Excel. Vui lòng kiểm tra cấu trúc và dữ liệu hợp lệ.";
+        setImportErrorFileName(file.name);
+        setImportErrorMessage(apiError);
+        setImportErrorModalOpen(true);
+        showToast(apiError, "error");
         return;
       }
-      setData(json);
+      setImportErrorMessage(null);
+      setImportErrorFileName(null);
+      setImportErrorModalOpen(false);
+      setData(json as FullAppData);
       try {
         localStorage.setItem("gonoi_fc_cached_data_v1", JSON.stringify(json));
       } catch {
         // ignore
       }
       showToast(`Đã đồng bộ dữ liệu từ file ${file.name}!`);
-    } catch (err) {
-      console.error(err);
-      showToast("Lỗi khi tải file Excel lên", "error");
+    } catch {
+      const fallbackError =
+        "Lỗi kết nối khi tải file Excel lên máy chủ. Vui lòng thử lại.";
+      setImportErrorFileName(file.name);
+      setImportErrorMessage(fallbackError);
+      setImportErrorModalOpen(true);
+      showToast(fallbackError, "error");
     } finally {
       setIsSaving(false);
       e.target.value = "";
@@ -682,7 +703,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 <button
                   type="button"
                   onClick={() => setActiveTab("personal")}
-                  className="inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition"
+                  className="inline-flex items-center gap-1.5 min-h-11 md:min-h-9 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition"
                 >
                   <KeyRound className="h-3.5 w-3.5" />
                   <span>Đổi mật khẩu ngay</span>
@@ -691,10 +712,58 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   type="button"
                   onClick={() => setDismissSecurityBanner(true)}
                   aria-label="Đóng cảnh báo bảo mật"
-                  className="inline-flex items-center justify-center min-h-9 min-w-9 rounded-lg text-amber-700 hover:text-amber-950 hover:bg-amber-200/60 transition"
+                  className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 rounded-lg text-amber-700 hover:text-amber-950 hover:bg-amber-200/60 transition"
                   title="Bỏ qua nhắc nhở"
                 >
                   <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* Persistent Excel Import Error Summary Banner (when modal dismissed) */}
+      {session.role === "manager" &&
+        importErrorMessage &&
+        !importErrorModalOpen && (
+          <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 pt-3">
+            <div
+              role="alert"
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-rose-50 border border-rose-300 shadow-xs"
+            >
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
+                <div className="p-2 rounded-lg bg-rose-100 text-rose-700 border border-rose-200 shrink-0">
+                  <ShieldAlert className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="text-xs sm:text-sm min-w-0">
+                  <p className="font-bold text-rose-950">
+                    Lỗi nhập file Excel
+                    {importErrorFileName ? ` (${importErrorFileName})` : ""}
+                  </p>
+                  <p className="text-rose-800 text-xs mt-0.5 break-words">
+                    {importErrorMessage}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setImportErrorModalOpen(true)}
+                >
+                  Xem chi tiết
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportErrorMessage(null);
+                    setImportErrorFileName(null);
+                  }}
+                  aria-label="Đóng thông báo lỗi nhập Excel"
+                  className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 rounded-lg text-rose-700 hover:text-rose-950 hover:bg-rose-200/60 transition"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -1110,6 +1179,66 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
           </div>
         </div>
       )}
+
+      {/* Persistent Excel Import Error Summary Modal */}
+      <ModalDialog
+        isOpen={importErrorModalOpen && Boolean(importErrorMessage)}
+        onClose={() => setImportErrorModalOpen(false)}
+        title="Không thể nhập file Excel"
+        subtitle={
+          importErrorFileName
+            ? `Tệp: ${importErrorFileName}`
+            : "Vui lòng kiểm tra dữ liệu bảng tính trước khi nhập lại"
+        }
+      >
+        <div className="space-y-4">
+          <div
+            role="alert"
+            className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 leading-relaxed break-words"
+          >
+            {importErrorMessage}
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-700 space-y-1.5 leading-relaxed">
+            <p className="font-bold text-ink-primary">
+              Hướng dẫn kiểm tra file Excel:
+            </p>
+            <ul className="list-disc pl-4 space-y-1">
+              <li>
+                Kiểm tra tên các sheet chuẩn (<code>2. Danh sách</code>,{" "}
+                <code>4. Thu Khác</code>, <code>5. Chi</code>,{" "}
+                <code>6. Dữ liệu Chi tiết (App)</code>).
+              </li>
+              <li>
+                Đảm bảo ngày tháng đúng định dạng hợp lệ (<code>DD/MM/YYYY</code>{" "}
+                hoặc <code>YYYY-MM-DD</code>) và không để trống ở các dòng có phát sinh.
+              </li>
+              <li>
+                Đảm bảo số tiền VNĐ là số nguyên không âm và không trùng tên cầu thủ / bản ghi điểm danh.
+              </li>
+            </ul>
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setImportErrorModalOpen(false);
+                setImportErrorMessage(null);
+                setImportErrorFileName(null);
+              }}
+            >
+              Xóa thông báo
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => setImportErrorModalOpen(false)}
+            >
+              Đóng
+            </Button>
+          </div>
+        </div>
+      </ModalDialog>
 
       {/* Modal Đăng Nhập Thành Viên & Ban Quản Lý Chuyên Nghiệp */}
       <LoginModal

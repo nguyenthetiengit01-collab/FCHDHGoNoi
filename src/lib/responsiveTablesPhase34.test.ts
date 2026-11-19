@@ -223,7 +223,9 @@ describe("Phase 3.4 – Responsive Data Tables & Mobile UX", () => {
     expect(html).toContain("Tiền sân tuần 1");
     expect(html).toContain('aria-label="Sửa khoản chi Tiền sân tuần 1"');
     expect(html).toContain('aria-label="Xoá khoản chi Tiền sân tuần 1"');
-    expect(html).toContain("min-h-10 min-w-10");
+    expect(html).toContain("min-h-11 min-w-11 md:min-h-9 md:min-w-9");
+    expect(html).not.toContain("sm:min-h-9");
+    expect(html).not.toContain("sm:min-w-9");
     expect(html).toContain("focus-visible:outline-focus-on-light");
   });
 

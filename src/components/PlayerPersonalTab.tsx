@@ -754,10 +754,11 @@ export function PlayerPersonalTab({
                             setCropperSource(url);
                             setCropperOpen(true);
                           }}
-                          className="absolute top-1 right-1 bg-black/80 hover:bg-black text-gold-400 p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                          aria-label={`Canh chỉnh & cắt ảnh hoạt động #${idx + 1}`}
+                          className="absolute top-1 right-1 inline-flex min-h-11 min-w-11 md:min-h-7 md:min-w-7 items-center justify-center bg-black/80 hover:bg-black text-gold-400 p-1.5 md:p-1 rounded-md opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
                         >
-                          <Crop className="h-3 w-3" />
+                          <Crop className="h-3.5 w-3.5 md:h-3 md:w-3" aria-hidden="true" />
                         </button>
                       </div>
                     );
@@ -990,7 +991,7 @@ export function PlayerPersonalTab({
               <p className="text-xs text-sky-800 font-medium">{galleryWebpInfo}</p>
             )}
             {galleryUrls.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
                 {galleryUrls.map((url, idx) => {
                   const isProfile = profileImageUrl === url;
                   return (
@@ -1012,18 +1013,19 @@ export function PlayerPersonalTab({
                         </div>
                       )}
 
-                      {/* Nút hành động nổi lên khi hover */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5 p-1">
+                      {/* Nút hành động nổi lên khi hover / luôn hiện trên touch */}
+                      <div className="absolute inset-0 bg-black/60 opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition flex flex-wrap items-center justify-center gap-1.5 p-1.5">
                         <button
                           type="button"
                           onClick={() => {
                             setProfileImageUrl(url);
                             setProfileWebpInfo(`✅ Đã chọn ảnh #${idx + 1} làm ảnh Profile rộng!`);
                           }}
-                          className="h-7 w-7 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer"
+                          aria-label={`Đặt ảnh #${idx + 1} làm ảnh Profile rộng`}
+                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Đặt ảnh này làm ảnh Giới thiệu Profile rộng"
                         >
-                          <ImageIcon className="h-3.5 w-3.5" />
+                          <ImageIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -1032,18 +1034,20 @@ export function PlayerPersonalTab({
                             setCropperSource(url);
                             setCropperOpen(true);
                           }}
-                          className="h-7 w-7 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer"
+                          aria-label={`Cắt ảnh #${idx + 1} làm ảnh Profile rộng`}
+                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Canh chỉnh & cắt ảnh này làm Profile rộng"
                         >
-                          <Crop className="h-3.5 w-3.5" />
+                          <Crop className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleRemoveGalleryImage(idx)}
-                          className="h-7 w-7 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer"
+                          aria-label={`Xoá ảnh #${idx + 1} khỏi Album`}
+                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Xoá ảnh này khỏi Album"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
                         </button>
                       </div>
                     </div>
@@ -1119,18 +1123,18 @@ export function PlayerPersonalTab({
                     placeholder="Tối thiểu 6 ký tự"
                     value={newPin}
                     onChange={(e) => setNewPin(e.target.value)}
-                    className="form-input !pr-10"
+                    className="form-input !pr-12"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPin(!showNewPin)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    tabIndex={-1}
+                    aria-label={showNewPin ? "Ẩn mật khẩu mới" : "Hiện mật khẩu mới"}
+                    className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                   >
                     {showNewPin ? (
-                      <EyeOff className="h-4 w-4" />
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
                     ) : (
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-4 w-4" aria-hidden="true" />
                     )}
                   </button>
                 </div>
@@ -1149,18 +1153,18 @@ export function PlayerPersonalTab({
                     placeholder="Nhập lại mật khẩu mới"
                     value={confirmPin}
                     onChange={(e) => setConfirmPin(e.target.value)}
-                    className="form-input !pr-10"
+                    className="form-input !pr-12"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPin(!showConfirmPin)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    tabIndex={-1}
+                    aria-label={showConfirmPin ? "Ẩn xác nhận mật khẩu mới" : "Hiện xác nhận mật khẩu mới"}
+                    className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                   >
                     {showConfirmPin ? (
-                      <EyeOff className="h-4 w-4" />
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
                     ) : (
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-4 w-4" aria-hidden="true" />
                     )}
                   </button>
                 </div>
@@ -1217,18 +1221,18 @@ export function PlayerPersonalTab({
                 placeholder="Nhập mật khẩu hiện tại"
                 value={oldPin}
                 onChange={(e) => setOldPin(e.target.value)}
-                className="form-input !pr-10 font-bold"
+                className="form-input !pr-12 font-bold"
               />
               <button
                 type="button"
                 onClick={() => setShowOldPin(!showOldPin)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                tabIndex={-1}
+                aria-label={showOldPin ? "Ẩn mật khẩu hiện tại" : "Hiện mật khẩu hiện tại"}
+                className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
               >
                 {showOldPin ? (
-                  <EyeOff className="h-4 w-4" />
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-4 w-4" aria-hidden="true" />
                 )}
               </button>
             </div>
