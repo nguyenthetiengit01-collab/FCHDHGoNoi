@@ -49,8 +49,9 @@
 
 ---
 
-## Phase 6.4 — Component Decomposition & Shared Profile/Gallery Editor
+## Phase 6.4 — Component Decomposition & Shared Profile/Gallery Editor (Completed)
 
+- **Implementation Record**: `docs/phase-6/phase-6.4-implementation.md`
 - **Objective**: Break up monolithic components (>1,300 lines) and eliminate duplicated player profile/gallery/cropper code without changing API payloads or state behavior.
 - **Scope**:
   1. Extract shared `<PlayerProfileEditor>` + `<PlayerGalleryManager>` from `ScheduleTab.tsx` (2,783 lines), `PlayerPersonalTab.tsx` (1,341 lines), and `PlayersTab.tsx` (1,964 lines).

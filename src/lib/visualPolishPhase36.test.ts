@@ -28,7 +28,7 @@ describe("Phase 3.6 – UI Consistency & Visual Polish (UX-09, UX-10, UX-11)", (
   });
 
   it("UX-10: banner navigation dots meet 44px touch target (min-h-11 min-w-11) with dark focus ring", () => {
-    const portalSrc = readSrc("src/components/PublicGuestPortal.tsx");
+    const portalSrc = readSrc("src/components/guest/MatchdaySection.tsx");
     expect(portalSrc).not.toContain("min-h-6 min-w-6");
     expect(portalSrc).toContain("min-h-11 min-w-11 flex items-center justify-center rounded-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-focus-on-dark");
     expect(portalSrc).toContain('aria-current={i === activeBannerIdx ? "true" : undefined}');

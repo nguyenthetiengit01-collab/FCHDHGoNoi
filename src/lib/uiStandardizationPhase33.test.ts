@@ -242,7 +242,10 @@ describe("Phase 3.3 – UI Component Standardization", () => {
     });
 
     it("PlayerPersonalTab uses FormField, Input, Select, Button, and accessible password error role=alert", () => {
-      const src = readSrc("src/components/PlayerPersonalTab.tsx");
+      const src =
+        readSrc("src/components/PlayerPersonalTab.tsx") +
+        "\n" +
+        readSrc("src/components/shared/PlayerProfileEditor.tsx");
       expect(src).toContain("<FormField");
       expect(src).toContain("<Input");
       expect(src).toContain("<Select");
