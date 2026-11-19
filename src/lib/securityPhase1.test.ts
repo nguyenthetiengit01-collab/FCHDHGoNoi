@@ -179,7 +179,9 @@ describe("Phase 1 – Security Hardening Suite", () => {
       } finally {
         vi.unstubAllEnvs();
         if (originalSecret) process.env.AUTH_SECRET = originalSecret;
+        else delete process.env.AUTH_SECRET;
         if (originalAppSecret) process.env.APP_SECRET = originalAppSecret;
+        else delete process.env.APP_SECRET;
       }
     });
 

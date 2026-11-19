@@ -1,6 +1,6 @@
-import type { AsyncDb } from "@/lib/db";
+import type { AsyncDbTx } from "@/lib/db";
 
-async function hasTable(db: AsyncDb, name: string): Promise<boolean> {
+async function hasTable(db: AsyncDbTx, name: string): Promise<boolean> {
   const row = await db.queryOne<{ name: string }>(
     "SELECT name FROM sqlite_master WHERE type='table' AND name=? LIMIT 1",
     [name]
@@ -8,13 +8,13 @@ async function hasTable(db: AsyncDb, name: string): Promise<boolean> {
   return Boolean(row?.name);
 }
 
-async function hasColumn(db: AsyncDb, table: string, col: string): Promise<boolean> {
+async function hasColumn(db: AsyncDbTx, table: string, col: string): Promise<boolean> {
   const cols = await db.query<{ name: string }>(`PRAGMA table_info("${table}")`);
   return cols.some((c) => c.name === col);
 }
 
 export async function recordPlayerLifecycleEvent(params: {
-  db: AsyncDb;
+  db: AsyncDbTx;
   playerId: number;
   eventType: "joined" | "status_changed";
   fromStatus: string | null;
@@ -55,7 +55,7 @@ export async function recordPlayerLifecycleEvent(params: {
 }
 
 export async function validateSponsorIdForIncome(
-  db: AsyncDb,
+  db: AsyncDbTx,
   rawSponsorId: unknown
 ): Promise<
   | { ok: true; sponsorId: number | null; columnSupported: boolean }

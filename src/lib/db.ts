@@ -1847,11 +1847,26 @@ export async function recordAuditLog(params: {
   actorRole: string;
   action: string;
   summary?: string;
+  tx?: AsyncDbTx;
 }): Promise<void> {
   try {
-    await ensureAuditLogsReady();
-    const db = getAsyncDb();
-    await db.run(
+    if (!params.tx) {
+      await ensureAuditLogsReady();
+    } else if (!auditTableInitPromise) {
+      await params.tx.run(`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          actor_id INTEGER NOT NULL,
+          actor_name TEXT NOT NULL,
+          actor_role TEXT NOT NULL,
+          action TEXT NOT NULL,
+          summary TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+    }
+    const targetDb: AsyncDbTx = params.tx ?? getAsyncDb();
+    await targetDb.run(
       `INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, summary)
        VALUES (?, ?, ?, ?, ?)`,
       [
@@ -1863,6 +1878,9 @@ export async function recordAuditLog(params: {
       ]
     );
   } catch (err) {
+    if (params.tx) {
+      throw err;
+    }
     console.error("recordAuditLog warning:", err);
   }
 }
