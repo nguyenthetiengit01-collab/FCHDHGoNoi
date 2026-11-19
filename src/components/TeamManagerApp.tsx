@@ -36,6 +36,7 @@ import {
 } from "@/lib/sessionHydration";
 import { PublicGuestPortal } from "./PublicGuestPortal";
 import { useDialogA11y } from "./useDialogA11y";
+import { Toast, type ToastVariant } from "./ui";
 
 const DashboardTab = dynamic(
   () => import("./DashboardTab").then((m) => m.DashboardTab),
@@ -131,7 +132,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<{
     message: string;
-    variant: "success" | "error";
+    variant: ToastVariant;
   } | null>(null);
 
   // Login modal & session hydration states
@@ -228,7 +229,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
     };
   }, [initialData]);
 
-  const showToast = (msg: string, variant: "success" | "error" = "success") => {
+  const showToast = (msg: string, variant: ToastVariant = "success") => {
     setToastMessage({ message: msg, variant });
     window.setTimeout(() => {
       setToastMessage((prev) => (prev?.message === msg ? null : prev));
@@ -341,7 +342,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        showToast(json.error || "Không thể chuyển quyền.");
+        showToast(json.error || "Không thể chuyển quyền.", "error");
         return;
       }
       const safePlayer: Player = json.player || targetPlayer;
@@ -358,7 +359,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       }
     } catch (err) {
       console.error("switch_role error:", err);
-      showToast("Lỗi kết nối phiên làm việc máy chủ");
+      showToast("Lỗi kết nối phiên làm việc máy chủ", "error");
     }
   };
 
@@ -488,7 +489,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   return (
     <div
       className={`min-h-dvh flex flex-col ${
-        session.role === "guest" ? "bg-[#050e20]" : "pb-20 md:pb-8"
+        session.role === "guest" ? "bg-navy-950" : "pb-20 md:pb-8"
       }`}
     >
       <a href="#main-content" className="skip-link">Bỏ qua điều hướng, tới nội dung chính</a>
@@ -514,7 +515,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                       href={fanpageUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hidden lg:inline-flex items-center gap-1 rounded-md bg-[#1877F2] hover:bg-[#166fe5] px-2 py-0.5 text-[11px] font-bold text-white transition"
+                      className="hidden lg:inline-flex items-center gap-1 rounded-md bg-royal-600 hover:bg-royal-500 px-2 py-0.5 text-[11px] font-bold text-white transition"
                     >
                       <span>Fanpage</span>
                       <ExternalLink className="h-2.5 w-2.5" />
@@ -570,7 +571,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 <button
                   type="button"
                   onClick={() => setLoginModalOpen(true)}
-                  className="inline-flex items-center gap-2 min-h-10 rounded-lg bg-gold-500 hover:bg-[#e5c14d] px-2.5 sm:px-3 py-1.5 text-xs font-extrabold text-ink-primary transition shadow-xs focus-visible:outline-2 focus-visible:outline-white"
+                  className="inline-flex items-center gap-2 min-h-10 rounded-lg bg-gold-500 hover:bg-gold-450 px-2.5 sm:px-3 py-1.5 text-xs font-extrabold text-ink-primary transition shadow-xs focus-visible:outline-2 focus-visible:outline-white"
                 >
                   {currentPlayerObj?.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -611,7 +612,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   title="Mở toàn bộ menu chức năng"
                   aria-label="Mở menu điều hướng"
                   aria-expanded={mobileMenuOpen}
-                  className="md:hidden inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg bg-gold-500 hover:bg-[#e5c14d] text-ink-primary font-black shadow-xs transition focus-visible:outline-2 focus-visible:outline-white"
+                  className="md:hidden inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg bg-gold-500 hover:bg-gold-450 text-ink-primary font-black shadow-xs transition focus-visible:outline-2 focus-visible:outline-white"
                 >
                   <Menu className="h-4 w-4" />
                 </button>
@@ -650,31 +651,11 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div
-          role={toastMessage.variant === "error" ? "alert" : "status"}
-          aria-live={toastMessage.variant === "error" ? "assertive" : "polite"}
-          className={`fixed bottom-20 md:bottom-6 right-4 z-50 rounded-xl px-4 py-3 text-sm font-bold shadow-lg border flex items-center gap-2.5 max-w-md ${
-            toastMessage.variant === "error"
-              ? "bg-rose-950 text-rose-50 border-rose-400"
-              : "bg-navy-800 text-white border-gold-500"
-          }`}
-        >
-          <span
-            className={`h-2.5 w-2.5 rounded-full shrink-0 ${
-              toastMessage.variant === "error" ? "bg-rose-400" : "bg-gold-500"
-            }`}
-            aria-hidden="true"
-          />
-          <span className="flex-1">{toastMessage.message}</span>
-          <button
-            type="button"
-            onClick={() => setToastMessage(null)}
-            aria-label="Đóng thông báo"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-focus-on-dark"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        <Toast
+          message={toastMessage.message}
+          variant={toastMessage.variant}
+          onClose={() => setToastMessage(null)}
+        />
       )}
 
       {/* Cảnh báo bảo mật tài khoản nếu đang dùng mật khẩu mặc định */}
@@ -877,7 +858,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       {session.role !== "guest" && (
         <nav
           aria-label="Điều hướng di động"
-          className="md:hidden safe-bottom fixed bottom-0 inset-x-0 z-40 bg-navy-800 text-white border-t border-[#4a7fe8]/60 grid grid-cols-5 shadow-2xl backdrop-blur-lg"
+          className="md:hidden safe-bottom fixed bottom-0 inset-x-0 z-40 bg-navy-800 text-white border-t border-royal-500/60 grid grid-cols-5 shadow-2xl backdrop-blur-lg"
         >
           {(() => {
             const isManager = session.role === "manager";
@@ -918,7 +899,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                       aria-current={isActive ? "page" : undefined}
                       className={`flex flex-col items-center justify-center py-2 px-1 text-[11px] font-bold transition cursor-pointer ${
                         isActive
-                          ? "text-gold-400 bg-[#164ea0]/80 border-t-2 border-gold-400"
+                          ? "text-gold-400 bg-navy-500/80 border-t-2 border-gold-400"
                           : "text-sky-200/80 hover:text-white"
                       }`}
                     >
@@ -934,7 +915,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   aria-expanded={mobileMenuOpen}
                   className={`flex flex-col items-center justify-center py-2 px-1 text-[11px] font-bold transition cursor-pointer relative ${
                     isMoreActive
-                      ? "text-gold-400 bg-[#164ea0]/80 border-t-2 border-gold-400"
+                      ? "text-gold-400 bg-navy-500/80 border-t-2 border-gold-400"
                       : "text-sky-200/80 hover:text-white"
                   }`}
                 >
@@ -961,7 +942,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
           onClick={() => setMobileMenuOpen(false)}
         >
           <div
-            className="w-full max-h-[85vh] bg-gradient-to-b from-[#0a2752] via-[#081f42] to-[#05142b] border-t-2 border-gold-400 rounded-t-xl p-5 overflow-y-auto space-y-5 shadow-2xl text-white"
+            className="w-full max-h-[85vh] bg-gradient-to-b from-navy-700 via-navy-800 to-navy-950 border-t-2 border-gold-400 rounded-t-xl p-5 overflow-y-auto space-y-5 shadow-2xl text-white"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header Drawer với Thông tin Thành Viên */}
@@ -975,7 +956,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                     className="h-12 w-12 rounded-full object-cover border-2 border-gold-400 shadow"
                   />
                 ) : (
-                  <div className="h-12 w-12 rounded-full bg-[#0b2b57] border-2 border-gold-400 flex items-center justify-center font-black text-sm text-gold-400">
+                  <div className="h-12 w-12 rounded-full bg-navy-700 border-2 border-gold-400 flex items-center justify-center font-black text-sm text-gold-400">
                     #{session.jerseyNumber ?? "-"}
                   </div>
                 )}
@@ -1027,8 +1008,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                       }}
                       className={`flex items-center justify-between p-3 rounded-xl border transition cursor-pointer text-left ${
                         isActive
-                          ? "bg-[#164ea0] border-gold-400 text-gold-400 shadow-md"
-                          : "bg-[#0c2e5c]/70 hover:bg-navy-500 border-white/10 text-white"
+                          ? "bg-navy-500 border-gold-400 text-gold-400 shadow-md"
+                          : "bg-navy-800/70 hover:bg-navy-500 border-white/10 text-white"
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -1036,7 +1017,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                           className={`p-2 rounded-lg ${
                             isActive
                               ? "bg-gold-400 text-slate-950"
-                              : "bg-[#071d3a] text-gold-400"
+                              : "bg-navy-900 text-gold-400"
                           }`}
                         >
                           <Icon className="h-4 w-4" />
@@ -1057,7 +1038,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   DỮ LIỆU BẢNG TÍNH EXCEL
                 </span>
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="flex items-center justify-center gap-2 rounded-xl bg-[#0b2b57] hover:bg-navy-500 border border-white/15 p-3 text-xs font-bold text-white transition cursor-pointer">
+                  <label className="flex items-center justify-center gap-2 rounded-xl bg-navy-700 hover:bg-navy-500 border border-white/15 p-3 text-xs font-bold text-white transition cursor-pointer">
                     <Upload className="h-4 w-4 text-gold-400" />
                     <span>Nhập Excel</span>
                     <input
@@ -1074,7 +1055,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   <a
                     href="/api/export"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-center gap-2 rounded-xl bg-[#0b2b57] hover:bg-navy-500 border border-white/15 p-3 text-xs font-bold text-white transition"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-navy-700 hover:bg-navy-500 border border-white/15 p-3 text-xs font-bold text-white transition"
                   >
                     <Download className="h-4 w-4 text-gold-400" />
                     <span>Xuất Excel</span>

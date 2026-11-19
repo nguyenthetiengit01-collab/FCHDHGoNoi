@@ -299,7 +299,7 @@ export function PlayerPersonalTab({
             <button
               type="button"
               onClick={openEditMyProfile}
-              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-lg hover:shadow-xl"
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-450 hover:from-gold-450 hover:to-gold-300 px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-lg hover:shadow-xl"
             >
               <Edit3 className="h-4 w-4" />
               <span>Sửa Thông Tin &amp; Ảnh Hồ Sơ</span>

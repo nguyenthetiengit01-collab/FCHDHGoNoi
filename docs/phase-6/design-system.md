@@ -49,10 +49,10 @@
 | | `--color-focus-on-dark` | `#ffd700` | `>=3:1` on all navy-950..600 surfaces |
 | | `--color-focus-halo` | `#ffffff` | Outer dual-ring halo (`>=3:1` on dark buttons) |
 
-### 2.2 Phase 6 Delta Tokens to Add (Consolidating Hardcoded Hex)
-- `--color-navy-975: #030912` / `--color-navy-850: #071933` (or normalize `#061730`, `#06182f`, `#050e20` in `PublicGuestPortal.tsx` & `PlayerProfileClient.tsx` to `navy-950` / `navy-900` / `navy-800`).
-- `--color-gold-450: #e6c466` (or consolidate button hover `#e5c14d` / `#e6c466` to `gold-400` / `gold-500`).
-- **Exception**: `MatchdayRosterPoster.tsx` (39 hex) and `BroadcastAthleteCard.tsx` export-safe SVG/canvas layers may retain explicit hex constants inside a single documented palette constant when required by `html-to-image` / Canvas rendering.
+### 2.2 Phase 6.2 Implemented Tokens (`src/app/globals.css`)
+- `@theme`: `--color-navy-975: #030912`, `--color-navy-850: #071933`, `--color-gold-450: #e6c466`.
+- `:root` aliases: `--brand-navy-deepest: var(--color-navy-975)`, `--brand-navy-dark: var(--color-navy-850)`, `--brand-gold-light: var(--color-gold-450)`.
+- **Export-Safe Exception**: `MatchdayRosterPoster.tsx` (poster capture element `posterRef`) and `BroadcastAthleteCard.tsx` export-safe SVG/canvas layers retain explicit hex constants where required by `html-to-image` / Canvas PNG rendering. Remaining public-page HEX cleanup (`PublicGuestPortal.tsx`, `BroadcastAthleteCard.tsx`) is scoped to Phase 6.4.
 
 ---
 
@@ -78,11 +78,10 @@
 - **Spacing Scale**: Standard Tailwind `4px` base (`gap-2`, `gap-3`, `gap-4`, `p-4 sm:p-5` for cards, `space-y-5` between workspace sections, `py-14 sm:py-20` between public sections).
 - **Breakpoints**: Mobile-first `<640px` (`360×800`, `390×844`), `sm: 640px`, `md: 768px` (`768×1024`), `lg: 1024px`, `xl: 1280px` (`1440×900`).
 - **Mobile Safe Areas**: `viewportFit: "cover"` (`layout.tsx:67`), `pt-[env(safe-area-inset-top)]` (`TeamManagerApp.tsx:497`), `.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }` (`globals.css:358-360`), `pb-20 md:pb-8` on authenticated shell to clear the fixed bottom nav.
-- **Border Radius Contract (Strict 8px–12px)**:
-  - Small chips/badges: `rounded-md` (`6px` in Tailwind v4 utility / `0.375rem`).
-  - Buttons, inputs, selects, tabs: `rounded-lg` (`8px`) or `rounded-[10px]` (`10px`).
-  - Cards, modals, tables: `rounded-xl` (`12px`).
-  - **Prohibited**: `rounded-2xl` (`16px`) and `rounded-3xl` (`24px`) on cards/containers; `dialog:modal` in `globals.css:374,389` should be aligned from `1rem`/`1.25rem` to `0.75rem` (`12px`). `rounded-full` is reserved strictly for circular avatars and 8–10px status dots.
+- **Border Radius Contract (`8px–12px` Standard + Compact Exception)**:
+  - Card, modal (`dialog:modal`, `cropper-dialog`, `poster-dialog` = `0.75rem`), table, button, input, select, tab: **8–12px** (`rounded-lg` = `8px`, `rounded-[10px]` = `10px`, `rounded-xl` = `12px`).
+  - **Compact Chip/Badge Exception**: Dense inline chips and badges may use `rounded-md` (`6px` / `0.375rem`) where needed for data density; this is an explicit compact exception, not part of the `8–12px` container/control rule.
+  - **Prohibited**: `rounded-2xl` (`16px`) and `rounded-3xl` (`24px`) are eliminated across all `src/**/*.tsx`. `rounded-full` is reserved strictly for circular avatars and 8–10px status dots.
 
 ---
 

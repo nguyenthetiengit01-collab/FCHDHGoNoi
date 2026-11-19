@@ -141,7 +141,7 @@ export function PlayerProfileClient({
             <button
               type="button"
               onClick={handleShare}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] hover:from-[#1d4ed8] hover:to-[#1e40af] text-xs font-bold text-white shadow-md transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-royal-500 to-royal-600 hover:from-royal-600 hover:to-navy-500 text-xs font-bold text-white shadow-md transition cursor-pointer"
               title="Chia sẻ hồ sơ qua Zalo / Facebook"
             >
               <Share2 className="h-3.5 w-3.5 text-sky-200" />
@@ -154,7 +154,7 @@ export function PlayerProfileClient({
       {/* Main Content */}
       <main id="main-content" className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
         {/* Banner giới thiệu hồ sơ định danh */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-navy-700 via-navy-800 to-[#06182f] border border-gold-400/30 shadow-md">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-navy-700 via-navy-800 to-navy-850 border border-gold-400/30 shadow-md">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gold-400/20 border border-gold-400/50 flex items-center justify-center text-gold-400 shrink-0 font-display font-black text-lg">
               #{player.jersey_number ?? "--"}
@@ -261,7 +261,7 @@ export function PlayerProfileClient({
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-white/10 bg-[#06182f] py-6 px-4 text-center text-xs text-slate-400">
+      <footer className="mt-auto border-t border-white/10 bg-navy-850 py-6 px-4 text-center text-xs text-slate-400">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2 font-bold text-gold-400">
             {/* eslint-disable-next-line @next/next/no-img-element */}

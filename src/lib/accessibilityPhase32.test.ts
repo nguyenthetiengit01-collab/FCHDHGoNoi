@@ -254,8 +254,9 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
       expect(readSrc("src/components/ScheduleTab.tsx")).toContain("<ConfirmDialog");
       expect(readSrc("src/components/SponsorsTab.tsx")).toContain("<ConfirmDialog");
       expect(readSrc("src/components/SponsorsTab.tsx")).toContain('role="alert"');
-      expect(readSrc("src/components/TeamManagerApp.tsx")).toContain(
-        'aria-live={toastMessage.variant === "error" ? "assertive" : "polite"}'
+      expect(readSrc("src/components/TeamManagerApp.tsx")).toContain("<Toast");
+      expect(readSrc("src/components/ui/Toast.tsx")).toContain(
+        'aria-live={isError ? "assertive" : "polite"}'
       );
     });
   });

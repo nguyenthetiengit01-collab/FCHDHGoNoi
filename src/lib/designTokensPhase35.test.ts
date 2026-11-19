@@ -12,8 +12,10 @@ describe("Phase 3.5 – Design Token Consolidation & Hardcoded Color Cleanup", (
   it("globals.css defines unified @theme primitive and semantic tokens", () => {
     const css = readSrc("src/app/globals.css");
     const requiredTokens = [
+      "--color-navy-975:",
       "--color-navy-950:",
       "--color-navy-900:",
+      "--color-navy-850:",
       "--color-navy-800:",
       "--color-navy-700:",
       "--color-navy-600:",
@@ -22,6 +24,7 @@ describe("Phase 3.5 – Design Token Consolidation & Hardcoded Color Cleanup", (
       "--color-royal-500:",
       "--color-gold-300:",
       "--color-gold-400:",
+      "--color-gold-450:",
       "--color-gold-500:",
       "--color-gold-600:",
       "--color-gold-700:",
@@ -39,13 +42,14 @@ describe("Phase 3.5 – Design Token Consolidation & Hardcoded Color Cleanup", (
     }
   });
 
-  it("UI primitives, ModalDialog, FinanceTab, and MatrixTab contain zero hardcoded HEX colors", () => {
+  it("UI primitives, ModalDialog, and Phase 6.2 workspace/shared components contain zero hardcoded HEX colors", () => {
     const cleanFiles = [
       "src/components/ui/Button.tsx",
       "src/components/ui/Badge.tsx",
       "src/components/ui/Card.tsx",
       "src/components/ui/FormControls.tsx",
       "src/components/ui/StateViews.tsx",
+      "src/components/ui/Toast.tsx",
       "src/components/ModalDialog.tsx",
       "src/components/FinanceTab.tsx",
       "src/components/MatrixTab.tsx",
@@ -53,6 +57,12 @@ describe("Phase 3.5 – Design Token Consolidation & Hardcoded Color Cleanup", (
       "src/components/DashboardTab.tsx",
       "src/components/PlayersTab.tsx",
       "src/components/ImageLightboxModal.tsx",
+      "src/components/TeamManagerApp.tsx",
+      "src/components/ScheduleTab.tsx",
+      "src/components/PlayerPersonalTab.tsx",
+      "src/components/ClubPostsTab.tsx",
+      "src/components/LoginModal.tsx",
+      "src/components/PlayerProfileClient.tsx",
     ];
 
     for (const file of cleanFiles) {

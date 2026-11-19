@@ -154,7 +154,7 @@ export function ImageLightboxModal({
             <img
               src={current.src}
               alt={current.title || "Ảnh hoạt động FC HĐH Gò Nổi"}
-              className="max-h-[75vh] max-w-full object-contain rounded-2xl shadow-2xl border border-white/15 transition-transform duration-200"
+              className="max-h-[75vh] max-w-full object-contain rounded-xl shadow-2xl border border-white/15 transition-transform duration-200"
             />
           </div>
 

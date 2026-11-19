@@ -73,7 +73,7 @@ export default async function CauThuProfilePage({ params }: PageProps) {
   if (!player) {
     return (
       <div className="min-h-screen bg-navy-950 text-slate-100 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full rounded-2xl bg-navy-800 border border-white/10 p-8 text-center space-y-4 shadow-xl">
+        <div className="max-w-md w-full rounded-xl bg-navy-800 border border-white/10 p-8 text-center space-y-4 shadow-xl">
           <div className="h-16 w-16 mx-auto rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30">
             <UserX className="h-8 w-8" />
           </div>

@@ -817,7 +817,7 @@ export function PublicGuestPortal({
       {homeBanners.length > 0 && (
         <section className="relative bg-[#061730] py-6 sm:py-8 border-b border-white/10">
           <div className={WRAP}>
-            <div className="relative rounded-2xl overflow-hidden border border-gold-500/40 shadow-2xl bg-gradient-to-r from-navy-900 to-navy-700">
+            <div className="relative rounded-xl overflow-hidden border border-gold-500/40 shadow-2xl bg-gradient-to-r from-navy-900 to-navy-700">
               {/* Slide hình ảnh Banner */}
               <div className="relative aspect-[21/9] sm:aspect-[24/9] min-h-[180px] w-full overflow-hidden">
                 {homeBanners.map((sp, idx) => {
@@ -1911,7 +1911,7 @@ export function PublicGuestPortal({
 
               if (!hasAny) {
                 return (
-                  <div className="mt-12 rounded-2xl bg-white/5 border border-white/10 p-10 text-center max-w-xl mx-auto">
+                  <div className="mt-12 rounded-xl bg-white/5 border border-white/10 p-10 text-center max-w-xl mx-auto">
                     <p className="text-sm text-slate-300">
                       CLB luôn trân trọng chào đón các đơn vị tài trợ và quý mạnh thường quân đồng hành cùng giải đấu và hoạt động phong trào thường niên.
                     </p>
@@ -1933,7 +1933,7 @@ export function PublicGuestPortal({
                         {grouped.title.map((sp) => (
                           <div
                             key={sp.id}
-                            className="rounded-2xl bg-gradient-to-br from-[#10346a] via-[#0e2a57] to-[#091b38] border-2 border-gold-500 p-6 shadow-[0_10px_40px_rgba(212,175,55,0.2)] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left transition hover:scale-[1.02]"
+                            className="rounded-xl bg-gradient-to-br from-[#10346a] via-[#0e2a57] to-[#091b38] border-2 border-gold-500 p-6 shadow-[0_10px_40px_rgba(212,175,55,0.2)] flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left transition hover:scale-[1.02]"
                           >
                             {sp.logo_url && (
                               <div className="relative h-20 w-20 shrink-0 rounded-xl bg-white p-2 border border-gold-500/60 shadow-md overflow-hidden">

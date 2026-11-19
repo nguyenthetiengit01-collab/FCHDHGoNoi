@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import {
   Calendar,
   Check,
@@ -18,6 +18,9 @@ import {
   downloadElementAsPng,
   buildMatchdayRosterFilename,
 } from "@/lib/exportImage";
+import { useDialogA11y } from "./useDialogA11y";
+
+// Export-safe palette note: posterRef retains explicit hex values for deterministic html-to-image PNG rendering.
 
 export interface MatchdayRosterPosterProps {
   isOpen: boolean;
@@ -36,12 +39,36 @@ export function MatchdayRosterPosterModal({
   players,
   zaloCopyText,
 }: MatchdayRosterPosterProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const pressedOutsideRef = useRef(false);
+  const titleId = useId();
   const posterRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [copiedZalo, setCopiedZalo] = useState(false);
 
+  useDialogA11y({
+    isOpen,
+    onClose,
+    containerRef: dialogRef,
+    initialFocusRef: closeBtnRef,
+  });
+
   if (!isOpen) return null;
+
+  const isOutsideDialog = (
+    e: React.PointerEvent<HTMLDialogElement>,
+    dialog: HTMLDialogElement
+  ) => {
+    const r = dialog.getBoundingClientRect();
+    return (
+      e.clientX < r.left ||
+      e.clientX > r.right ||
+      e.clientY < r.top ||
+      e.clientY > r.bottom
+    );
+  };
 
   // Lọc danh sách điểm danh cho trận này
   const matchAtts = attendances.filter((a) => a.match_id === match.id);
@@ -99,14 +126,34 @@ export function MatchdayRosterPosterModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-3xl my-auto rounded-2xl bg-[#030c17] border border-[#d4af37]/40 shadow-2xl flex flex-col max-h-[95vh] overflow-hidden text-white">
+    <dialog
+      ref={dialogRef}
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="poster-dialog"
+      onPointerDown={(e) => {
+        if (dialogRef.current) {
+          pressedOutsideRef.current = isOutsideDialog(e, dialogRef.current);
+        }
+      }}
+      onPointerUp={(e) => {
+        if (
+          dialogRef.current &&
+          pressedOutsideRef.current &&
+          isOutsideDialog(e, dialogRef.current)
+        ) {
+          dialogRef.current.close();
+        }
+        pressedOutsideRef.current = false;
+      }}
+    >
+      <div className="relative w-full rounded-xl bg-navy-975 border border-gold-500/40 shadow-2xl flex flex-col max-h-[95dvh] overflow-hidden text-white">
         {/* Top Control Bar */}
-        <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-white/10 bg-[#061830]">
+        <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-white/10 bg-navy-900">
           <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-[#d4af37]" />
+            <Users className="h-5 w-5 text-gold-500" />
             <div>
-              <h3 className="font-extrabold text-sm sm:text-base text-white">
+              <h3 id={titleId} className="font-extrabold text-sm sm:text-base text-white">
                 Bảng Điểm Danh (Chuẩn Fanpage &amp; Zalo)
               </h3>
               <p className="text-[11px] text-sky-200/80">
@@ -163,18 +210,20 @@ export function MatchdayRosterPosterModal({
             </button>
 
             <button
+              ref={closeBtnRef}
               type="button"
-              onClick={onClose}
-              className="rounded-lg p-2 text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              onClick={() => (dialogRef.current?.open ? dialogRef.current.close() : onClose())}
+              aria-label="Đóng bảng điểm danh"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark"
               title="Đóng modal"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {/* Scrollable Preview Area */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-5 flex justify-center bg-[#071933]">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 flex justify-center bg-navy-850">
           {/* POSTER CHÍNH ĐƯỢC CHỤP ẢNH (BỐ CỤC CHUẨN GỌN GÀNG FANPAGE & ZALO) */}
           <div
             ref={posterRef}
@@ -347,19 +396,19 @@ export function MatchdayRosterPosterModal({
         </div>
 
         {/* Modal Bottom Bar */}
-        <div className="px-5 py-3 border-t border-white/10 bg-[#061830] flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="px-5 py-3 border-t border-white/10 bg-navy-900 flex flex-wrap items-center justify-between gap-3 text-xs">
           <span className="text-slate-400">
             💡 Mẹo: Ảnh được tối ưu tỷ lệ vàng để đăng Facebook Fanpage và gửi vào nhóm Zalo không bị crop hay nén mờ.
           </span>
           <button
             type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition cursor-pointer"
+            onClick={() => (dialogRef.current?.open ? dialogRef.current.close() : onClose())}
+            className="min-h-11 sm:min-h-9 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark"
           >
             Đóng cửa sổ
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

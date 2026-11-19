@@ -388,7 +388,7 @@ export default function ClubPostsTab({
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#0e2768] via-[#173b94] to-royal-600 p-6 text-white shadow-lg border border-gold-400/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-xl bg-gradient-to-r from-navy-800 via-navy-500 to-royal-600 p-6 text-white shadow-lg border border-gold-400/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full bg-gold-400/20 border border-gold-400/40 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-gold-400 mb-2">
             <Newspaper className="h-3.5 w-3.5" />
@@ -469,7 +469,7 @@ export default function ClubPostsTab({
           {filteredPosts.map((post) => (
           <div
             key={post.id}
-            className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition"
+            className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition"
           >
             <div>
               <div className="relative h-48 bg-slate-900 overflow-hidden">
@@ -480,7 +480,7 @@ export default function ClubPostsTab({
                   className="h-full w-full object-cover"
                 />
                 <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                  <span className="inline-flex items-center rounded-full bg-[#091b42]/85 backdrop-blur-md border border-gold-400/40 px-2.5 py-1 text-[11px] font-bold text-gold-400">
+                  <span className="inline-flex items-center rounded-full bg-navy-800/85 backdrop-blur-md border border-gold-400/40 px-2.5 py-1 text-[11px] font-bold text-gold-400">
                     {post.categoryLabel}
                   </span>
                   {post.eventYear && (
@@ -591,7 +591,7 @@ export default function ClubPostsTab({
           {/* Mẫu bài viết soạn nhanh (Quick Templates) */}
           <div className="rounded-xl bg-gradient-to-r from-amber-50 to-sky-50 p-3.5 border border-amber-200 space-y-2">
             <span className="text-xs font-black uppercase text-royal-600 flex items-center gap-1.5">
-              <Sparkles className="h-4 w-4 text-[#d99b00]" />
+              <Sparkles className="h-4 w-4 text-feedback-warning" />
               <span>Mẫu bài viết soạn nhanh (Bấm để điền sẵn bố cục chuẩn):</span>
             </span>
             <div className="flex flex-wrap items-center gap-2">
@@ -612,7 +612,7 @@ export default function ClubPostsTab({
           <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-extrabold uppercase tracking-wider text-royal-600 flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-[#d99b00]" />
+                <Sparkles className="h-4 w-4 text-feedback-warning" />
                 <span>Ảnh Đại Diện Bài Viết (Tự động chuyển sang WebP) *</span>
               </label>
               <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
@@ -633,7 +633,7 @@ export default function ClubPostsTab({
               ) : null}
 
               <div className="space-y-2 flex-1">
-                <label className="inline-flex items-center gap-2 rounded-xl bg-royal-600 hover:bg-[#163d99] px-4 py-2.5 text-xs font-bold text-gold-400 cursor-pointer transition shadow-sm">
+                <label className="inline-flex items-center gap-2 rounded-xl bg-royal-600 hover:bg-navy-500 px-4 py-2.5 text-xs font-bold text-gold-400 cursor-pointer transition shadow-sm">
                   <Upload className="h-4 w-4" />
                   <span>
                     {isConvertingFeatured

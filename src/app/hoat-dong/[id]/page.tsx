@@ -252,7 +252,7 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
         </div>
 
         {/* Tóm tắt mở đầu */}
-        <div className="text-lg sm:text-xl text-sky-100 font-light leading-relaxed mb-8 p-6 rounded-2xl bg-navy-800/60 border-l-4 border-gold-500">
+        <div className="text-lg sm:text-xl text-sky-100 font-light leading-relaxed mb-8 p-6 rounded-xl bg-navy-800/60 border-l-4 border-gold-500">
           {post.summary}
         </div>
 
@@ -350,7 +350,7 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
                   <div
                     key={i}
                     onClick={() => openLightbox(allImgs, i + 1)}
-                    className="group relative aspect-video rounded-2xl overflow-hidden border border-gold-500/30 shadow-lg cursor-pointer"
+                    className="group relative aspect-video rounded-xl overflow-hidden border border-gold-500/30 shadow-lg cursor-pointer"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -398,7 +398,7 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
                 <Link
                   key={rel.id}
                   href={`/hoat-dong/${rel.id}`}
-                  className="group flex flex-col rounded-2xl overflow-hidden bg-navy-800/80 border border-white/10 hover:border-gold-500 transition p-3 cursor-pointer"
+                  className="group flex flex-col rounded-xl overflow-hidden bg-navy-800/80 border border-white/10 hover:border-gold-500 transition p-3 cursor-pointer"
                 >
                   <div className="relative aspect-video rounded-xl overflow-hidden mb-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
