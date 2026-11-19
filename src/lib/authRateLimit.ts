@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
-import { getAuthSecret, isProductionAuthEnv, normalizeLoginString } from "./auth";
+import { getAuthSecret, isDeployedAuthEnv, normalizeLoginString } from "./auth";
 
 export const AUTH_ACCOUNT_MAX_ATTEMPTS = 5;
 export const AUTH_PAIR_MAX_ATTEMPTS = 5;
@@ -65,6 +65,17 @@ export function __getLocalAuthRateLimitBucketCountForTest(): number {
   return localDevBuckets.size;
 }
 
+export function __getCachedRedisDriverKeyForTest(): string {
+  return cachedRedisDriverKey;
+}
+
+export function getUpstashConfigCacheKey(url: string, token: string): string {
+  return crypto
+    .createHash("sha256")
+    .update(`${url}\n${token}`)
+    .digest("hex");
+}
+
 export function hasValidAuthUpstashConfig(
   env: Record<string, string | undefined> = process.env
 ): boolean {
@@ -75,7 +86,7 @@ export function hasValidAuthUpstashConfig(
   if (!url || !token) return false;
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "https:";
+    return parsed.protocol === "https:" && Boolean(parsed.hostname);
   } catch {
     return false;
   }
@@ -89,7 +100,7 @@ function getUpstashAuthDriver(
 
   const url = env.UPSTASH_REDIS_REST_URL!.trim();
   const token = env.UPSTASH_REDIS_REST_TOKEN!.trim();
-  const cacheKey = `${url}:${token.length}`;
+  const cacheKey = getUpstashConfigCacheKey(url, token);
   if (cachedRedisDriver && cachedRedisDriverKey === cacheKey) {
     return cachedRedisDriver;
   }
@@ -228,8 +239,8 @@ async function runWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promis
 
 /**
  * Evaluates distributed auth rate limiting across Account, IP, and Account+IP pair.
- * Fails closed (503) in Production if Upstash Redis is missing, unreachable, or times out.
- * Never falls back to per-instance memory in Production.
+ * Fails closed (503) in Production and Vercel Preview if Upstash Redis is missing, unreachable, or times out.
+ * Never falls back to per-instance memory in deployed environments.
  */
 export async function evaluateAuthRateLimit(params: {
   username: string;
@@ -239,7 +250,7 @@ export async function evaluateAuthRateLimit(params: {
   now?: number;
 }): Promise<AuthRateLimitEvaluation> {
   const env = params.env ?? process.env;
-  const isProd = isProductionAuthEnv(env);
+  const isDeployed = isDeployedAuthEnv(env);
   const driver = getUpstashAuthDriver(env);
   const { acctKey, ipKey, pairKey } = buildHashedRateLimitKeys(
     params.username,
@@ -248,8 +259,8 @@ export async function evaluateAuthRateLimit(params: {
   );
 
   if (!driver) {
-    if (isProd) {
-      console.error("[AUTH SECURITY] Missing Upstash Redis configuration for production rate limiting.");
+    if (isDeployed) {
+      console.error("[AUTH SECURITY] Missing Upstash Redis configuration for deployed rate limiting.");
       return {
         allowed: false,
         status: 503,
@@ -360,7 +371,7 @@ export async function clearAuthRateLimitOnSuccess(params: {
 
   const driver = getUpstashAuthDriver(env);
   if (!driver) {
-    if (!isProductionAuthEnv(env)) {
+    if (!isDeployedAuthEnv(env)) {
       localDevBuckets.delete(`acct:${acctKey}`);
       localDevBuckets.delete(`pair:${pairKey}`);
     }

@@ -37,30 +37,55 @@ export function isProductionAuthEnv(
   return env.NODE_ENV?.trim().toLowerCase() === "production";
 }
 
+export function isPreviewAuthEnv(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  return env.VERCEL_ENV?.trim().toLowerCase() === "preview";
+}
+
+export function isDeployedAuthEnv(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  return isProductionAuthEnv(env) || isPreviewAuthEnv(env);
+}
+
 /**
  * Lấy khóa bí mật ký session token.
- * Thống nhất APP_SECRET / AUTH_SECRET / NEXTAUTH_SECRET.
- * Production bắt buộc cấu hình tối thiểu 32 ký tự và không chấp nhận fallback/placeholder (fail-closed).
+ * Thống nhất APP_SECRET / AUTH_SECRET / NEXTAUTH_SECRET / SESSION_SECRET (và PREVIEW_AUTH_SECRET trên Preview).
+ * Production và Vercel Preview bắt buộc cấu hình tường minh tối thiểu 32 ký tự và không chấp nhận fallback/placeholder (fail-closed).
+ * Local Development và Vitest được phép dùng DEV_TEST_FALLBACK_SECRET khi chưa cấu hình secret riêng.
  */
 export function getAuthSecret(
   env: Record<string, string | undefined> = process.env
 ): string {
-  const rawSecret =
-    env.APP_SECRET ||
-    env.AUTH_SECRET ||
-    env.NEXTAUTH_SECRET ||
-    "";
-  const secret = rawSecret.trim();
   const isProd = isProductionAuthEnv(env);
+  const isPreview = isPreviewAuthEnv(env);
+  const isDeployed = isProd || isPreview;
 
-  if (isProd) {
+  const rawSecret = isPreview
+    ? env.PREVIEW_AUTH_SECRET ||
+      env.APP_SECRET ||
+      env.AUTH_SECRET ||
+      env.NEXTAUTH_SECRET ||
+      env.SESSION_SECRET ||
+      ""
+    : env.APP_SECRET ||
+      env.AUTH_SECRET ||
+      env.NEXTAUTH_SECRET ||
+      env.SESSION_SECRET ||
+      "";
+  const secret = rawSecret.trim();
+
+  if (isDeployed) {
     if (
       !secret ||
       secret.length < 32 ||
       FORBIDDEN_PRODUCTION_SECRETS.has(secret)
     ) {
       throw new AuthSecretError(
-        "FATAL: APP_SECRET / AUTH_SECRET must be set, non-default, and at least 32 characters in production."
+        isPreview
+          ? "FATAL: Preview auth secret (PREVIEW_AUTH_SECRET / APP_SECRET / AUTH_SECRET / SESSION_SECRET) must be set, non-default, and at least 32 characters in Vercel Preview."
+          : "FATAL: APP_SECRET / AUTH_SECRET must be set, non-default, and at least 32 characters in production."
       );
     }
     return secret;
@@ -75,7 +100,7 @@ export function getAuthSecret(
     return secret;
   }
 
-  // Chỉ dùng khóa dev/test nội bộ khi không chạy ở Production và chưa cấu hình secret riêng
+  // Chỉ dùng khóa dev/test nội bộ khi không chạy ở Production/Preview và chưa cấu hình secret riêng
   return DEV_TEST_FALLBACK_SECRET;
 }
 

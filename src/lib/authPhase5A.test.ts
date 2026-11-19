@@ -11,6 +11,8 @@ import {
   createSessionToken,
   getAuthSecret,
   hashPassword,
+  isDeployedAuthEnv,
+  isPreviewAuthEnv,
   isProductionAuthEnv,
   requireManagerSession,
   requirePlayerSession,
@@ -22,6 +24,7 @@ import {
   verifySessionToken,
 } from "./auth";
 import {
+  __getCachedRedisDriverKeyForTest,
   __getLocalAuthRateLimitBucketCountForTest,
   __resetAuthRateLimitForTest,
   __setAuthRateLimitDriverForTest,
@@ -29,6 +32,7 @@ import {
   clearAuthRateLimitOnSuccess,
   evaluateAuthRateLimit,
   extractTrustedClientIp,
+  getUpstashConfigCacheKey,
   hashAuthRateLimitIdentifier,
   hasValidAuthUpstashConfig,
 } from "./authRateLimit";
@@ -261,17 +265,79 @@ describe("Phase 5.1 – A. Session & Auth Secret Hardening", () => {
     expect(postJson.code).toBe("AUTH_SECRET_INVALID");
   });
 
-  it("distinguishes Production vs Preview, Development, and Vitest in isProductionAuthEnv", () => {
+  it("distinguishes Production vs Preview, Development, and Vitest and fails closed on Preview without explicit valid secret", async () => {
     expect(isProductionAuthEnv({ NODE_ENV: "production", VERCEL_ENV: "production" })).toBe(true);
     expect(isProductionAuthEnv({ NODE_ENV: "production", VERCEL_ENV: "preview" })).toBe(false);
+    expect(isPreviewAuthEnv({ NODE_ENV: "production", VERCEL_ENV: "preview" })).toBe(true);
+    expect(isPreviewAuthEnv({ NODE_ENV: "production", VERCEL_ENV: "production" })).toBe(false);
+    expect(isDeployedAuthEnv({ NODE_ENV: "production", VERCEL_ENV: "preview" })).toBe(true);
+    expect(isDeployedAuthEnv({ NODE_ENV: "production", VERCEL_ENV: "production" })).toBe(true);
     expect(isProductionAuthEnv({ NODE_ENV: "production" })).toBe(true);
     expect(isProductionAuthEnv({ NODE_ENV: "development" })).toBe(false);
+    expect(isDeployedAuthEnv({ NODE_ENV: "development" })).toBe(false);
     expect(isProductionAuthEnv({ NODE_ENV: "test", VITEST: "true" })).toBe(false);
+    expect(isDeployedAuthEnv({ NODE_ENV: "test", VITEST: "true" })).toBe(false);
 
-    // Preview (NODE_ENV=production + VERCEL_ENV=preview) must NOT fail-closed as Production
+    // Preview (NODE_ENV=production + VERCEL_ENV=preview) MUST fail-closed when secret is missing, <32 chars, or dev fallback
     expect(() =>
       getAuthSecret({ NODE_ENV: "production", VERCEL_ENV: "preview" })
-    ).not.toThrow();
+    ).toThrow(AuthSecretError);
+    expect(() =>
+      getAuthSecret({
+        NODE_ENV: "production",
+        VERCEL_ENV: "preview",
+        AUTH_SECRET: "short-preview-secret",
+      })
+    ).toThrow(AuthSecretError);
+    expect(() =>
+      getAuthSecret({
+        NODE_ENV: "production",
+        VERCEL_ENV: "preview",
+        AUTH_SECRET: "fc-hdh-go-noi-sapphire-secret-key-2026-secure-32chars",
+      })
+    ).toThrow(AuthSecretError);
+
+    // Preview succeeds with an explicit >=32 char dedicated secret (distinct from dev fallback)
+    const previewSecret = "preview-dedicated-auth-secret-at-least-32-chars!";
+    expect(
+      getAuthSecret({
+        NODE_ENV: "production",
+        VERCEL_ENV: "preview",
+        AUTH_SECRET: previewSecret,
+      })
+    ).toBe(previewSecret);
+    expect(
+      getAuthSecret({
+        NODE_ENV: "production",
+        VERCEL_ENV: "preview",
+        PREVIEW_AUTH_SECRET: previewSecret,
+      })
+    ).toBe(previewSecret);
+
+    // Local Development & Vitest still allow dev fallback when no secret is configured
+    expect(() => getAuthSecret({ NODE_ENV: "development" })).not.toThrow();
+    expect(() => getAuthSecret({ NODE_ENV: "test", VITEST: "true" })).not.toThrow();
+
+    // GET /api/auth fails closed (503) on Vercel Preview when secret is missing
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    delete process.env.AUTH_SECRET;
+    delete process.env.APP_SECRET;
+    delete process.env.NEXTAUTH_SECRET;
+    delete process.env.SESSION_SECRET;
+    delete process.env.PREVIEW_AUTH_SECRET;
+
+    expect(verifySessionToken("abc.def")).toBeNull();
+    const previewGetRes = await getAuthRoute(
+      new NextRequest("https://preview-fchdhgonoi.vercel.app/api/auth")
+    );
+    expect(previewGetRes.status).toBe(503);
+    const previewGetJson = (await previewGetRes.json()) as {
+      authenticated: boolean;
+      code?: string;
+    };
+    expect(previewGetJson.authenticated).toBe(false);
+    expect(previewGetJson.code).toBe("AUTH_SECRET_INVALID");
   });
 });
 
@@ -421,7 +487,7 @@ describe("Phase 5.1 – C & E. Distributed Rate Limiting, Fail-Closed Redis, CSR
     expect(hasValidAuthUpstashConfig({})).toBe(false);
   });
 
-  it("fails closed in Production when Redis env is missing (never falls back to in-memory Map) and hashes all Redis keys", async () => {
+  it("fails closed in Production and Vercel Preview when Redis env is missing (never falls back to in-memory Map) and hashes all Redis keys", async () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.AUTH_SECRET = VALID_TEST_SECRET;
     delete process.env.UPSTASH_REDIS_REST_URL;
@@ -437,6 +503,59 @@ describe("Phase 5.1 – C & E. Distributed Rate Limiting, Fail-Closed Redis, CSR
       expect(missingConfigRes.errorCode).toBe("AUTH_RATE_LIMIT_CONFIG_MISSING");
     }
     expect(__getLocalAuthRateLimitBucketCountForTest()).toBe(0);
+
+    // Vercel Preview without Upstash Redis also fails closed (503) with zero in-memory fallback
+    const previewMissingRedisRes = await evaluateAuthRateLimit({
+      username: "tiengnguyen",
+      clientIp: "203.0.113.5",
+      env: {
+        NODE_ENV: "production",
+        VERCEL_ENV: "preview",
+        AUTH_SECRET: "preview-dedicated-auth-secret-at-least-32-chars!",
+      },
+    });
+    expect(previewMissingRedisRes.allowed).toBe(false);
+    if (!previewMissingRedisRes.allowed) {
+      expect(previewMissingRedisRes.status).toBe(503);
+      expect(previewMissingRedisRes.errorCode).toBe("AUTH_RATE_LIMIT_CONFIG_MISSING");
+    }
+    expect(__getLocalAuthRateLimitBucketCountForTest()).toBe(0);
+
+    // Cache key detects same-length token rotation and URL rotation
+    const key1 = getUpstashConfigCacheKey("https://redis-a.upstash.io", "token-1111-aaaa");
+    const key2 = getUpstashConfigCacheKey("https://redis-a.upstash.io", "token-2222-bbbb");
+    const key3 = getUpstashConfigCacheKey("https://redis-b.upstash.io", "token-1111-aaaa");
+    expect(key1).not.toBe(key2);
+    expect(key1).not.toBe(key3);
+    expect(key1).not.toContain("token-1111-aaaa");
+
+    await evaluateAuthRateLimit({
+      username: "tiengnguyen",
+      clientIp: "203.0.113.5",
+      timeoutMs: 5,
+      env: {
+        NODE_ENV: "production",
+        VERCEL_ENV: "preview",
+        AUTH_SECRET: "preview-dedicated-auth-secret-at-least-32-chars!",
+        UPSTASH_REDIS_REST_URL: "https://redis-a.upstash.io",
+        UPSTASH_REDIS_REST_TOKEN: "token-1111-aaaa",
+      },
+    });
+    expect(__getCachedRedisDriverKeyForTest()).toBe(key1);
+
+    await evaluateAuthRateLimit({
+      username: "tiengnguyen",
+      clientIp: "203.0.113.5",
+      timeoutMs: 5,
+      env: {
+        NODE_ENV: "production",
+        VERCEL_ENV: "preview",
+        AUTH_SECRET: "preview-dedicated-auth-secret-at-least-32-chars!",
+        UPSTASH_REDIS_REST_URL: "https://redis-a.upstash.io",
+        UPSTASH_REDIS_REST_TOKEN: "token-2222-bbbb",
+      },
+    });
+    expect(__getCachedRedisDriverKeyForTest()).toBe(key2);
 
     // Key hashing never leaks raw username or IP
     const seenKeys: Array<{ scope: string; key: string }> = [];
