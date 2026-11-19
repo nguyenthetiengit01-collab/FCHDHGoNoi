@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -84,11 +85,13 @@ export function SponsorsFooter({ data, fanpageUrl, totalPlayerCount, onOpenLogin
                           >
                             {sp.logo_url && (
                               <div className="relative h-20 w-20 shrink-0 rounded-xl bg-white p-2 border border-gold-500/60 shadow-md overflow-hidden">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                                <Image
                                   src={sp.logo_url}
                                   alt={sp.name}
-                                  className="h-full w-full object-contain"
+                                  fill
+                                  sizes="80px"
+                                  unoptimized={!sp.logo_url.startsWith("/")}
+                                  className="object-contain p-1.5"
                                 />
                               </div>
                             )}
@@ -135,11 +138,13 @@ export function SponsorsFooter({ data, fanpageUrl, totalPlayerCount, onOpenLogin
                           >
                             {sp.logo_url ? (
                               <div className="relative h-12 w-12 shrink-0 rounded-lg bg-white p-1 border border-slate-200 overflow-hidden shadow-xs">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                                <Image
                                   src={sp.logo_url}
                                   alt={sp.name}
-                                  className="h-full w-full object-contain"
+                                  fill
+                                  sizes="48px"
+                                  unoptimized={!sp.logo_url.startsWith("/")}
+                                  className="object-contain p-1"
                                 />
                               </div>
                             ) : (
@@ -179,12 +184,14 @@ export function SponsorsFooter({ data, fanpageUrl, totalPlayerCount, onOpenLogin
                             className="rounded-lg bg-white/5 border border-white/10 px-3.5 py-2 flex items-center gap-2.5 transition hover:bg-white/10"
                           >
                             {sp.logo_url && (
-                              <div className="h-6 w-6 rounded bg-white p-0.5 shrink-0">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                              <div className="relative h-6 w-6 rounded bg-white p-0.5 shrink-0 overflow-hidden">
+                                <Image
                                   src={sp.logo_url}
                                   alt=""
-                                  className="h-full w-full object-contain"
+                                  fill
+                                  sizes="24px"
+                                  unoptimized={!sp.logo_url.startsWith("/")}
+                                  className="object-contain"
                                 />
                               </div>
                             )}
@@ -250,12 +257,14 @@ export function SponsorsFooter({ data, fanpageUrl, totalPlayerCount, onOpenLogin
                     className="flex items-center gap-2 rounded-lg bg-slate-950/10 px-2.5 py-1.5"
                   >
                     {sp.logo_url && (
-                      <div className="h-5 w-5 rounded bg-white p-0.5 shrink-0 shadow-2xs">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                      <div className="relative h-5 w-5 rounded bg-white p-0.5 shrink-0 shadow-2xs overflow-hidden">
+                        <Image
                           src={sp.logo_url}
                           alt=""
-                          className="h-full w-full object-contain"
+                          fill
+                          sizes="20px"
+                          unoptimized={!sp.logo_url.startsWith("/")}
+                          className="object-contain"
                         />
                       </div>
                     )}
@@ -270,10 +279,11 @@ export function SponsorsFooter({ data, fanpageUrl, totalPlayerCount, onOpenLogin
 
           <div className="mt-8 pt-6 border-t border-slate-950/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm font-bold">
             <div className="flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={OFFICIAL_LOGO_URL}
                 alt="Logo FC HĐH Gò Nổi"
+                width={40}
+                height={40}
                 className="h-10 w-10 rounded-full object-contain bg-white p-0.5 ring-2 ring-slate-950"
               />
               <span>

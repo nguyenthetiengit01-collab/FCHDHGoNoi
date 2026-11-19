@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { ArrowRight, Search } from "lucide-react";
 import type { FullAppData, Player } from "@/types/app";
 import {
@@ -67,12 +68,13 @@ function CompactPlayerRow({
 
         <div className="relative h-11 w-11 rounded-md overflow-hidden bg-navy-800 border border-white/20 shrink-0">
           {player.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={player.avatar_url}
               alt={player.full_name}
-              loading="lazy"
-              className="h-full w-full object-cover object-top filter brightness-105 contrast-105"
+              fill
+              sizes="44px"
+              unoptimized={!player.avatar_url.startsWith("/")}
+              className="object-cover object-top filter brightness-105 contrast-105"
             />
           ) : (
             <div className="h-full w-full flex items-center justify-center text-[10px] font-bold text-sky-200">

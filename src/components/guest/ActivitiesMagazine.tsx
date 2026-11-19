@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, BookOpen, Calendar, Camera, Clock } from "lucide-react";
 import {
@@ -140,11 +141,13 @@ export function ActivitiesMagazine({
                     >
                       {/* Ảnh đại diện tỷ lệ 16:9 với overlay thông số */}
                       <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-900">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                           src={filteredActivityPosts[0].featuredImage}
                           alt={filteredActivityPosts[0].title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
+                          fill
+                          sizes="(max-width: 1024px) 100vw, 58vw"
+                          unoptimized={!filteredActivityPosts[0].featuredImage.startsWith("/")}
+                          className="object-cover group-hover:scale-105 transition duration-700"
                         />
                         <div
                           aria-hidden="true"
@@ -259,11 +262,13 @@ export function ActivitiesMagazine({
                         className="group py-3.5 flex gap-3.5 items-center cursor-pointer"
                       >
                         <div className="relative h-20 w-24 sm:h-22 sm:w-28 rounded-lg overflow-hidden shrink-0 bg-navy-800 border border-white/15">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
+                          <Image
                             src={post.featuredImage}
                             alt={post.title}
-                            className="h-full w-full object-cover group-hover:scale-105 transition duration-300"
+                            fill
+                            sizes="112px"
+                            unoptimized={!post.featuredImage.startsWith("/")}
+                            className="object-cover group-hover:scale-105 transition duration-300"
                           />
                           {post.eventYear && (
                             <span className="absolute bottom-1 right-1 text-[9px] font-black px-1.5 py-0.2 rounded bg-black/85 text-gold-300">
@@ -378,11 +383,13 @@ export function ActivitiesMagazine({
                 onClick={() => handleOpenLightbox(mosaicLightboxImages, i)}
                 className={`relative overflow-hidden group ${img.span} cursor-pointer`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={img.src}
                   alt={img.title}
-                  className="absolute inset-0 h-full w-full object-cover group-hover:scale-110 transition duration-1000"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  unoptimized={!img.src.startsWith("/")}
+                  className="object-cover group-hover:scale-110 transition duration-1000"
                 />
                 <figcaption className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-navy-800/90 via-transparent to-transparent p-5 opacity-90 group-hover:opacity-100 transition">
                   <span className="text-gold-500 text-[11px] font-bold uppercase tracking-[0.25em]">

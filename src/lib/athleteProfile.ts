@@ -16,39 +16,39 @@ export function getPlayerPositionBadge(
     return {
       code: "GK",
       label: "THỦ MÔN",
-      badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
-      tone: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+      badgeClass: "bg-emerald-950/60 text-emerald-200 border-emerald-400/50",
+      tone: "bg-emerald-950/60 text-emerald-200 border-emerald-400/50",
     };
   }
   if (pos.includes("Hậu vệ") || pos.includes("Trung vệ") || upper === "DF") {
     return {
       code: "DF",
       label: "HẬU VỆ",
-      badgeClass: "bg-blue-500/20 text-blue-300 border-blue-500/40",
-      tone: "bg-blue-500/20 text-blue-300 border-blue-500/40",
+      badgeClass: "bg-blue-950/60 text-blue-200 border-blue-400/50",
+      tone: "bg-blue-950/60 text-blue-200 border-blue-400/50",
     };
   }
   if (pos.includes("Tiền vệ") || upper === "MF") {
     return {
       code: "MF",
       label: "TIỀN VỆ",
-      badgeClass: "bg-amber-500/20 text-amber-300 border-amber-500/40",
-      tone: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+      badgeClass: "bg-amber-950/60 text-amber-200 border-amber-400/50",
+      tone: "bg-amber-950/60 text-amber-200 border-amber-400/50",
     };
   }
   if (pos.includes("Tiền đạo") || upper === "FW") {
     return {
       code: "FW",
       label: "TIỀN ĐẠO",
-      badgeClass: "bg-rose-500/20 text-rose-300 border-rose-500/40",
-      tone: "bg-rose-500/20 text-rose-300 border-rose-500/40",
+      badgeClass: "bg-rose-950/60 text-rose-200 border-rose-400/50",
+      tone: "bg-rose-950/60 text-rose-200 border-rose-400/50",
     };
   }
   return {
     code: "ĐN",
     label: "ĐA NĂNG",
-    badgeClass: "bg-purple-500/20 text-purple-300 border-purple-500/40",
-    tone: "bg-purple-500/20 text-purple-300 border-purple-500/40",
+    badgeClass: "bg-purple-950/60 text-purple-200 border-purple-400/50",
+    tone: "bg-purple-950/60 text-purple-200 border-purple-400/50",
   };
 }
 

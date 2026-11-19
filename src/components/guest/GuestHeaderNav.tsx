@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { ArrowUpRight, LogIn, Menu, X } from "lucide-react";
 import { OFFICIAL_LOGO_URL } from "@/types/app";
 import { WRAP, type GuestNavLink } from "./shared";
@@ -47,17 +48,19 @@ export function GuestHeaderNav({
             className="flex items-center gap-3 cursor-pointer group"
             aria-label="Về đầu trang"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={OFFICIAL_LOGO_URL}
               alt="Logo FC HĐH Gò Nổi"
+              width={44}
+              height={44}
+              priority
               className="h-11 w-11 rounded-full object-contain bg-white p-0.5 ring-2 ring-gold-500 group-hover:scale-105 transition shadow-md"
             />
             <div className="text-left hidden sm:block">
-              <span className="font-display font-extrabold uppercase text-xl sm:text-2xl tracking-wide leading-none text-white block">
+              <span className="font-display font-extrabold uppercase text-xl sm:text-2xl tracking-wide leading-none text-white block whitespace-nowrap">
                 FC HĐH Gò Nổi
               </span>
-              <span className="text-[10px] uppercase tracking-widest text-gold-500 font-bold block mt-0.5">
+              <span className="text-[10px] uppercase tracking-widest text-gold-500 font-bold block mt-0.5 whitespace-nowrap">
                 Xã Gò Nổi • TP. Đà Nẵng
               </span>
             </div>
@@ -65,14 +68,14 @@ export function GuestHeaderNav({
 
           <nav
             aria-label="Điều hướng trang khách"
-            className="hidden lg:flex items-center gap-8 text-[13px] uppercase font-bold tracking-[0.18em] text-sky-100"
+            className="hidden lg:flex items-center gap-5 xl:gap-8 text-[13px] uppercase font-bold tracking-[0.14em] xl:tracking-[0.18em] text-sky-100"
           >
             {navLinks.map((l) => (
               <button
                 key={l.id}
                 type="button"
                 onClick={() => go(l.id)}
-                className="hover:text-gold-500 cursor-pointer inline-flex items-center gap-1.5 transition"
+                className="hover:text-gold-500 cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition"
               >
                 <span>{l.label}</span>
               </button>
@@ -81,17 +84,17 @@ export function GuestHeaderNav({
               href={fanpageUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-gold-500 inline-flex items-center gap-1 text-sky-200 transition"
+              className="hover:text-gold-500 inline-flex items-center gap-1 text-sky-200 whitespace-nowrap shrink-0 transition"
             >
               Fanpage <ArrowUpRight className="h-3.5 w-3.5" />
             </a>
           </nav>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               type="button"
               onClick={onOpenLogin}
-              className="inline-flex min-h-11 items-center gap-2 bg-gradient-to-r from-gold-500 to-gold-450 hover:from-gold-450 hover:to-gold-300 text-slate-950 font-extrabold px-3.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition"
+              className="inline-flex min-h-11 items-center gap-2 bg-gradient-to-r from-gold-500 to-gold-450 hover:from-gold-450 hover:to-gold-300 text-slate-950 font-extrabold px-3.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition whitespace-nowrap shrink-0"
             >
               <LogIn className="h-4 w-4" />
               <span>Đăng nhập</span>

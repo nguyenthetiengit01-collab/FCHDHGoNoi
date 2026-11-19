@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -113,11 +114,13 @@ export function MatchdaySection({
                           : "opacity-0 pointer-events-none z-0"
                         }`}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={sp.banner_url}
+                      <Image
+                        src={sp.banner_url!}
                         alt={`Banner ${sp.name}`}
-                        className="h-full w-full object-cover object-center"
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 1152px"
+                        unoptimized={!sp.banner_url!.startsWith("/")}
+                        className="object-cover object-center"
                       />
                       {/* Lớp phủ chuyển sắc bảo đảm chữ luôn nổi bật */}
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-5 sm:p-8">
@@ -129,12 +132,14 @@ export function MatchdaySection({
                               {tierMeta.label}
                             </span>
                             {sp.logo_url && (
-                              <div className="h-6 w-6 rounded bg-white p-0.5 shadow-xs">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
+                              <div className="relative h-6 w-6 rounded bg-white p-0.5 shadow-xs overflow-hidden">
+                                <Image
                                   src={sp.logo_url}
                                   alt=""
-                                  className="h-full w-full object-contain"
+                                  fill
+                                  sizes="24px"
+                                  unoptimized={!sp.logo_url.startsWith("/")}
+                                  className="object-contain"
                                 />
                               </div>
                             )}
