@@ -484,7 +484,7 @@ describe("DEF-363C4-02 & Ledger Zero Formatting Static Checks", () => {
 
   it("ensures FinanceTab formats zero filtered expenses without negative-zero (-0)", () => {
     const src = fs.readFileSync(
-      path.join(process.cwd(), "src/components/FinanceTab.tsx"),
+      path.join(process.cwd(), "src/components/finance/ExpenseLedgerSection.tsx"),
       "utf8"
     );
     expect(src).toContain("if (totalFiltered === 0) return formatVND(0);");

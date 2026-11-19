@@ -63,12 +63,35 @@ describe("Phase 3.5 – Design Token Consolidation & Hardcoded Color Cleanup", (
       "src/components/ClubPostsTab.tsx",
       "src/components/LoginModal.tsx",
       "src/components/PlayerProfileClient.tsx",
+      "src/components/PublicGuestPortal.tsx",
+      "src/components/BroadcastAthleteCard.tsx",
+      "src/components/guest/shared.tsx",
+      "src/components/guest/MatchdaySection.tsx",
+      "src/components/guest/RosterShowcase.tsx",
+      "src/components/guest/ActivitiesMagazine.tsx",
+      "src/components/guest/SponsorsFooter.tsx",
+      "src/components/finance/ExpenseLedgerSection.tsx",
+      "src/components/finance/OtherIncomeSection.tsx",
+      "src/components/finance/FinanceTransactionModal.tsx",
+      "src/components/shared/PlayerProfileEditor.tsx",
+      "src/components/shared/PlayerGalleryManager.tsx",
     ];
 
     for (const file of cleanFiles) {
       const content = readSrc(file);
       const matches = content.match(/#[0-9a-fA-F]{3,8}\b/g) || [];
       expect(matches, `${file} should have zero hardcoded HEX`).toEqual([]);
+    }
+
+    const documentedHexExceptions: Array<{ file: string; allowed: string[] }> = [
+      { file: "src/components/guest/GuestHeaderNav.tsx", allowed: ["#1877F2"] },
+      { file: "src/components/guest/HeroBanner.tsx", allowed: ["#d4af37"] },
+    ];
+    for (const { file, allowed } of documentedHexExceptions) {
+      const content = readSrc(file);
+      const matches = content.match(/#[0-9a-fA-F]{3,8}\b/g) || [];
+      const unexpected = matches.filter((m) => !allowed.includes(m));
+      expect(unexpected, `${file} should only contain documented HEX exceptions`).toEqual([]);
     }
   });
 

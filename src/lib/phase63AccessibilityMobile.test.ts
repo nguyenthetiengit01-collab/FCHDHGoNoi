@@ -66,7 +66,10 @@ function loadTsxModule<T = Record<string, unknown>>(relPath: string): T {
 
 describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
   describe("1. PublicGuestPortal Mobile Drawer Accessibility", () => {
-    const portalSrc = readSrc("src/components/PublicGuestPortal.tsx");
+    const portalSrc =
+      readSrc("src/components/PublicGuestPortal.tsx") +
+      "\n" +
+      readSrc("src/components/guest/GuestHeaderNav.tsx");
 
     it("wires useDialogA11y with mobileNavRef, mobileNavCloseRef, role=dialog, aria-modal, and aria-labelledby", () => {
       expect(portalSrc).toContain("useDialogA11y({");
@@ -252,78 +255,82 @@ describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
     });
 
     it("ScheduleTab & PlayerPersonalTab gallery actions stay >=44px below 768px, visible on touch, with aria-labels", () => {
+      const gallerySrc = readSrc("src/components/shared/PlayerGalleryManager.tsx");
+      expect(gallerySrc).not.toContain("h-7 w-7");
+      expect(gallerySrc).toContain(
+        "opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+      );
+      expect(gallerySrc).toContain("min-h-11 min-w-11 md:min-h-8 md:min-w-8");
+      expect(gallerySrc).toContain("aria-label={`Đặt ảnh #${idx + 1} làm ảnh Profile rộng`}");
+      expect(gallerySrc).toContain("aria-label={`Cắt ảnh #${idx + 1} làm ảnh Profile rộng`}");
+      expect(gallerySrc).toContain("aria-label={`Xoá ảnh #${idx + 1} khỏi Album`}");
+
       for (const file of [
         "src/components/ScheduleTab.tsx",
         "src/components/PlayerPersonalTab.tsx",
       ]) {
         const src = readSrc(file);
-        expect(src).not.toContain("h-7 w-7");
-        expect(src).toContain(
-          "opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
-        );
-        expect(src).toContain("min-h-11 min-w-11 md:min-h-8 md:min-w-8");
-        expect(src).toContain("aria-label={`Đặt ảnh #${idx + 1} làm ảnh Profile rộng`}");
-        expect(src).toContain("aria-label={`Cắt ảnh #${idx + 1} làm ảnh Profile rộng`}");
-        expect(src).toContain("aria-label={`Xoá ảnh #${idx + 1} khỏi Album`}");
+        expect(src).toContain("<PlayerGalleryManager");
       }
     });
 
     it("PlayerPersonalTab & ScheduleTab activity gallery crop buttons meet >=44px below 768px, stay visible on touch/focus, and preserve handlers", () => {
-      const personalSrc = readSrc("src/components/PlayerPersonalTab.tsx");
-      const personalCropMatch = personalSrc.match(
-        /<button[\s\S]*?setCropperMode\("profile"\);\s*setCropperSource\(url\);\s*setCropperOpen\(true\);[\s\S]*?aria-label=\{`Canh chỉnh & cắt ảnh hoạt động #\$\{idx \+ 1\}`\}[\s\S]*?className="([^"]+)"/
+      const profileEditorSrc = readSrc("src/components/shared/PlayerProfileEditor.tsx");
+      const sharedCropMatch = profileEditorSrc.match(
+        /<button[\s\S]*?onClick=\{\(\) => onCropActivityForProfile\(url\)\}[\s\S]*?aria-label=\{`Canh chỉnh & cắt ảnh hoạt động #\$\{idx \+ 1\}`\}[\s\S]*?className="([^"]+)"/
       );
-      expect(personalCropMatch).toBeTruthy();
-      const personalCropClass = personalCropMatch![1];
-      expect(personalCropClass).toContain("min-h-11 min-w-11 md:min-h-7 md:min-w-7");
-      expect(personalCropClass).toContain(
+      expect(sharedCropMatch).toBeTruthy();
+      const sharedCropClass = sharedCropMatch![1];
+      expect(sharedCropClass).toContain("min-h-11 min-w-11 md:min-h-7 md:min-w-7");
+      expect(sharedCropClass).toContain(
         "opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
       );
-      expect(personalCropClass).toContain("focus-visible:outline-2 focus-visible:outline-white");
-      expect(personalCropClass).not.toMatch(/(?<!md:)\bopacity-0\b/);
-      expect(personalCropClass).not.toMatch(/\bsm:(?:min-h|min-w|opacity)-/);
+      expect(sharedCropClass).toContain("focus-visible:outline-2 focus-visible:outline-white");
+      expect(sharedCropClass).not.toMatch(/(?<!md:)\bopacity-0\b/);
+      expect(sharedCropClass).not.toMatch(/\bsm:(?:min-h|min-w|opacity)-/);
+
+      const personalSrc = readSrc("src/components/PlayerPersonalTab.tsx");
+      expect(personalSrc).toMatch(
+        /onCropActivityForProfile=\{\(url\) => \{\s*setCropperMode\("profile"\);\s*setCropperSource\(url\);\s*setCropperOpen\(true\);\s*\}\}/
+      );
 
       const scheduleSrc = readSrc("src/components/ScheduleTab.tsx");
-      const scheduleCropMatch = scheduleSrc.match(
-        /<button[\s\S]*?setProfileCropperMode\("profile"\);\s*setProfileCropperSource\(url\);\s*setProfileCropperOpen\(true\);[\s\S]*?aria-label=\{`Canh chỉnh & cắt ảnh hoạt động #\$\{idx \+ 1\}`\}[\s\S]*?className="([^"]+)"/
+      expect(scheduleSrc).toMatch(
+        /onCropActivityForProfile=\{\(url\) => \{\s*setProfileCropperMode\("profile"\);\s*setProfileCropperSource\(url\);\s*setProfileCropperOpen\(true\);\s*\}\}/
       );
-      expect(scheduleCropMatch).toBeTruthy();
-      const scheduleCropClass = scheduleCropMatch![1];
-      expect(scheduleCropClass).toContain("min-h-11 min-w-11 md:min-h-7 md:min-w-7");
-      expect(scheduleCropClass).toContain(
-        "opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
-      );
-      expect(scheduleCropClass).toContain("focus-visible:outline-2 focus-visible:outline-white");
-      expect(scheduleCropClass).not.toMatch(/(?<!md:)\bopacity-0\b/);
-      expect(scheduleCropClass).not.toMatch(/\bsm:(?:min-h|min-w|opacity)-/);
 
-      for (const cls of [personalCropClass, scheduleCropClass]) {
-        for (const vw of [320, 375, 639, 640, 767]) {
-          expect(resolveMinPxAtViewport(cls, "h", vw)).toBe(44);
-          expect(resolveMinPxAtViewport(cls, "w", vw)).toBe(44);
-        }
-        expect(resolveMinPxAtViewport(cls, "h", 768)).toBe(28);
-        expect(resolveMinPxAtViewport(cls, "w", 768)).toBe(28);
+      for (const vw of [320, 375, 639, 640, 767]) {
+        expect(resolveMinPxAtViewport(sharedCropClass, "h", vw)).toBe(44);
+        expect(resolveMinPxAtViewport(sharedCropClass, "w", vw)).toBe(44);
       }
+      expect(resolveMinPxAtViewport(sharedCropClass, "h", 768)).toBe(28);
+      expect(resolveMinPxAtViewport(sharedCropClass, "w", 768)).toBe(28);
     });
 
     it("PlayersTab, FinanceTab, and CollectionTab keep 44px targets below 768px and reduce only at md:", () => {
       const playersSrc = readSrc("src/components/PlayersTab.tsx");
+      const profileEditorSrc = readSrc("src/components/shared/PlayerProfileEditor.tsx");
+      const gallerySrc = readSrc("src/components/shared/PlayerGalleryManager.tsx");
       expect(playersSrc).not.toContain("h-7 w-7");
       expect(playersSrc).toContain("min-h-11 md:min-h-9");
       expect(playersSrc).toContain("min-h-11 md:min-h-8");
       expect(playersSrc).toContain("min-h-11 md:min-h-10");
-      expect(playersSrc).toContain("min-h-11 min-w-11 md:min-h-8 md:min-w-8");
+      expect(gallerySrc).toContain("min-h-11 min-w-11 md:min-h-8 md:min-w-8");
       // 4. PlayersTab search clear target
       expect(playersSrc).toMatch(
         /aria-label="Xoá từ khoá tìm kiếm"[\s\S]*?min-h-11 min-w-11/
       );
       // 5. PlayersTab activity gallery crop visible on touch + dynamic aria-label + >=44px below 768px
-      expect(playersSrc).toMatch(
+      expect(profileEditorSrc).toMatch(
         /aria-label=\{`Canh chỉnh & cắt ảnh hoạt động #\$\{idx \+ 1\}`\}[\s\S]*?min-h-11 min-w-11 md:min-h-7 md:min-w-7[\s\S]*?opacity-100 \[@media\(hover:none\)\]:opacity-100 md:opacity-0 md:group-hover:opacity-100/
       );
 
-      const financeSrc = readSrc("src/components/FinanceTab.tsx");
+      const financeSrc =
+        readSrc("src/components/FinanceTab.tsx") +
+        "\n" +
+        readSrc("src/components/finance/ExpenseLedgerSection.tsx") +
+        "\n" +
+        readSrc("src/components/finance/OtherIncomeSection.tsx");
       expect(financeSrc).toContain("min-h-11 min-w-11 md:min-h-9 md:min-w-9");
       expect(financeSrc).toContain("min-h-11 md:min-h-9");
       // 1. Finance mobile expense edit/delete >=44x44 below 768px
@@ -358,7 +365,7 @@ describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
 
     it("PublicGuestPortal header login, ModalDialog close, and TeamManagerApp security banner targets meet >=44px below 768px", () => {
       // 6. PublicGuestPortal header login min-h-11
-      const portalSrc = readSrc("src/components/PublicGuestPortal.tsx");
+      const portalSrc = readSrc("src/components/guest/GuestHeaderNav.tsx");
       expect(portalSrc).toMatch(
         /onClick=\{onOpenLogin\}[\s\S]*?inline-flex min-h-11 items-center[\s\S]*?Đăng nhập/
       );

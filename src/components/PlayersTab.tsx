@@ -14,14 +14,10 @@ import {
   RotateCcw,
   FileSpreadsheet,
   Printer,
-  Upload,
   Lock,
   LayoutGrid,
   Camera,
   Sparkles,
-  Crop,
-  Image as ImageIcon,
-  Check,
   Users,
   Activity,
   X,
@@ -44,6 +40,8 @@ import { formatVND, formatDateVN } from "@/lib/format";
 import { convertMultipleFilesToWebp } from "@/lib/imageToWebp";
 import { resolvePublicMediaUpload } from "@/lib/media/clientUpload";
 import { ModalDialog } from "./ModalDialog";
+import { PlayerProfileEditor } from "./shared/PlayerProfileEditor";
+import { PlayerGalleryManager } from "./shared/PlayerGalleryManager";
 import {
   Badge,
   Button,
@@ -1094,409 +1092,68 @@ export function PlayersTab({
             </div>
           </div>
 
-          {/* 1. Ảnh đại diện Avatar thi đấu (Chuẩn 3:4) */}
-          <div className="rounded-xl bg-slate-50 p-4 border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <Crop className="h-4 w-4 text-royal-600" />
-                <span>1. Ảnh Avatar Thi Đấu (Chuẩn 3:4)</span>
-              </span>
-              <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
-                Chân dung 3:4 WebP HD
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={avatarUrl || "/uploads/avatars/member-1.jpg"}
-                alt="Ảnh hồ sơ"
-                className="h-28 w-21 rounded-xl object-cover object-top border-2 border-royal-600 shadow-sm shrink-0"
-              />
-              <div className="space-y-2 flex-1 text-center sm:text-left">
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <label className="inline-flex items-center gap-1.5 rounded-lg bg-royal-600 hover:bg-royal-500 px-3.5 py-2 text-xs font-bold text-gold-400 cursor-pointer transition shadow-xs">
-                    <Upload className="h-3.5 w-3.5" />
-                    <span>Tải Avatar Mới</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarFileUpload}
-                      className="sr-only"
-                    />
-                  </label>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCropperMode("avatar");
-                      setCropperSource(avatarUrl || "/uploads/avatars/member-1.jpg");
-                      setCropperOpen(true);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-900 px-3 py-2 text-xs font-bold transition cursor-pointer"
-                    title="Mở Studio để kéo thả, phóng to và cắt ảnh theo ý muốn"
-                  >
-                    <Crop className="h-3.5 w-3.5 text-amber-700" />
-                    <span>✂️ Canh Chỉnh 3:4</span>
-                  </button>
-                </div>
-                {webpInfo && (
-                  <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-1 inline-block">
-                    {webpInfo}
-                  </p>
-                )}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                  {PRESET_AVATARS.map((url, idx) => (
-                    <button
-                      key={url}
-                      type="button"
-                      onClick={() => {
-                        setAvatarUrl(url);
-                        setWebpInfo("");
-                      }}
-                      className={`h-8 w-8 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${avatarUrl === url
-                        ? "border-gold-400 ring-2 ring-royal-600"
-                        : "border-transparent opacity-70 hover:opacity-100"
-                        }`}
-                      title={`Ảnh thành viên #${idx + 1}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={url}
-                        alt={`Avatar ${idx + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. Ảnh Giới Thiệu Profile / Hoạt Động (Khung Rộng 16:9 hoặc 4:3) */}
-          <div className="rounded-xl bg-sky-50/60 p-4 border border-sky-200 space-y-3">
-            <div className="flex items-center justify-between border-b border-sky-200/60 pb-2">
-              <span className="text-xs font-black uppercase tracking-wider text-sky-950 flex items-center gap-1.5">
-                <ImageIcon className="h-4 w-4 text-royal-600" />
-                <span>2. Ảnh Giới Thiệu Profile (Khung Rộng 16:9 / 4:3)</span>
-              </span>
-              <span className="rounded-md bg-sky-100 border border-sky-300 px-2 py-0.5 text-[10px] font-black text-sky-800">
-                Toàn Thân / Hành Động Sân Cỏ
-              </span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="relative w-full sm:w-44 aspect-video rounded-xl overflow-hidden bg-slate-900 border-2 border-sky-400 shrink-0 shadow-sm flex items-center justify-center">
-                {profileImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={profileImageUrl}
-                    alt="Ảnh profile rộng"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-center p-2 text-slate-400 text-[11px] font-semibold flex flex-col items-center gap-1">
-                    <ImageIcon className="h-6 w-6 text-slate-500" />
-                    <span>Chưa có ảnh rộng</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2 flex-1 text-center sm:text-left">
-                <p className="text-xs text-slate-600">
-                  Ảnh toàn thân, động tác thi đấu khái quát làm nền hồ sơ profile và tạo link chia sẻ Facebook/Zalo trực quan.
-                </p>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <label className="inline-flex items-center gap-1.5 rounded-lg bg-sky-800 hover:bg-sky-900 px-3.5 py-2 text-xs font-bold text-white cursor-pointer transition shadow-xs">
-                    <Upload className="h-3.5 w-3.5 text-gold-400" />
-                    <span>Tải Ảnh Profile Mới</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleProfileImageFileUpload}
-                      className="sr-only"
-                    />
-                  </label>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCropperMode("profile");
-                      setCropperSource(profileImageUrl || avatarUrl || "/images/cover-team.jpg");
-                      setCropperOpen(true);
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-sky-300 text-sky-900 hover:bg-sky-100 px-3 py-2 text-xs font-bold transition cursor-pointer"
-                    title="Mở Studio để cắt ảnh theo tỉ lệ 16:9 hoặc 4:3"
-                  >
-                    <Crop className="h-3.5 w-3.5 text-sky-700" />
-                    <span>✂️ Canh Chỉnh Khung Rộng</span>
-                  </button>
-
-                  {profileImageUrl && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProfileImageUrl("");
-                        setProfileWebpInfo("");
-                      }}
-                      className="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-2.5 py-2 text-xs font-semibold transition cursor-pointer"
-                      title="Gỡ ảnh profile rộng này"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span>Gỡ</span>
-                    </button>
-                  )}
-                </div>
-                {profileWebpInfo && (
-                  <p className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
-                    {profileWebpInfo}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Chọn nhanh ảnh Profile từ Album hoạt động cá nhân */}
-            <div className="pt-2.5 border-t border-sky-200/70 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
-                  <Camera className="h-3.5 w-3.5 text-royal-600" />
-                  <span>Hoặc chọn nhanh từ Album hoạt động cá nhân ({galleryUrls.length} ảnh):</span>
-                </span>
-                {galleryUrls.length > 0 && (
-                  <span className="text-[11px] text-slate-500 italic">Nhấn vào ảnh để chọn</span>
-                )}
-              </div>
-
-              {galleryUrls.length > 0 ? (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5">
-                  {galleryUrls.map((url, idx) => {
-                    const isSelected = profileImageUrl === url;
-                    return (
-                      <div key={idx} className="relative group shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileImageUrl(url);
-                            setProfileWebpInfo(`✅ Đã chọn ảnh hoạt động #${idx + 1} làm ảnh Profile!`);
-                          }}
-                          className={`relative h-14 w-24 rounded-lg overflow-hidden border-2 transition cursor-pointer ${isSelected
-                              ? "border-gold-400 ring-2 ring-royal-600 shadow-md"
-                              : "border-slate-300 opacity-80 hover:opacity-100 hover:border-sky-500"
-                            }`}
-                          title={`Chọn ảnh hoạt động #${idx + 1} làm ảnh Profile`}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={url}
-                            alt={`Ảnh hoạt động ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                          {isSelected && (
-                            <span className="absolute bottom-0 inset-x-0 bg-navy-800/85 text-[9px] font-black text-gold-400 text-center py-0.5 flex items-center justify-center gap-0.5">
-                              <Check className="h-2.5 w-2.5" />
-                              <span>Đang chọn</span>
-                            </span>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCropperMode("profile");
-                            setCropperSource(url);
-                            setCropperOpen(true);
-                          }}
-                          aria-label={`Canh chỉnh & cắt ảnh hoạt động #${idx + 1}`}
-                          className="absolute top-1 right-1 inline-flex min-h-11 min-w-11 md:min-h-7 md:min-w-7 items-center justify-center bg-black/80 hover:bg-black text-gold-400 p-1.5 md:p-1 rounded-md opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
-                          title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
-                        >
-                          <Crop className="h-3.5 w-3.5 md:h-3 md:w-3" aria-hidden="true" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-lg bg-sky-100/50 border border-dashed border-sky-300 p-2 text-center text-xs text-sky-800">
-                  Chưa có ảnh trong Album hoạt động bên dưới. Bạn có thể kéo xuống mục &ldquo;Album Khoảnh Khắc Sân Cỏ&rdquo; bên dưới để tải ảnh lên hoặc tải trực tiếp ở trên.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <label
-                htmlFor="player-fullname"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Họ và Tên đầy đủ *
-              </label>
-              <input
-                id="player-fullname"
-                name="full_name"
-                type="text"
-                required
-                disabled={!isManager}
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="form-input disabled:bg-slate-100"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="player-shortname"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Tên gọi ngắn
-              </label>
-              <input
-                id="player-shortname"
-                name="short_name"
-                type="text"
-                value={shortName}
-                onChange={(e) => setShortName(e.target.value)}
-                className="form-input"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label
-                htmlFor="player-jersey"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Số Áo
-              </label>
-              <input
-                id="player-jersey"
-                name="jersey_number"
-                type="text"
-                inputMode="numeric"
-                value={jerseyNumber}
-                onChange={(e) =>
-                  setJerseyNumber(e.target.value.replace(/[^0-9]/g, ""))
-                }
-                className="form-input"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="player-birthyear"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Năm Sinh
-              </label>
-              <select
-                id="player-birthyear"
-                name="birth_year"
-                value={birthYear}
-                onChange={(e) => setBirthYear(e.target.value)}
-                className="form-select"
-              >
-                <option value="">-- Chọn năm sinh --</option>
-                {BIRTH_YEAR_OPTIONS.map((y) => (
-                  <option key={y} value={String(y)}>
-                    {y} ({new Date().getFullYear() - y} tuổi)
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label
-                htmlFor="player-position"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Vị Trí
-              </label>
-              <select
-                id="player-position"
-                name="position"
-                value={position}
-                onChange={(e) => setPosition(e.target.value)}
-                className="form-select"
-              >
-                {POSITIONS.map((pos) => (
-                  <option key={pos} value={pos}>
-                    {pos}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label
-                htmlFor="player-phone"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Số Điện Thoại
-              </label>
-              <input
-                id="player-phone"
-                name="phone"
-                type="tel"
-                inputMode="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="form-input"
-              />
-            </div>
-          </div>
-
-          {/* Quê quán Gò Nổi & Biệt danh */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label
-                htmlFor="player-hometown"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Quê Quán Gò Nổi
-              </label>
-              <select
-                id="player-hometown"
-                value={hometown}
-                onChange={(e) => setHometown(e.target.value)}
-                className="form-select"
-              >
-                <option value="Điện Quang">Xã Điện Quang</option>
-                <option value="Điện Trung">Xã Điện Trung</option>
-                <option value="Điện Phong">Xã Điện Phong</option>
-                <option value="Gò Nổi">Gò Nổi (Chung)</option>
-              </select>
-            </div>
-            <div>
-              <label
-                htmlFor="player-nickname"
-                className="block text-sm font-semibold text-slate-700 mb-1"
-              >
-                Biệt Danh Sân Cỏ / Tên Thân Mật
-              </label>
-              <input
-                id="player-nickname"
-                type="text"
-                placeholder="VD: Tiếng Ronaldo, Tín Mười, Trung Thần Tốc..."
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                className="form-input"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="player-playingstyle"
-              className="block text-sm font-semibold text-slate-700 mb-1"
-            >
-              Phong Cách Thi Đấu / Sở Trường
-            </label>
-            <input
-              id="player-playingstyle"
-              type="text"
-              placeholder="VD: Càn lướt mạnh mẽ, phân phối bóng chuẩn xác, sút xa uy lực..."
-              value={playingStyle}
-              onChange={(e) => setPlayingStyle(e.target.value)}
-              className="form-input"
-            />
-          </div>
+          <PlayerProfileEditor
+            idPrefix="player"
+            avatarUrl={avatarUrl}
+            avatarAlt={fullName || "Avatar"}
+            webpInfo={webpInfo}
+            profileImageUrl={profileImageUrl}
+            profileWebpInfo={profileWebpInfo}
+            galleryUrls={galleryUrls}
+            presetAvatars={PRESET_AVATARS}
+            positions={POSITIONS}
+            birthYearOptions={BIRTH_YEAR_OPTIONS}
+            fullName={fullName}
+            shortName={shortName}
+            jerseyNumber={jerseyNumber}
+            birthYear={birthYear}
+            position={position}
+            phone={phone}
+            hometown={hometown}
+            nickname={nickname}
+            playingStyle={playingStyle}
+            bio={bio}
+            emptyActivityGalleryHint='Chưa có ảnh trong Album hoạt động bên dưới. Bạn có thể kéo xuống mục "Album Khoảnh Khắc Sân Cỏ" bên dưới để tải ảnh lên hoặc tải trực tiếp ở trên.'
+            onChangeFullName={setFullName}
+            onChangeShortName={setShortName}
+            onChangeJerseyNumber={setJerseyNumber}
+            onChangeBirthYear={setBirthYear}
+            onChangePosition={setPosition}
+            onChangePhone={setPhone}
+            onChangeHometown={setHometown}
+            onChangeNickname={setNickname}
+            onChangePlayingStyle={setPlayingStyle}
+            onChangeBio={setBio}
+            onAvatarFileUpload={handleAvatarFileUpload}
+            onOpenAvatarCropper={() => {
+              setCropperMode("avatar");
+              setCropperSource(avatarUrl || "/uploads/avatars/member-1.jpg");
+              setCropperOpen(true);
+            }}
+            onSelectPresetAvatar={(url) => {
+              setAvatarUrl(url);
+              setWebpInfo("");
+            }}
+            onProfileFileUpload={handleProfileImageFileUpload}
+            onOpenProfileCropper={(srcUrl) => {
+              setCropperMode("profile");
+              setCropperSource(srcUrl);
+              setCropperOpen(true);
+            }}
+            onClearProfileImage={() => {
+              setProfileImageUrl("");
+              setProfileWebpInfo("");
+            }}
+            onSelectActivityForProfile={(url, idx) => {
+              setProfileImageUrl(url);
+              setProfileWebpInfo(`✅ Đã chọn ảnh hoạt động #${idx + 1} làm ảnh Profile!`);
+            }}
+            onCropActivityForProfile={(url) => {
+              setCropperMode("profile");
+              setCropperSource(url);
+              setCropperOpen(true);
+            }}
+          />
 
           <div>
             <label
@@ -1515,123 +1172,24 @@ export function PlayersTab({
             />
           </div>
 
-          <div>
-            <label
-              htmlFor="player-bio"
-              className="block text-sm font-semibold text-slate-700 mb-1"
-            >
-              Bài Viết / Châm Ngôn Sân Cỏ (Hiển thị thẻ VĐV ngoài trang chủ)
-            </label>
-            <textarea
-              id="player-bio"
-              rows={3}
-              placeholder="Chia sẻ về đam mê sân cỏ, phong cách thi đấu hoặc thông điệp gửi anh em FC HĐH Gò Nổi..."
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              className="form-input text-sm leading-relaxed"
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              Bài viết / châm ngôn này xuất hiện nổi bật tại Thẻ Vận Động Viên Truyền Hình ngoài trang chủ.
-            </p>
-          </div>
-
-          {/* Album ảnh khoảnh khắc thi đấu & hoạt động */}
-          <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-semibold text-slate-700">
-                Album Khoảnh Khắc Sân Cỏ ({galleryUrls.length} ảnh)
-              </label>
-              <label className="inline-flex items-center gap-1.5 rounded-lg bg-royal-600 hover:bg-royal-500 text-gold-400 px-3 py-1 text-xs font-bold cursor-pointer transition">
-                <Camera className="h-3.5 w-3.5" />
-                <span>
-                  {isConvertingGallery
-                    ? "Đang xử lý WebP..."
-                    : "Thêm ảnh (WebP)"}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleGalleryUpload}
-                  disabled={isConvertingGallery}
-                  className="hidden"
-                />
-              </label>
-            </div>
-            {galleryWebpInfo && (
-              <p className="text-xs text-sky-800 font-medium">
-                {galleryWebpInfo}
-              </p>
-            )}
-            {galleryUrls.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 pt-1">
-                {galleryUrls.map((url, idx) => {
-                  const isProfile = profileImageUrl === url;
-                  return (
-                    <div
-                      key={idx}
-                      className={`relative aspect-square rounded-xl overflow-hidden border-2 group bg-slate-900 transition ${isProfile
-                          ? "border-gold-400 ring-2 ring-sky-500 shadow-md"
-                          : "border-slate-300"
-                        }`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={url}
-                        alt={`Ảnh ${idx + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-
-                      {isProfile && (
-                        <div className="absolute top-1 left-1 bg-navy-800/90 text-[9px] font-black text-gold-400 px-1.5 py-0.5 rounded border border-white/20 shadow flex items-center gap-0.5">
-                          <Check className="h-2.5 w-2.5" />
-                          <span>Profile</span>
-                        </div>
-                      )}
-
-                      {/* Nút hành động nổi lên khi hover / luôn hiện trên touch */}
-                      <div className="absolute inset-0 bg-black/60 opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition flex flex-wrap items-center justify-center gap-1.5 p-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileImageUrl(url);
-                            setProfileWebpInfo(`✅ Đã chọn ảnh #${idx + 1} làm ảnh Profile rộng!`);
-                          }}
-                          aria-label={`Đặt ảnh #${idx + 1} làm ảnh Profile rộng`}
-                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-sky-600 hover:bg-sky-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
-                          title="Đặt ảnh này làm ảnh Giới thiệu Profile rộng"
-                        >
-                          <ImageIcon className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCropperMode("profile");
-                            setCropperSource(url);
-                            setCropperOpen(true);
-                          }}
-                          aria-label={`Cắt ảnh #${idx + 1} làm ảnh Profile rộng`}
-                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
-                          title="Canh chỉnh & cắt ảnh này làm Profile rộng"
-                        >
-                          <Crop className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveGalleryImage(idx)}
-                          aria-label={`Xoá ảnh #${idx + 1} khỏi Album`}
-                          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 md:h-8 md:w-8 rounded-lg bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
-                          title="Xoá ảnh này khỏi Album"
-                        >
-                          <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <PlayerGalleryManager
+            title={`Album Khoảnh Khắc Sân Cỏ (${galleryUrls.length} ảnh)`}
+            galleryUrls={galleryUrls}
+            profileImageUrl={profileImageUrl}
+            isConvertingGallery={isConvertingGallery}
+            galleryWebpInfo={galleryWebpInfo}
+            onUploadFiles={handleGalleryUpload}
+            onSelectAsProfile={(url, idx) => {
+              setProfileImageUrl(url);
+              setProfileWebpInfo(`✅ Đã chọn ảnh #${idx + 1} làm ảnh Profile rộng!`);
+            }}
+            onCropForProfile={(url) => {
+              setCropperMode("profile");
+              setCropperSource(url);
+              setCropperOpen(true);
+            }}
+            onRemoveImage={handleRemoveGalleryImage}
+          />
 
           {isManager && (
             <>

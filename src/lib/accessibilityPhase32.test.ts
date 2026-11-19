@@ -72,7 +72,9 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
     });
 
     it("PublicGuestPortal mobile drawer uses useDialogA11y, role=dialog, aria-modal, and >=44px triggers", () => {
-      const src = readSrc("src/components/PublicGuestPortal.tsx");
+      const portalSrc = readSrc("src/components/PublicGuestPortal.tsx");
+      expect(portalSrc).toContain("<GuestHeaderNav");
+      const src = portalSrc + "\n" + readSrc("src/components/guest/GuestHeaderNav.tsx");
       expect(src).toContain("useDialogA11y({");
       expect(src).toContain("containerRef: mobileNavRef");
       expect(src).toContain("initialFocusRef: mobileNavCloseRef");
