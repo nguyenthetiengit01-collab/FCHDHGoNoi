@@ -28,14 +28,15 @@
 
 ---
 
-## Phase 6.3 — Accessibility (WCAG 2.2 AA) & Mobile Touch-Target Remediation (Pending)
+## Phase 6.3 — Accessibility (WCAG 2.2 AA) & Mobile Touch-Target Remediation (Implemented)
 
+- **Baseline SHA**: `3320e5599d0712c004386b22aa8a07a95f9d595b` (`main`)
 - **Objective**: Close all remaining P1 accessibility and mobile ergonomics gaps across Guest, Player, and Manager flows (`A11Y-01` `MatchdayRosterPoster` was resolved early in Phase 6.2).
-- **Scope**:
-  1. Add `useDialogA11y` (`role="dialog"`, `aria-modal="true"`, `Escape`, focus restoration) to `PublicGuestPortal.tsx:554-633` mobile navigation drawer, and upgrade hamburger button (`PublicGuestPortal.tsx:546`) to `min-h-11 min-w-11`.
-  3. Add `<a href="#main-content" className="skip-link">` and `<main id="main-content">` to `src/app/cau-thu/[id]/page.tsx:74-96` not-found view.
-  4. Upgrade all sub-44px mobile touch targets to `min-h-11` (`min-w-11` for icon buttons) on `<640px` (`Button` `sm`, gallery `h-7 w-7` actions in `ScheduleTab`/`PlayerPersonalTab`/`PlayersTab`, `FinanceTab` edit/delete icons, `CollectionTab` filter buttons, `PlayersTab` `min-h-8` pills).
-  5. Add inline/modal import error summary for Manager Excel import failures on mobile and desktop (`TeamManagerApp.tsx:297`).
+- **Scope Implemented**:
+  1. Added `useDialogA11y` (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`, `Escape`, focus trap/restoration, body scroll lock) to `PublicGuestPortal.tsx` mobile navigation drawer, and upgraded hamburger + close buttons to `min-h-11 min-w-11` (`aria-expanded`, `aria-controls`).
+  2. Added `<a href="#main-content" className="skip-link">`, `<main id="main-content">`, and `<h1>` to `src/app/cau-thu/[id]/page.tsx` not-found fallback view.
+  3. Upgraded mobile touch targets to `>=44px` (`min-h-11` / `min-h-11 min-w-11` on `<640px`) in `Button.tsx` (`sm`), `ScheduleTab.tsx` / `PlayerPersonalTab.tsx` / `PlayersTab.tsx` gallery actions (also visible on touch without hover + `aria-label`), `PlayersTab.tsx` roster/PIN/action controls, `FinanceTab.tsx` edit/delete & filter buttons, and `CollectionTab.tsx` presets/quick-payers/filters.
+  4. Added persistent Excel import error summary (`ModalDialog` + reopenable error banner) in `TeamManagerApp.tsx` using safe `json.error` string validation and clearing on successful import.
 - **Files Affected**: `src/components/MatchdayRosterPoster.tsx`, `src/components/PublicGuestPortal.tsx`, `src/app/cau-thu/[id]/page.tsx`, `src/components/ui/Button.tsx`, `src/components/ScheduleTab.tsx`, `src/components/PlayerPersonalTab.tsx`, `src/components/PlayersTab.tsx`, `src/components/FinanceTab.tsx`, `src/components/CollectionTab.tsx`, `src/components/TeamManagerApp.tsx`.
 - **Risk**: Medium — Modal `<dialog>` migration can affect backdrop click & `html-to-image` PNG export refs if not tested carefully.
 - **Acceptance Criteria**:

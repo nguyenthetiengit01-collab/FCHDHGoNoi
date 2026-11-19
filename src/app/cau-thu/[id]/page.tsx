@@ -72,25 +72,33 @@ export default async function CauThuProfilePage({ params }: PageProps) {
 
   if (!player) {
     return (
-      <div className="min-h-screen bg-navy-950 text-slate-100 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full rounded-xl bg-navy-800 border border-white/10 p-8 text-center space-y-4 shadow-xl">
-          <div className="h-16 w-16 mx-auto rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30">
-            <UserX className="h-8 w-8" />
+      <div className="min-h-screen bg-navy-950 text-slate-100 flex flex-col">
+        <a href="#main-content" className="skip-link">
+          Bỏ qua điều hướng, tới nội dung chính
+        </a>
+        <main
+          id="main-content"
+          className="flex-1 flex flex-col items-center justify-center p-4"
+        >
+          <div className="max-w-md w-full rounded-xl bg-navy-800 border border-white/10 p-8 text-center space-y-4 shadow-xl">
+            <div className="h-16 w-16 mx-auto rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30">
+              <UserX className="h-8 w-8" aria-hidden="true" />
+            </div>
+            <h1 className="font-display font-black text-xl text-white uppercase">
+              Không Tìm Thấy Hồ Sơ Cầu Thủ
+            </h1>
+            <p className="text-sm text-sky-200">
+              Cầu thủ với mã số này không tồn tại trong danh sách đội bóng hoặc thông tin đã được điều chỉnh.
+            </p>
+            <Link
+              href="/"
+              className="inline-flex min-h-11 items-center gap-2 px-5 py-2.5 rounded-xl bg-gold-400 hover:bg-gold-300 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              <span>Về Trang Chủ Đội Bóng</span>
+            </Link>
           </div>
-          <h2 className="font-display font-black text-xl text-white uppercase">
-            Không Tìm Thấy Hồ Sơ Cầu Thủ
-          </h2>
-          <p className="text-sm text-sky-200">
-            Cầu thủ với mã số này không tồn tại trong danh sách đội bóng hoặc thông tin đã được điều chỉnh.
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gold-400 hover:bg-gold-300 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-md"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Về Trang Chủ Đội Bóng</span>
-          </Link>
-        </div>
+        </main>
       </div>
     );
   }

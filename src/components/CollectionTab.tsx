@@ -501,7 +501,7 @@ export function CollectionTab({
                       setPitchVenue(preset.venue);
                       setPitchCostInput(String(preset.cost));
                     }}
-                    className={`min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                    className={`min-h-11 sm:min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
                       isSelected
                         ? "bg-navy-600 text-gold-300 border-navy-600"
                         : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
@@ -542,7 +542,7 @@ export function CollectionTab({
                   key={pName}
                   type="button"
                   onClick={() => setPitchPayer(pName)}
-                  className={`min-h-9 px-2.5 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${
+                  className={`min-h-11 sm:min-h-9 px-2.5 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${
                     pitchPayer === pName
                       ? "bg-navy-600 text-gold-300 border-navy-600"
                       : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
@@ -646,7 +646,7 @@ export function CollectionTab({
                     key={item.key}
                     type="button"
                     onClick={() => setStatusFilter(item.key)}
-                    className={`min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                    className={`min-h-11 sm:min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
                       statusFilter === item.key
                         ? "bg-navy-600 text-white border-navy-600"
                         : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -904,7 +904,7 @@ export function CollectionTab({
                       key={p.id}
                       type="button"
                       onClick={() => handleAddWalkInMemberToDraft(p.id)}
-                      className="inline-flex items-center gap-1 min-h-9 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-emerald-900 transition cursor-pointer"
+                      className="inline-flex items-center gap-1 min-h-11 sm:min-h-9 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:text-emerald-900 transition cursor-pointer"
                     >
                       <Plus className="h-3 w-3 text-emerald-600" />
                       <span>

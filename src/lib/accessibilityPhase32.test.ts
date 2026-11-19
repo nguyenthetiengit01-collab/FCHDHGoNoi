@@ -71,6 +71,17 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
       expect(src).toContain('aria-label="Tất cả chức năng ứng dụng"');
     });
 
+    it("PublicGuestPortal mobile drawer uses useDialogA11y, role=dialog, aria-modal, and >=44px triggers", () => {
+      const src = readSrc("src/components/PublicGuestPortal.tsx");
+      expect(src).toContain("useDialogA11y({");
+      expect(src).toContain("containerRef: mobileNavRef");
+      expect(src).toContain("initialFocusRef: mobileNavCloseRef");
+      expect(src).toContain('role="dialog"');
+      expect(src).toContain('aria-modal="true"');
+      expect(src).toContain("aria-labelledby={mobileNavTitleId}");
+      expect(src).toContain("aria-controls={mobileNavDrawerId}");
+    });
+
     it("Keyboard navigation: Escape closes modal and prevents default", () => {
       const onClose = vi.fn();
       const preventDefault = vi.fn();
@@ -266,6 +277,7 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
       const routes = [
         "src/app/bao-cao-tai-chinh/page.tsx",
         "src/app/cau-chuyen-go-noi/page.tsx",
+        "src/app/cau-thu/[id]/page.tsx",
         "src/app/hoat-dong/page.tsx",
         "src/app/hoat-dong/[id]/page.tsx",
         "src/app/nha-tai-tro/page.tsx",
@@ -278,8 +290,8 @@ describe("Phase 3.2 – Accessibility & Blocking Dialog Remediation", () => {
         const content = readSrc(file);
         expect(content, `${file} must have skip-link`).toContain('href="#main-content"');
         expect(content, `${file} must have className="skip-link"`).toContain("skip-link");
-        expect(content, `${file} must have <main id="main-content"`).toContain(
-          '<main id="main-content"'
+        expect(content, `${file} must have <main id="main-content"`).toMatch(
+          /<main[\s\S]*?\bid="main-content"/
         );
       }
     });
