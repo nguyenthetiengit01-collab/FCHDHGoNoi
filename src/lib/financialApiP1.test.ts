@@ -437,4 +437,156 @@ describe("Phase 5.2 (P1): Financial API Validation & Transaction Atomicity", () 
     );
     expect(unrelatedRow).toEqual({ amount: 777000, match_id: null });
   });
+
+  it("rejects invalid attended, paid, and walk_in values with 400 instead of coercing to 0", async () => {
+    const invalidFlags: unknown[] = [2, -1, 1.5, "abc", "yes", {}, []];
+
+    for (const bad of invalidFlags) {
+      const r1 = await callTeamPost({
+        action: "collect_match_fee",
+        payload: {
+          match_id: matchId,
+          player_id: playerId,
+          attended: bad,
+          paid: 1,
+          amount: 100000,
+        },
+      });
+      expect(r1.status).toBe(400);
+
+      const r2 = await callTeamPost({
+        action: "collect_match_fee",
+        payload: {
+          match_id: matchId,
+          player_id: playerId,
+          attended: 1,
+          paid: bad,
+          amount: 100000,
+        },
+      });
+      expect(r2.status).toBe(400);
+
+      const r3 = await callTeamPost({
+        action: "collect_match_fee",
+        payload: {
+          match_id: matchId,
+          player_id: playerId,
+          attended: 1,
+          paid: 1,
+          walk_in: bad,
+          amount: 100000,
+        },
+      });
+      expect(r3.status).toBe(400);
+
+      const r4 = await callTeamPost({
+        action: "collect_match_fees_batch",
+        payload: {
+          match_id: matchId,
+          items: [
+            { player_id: playerId, attended: bad, paid: 1, amount: 100000 },
+          ],
+        },
+      });
+      expect(r4.status).toBe(400);
+
+      const r5 = await callTeamPost({
+        action: "collect_match_fees_batch",
+        payload: {
+          match_id: matchId,
+          items: [
+            { player_id: playerId, attended: 1, paid: bad, amount: 100000 },
+          ],
+        },
+      });
+      expect(r5.status).toBe(400);
+
+      const r6 = await callTeamPost({
+        action: "collect_match_fees_batch",
+        payload: {
+          match_id: matchId,
+          items: [
+            {
+              player_id: playerId,
+              attended: 1,
+              paid: 1,
+              walk_in: bad,
+              amount: 100000,
+            },
+          ],
+        },
+      });
+      expect(r6.status).toBe(400);
+    }
+
+    // Missing attended or paid (undefined/null) must also be rejected with 400
+    for (const missing of [undefined, null]) {
+      const m1 = await callTeamPost({
+        action: "collect_match_fee",
+        payload: {
+          match_id: matchId,
+          player_id: playerId,
+          attended: missing,
+          paid: 1,
+          amount: 100000,
+        },
+      });
+      expect(m1.status).toBe(400);
+
+      const m2 = await callTeamPost({
+        action: "collect_match_fees_batch",
+        payload: {
+          match_id: matchId,
+          items: [
+            { player_id: playerId, attended: 1, paid: missing, amount: 100000 },
+          ],
+        },
+      });
+      expect(m2.status).toBe(400);
+    }
+  });
+
+  it("accepts boolean true/false and 0/1 for attended and paid while keeping them independent", async () => {
+    // paid=true, attended=false -> paid=1, attended=0 (e.g. paid in advance, absent)
+    const singleRes = await callTeamPost({
+      action: "collect_match_fee",
+      payload: {
+        match_id: matchId,
+        player_id: playerId,
+        attended: false,
+        paid: true,
+        amount: 100000,
+      },
+    });
+    expect(singleRes.status).toBe(200);
+    const singleBody = await singleRes.json();
+    const singleRec = singleBody.attendances.find(
+      (a: { match_id: number; player_id: number }) =>
+        a.match_id === matchId && a.player_id === playerId
+    );
+    expect(singleRec).toMatchObject({ attended: 0, paid: 1, amount: 100000 });
+
+    // Batch: attended=true, paid=false -> attended=1, paid=0 (debt)
+    const batchRes = await callTeamPost({
+      action: "collect_match_fees_batch",
+      payload: {
+        match_id: matchId,
+        items: [
+          {
+            player_id: playerId,
+            attended: true,
+            paid: false,
+            amount: 100000,
+          },
+        ],
+      },
+    });
+    expect(batchRes.status).toBe(200);
+    const batchBody = await batchRes.json();
+    const batchRec = batchBody.attendances.find(
+      (a: { match_id: number; player_id: number }) =>
+        a.match_id === matchId && a.player_id === playerId
+    );
+    expect(batchRec).toMatchObject({ attended: 1, paid: 0, amount: 100000 });
+  });
 });

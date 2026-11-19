@@ -88,6 +88,38 @@ function parsePositiveIntId(
   return { ok: true, value: num };
 }
 
+function parseBinaryFlag(
+  raw: unknown,
+  fieldName: string,
+  options?: { defaultWhenMissing?: 0 | 1 }
+): ValidationResult<0 | 1> {
+  if (raw === undefined || raw === null) {
+    if (options?.defaultWhenMissing !== undefined) {
+      return { ok: true, value: options.defaultWhenMissing };
+    }
+    return { ok: false, error: `${fieldName} không được để trống.` };
+  }
+  if (raw === true || raw === 1) {
+    return { ok: true, value: 1 };
+  }
+  if (raw === false || raw === 0) {
+    return { ok: true, value: 0 };
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed === "1" || trimmed === "true") {
+      return { ok: true, value: 1 };
+    }
+    if (trimmed === "0" || trimmed === "false") {
+      return { ok: true, value: 0 };
+    }
+  }
+  return {
+    ok: false,
+    error: `${fieldName} chỉ chấp nhận giá trị 0, 1, true hoặc false.`,
+  };
+}
+
 function resolveMatchFeeAmount(params: {
   amount: unknown;
   isPaid: 0 | 1;
@@ -116,6 +148,53 @@ function resolveMatchFeeAmount(params: {
   return {
     ok: true,
     value: isPaid === 1 || isAttended === 1 ? defaultFee : 0,
+  };
+}
+
+function parseMatchFeeFlagsAndAmount(params: {
+  attended: unknown;
+  paid: unknown;
+  walk_in: unknown;
+  amount: unknown;
+  defaultFee: number;
+}): ValidationResult<{
+  isAttended: 0 | 1;
+  isPaid: 0 | 1;
+  isWalkIn: 0 | 1;
+  finalAmount: number;
+}> {
+  const paidCheck = parseBinaryFlag(params.paid, "Trạng thái đóng tiền (paid)");
+  if (!paidCheck.ok) return paidCheck;
+
+  const attendedCheck = parseBinaryFlag(
+    params.attended,
+    "Trạng thái ra sân (attended)"
+  );
+  if (!attendedCheck.ok) return attendedCheck;
+
+  const walkInCheck = parseBinaryFlag(
+    params.walk_in,
+    "Trạng thái phát sinh (walk_in)",
+    { defaultWhenMissing: 0 }
+  );
+  if (!walkInCheck.ok) return walkInCheck;
+
+  const amountCheck = resolveMatchFeeAmount({
+    amount: params.amount,
+    isPaid: paidCheck.value,
+    isAttended: attendedCheck.value,
+    defaultFee: params.defaultFee,
+  });
+  if (!amountCheck.ok) return amountCheck;
+
+  return {
+    ok: true,
+    value: {
+      isAttended: attendedCheck.value,
+      isPaid: paidCheck.value,
+      isWalkIn: walkInCheck.value,
+      finalAmount: amountCheck.value,
+    },
   };
 }
 
@@ -1068,22 +1147,17 @@ export async function POST(req: NextRequest) {
         const defaultFee = matchRow.fee_per_player ?? 100000;
 
         // Chuẩn hóa 3 trạng thái độc lập: Attended và Paid hoàn toàn độc lập
-        const isPaid: 0 | 1 = Number(paid) === 1 ? 1 : 0;
-        const isAttended: 0 | 1 = Number(attended) === 1 ? 1 : 0;
-        const amountCheck = resolveMatchFeeAmount({
+        const feeCheck = parseMatchFeeFlagsAndAmount({
+          attended,
+          paid,
+          walk_in,
           amount,
-          isPaid,
-          isAttended,
           defaultFee,
         });
-        if (!amountCheck.ok) {
-          return NextResponse.json(
-            { error: amountCheck.error },
-            { status: 400 }
-          );
+        if (!feeCheck.ok) {
+          return NextResponse.json({ error: feeCheck.error }, { status: 400 });
         }
-        const finalAmount = amountCheck.value;
-        const isWalkIn = Number(walk_in) === 1 ? 1 : 0;
+        const { isPaid, isAttended, finalAmount, isWalkIn } = feeCheck.value;
 
         await db.run(
           `INSERT INTO match_attendances (
@@ -1196,22 +1270,20 @@ export async function POST(req: NextRequest) {
           }
 
           // Chuẩn hóa 3 trạng thái độc lập: Không tự động coi Paid là Attended
-          const isPaid: 0 | 1 = Number(item.paid) === 1 ? 1 : 0;
-          const isAttended: 0 | 1 = Number(item.attended) === 1 ? 1 : 0;
-          const amountCheck = resolveMatchFeeAmount({
+          const feeCheck = parseMatchFeeFlagsAndAmount({
+            attended: item.attended,
+            paid: item.paid,
+            walk_in: item.walk_in,
             amount: item.amount,
-            isPaid,
-            isAttended,
             defaultFee,
           });
-          if (!amountCheck.ok) {
+          if (!feeCheck.ok) {
             return NextResponse.json(
-              { error: amountCheck.error },
+              { error: feeCheck.error },
               { status: 400 }
             );
           }
-          const finalAmount = amountCheck.value;
-          const isWalkIn = Number(item.walk_in) === 1 ? 1 : 0;
+          const { isPaid, isAttended, finalAmount, isWalkIn } = feeCheck.value;
 
           statements.push({
             sql,
