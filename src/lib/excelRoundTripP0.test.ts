@@ -635,4 +635,195 @@ describe("Phase 5.2 P0: Import Transaction Atomicity & Excel Round-Trip Integrit
     expect(rollback).toHaveBeenCalledTimes(1);
     expect(close).toHaveBeenCalledTimes(1);
   });
+
+  describe("Phase 5.4 P0: Date Integrity & Calendar Validation", () => {
+    async function getFreshManagerToken(): Promise<string> {
+      const db = getAsyncDb();
+      const currentPlayers = await db.query<Player>("SELECT * FROM players ORDER BY id ASC");
+      const currentManager = currentPlayers.find((p) => p.access_role === "manager");
+      if (!currentManager) throw new Error("Expected manager in DB");
+      return createSessionToken(currentManager, 1);
+    }
+
+    function buildDetailWorkbookWithDates(opts: {
+      matchDate: unknown;
+      expenseDate?: unknown;
+      incomeDate?: unknown;
+      incomeAmount?: number;
+      duplicateAttendance?: boolean;
+    }): XLSX.WorkBook {
+      const wb = buildValidLegacyWorkbook();
+      if (opts.expenseDate !== undefined) {
+        wb.Sheets["5. Chi"] = XLSX.utils.aoa_to_sheet([
+          [],
+          ["", "SỔ CHI TIÊU QUỸ ĐỘI BÓNG"],
+          [],
+          ["", "STT", "Ngày", "Hạng Mục Luỹ Kế", "Nội Dung Chi Tiết", "Số Tiền (VND)", "Người Chi / Xác Nhận", "Mã Trận"],
+          ["", "", "", "", "TỔNG CHI TIÊU:", 300000, "", ""],
+          ["", 1, opts.expenseDate, "Tiền sân", "Thuê sân tuần 1", 300000, "Tiếng", 10],
+        ]);
+      }
+      if (opts.incomeDate !== undefined) {
+        wb.Sheets["4. Thu Khác"] = XLSX.utils.aoa_to_sheet([
+          [],
+          ["", "CÁC KHOẢN THU NGOÀI & TÀI TRỢ"],
+          [],
+          ["", "STT", "Ngày", "Người Ủng Hộ / Nguồn Thu", "Số Tiền (VND)", "Ghi Chú / Mục Đích"],
+          ["", "", "", "TỔNG THU KHÁC:", opts.incomeAmount ?? 500000, ""],
+          ["", 1, opts.incomeDate, "Mạnh Thường Quân A", opts.incomeAmount ?? 500000, "Tài trợ nước"],
+        ]);
+      }
+      const attendanceRows: unknown[][] = [
+        [10, "Nguyễn Thế Tiếng", "registered", 0, 1, 1, 100000, "Tiếng", ""],
+      ];
+      if (opts.duplicateAttendance) {
+        attendanceRows.push([10, "Nguyễn Thế Tiếng", "registered", 0, 0, 0, 0, "", ""]);
+      }
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.aoa_to_sheet([
+          ["[META]", "version", 1],
+          [],
+          ["[MATCHES]"],
+          [
+            "id", "match_number", "label", "match_date", "kickoff_time",
+            "venue", "opponent", "fee_per_player", "pitch_cost", "payer_name",
+            "team_score", "opponent_score", "status", "notes",
+          ],
+          [
+            10, 1, "Trận 1", opts.matchDate, "19:00",
+            "Sân Vĩnh Lộc", "FC Bạn", 100000, 300000, "Tiếng",
+            2, 1, "Đã kết thúc", "",
+          ],
+          [],
+          ["[ATTENDANCES]"],
+          ["match_id", "player_name", "rsvp_status", "walk_in", "attended", "paid", "amount", "collected_by", "note"],
+          ...attendanceRows,
+        ]),
+        "6. Dữ liệu Chi tiết (App)"
+      );
+      return wb;
+    }
+
+    it("accepts and preserves valid Excel serial, YYYY-MM-DD, DD/MM/YYYY, DD/MM/YY, and leap-year 29/02/2024 dates", async () => {
+      const token = await getFreshManagerToken();
+
+      // 1. Excel serial date (46191 = 2026-06-18), DD/MM/YYYY, DD/MM/YY
+      const wb1 = buildDetailWorkbookWithDates({
+        matchDate: 46191,
+        expenseDate: "15/11/2025",
+        incomeDate: "05/03/24",
+      });
+      const res1 = await importPost(buildImportRequest(wb1, token));
+      expect(res1.status).toBe(200);
+      const data1 = await getFullAppData();
+      expect(data1.matches[0]?.match_date).toBe("2026-06-18");
+      expect(data1.expenses[0]?.expense_date).toBe("2025-11-15");
+      expect(data1.otherIncomes[0]?.income_date).toBe("2024-03-05");
+
+      // 2. Valid YYYY-MM-DD, DD-MM-YYYY, and leap-year 29/02/2024
+      const token2 = await getFreshManagerToken();
+      const wb2 = buildDetailWorkbookWithDates({
+        matchDate: "29/02/2024",
+        expenseDate: "2024-02-29",
+        incomeDate: "31-12-2023",
+      });
+      const res2 = await importPost(buildImportRequest(wb2, token2));
+      expect(res2.status).toBe(200);
+      const data2 = await getFullAppData();
+      expect(data2.matches[0]?.match_date).toBe("2024-02-29");
+      expect(data2.expenses[0]?.expense_date).toBe("2024-02-29");
+      expect(data2.otherIncomes[0]?.income_date).toBe("2023-12-31");
+
+      // 3. Valid ISO historical date
+      const token3 = await getFreshManagerToken();
+      const wb3 = buildDetailWorkbookWithDates({
+        matchDate: "2023-12-31",
+      });
+      const res3 = await importPost(buildImportRequest(wb3, token3));
+      expect(res3.status).toBe(200);
+      const data3 = await getFullAppData();
+      expect(data3.matches[0]?.match_date).toBe("2023-12-31");
+    });
+
+    it("allows empty date on skipped zero-amount rows in '4. Thu Khác'", async () => {
+      const token = await getFreshManagerToken();
+      const wb = buildDetailWorkbookWithDates({
+        matchDate: "2025-10-10",
+        incomeDate: "",
+        incomeAmount: 0,
+      });
+      const res = await importPost(buildImportRequest(wb, token));
+      expect(res.status).toBe(200);
+      const data = await getFullAppData();
+      expect(data.otherIncomes.length).toBe(0);
+    });
+
+    it.each([
+      { label: "invalid date format", matchDate: "not-a-date" },
+      { label: "slash-first YYYY/MM/DD format", matchDate: "2026/04/01" },
+      { label: "impossible date 31/02/2026", matchDate: "31/02/2026" },
+      { label: "impossible hyphenated date 31-02-2026", matchDate: "31-02-2026" },
+      { label: "mixed separator date 15/03-2026", matchDate: "15/03-2026" },
+      { label: "invalid non-leap 29/02/2025", matchDate: "29/02/2025" },
+      { label: "invalid ISO non-leap 2026-02-29", matchDate: "2026-02-29" },
+      { label: "invalid month 15/13/2026", matchDate: "15/13/2026" },
+      { label: "invalid day 32/01/2026", matchDate: "32/01/2026" },
+      { label: "empty required match_date", matchDate: "" },
+    ])("rejects $label with HTTP 400 without mutating DB", async ({ matchDate }) => {
+      const token = await getFreshManagerToken();
+      const before = await getFullAppData();
+
+      const wb = buildDetailWorkbookWithDates({ matchDate });
+      const res = await importPost(buildImportRequest(wb, token));
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(typeof body.error).toBe("string");
+
+      const after = await getFullAppData();
+      expect(after.matches).toEqual(before.matches);
+      expect(after.expenses).toEqual(before.expenses);
+      expect(after.otherIncomes).toEqual(before.otherIncomes);
+    });
+
+    it("rejects empty required expense_date and income_date with HTTP 400 without mutating DB", async () => {
+      const token = await getFreshManagerToken();
+      const before = await getFullAppData();
+
+      const wbMissingExpDate = buildDetailWorkbookWithDates({
+        matchDate: "2026-04-01",
+        expenseDate: "",
+      });
+      const resExp = await importPost(buildImportRequest(wbMissingExpDate, token));
+      expect(resExp.status).toBe(400);
+
+      const wbMissingIncDate = buildDetailWorkbookWithDates({
+        matchDate: "2026-04-01",
+        incomeDate: "",
+        incomeAmount: 500000,
+      });
+      const resInc = await importPost(buildImportRequest(wbMissingIncDate, token));
+      expect(resInc.status).toBe(400);
+
+      const after = await getFullAppData();
+      expect(after.matches).toEqual(before.matches);
+      expect(after.expenses).toEqual(before.expenses);
+      expect(after.otherIncomes).toEqual(before.otherIncomes);
+    });
+
+    it("rejects duplicate (match_id, player_name) attendance rows in sheet 6 with HTTP 400", async () => {
+      const token = await getFreshManagerToken();
+      const before = await getFullAppData();
+
+      const wb = buildDetailWorkbookWithDates({
+        matchDate: "2026-04-01",
+        duplicateAttendance: true,
+      });
+      const res = await importPost(buildImportRequest(wb, token));
+      expect(res.status).toBe(400);
+
+      const after = await getFullAppData();
+      expect(after.attendances).toEqual(before.attendances);
+    });
+  });
 });

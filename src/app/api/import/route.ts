@@ -25,35 +25,117 @@ class ImportValidationError extends Error {
   }
 }
 
-function excelSerialToIsoDate(val: unknown): string {
-  if (!val) return new Date().toISOString().slice(0, 10);
+function buildValidatedIsoDate(
+  year: number,
+  month: number,
+  day: number,
+  raw: unknown,
+  context: string
+): string {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    year < 1900 ||
+    year > 9999 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    throw new ImportValidationError(
+      `${context}: ngày tháng không hợp lệ ("${String(raw)}").`
+    );
+  }
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  if (
+    dt.getUTCFullYear() !== year ||
+    dt.getUTCMonth() !== month - 1 ||
+    dt.getUTCDate() !== day
+  ) {
+    throw new ImportValidationError(
+      `${context}: ngày tháng không tồn tại trong lịch ("${String(raw)}").`
+    );
+  }
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function excelSerialToIsoDate(val: unknown, context = "Ngày tháng"): string {
+  if (
+    val === null ||
+    val === undefined ||
+    val === "" ||
+    (typeof val === "string" && val.trim() === "")
+  ) {
+    throw new ImportValidationError(`${context}: ngày tháng không được để trống.`);
+  }
+  if (typeof val === "boolean") {
+    throw new ImportValidationError(
+      `${context}: ngày tháng không hợp lệ ("${String(val)}").`
+    );
+  }
   if (typeof val === "number") {
-    if (!Number.isFinite(val)) {
-      throw new ImportValidationError("Ngày tháng trong file Excel không hợp lệ.");
+    // Excel serial date 1 = 1900-01-01, 2958465 = 9999-12-31
+    if (!Number.isFinite(val) || val < 1 || val > 2958465) {
+      throw new ImportValidationError(
+        `${context}: số serial ngày Excel không hợp lệ ("${String(val)}").`
+      );
     }
     const utcDays = Math.floor(val - 25569);
     const d = new Date(utcDays * 86400 * 1000);
-    return d.toISOString().slice(0, 10);
-  }
-  const str = String(val).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-  const parts = str.split("/");
-  if (parts.length === 2) {
-    const dd = parts[0].trim().padStart(2, "0");
-    const mm = parts[1].trim().padStart(2, "0");
-    const yyyy = new Date().getFullYear();
-    return `${yyyy}-${mm}-${dd}`;
-  }
-  if (parts.length === 3) {
-    const dd = parts[0].trim().padStart(2, "0");
-    const mm = parts[1].trim().padStart(2, "0");
-    const rawYear = parts[2].trim();
-    const yyyy = rawYear.length === 2 ? `20${rawYear}` : rawYear;
-    if (/^\d{4}$/.test(yyyy)) {
-      return `${yyyy}-${mm}-${dd}`;
+    if (Number.isNaN(d.getTime())) {
+      throw new ImportValidationError(
+        `${context}: số serial ngày Excel không hợp lệ ("${String(val)}").`
+      );
     }
+    return buildValidatedIsoDate(
+      d.getUTCFullYear(),
+      d.getUTCMonth() + 1,
+      d.getUTCDate(),
+      val,
+      context
+    );
   }
-  return new Date().toISOString().slice(0, 10);
+  if (typeof val !== "string") {
+    throw new ImportValidationError(
+      `${context}: ngày tháng không hợp lệ ("${String(val)}").`
+    );
+  }
+
+  const str = val.trim();
+
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  if (isoMatch) {
+    return buildValidatedIsoDate(
+      Number(isoMatch[1]),
+      Number(isoMatch[2]),
+      Number(isoMatch[3]),
+      str,
+      context
+    );
+  }
+
+  const dmyMatch = /^(\d{1,2})([\/-])(\d{1,2})\2(\d{2}|\d{4})$/.exec(str);
+  if (dmyMatch) {
+    const day = Number(dmyMatch[1]);
+    const month = Number(dmyMatch[3]);
+    const rawYear = dmyMatch[4];
+    const year = rawYear.length === 2 ? 2000 + Number(rawYear) : Number(rawYear);
+    return buildValidatedIsoDate(year, month, day, str, context);
+  }
+
+  // Hỗ trợ định dạng ngắn DD/MM cho tiêu đề trận legacy (vd: "Trận 1 - 01/04")
+  const dmMatch = /^(\d{1,2})\/(\d{1,2})$/.exec(str);
+  if (dmMatch) {
+    const day = Number(dmMatch[1]);
+    const month = Number(dmMatch[2]);
+    const year = new Date().getFullYear();
+    return buildValidatedIsoDate(year, month, day, str, context);
+  }
+
+  throw new ImportValidationError(
+    `${context}: định dạng ngày tháng không hợp lệ ("${str}").`
+  );
 }
 
 function parseVndAmount(
@@ -351,7 +433,10 @@ function parseDetailSheet(wsDetail: XLSX.WorkSheet): {
       exportedId,
       matchNumber,
       label: String(row[mLabelIdx] || `Trận ${matchNumber}`).trim(),
-      matchDate: excelSerialToIsoDate(row[mDateIdx]),
+      matchDate: excelSerialToIsoDate(
+        row[mDateIdx],
+        `Sheet '6. Dữ liệu Chi tiết (App)' match_date dòng ${r + 1}`
+      ),
       kickoffTime: String(row[mTimeIdx] || "19:00").trim(),
       venue: String(row[mVenueIdx] || "Sân Vĩnh Lộc").trim(),
       opponent: String(row[mOppIdx] || "Sinh hoạt / Giao hữu tuần").trim(),
@@ -394,6 +479,7 @@ function parseDetailSheet(wsDetail: XLSX.WorkSheet): {
   const aNoteIdx = aCol("note");
 
   const parsedAttendances: ParsedAttendanceData[] = [];
+  const seenAttendanceKeys = new Set<string>();
 
   for (let r = attHeaderIdx + 2; r < rows.length; r++) {
     const row = rows[r];
@@ -431,6 +517,14 @@ function parseDetailSheet(wsDetail: XLSX.WorkSheet): {
         `Sheet '6. Dữ liệu Chi tiết (App)' attendance dòng ${r + 1}: thiếu tên cầu thủ (player_name).`
       );
     }
+
+    const attKey = `${matchIndex}:${playerName.toLowerCase()}`;
+    if (seenAttendanceKeys.has(attKey)) {
+      throw new ImportValidationError(
+        `Sheet '6. Dữ liệu Chi tiết (App)' attendance dòng ${r + 1}: trùng lặp điểm danh cho cầu thủ "${playerName}" ở match_id (${rawMatchId}).`
+      );
+    }
+    seenAttendanceKeys.add(attKey);
 
     const attended = parseBinaryFlag(
       row[aAttendedIdx],
@@ -800,7 +894,10 @@ export async function POST(req: NextRequest) {
       }
 
       parsedExpenses.push({
-        date: excelSerialToIsoDate(row[colChiDate]),
+        date: excelSerialToIsoDate(
+          row[colChiDate],
+          `Sheet '5. Chi' ngày dòng ${r + 1}`
+        ),
         category: cat || "Tiền sân",
         description: desc,
         amount: amt,
@@ -879,7 +976,10 @@ export async function POST(req: NextRequest) {
           : "Quỹ sinh hoạt";
 
       parsedOtherIncomes.push({
-        date: excelSerialToIsoDate(row[colTkDate]),
+        date: excelSerialToIsoDate(
+          row[colTkDate],
+          `Sheet '4. Thu Khác' ngày dòng ${r + 1}`
+        ),
         contributor: contributor || "Quỹ giải đội bóng",
         amount,
         fundType,
@@ -1026,7 +1126,10 @@ export async function POST(req: NextRequest) {
 
         const matchDate = matchedPitchExp
           ? matchedPitchExp.date
-          : excelSerialToIsoDate(label.split("-")[1] || "");
+          : excelSerialToIsoDate(
+              label.split("-")[1] || "",
+              `Sheet '3. Thu Trận (Tích chọn)' ngày trận "${label}"`
+            );
         const payer = matchedPitchExp?.payer || "Tiếng";
         const venue = payer.includes("-")
           ? `Sân ${payer.split("-")[1].trim()}`
