@@ -168,7 +168,7 @@ export function BroadcastAthleteCard({
     return (
       <div
         ref={cardRef}
-        className={`relative rounded-xl overflow-hidden border border-[#d4af37]/70 bg-gradient-to-br from-[#123e7a] via-[#0e3164] to-[#0a2347] p-4 text-white shadow-[0_10px_30px_rgba(14,49,100,0.45)] ${className}`}
+        className={`relative rounded-xl overflow-hidden border border-gold-500/70 bg-gradient-to-br from-navy-500 via-navy-600 to-navy-800 p-4 text-white shadow-[0_10px_30px_rgba(14,49,100,0.45)] ${className}`}
       >
         {exportable && (
           <div data-export-ignore="true" className="absolute top-3 right-3 flex items-center gap-1 z-10">
@@ -193,11 +193,11 @@ export function BroadcastAthleteCard({
               title="Xuất ảnh thẻ VĐV gửi Zalo"
             >
               {isExporting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#ffd700]" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-gold-400" />
               ) : exportSuccess ? (
                 <Check className="h-3.5 w-3.5 text-emerald-400" />
               ) : (
-                <Download className="h-3.5 w-3.5 text-[#ffd700]" />
+                <Download className="h-3.5 w-3.5 text-gold-400" />
               )}
               <span className="text-[10px]">Xuất ảnh</span>
             </button>
@@ -213,9 +213,9 @@ export function BroadcastAthleteCard({
             <img
               src={player.avatar_url || "/uploads/avatars/member-1.jpg"}
               alt={player.full_name}
-              className="h-28 w-24 rounded-lg object-cover border-2 border-[#ffd700] shadow-lg bg-slate-800 filter brightness-110 contrast-105 group-hover:scale-105 transition"
+              className="h-28 w-24 rounded-lg object-cover border-2 border-gold-400 shadow-lg bg-slate-800 filter brightness-110 contrast-105 group-hover:scale-105 transition"
             />
-            <span className="absolute -bottom-2 -right-2 rounded-md bg-[#d4af37] text-slate-950 font-black text-xs px-2 py-0.5 shadow-md border border-white/50">
+            <span className="absolute -bottom-2 -right-2 rounded-md bg-gold-500 text-slate-950 font-black text-xs px-2 py-0.5 shadow-md border border-white/50">
               #{player.jersey_number ?? "--"}
             </span>
           </div>
@@ -230,7 +230,7 @@ export function BroadcastAthleteCard({
                 <span>{posBadge.label}</span>
               </span>
               <span className="inline-flex items-center gap-1 rounded bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-slate-200">
-                <MapPin className="h-3 w-3 text-[#ffd700]" />
+                <MapPin className="h-3 w-3 text-gold-400" />
                 <span>Xã {hamlet}</span>
               </span>
               {player.nickname && (
@@ -245,7 +245,7 @@ export function BroadcastAthleteCard({
             </h3>
             <p className="text-xs text-sky-200 mt-0.5">
               Tên gọi sân:{" "}
-              <span className="font-bold text-[#ffd700]">
+              <span className="font-bold text-gold-400">
                 {player.short_name}
               </span>
               <span> • Thành viên</span>
@@ -259,8 +259,8 @@ export function BroadcastAthleteCard({
             )}
 
             {player.bio && (
-              <div className="mt-2.5 rounded-lg border-l-2 border-[#ffd700] bg-[#082042]/70 p-2.5 text-xs text-slate-100 italic">
-                <Quote className="h-3 w-3 text-[#ffd700] inline mr-1" />
+              <div className="mt-2.5 rounded-lg border-l-2 border-gold-400 bg-navy-900/70 p-2.5 text-xs text-slate-100 italic">
+                <Quote className="h-3 w-3 text-gold-400 inline mr-1" />
                 {player.bio}
               </div>
             )}
@@ -269,7 +269,7 @@ export function BroadcastAthleteCard({
 
         {/* Chân trang nhận diện bản quyền khi xuất ảnh */}
         <div className="mt-3 pt-2.5 border-t border-white/15 flex items-center justify-between text-[9px] text-slate-300">
-          <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[#ffd700]">
+          <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-gold-400">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/logo.jpg"
@@ -289,13 +289,13 @@ export function BroadcastAthleteCard({
     return (
       <section
         ref={cardRef}
-        className={`rounded-xl overflow-hidden bg-gradient-to-b from-[#144485] via-[#0f3468] to-[#0a244c] border border-[#d4af37]/70 shadow-[0_20px_50px_rgba(10,35,80,0.5)] text-white p-5 sm:p-7 space-y-5 ${className}`}
+        className={`rounded-xl overflow-hidden bg-gradient-to-b from-navy-500 via-navy-600 to-navy-800 border border-gold-500/70 shadow-[0_20px_50px_rgba(10,35,80,0.5)] text-white p-5 sm:p-7 space-y-5 ${className}`}
       >
         {/* Top bar: Technical badge + Số áo kỹ thuật + Action Buttons */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/15">
           <div className="flex items-center gap-3.5">
-            <div className="h-14 w-14 rounded-lg bg-[#09254d] border border-[#ffd700]/70 flex items-center justify-center shrink-0 shadow-inner">
-              <span className="font-display font-black text-3xl sm:text-4xl text-[#ffd700] leading-none">
+            <div className="h-14 w-14 rounded-lg bg-navy-800 border border-gold-400/70 flex items-center justify-center shrink-0 shadow-inner">
+              <span className="font-display font-black text-3xl sm:text-4xl text-gold-400 leading-none">
                 #{player.jersey_number ?? "--"}
               </span>
             </div>
@@ -312,7 +312,7 @@ export function BroadcastAthleteCard({
               </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs text-sky-100 font-medium">
-                  Đại diện: <strong className="text-[#ffd700]">Xã Gò Nổi • TP. Đà Nẵng</strong>
+                  Đại diện: <strong className="text-gold-400">Xã Gò Nổi • TP. Đà Nẵng</strong>
                 </span>
                 {hamlet && (
                   <span className="text-xs text-sky-200/80">
@@ -328,7 +328,7 @@ export function BroadcastAthleteCard({
               type="button"
               data-export-ignore="true"
               onClick={handleShareProfile}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-white px-3 py-2.5 text-xs font-bold transition cursor-pointer shadow-md"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-royal-600 hover:bg-royal-600 text-white px-3 py-2.5 text-xs font-bold transition cursor-pointer shadow-md"
               title="Chia sẻ hồ sơ vận động viên qua Zalo / Facebook"
             >
               <Share2 className="h-4 w-4 text-sky-200" />
@@ -345,7 +345,7 @@ export function BroadcastAthleteCard({
               {copiedLink ? (
                 <Check className="h-4 w-4 text-emerald-400" />
               ) : (
-                <Copy className="h-4 w-4 text-[#ffd700]" />
+                <Copy className="h-4 w-4 text-gold-400" />
               )}
               <span>{copiedLink ? "Đã chép link!" : "Copy Link"}</span>
             </button>
@@ -356,22 +356,22 @@ export function BroadcastAthleteCard({
                 data-export-ignore="true"
                 onClick={handleExportCard}
                 disabled={isExporting}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2.5 text-xs font-bold transition cursor-pointer shadow-md disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white px-3.5 py-2.5 text-xs font-bold transition cursor-pointer shadow-md disabled:opacity-60"
                 title="Xuất ảnh thẻ vận động viên sắc nét để gửi Zalo"
               >
                 {isExporting ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin text-[#ffd700]" />
+                    <Loader2 className="h-4 w-4 animate-spin text-gold-400" />
                     <span>Đang tạo ảnh...</span>
                   </>
                 ) : exportSuccess ? (
                   <>
-                    <Check className="h-4 w-4 text-[#fde047]" />
+                    <Check className="h-4 w-4 text-gold-300" />
                     <span>Đã lưu / chia sẻ!</span>
                   </>
                 ) : (
                   <>
-                    <Download className="h-4 w-4 text-[#ffd700]" />
+                    <Download className="h-4 w-4 text-gold-400" />
                     <span>Tải Ảnh Thẻ Về Máy (PNG)</span>
                   </>
                 )}
@@ -395,10 +395,10 @@ export function BroadcastAthleteCard({
             />
             <div
               aria-hidden="true"
-              className="absolute inset-0 bg-gradient-to-t from-[#0a244c] via-transparent to-transparent pointer-events-none"
+              className="absolute inset-0 bg-gradient-to-t from-navy-800 via-transparent to-transparent pointer-events-none"
             />
             <div className="absolute top-2.5 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded border border-white/20 flex items-center gap-1">
-              <Camera className="h-3 w-3 text-[#ffd700]" />
+              <Camera className="h-3 w-3 text-gold-400" />
               <span>Phóng to</span>
             </div>
           </div>
@@ -408,7 +408,7 @@ export function BroadcastAthleteCard({
         <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] lg:grid-cols-[180px_1fr] gap-6 items-start">
           <div
             onClick={() => handleImageClick(avatarImgIdx >= 0 ? avatarImgIdx : 0)}
-            className="relative aspect-[3/4] rounded-lg overflow-hidden border-2 border-[#ffd700]/70 bg-gradient-to-b from-[#10386d] via-[#0d2d58] to-[#092244] shadow-lg group cursor-pointer"
+            className="relative aspect-[3/4] rounded-lg overflow-hidden border-2 border-gold-400/70 bg-gradient-to-b from-navy-600 via-navy-600 to-navy-800 shadow-lg group cursor-pointer"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -417,15 +417,15 @@ export function BroadcastAthleteCard({
               className="w-full h-full object-cover object-top filter brightness-110 contrast-105 saturate-105 group-hover:scale-105 transition duration-500"
             />
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded border border-white/20 flex items-center gap-1">
-              <Camera className="h-3 w-3 text-[#ffd700]" />
+              <Camera className="h-3 w-3 text-gold-400" />
               <span>Avatar 3:4</span>
             </div>
-            <div className="absolute bottom-1.5 left-1.5 bg-black/75 backdrop-blur-xs px-2 py-0.5 rounded text-[9px] font-bold text-[#ffd700] border border-white/10 pointer-events-none">
+            <div className="absolute bottom-1.5 left-1.5 bg-black/75 backdrop-blur-xs px-2 py-0.5 rounded text-[9px] font-bold text-gold-400 border border-white/10 pointer-events-none">
               Avatar 3:4 Hồ Sơ
             </div>
             <div
               aria-hidden="true"
-              className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#092244] to-transparent pointer-events-none"
+              className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-navy-800 to-transparent pointer-events-none"
             />
             <span
               aria-hidden="true"
@@ -442,12 +442,12 @@ export function BroadcastAthleteCard({
                   {player.full_name}
                 </h2>
                 {player.short_name && (
-                  <span className="text-lg text-[#ffd700] font-bold">
+                  <span className="text-lg text-gold-400 font-bold">
                     ({player.short_name})
                   </span>
                 )}
                 {player.nickname && (
-                  <span className="text-xs font-bold text-[#fde047] bg-[#d4af37]/25 border border-[#d4af37]/50 px-2.5 py-0.5 rounded">
+                  <span className="text-xs font-bold text-gold-300 bg-gold-500/25 border border-gold-500/50 px-2.5 py-0.5 rounded">
                     Biệt danh: &ldquo;{player.nickname}&rdquo;
                   </span>
                 )}
@@ -462,13 +462,13 @@ export function BroadcastAthleteCard({
                 </span>
                 <span>•</span>
                 <span className="inline-flex items-center gap-1 font-semibold text-white">
-                  <MapPin className="h-3.5 w-3.5 text-[#ffd700]" />
+                  <MapPin className="h-3.5 w-3.5 text-gold-400" />
                   <span>Xã {hamlet} (Gò Nổi)</span>
                 </span>
               </p>
               {player.playing_style && (
-                <div className="mt-2.5 inline-flex items-center gap-2 bg-[#0c2f5e]/80 border border-sky-300/30 px-3 py-1.5 rounded-md text-xs text-sky-100">
-                  <span className="text-[#ffd700] font-bold uppercase tracking-wider text-[10px]">
+                <div className="mt-2.5 inline-flex items-center gap-2 bg-navy-700/80 border border-sky-300/30 px-3 py-1.5 rounded-md text-xs text-sky-100">
+                  <span className="text-gold-400 font-bold uppercase tracking-wider text-[10px]">
                     Lối chơi:
                   </span>
                   <span className="font-semibold">{player.playing_style}</span>
@@ -478,18 +478,18 @@ export function BroadcastAthleteCard({
 
             {/* 4 Chỉ số thực tế */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-center">
-              <div className="bg-[#0c2f5e]/85 p-2.5 rounded-lg border border-sky-300/25 backdrop-blur-xs">
+              <div className="bg-navy-700/85 p-2.5 rounded-lg border border-sky-300/25 backdrop-blur-xs">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-sky-200 block">
                   Ra Sân Mùa Này
                 </span>
-                <span className="text-lg font-display font-black text-[#ffd700] block mt-0.5">
+                <span className="text-lg font-display font-black text-gold-400 block mt-0.5">
                   {matchesPlayed}/{totalMatches} trận
                 </span>
                 <span className="text-[9px] text-sky-200/80 block mt-0.5">
                   Đội hình chính
                 </span>
               </div>
-              <div className="bg-[#0c2f5e]/85 p-2.5 rounded-lg border border-sky-300/25 backdrop-blur-xs">
+              <div className="bg-navy-700/85 p-2.5 rounded-lg border border-sky-300/25 backdrop-blur-xs">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-sky-200 block">
                   Độ Tuổi
                 </span>
@@ -500,7 +500,7 @@ export function BroadcastAthleteCard({
                   Thể lực bền bỉ
                 </span>
               </div>
-              <div className="bg-[#0c2f5e]/85 p-2.5 rounded-lg border border-sky-300/25 backdrop-blur-xs">
+              <div className="bg-navy-700/85 p-2.5 rounded-lg border border-sky-300/25 backdrop-blur-xs">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-sky-200 block">
                   Quê Quán
                 </span>
@@ -511,7 +511,7 @@ export function BroadcastAthleteCard({
                   Xã Gò Nổi • TP. Đà Nẵng
                 </span>
               </div>
-              <div className="bg-[#0c2f5e]/85 p-2.5 rounded-lg border border-sky-300/25 backdrop-blur-xs">
+              <div className="bg-navy-700/85 p-2.5 rounded-lg border border-sky-300/25 backdrop-blur-xs">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-sky-200 block">
                   Vị Trí Sân
                 </span>
@@ -525,12 +525,12 @@ export function BroadcastAthleteCard({
             </div>
 
             {/* Trích dẫn châm ngôn */}
-            <div className="rounded-lg bg-gradient-to-r from-[#0c2f5e] to-[#124285] border-l-4 border-[#ffd700] p-3.5 text-xs text-slate-100 shadow-sm">
-              <span className="text-[10px] uppercase font-black tracking-widest text-[#ffd700] block mb-1">
+            <div className="rounded-lg bg-gradient-to-r from-navy-700 to-navy-500 border-l-4 border-gold-400 p-3.5 text-xs text-slate-100 shadow-sm">
+              <span className="text-[10px] uppercase font-black tracking-widest text-gold-400 block mb-1">
                 LỜI NHẮN NHỦ &amp; TINH THẦN SÂN CỎ
               </span>
               <p className="italic leading-relaxed">
-                <Quote className="h-3 w-3 text-[#ffd700] inline mr-1" />
+                <Quote className="h-3 w-3 text-gold-400 inline mr-1" />
                 &ldquo;{bioText}&rdquo;
               </p>
             </div>
@@ -539,7 +539,7 @@ export function BroadcastAthleteCard({
 
         {/* Chân trang nhận diện bản quyền khi xuất ảnh */}
         <div className="pt-3 border-t border-white/15 flex items-center justify-between text-[11px] text-slate-300">
-          <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#ffd700]">
+          <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-gold-400">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/logo.jpg"
@@ -560,13 +560,13 @@ export function BroadcastAthleteCard({
   return (
     <div
       ref={cardRef}
-      className={`rounded-xl overflow-hidden bg-gradient-to-b from-[#144485] via-[#0f3468] to-[#0a244c] border border-[#d4af37]/70 shadow-[0_20px_50px_rgba(10,35,80,0.5)] p-5 sm:p-6 space-y-5 ${className}`}
+      className={`rounded-xl overflow-hidden bg-gradient-to-b from-navy-500 via-navy-600 to-navy-800 border border-gold-500/70 shadow-[0_20px_50px_rgba(10,35,80,0.5)] p-5 sm:p-6 space-y-5 ${className}`}
     >
       {/* Top Bar: Số áo kỹ thuật + Huy hiệu vị trí + Quê quán */}
       <div className="flex items-center justify-between pb-4 border-b border-white/15">
         <div className="flex items-center gap-3.5">
-          <div className="h-14 w-14 rounded-lg bg-[#09254d] border border-[#ffd700]/70 flex items-center justify-center shrink-0 shadow-inner">
-            <span className="font-display font-black text-3xl sm:text-4xl text-[#ffd700] leading-none">
+          <div className="h-14 w-14 rounded-lg bg-navy-800 border border-gold-400/70 flex items-center justify-center shrink-0 shadow-inner">
+            <span className="font-display font-black text-3xl sm:text-4xl text-gold-400 leading-none">
               #{player.jersey_number ?? "--"}
             </span>
           </div>
@@ -590,7 +590,7 @@ export function BroadcastAthleteCard({
         <div className="text-right flex flex-col items-end gap-1.5">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-white/15 px-3 py-1 rounded-md border border-white/20">
-              <MapPin className="h-3.5 w-3.5 text-[#ffd700]" />
+              <MapPin className="h-3.5 w-3.5 text-gold-400" />
               <span>Xã {hamlet}</span>
             </span>
 
@@ -615,12 +615,12 @@ export function BroadcastAthleteCard({
                 data-export-ignore="true"
                 onClick={handleExportCard}
                 disabled={isExporting}
-                className="inline-flex items-center gap-1.5 rounded-md bg-[#d4af37]/25 hover:bg-[#d4af37]/40 border border-[#d4af37]/60 text-[#fde047] px-2.5 py-1 text-xs font-extrabold transition cursor-pointer shadow-xs disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md bg-gold-500/25 hover:bg-gold-500/40 border border-gold-500/60 text-gold-300 px-2.5 py-1 text-xs font-extrabold transition cursor-pointer shadow-xs disabled:opacity-60"
                 title="Xuất ảnh thẻ cầu thủ gửi Zalo"
               >
                 {isExporting ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#ffd700]" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-gold-400" />
                     <span className="hidden sm:inline">Đang xuất...</span>
                   </>
                 ) : exportSuccess ? (
@@ -630,7 +630,7 @@ export function BroadcastAthleteCard({
                   </>
                 ) : (
                   <>
-                    <Download className="h-3.5 w-3.5 text-[#ffd700]" />
+                    <Download className="h-3.5 w-3.5 text-gold-400" />
                     <span>Tải Ảnh Thẻ</span>
                   </>
                 )}
@@ -639,7 +639,7 @@ export function BroadcastAthleteCard({
           </div>
 
           {player.nickname && (
-            <span className="text-[11px] font-bold text-[#fde047] tracking-wide">
+            <span className="text-[11px] font-bold text-gold-300 tracking-wide">
               Biệt danh: &ldquo;{player.nickname}&rdquo;
             </span>
           )}
@@ -661,10 +661,10 @@ export function BroadcastAthleteCard({
           />
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-t from-[#092244] via-transparent to-transparent pointer-events-none"
+            className="absolute inset-0 bg-gradient-to-t from-navy-800 via-transparent to-transparent pointer-events-none"
           />
           <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 backdrop-blur-md text-white text-xs font-bold px-2.5 py-1 rounded-md border border-white/20 flex items-center gap-1.5">
-            <Camera className="h-3.5 w-3.5 text-[#ffd700]" />
+            <Camera className="h-3.5 w-3.5 text-gold-400" />
             <span>Phóng to</span>
           </div>
 
@@ -674,7 +674,7 @@ export function BroadcastAthleteCard({
               e.stopPropagation();
               handleImageClick(avatarImgIdx >= 0 ? avatarImgIdx : 0);
             }}
-            className="absolute bottom-3 left-3 flex items-center gap-2.5 bg-slate-950/85 backdrop-blur-md p-1.5 rounded-xl border border-[#ffd700]/70 shadow-2xl hover:scale-105 transition"
+            className="absolute bottom-3 left-3 flex items-center gap-2.5 bg-slate-950/85 backdrop-blur-md p-1.5 rounded-xl border border-gold-400/70 shadow-2xl hover:scale-105 transition"
             title="Nhấp để xem ảnh thẻ Avatar chuẩn 3:4"
           >
             <div className="relative h-16 w-12 rounded-lg overflow-hidden border border-white/30 bg-slate-800 shrink-0">
@@ -686,7 +686,7 @@ export function BroadcastAthleteCard({
               />
             </div>
             <div className="pr-2">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-[#ffd700] block">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-gold-400 block">
                 Avatar 3:4
               </span>
               <span className="text-xs font-extrabold text-white block">
@@ -712,7 +712,7 @@ export function BroadcastAthleteCard({
             {player.full_name}
           </h3>
           {player.short_name && (
-            <span className="text-lg text-[#ffd700] font-bold">
+            <span className="text-lg text-gold-400 font-bold">
               ({player.short_name})
             </span>
           )}
@@ -725,8 +725,8 @@ export function BroadcastAthleteCard({
         </p>
 
         {player.playing_style && (
-          <div className="mt-2.5 inline-flex items-center gap-2 bg-[#0c2f5e]/80 border border-sky-300/30 px-3 py-1.5 rounded-md text-xs text-sky-100">
-            <span className="text-[#ffd700] font-bold uppercase tracking-wider text-[10px]">
+          <div className="mt-2.5 inline-flex items-center gap-2 bg-navy-700/80 border border-sky-300/30 px-3 py-1.5 rounded-md text-xs text-sky-100">
+            <span className="text-gold-400 font-bold uppercase tracking-wider text-[10px]">
               Lối chơi:
             </span>
             <span className="font-semibold">{player.playing_style}</span>
@@ -736,18 +736,18 @@ export function BroadcastAthleteCard({
 
       {/* 4 Chỉ số thực tế của cầu thủ (Real Stat Grid) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/15 text-center">
-        <div className="bg-[#0c2f5e]/85 p-2.5 sm:p-3 rounded-lg border border-sky-300/25 backdrop-blur-xs">
+        <div className="bg-navy-700/85 p-2.5 sm:p-3 rounded-lg border border-sky-300/25 backdrop-blur-xs">
           <span className="text-[10px] uppercase font-bold tracking-wider text-sky-200 block">
             Ra Sân Mùa Này
           </span>
-          <span className="text-lg sm:text-xl font-display font-black text-[#ffd700] block mt-0.5">
+          <span className="text-lg sm:text-xl font-display font-black text-gold-400 block mt-0.5">
             {matchesPlayed > 0 ? `${matchesPlayed} trận` : "Sẵn sàng"}
           </span>
           <span className="text-[9px] text-sky-200/80 block mt-0.5">
             Sân 7 người
           </span>
         </div>
-        <div className="bg-[#0c2f5e]/85 p-2.5 sm:p-3 rounded-lg border border-sky-300/25 backdrop-blur-xs">
+        <div className="bg-navy-700/85 p-2.5 sm:p-3 rounded-lg border border-sky-300/25 backdrop-blur-xs">
           <span className="text-[10px] uppercase font-bold tracking-wider text-sky-200 block">
             Độ Tuổi
           </span>
@@ -758,7 +758,7 @@ export function BroadcastAthleteCard({
             Thể lực ổn định
           </span>
         </div>
-        <div className="bg-[#0c2f5e]/85 p-2.5 sm:p-3 rounded-lg border border-sky-300/25 backdrop-blur-xs">
+        <div className="bg-navy-700/85 p-2.5 sm:p-3 rounded-lg border border-sky-300/25 backdrop-blur-xs">
           <span className="text-[10px] uppercase font-bold tracking-wider text-sky-200 block">
             Quê Quán
           </span>
@@ -769,7 +769,7 @@ export function BroadcastAthleteCard({
             Xã Gò Nổi • TP. Đà Nẵng
           </span>
         </div>
-        <div className="bg-[#0c2f5e]/85 p-2.5 sm:p-3 rounded-lg border border-sky-300/25 backdrop-blur-xs">
+        <div className="bg-navy-700/85 p-2.5 sm:p-3 rounded-lg border border-sky-300/25 backdrop-blur-xs">
           <span className="text-[10px] uppercase font-bold tracking-wider text-sky-200 block">
             Vị Trí Sân
           </span>
@@ -783,19 +783,19 @@ export function BroadcastAthleteCard({
       </div>
 
       {/* Trích dẫn châm ngôn / Bio cá nhân */}
-      <div className="rounded-lg bg-gradient-to-r from-[#0c2f5e] to-[#124285] border-l-4 border-[#ffd700] p-3.5 text-xs text-slate-100 shadow-sm">
-        <span className="text-[10px] uppercase font-black tracking-widest text-[#ffd700] block mb-1">
+      <div className="rounded-lg bg-gradient-to-r from-navy-700 to-navy-500 border-l-4 border-gold-400 p-3.5 text-xs text-slate-100 shadow-sm">
+        <span className="text-[10px] uppercase font-black tracking-widest text-gold-400 block mb-1">
           CHÂM NGÔN &amp; LỜI GIỚI THIỆU SÂN CỎ
         </span>
         <p className="italic leading-relaxed">
-          <Quote className="h-3 w-3 text-[#ffd700] inline mr-1" />
+          <Quote className="h-3 w-3 text-gold-400 inline mr-1" />
           &ldquo;{bioText}&rdquo;
         </p>
       </div>
 
       {/* Chân trang nhận diện bản quyền khi xuất ảnh */}
       <div className="pt-3 border-t border-white/15 flex items-center justify-between text-[11px] text-slate-300">
-        <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-[#ffd700]">
+        <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-gold-400">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/logo.jpg"

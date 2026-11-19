@@ -49,8 +49,9 @@
 
 ---
 
-## Phase 6.4 — Component Decomposition & Shared Profile/Gallery Editor
+## Phase 6.4 — Component Decomposition & Shared Profile/Gallery Editor (Completed)
 
+- **Implementation Record**: `docs/phase-6/phase-6.4-implementation.md`
 - **Objective**: Break up monolithic components (>1,300 lines) and eliminate duplicated player profile/gallery/cropper code without changing API payloads or state behavior.
 - **Scope**:
   1. Extract shared `<PlayerProfileEditor>` + `<PlayerGalleryManager>` from `ScheduleTab.tsx` (2,783 lines), `PlayerPersonalTab.tsx` (1,341 lines), and `PlayersTab.tsx` (1,964 lines).
@@ -69,8 +70,9 @@
 
 ---
 
-## Phase 6.5 — Image Optimization, Live Browser Visual QA & Polish
+## Phase 6.5 — Image Optimization, Live Browser Visual QA & Polish (Completed)
 
+- **Implementation Record**: `docs/phase-6/phase-6.5-implementation.md`
 - **Objective**: Optimize image delivery (`next/image` / explicit dimensions for zero CLS) and execute live headless-browser visual & WCAG contrast verification across all 4 target viewports (`360×800`, `390×844`, `768×1024`, `1440×900`).
 - **Scope**:
   1. Audit and migrate key public `<img>` tags in `PublicGuestPortal.tsx`, `hoat-dong/page.tsx`, `hoat-dong/[id]/page.tsx`, and `BroadcastAthleteCard.tsx` to `next/image` (or explicit `width`/`height` + `aspect-*` containers where dynamic external URLs apply).

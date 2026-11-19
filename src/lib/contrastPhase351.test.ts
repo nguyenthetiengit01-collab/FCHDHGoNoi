@@ -210,7 +210,9 @@ describe("Phase 3.5.1 – WCAG 2.2 Contrast & Design Token Integrity", () => {
       const darkSurfaceFiles = [
         "src/components/LoginModal.tsx",
         "src/components/ImageLightboxModal.tsx",
-        "src/components/PublicGuestPortal.tsx",
+        "src/components/guest/GuestHeaderNav.tsx",
+        "src/components/guest/MatchdaySection.tsx",
+        "src/components/guest/RosterShowcase.tsx",
         "src/components/TeamManagerApp.tsx",
       ];
       for (const file of darkSurfaceFiles) {
@@ -223,7 +225,8 @@ describe("Phase 3.5.1 – WCAG 2.2 Contrast & Design Token Integrity", () => {
         "src/components/ui/Button.tsx",
         "src/components/ui/FormControls.tsx",
         "src/components/ModalDialog.tsx",
-        "src/components/FinanceTab.tsx",
+        "src/components/finance/ExpenseLedgerSection.tsx",
+        "src/components/finance/OtherIncomeSection.tsx",
         "src/components/MatrixTab.tsx",
         "src/components/PlayersTab.tsx",
       ];

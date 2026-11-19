@@ -167,7 +167,7 @@ export function PwaManager() {
             <button
               type="button"
               onClick={handleApplyUpdate}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-500 hover:bg-gold-300 text-navy-950 text-xs font-extrabold uppercase tracking-wider transition"
+              className="inline-flex min-h-11 items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-500 hover:bg-gold-300 text-navy-950 text-xs font-extrabold uppercase tracking-wider transition"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Cập nhật
@@ -176,7 +176,7 @@ export function PwaManager() {
               type="button"
               aria-label="Đóng thông báo cập nhật"
               onClick={() => setShowUpdateBanner(false)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition"
             >
               <X className="h-4 w-4" />
             </button>
@@ -185,12 +185,12 @@ export function PwaManager() {
       )}
 
       {showInstallBanner && (
-        <div className="pointer-events-auto rounded-xl bg-navy-900 border border-white/15 p-3.5 shadow-2xl text-slate-100 flex items-center justify-between gap-3">
+        <div className="pointer-events-auto rounded-xl bg-navy-900 border border-white/15 p-3 sm:p-3.5 shadow-2xl text-slate-100 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs font-bold text-white truncate">
               Cài đặt ứng dụng FC Gò Nổi
             </div>
-            <p className="text-[11px] text-slate-400 truncate">
+            <p className="text-[11px] text-slate-300 truncate">
               Mở nhanh lịch đấu &amp; quỹ đội ngay từ màn hình chính
             </p>
           </div>
@@ -198,7 +198,7 @@ export function PwaManager() {
             <button
               type="button"
               onClick={handleInstallClick}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-navy-700 hover:bg-[#11315f] border border-gold-500/50 text-gold-300 text-xs font-bold transition"
+              className="inline-flex min-h-11 items-center gap-1.5 px-3 py-1.5 rounded-lg bg-navy-700 hover:bg-navy-600 border border-gold-500/50 text-gold-300 text-xs font-bold transition"
             >
               <Download className="h-3.5 w-3.5" />
               Cài đặt
@@ -207,7 +207,7 @@ export function PwaManager() {
               type="button"
               aria-label="Đóng gợi ý cài đặt"
               onClick={handleDismissInstall}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition"
             >
               <X className="h-4 w-4" />
             </button>

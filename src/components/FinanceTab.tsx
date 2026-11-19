@@ -3,19 +3,14 @@
 import React, { useState, useMemo } from "react";
 import {
   Plus,
-  Edit3,
-  Trash2,
   Download,
   RotateCcw,
   Settings,
+  PieChart,
   Receipt,
   HandCoins,
-  Search,
-  Zap,
-  PieChart,
   TrendingUp,
   Trophy,
-  X,
 } from "lucide-react";
 import type {
   FullAppData,
@@ -23,32 +18,21 @@ import type {
   ExpenseRecord,
   OtherIncome,
 } from "@/types/app";
-import { EXPENSE_CATEGORIES } from "@/types/app";
-import { formatVND, formatDateVN, VIET_BANKS } from "@/lib/format";
-import { ModalDialog } from "./ModalDialog";
+import { formatVND, VIET_BANKS } from "@/lib/format";
 import {
-  Badge,
   Button,
   Card,
   CardHeader,
   CardTitle,
-  ConfirmDialog,
   EmptyState,
   FormField,
   Input,
   Select,
   StatCard,
 } from "./ui";
-
-const VENUE_PRESETS = [
-  { venue: "Sân Vĩnh Lộc", cost: 900000, shortLabel: "Vĩnh Lộc (900k)" },
-  { venue: "Sân Vũ Khánh", cost: 1335000, shortLabel: "Vũ Khánh (1.335k)" },
-  { venue: "Sân Gò Mây", cost: 950000, shortLabel: "Gò Mây (950k)" },
-  { venue: "Sân DEMI", cost: 600000, shortLabel: "DEMI (600k)" },
-];
-
-const QUICK_PAYERS = ["Tiếng", "Tín", "H.Sơn", "Thịnh", "Huy", "Trí"];
-
+import { ExpenseLedgerSection } from "./finance/ExpenseLedgerSection";
+import { OtherIncomeSection } from "./finance/OtherIncomeSection";
+import { FinanceTransactionModal } from "./finance/FinanceTransactionModal";
 interface FinanceTabProps {
   data: FullAppData;
   onMutate: MutateActionFn;
@@ -524,694 +508,67 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
 
       {/* SUBVIEW 1: SỔ CHI TIÊU QUỸ ĐỘI BÓNG (Sheet '5. Chi') */}
       {subView === "expenses" && (
-        <div className="space-y-4">
-          {/* Hộp Ghi Nhanh Chi Tiền Sân 1 Chạm Dành Cho Ban Quản Lý */}
-          <Card className="bg-navy-800/[0.03] border-navy-600/20 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold text-ink-primary">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-navy-600 text-gold-300">
-                  <Zap className="h-4 w-4" />
-                </span>
-                <span>
-                  Ghi Nhanh Chi Tiền Sân 1 Chạm (Không cần mở biểu mẫu dài)
-                </span>
-              </div>
+        <ExpenseLedgerSection
+          matches={matches}
 
-              <div className="flex flex-wrap items-center gap-1.5">
-                {VENUE_PRESETS.map((preset) => (
-                  <button
-                    key={preset.venue}
-                    type="button"
-                    onClick={() => {
-                      setQuickVenue(preset.venue);
-                      setQuickCost(String(preset.cost));
-                    }}
-                    className={`min-h-11 md:min-h-9 px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer ${
-                      quickVenue === preset.venue &&
-                      Number(quickCost) === preset.cost
-                        ? "bg-navy-600 text-gold-300 border-navy-600"
-                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
-                    }`}
-                  >
-                    {preset.shortLabel}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
-              <div className="sm:col-span-3">
-                <Select
-                  aria-label="Chọn trận đấu để ghi tiền sân"
-                  value={quickMatchId}
-                  onChange={(e) => {
-                    setQuickMatchId(e.target.value);
-                    const found = matches.find(
-                      (m) => String(m.id) === e.target.value
-                    );
-                    if (found) {
-                      setQuickVenue(found.venue || "Sân Vĩnh Lộc");
-                      setQuickCost(String(found.pitch_cost || 900000));
-                      setQuickPayer(
-                        (found.payer_name || "Tiếng").split("-")[0].trim() ||
-                          "Tiếng"
-                      );
-                    }
-                  }}
-                  className="text-xs font-bold text-ink-primary"
-                >
-                  {matches
-                    .slice()
-                    .reverse()
-                    .map((m) => (
-                      <option key={m.id} value={String(m.id)}>
-                        {m.label} ({m.venue})
-                      </option>
-                    ))}
-                </Select>
-              </div>
-              <div className="sm:col-span-2">
-                <Input
-                  type="text"
-                  aria-label="Tên sân"
-                  value={quickVenue}
-                  onChange={(e) => setQuickVenue(e.target.value)}
-                  className="text-xs font-bold text-ink-primary"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  aria-label="Số tiền sân"
-                  value={quickCost}
-                  onChange={(e) =>
-                    setQuickCost(e.target.value.replace(/[^0-9]/g, ""))
-                  }
-                  className="text-xs font-extrabold text-rose-600 tabular-nums"
-                />
-              </div>
-              <div className="sm:col-span-3 flex flex-wrap items-center gap-1">
-                {QUICK_PAYERS.map((pName) => (
-                  <button
-                    key={pName}
-                    type="button"
-                    onClick={() => setQuickPayer(pName)}
-                    className={`min-h-11 md:min-h-9 px-2 py-1 rounded-md text-xs font-bold border transition cursor-pointer ${
-                      quickPayer === pName
-                        ? "bg-navy-600 text-gold-300 border-navy-600"
-                        : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
-                    }`}
-                  >
-                    {pName}
-                  </button>
-                ))}
-              </div>
-              <div className="sm:col-span-2">
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
-                  loading={isSaving}
-                  onClick={() =>
-                    onMutate("quick_pitch_expense", {
-                      match_id: quickMatchId ? Number(quickMatchId) : undefined,
-                      venue: quickVenue,
-                      pitch_cost:
-                        Number(quickCost.replace(/[^0-9]/g, "")) || 0,
-                      payer_name: quickPayer,
-                    })
-                  }
-                  className="w-full min-h-11 md:min-h-9"
-                >
-                  Lưu Chi Tiền Sân
-                </Button>
-              </div>
-            </div>
-          </Card>
-
-          {/* Bộ lọc Hạng mục, Khoảng ngày & Tìm kiếm */}
-          <Card className="space-y-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {["Tất cả", ...EXPENSE_CATEGORIES].map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setFilterCategory(cat)}
-                  className={`min-h-11 md:min-h-9 px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-                    filterCategory === cat
-                      ? "bg-navy-600 text-white border-navy-600"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
-              <div className="sm:col-span-5 relative">
-                <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <Input
-                  type="search"
-                  aria-label="Tìm khoản chi"
-                  placeholder="Tìm nội dung, sân, người chi..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <div className="sm:col-span-3">
-                <Input
-                  type="date"
-                  aria-label="Từ ngày"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                />
-              </div>
-              <div className="sm:col-span-3">
-                <Input
-                  type="date"
-                  aria-label="Đến ngày"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                />
-              </div>
-              <div className="sm:col-span-1 flex justify-end">
-                {hasActiveFilters && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearAllFilters}
-                    aria-label="Xoá toàn bộ bộ lọc"
-                    title="Xoá bộ lọc"
-                    className="min-h-10"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </Card>
-
-          {/* Mobile Card List (< 768px) */}
-          <div className="md:hidden space-y-2.5" aria-label="Sổ chi tiêu quỹ đội bóng (di động)">
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 flex items-center justify-between gap-3">
-              <span className="text-xs font-bold text-rose-950">
-                TỔNG CHI TIÊU ({filteredExpenses.length} khoản)
-              </span>
-              <span className="text-sm font-extrabold text-rose-700 tabular-nums whitespace-nowrap">
-                {(() => {
-                  const totalFiltered = filteredExpenses.reduce(
-                    (s, e) => s + e.amount,
-                    0
-                  );
-                  if (totalFiltered === 0) return formatVND(0);
-                  return totalFiltered > 0
-                    ? `-${formatVND(totalFiltered)}`
-                    : `+${formatVND(Math.abs(totalFiltered))}`;
-                })()}
-              </span>
-            </div>
-
-            {filteredExpenses.map((exp, index) => (
-              <Card key={exp.id} className="p-3.5 space-y-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                    <span className="text-[11px] font-bold text-slate-500 tabular-nums">
-                      #{filteredExpenses.length - index}
-                    </span>
-                    <span className="text-xs font-medium text-slate-600 tabular-nums">
-                      {formatDateVN(exp.expense_date)}
-                    </span>
-                    <Badge
-                      variant={
-                        exp.category === "Tiền sân" ? "navy" : "warning"
-                      }
-                    >
-                      {exp.category}
-                    </Badge>
-                  </div>
-                  <span className="text-sm font-extrabold text-rose-600 tabular-nums whitespace-nowrap shrink-0">
-                    -{formatVND(exp.amount)}
-                  </span>
-                </div>
-
-                <p className="text-sm font-semibold text-ink-primary break-words">
-                  {exp.description}
-                </p>
-
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                  <span className="text-xs text-slate-600 truncate">
-                    Người chi: <strong className="text-slate-800">{exp.payer}</strong>
-                  </span>
-                  <div className="inline-flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => openEditExpense(exp)}
-                      aria-label={`Sửa khoản chi ${exp.description}`}
-                      className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPendingDelete({
-                          kind: "expense",
-                          id: exp.id,
-                          label: exp.description,
-                        })
-                      }
-                      aria-label={`Xoá khoản chi ${exp.description}`}
-                      className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-
-            {filteredExpenses.length === 0 && (
-              <EmptyState
-                title="Không tìm thấy khoản chi nào"
-                description="Thử thay đổi bộ lọc hạng mục, khoảng thời gian hoặc từ khóa tìm kiếm."
-                action={
-                  hasActiveFilters ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={clearAllFilters}
-                    >
-                      Xoá bộ lọc
-                    </Button>
-                  ) : undefined
-                }
-              />
-            )}
-          </div>
-
-          {/* Desktop & Tablet Table (>= 768px) */}
-          <div
-            tabIndex={0}
-            role="region"
-            aria-label="Sổ chi tiêu quỹ đội bóng"
-            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-focus-on-light"
-          >
-            <table className="w-full text-left text-xs sm:text-sm border-collapse">
-              <thead>
-                <tr className="bg-navy-600 text-white">
-                  <th className="px-3.5 py-3 font-bold">STT</th>
-                  <th className="px-3.5 py-3 font-bold">Ngày</th>
-                  <th className="px-3.5 py-3 font-bold">Hạng Mục Luỹ Kế</th>
-                  <th className="px-3.5 py-3 font-bold">Nội Dung Chi Tiết</th>
-                  <th className="px-3.5 py-3 font-bold text-right">
-                    Số Tiền (VND)
-                  </th>
-                  <th className="px-3.5 py-3 font-bold">
-                    Người Chi / Xác Nhận
-                  </th>
-                  <th className="px-3.5 py-3 font-bold text-right">Thao tác</th>
-                </tr>
-                <tr className="bg-rose-50 text-rose-950 font-bold border-b border-rose-200">
-                  <td colSpan={4} className="px-3.5 py-2.5 text-right">
-                    TỔNG CHI TIÊU ({filteredExpenses.length} khoản):
-                  </td>
-                  <td className="px-3.5 py-2.5 text-right text-rose-700 font-extrabold text-sm tabular-nums">
-                    {(() => {
-                      const totalFiltered = filteredExpenses.reduce(
-                        (s, e) => s + e.amount,
-                        0
-                      );
-                      if (totalFiltered === 0) return formatVND(0);
-                      return totalFiltered > 0
-                        ? `-${formatVND(totalFiltered)}`
-                        : `+${formatVND(Math.abs(totalFiltered))}`;
-                    })()}
-                  </td>
-                  <td colSpan={2} />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {filteredExpenses.map((exp, index) => (
-                  <tr key={exp.id} className="hover:bg-slate-50">
-                    <td className="px-3.5 py-2.5 text-slate-500 tabular-nums">
-                      {filteredExpenses.length - index}
-                    </td>
-                    <td className="px-3.5 py-2.5 font-medium whitespace-nowrap tabular-nums">
-                      {formatDateVN(exp.expense_date)}
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <Badge
-                        variant={
-                          exp.category === "Tiền sân" ? "navy" : "warning"
-                        }
-                      >
-                        {exp.category}
-                      </Badge>
-                    </td>
-                    <td className="px-3.5 py-2.5 font-semibold text-ink-primary">
-                      {exp.description}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-right font-bold text-rose-600 whitespace-nowrap tabular-nums">
-                      -{formatVND(exp.amount)}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-slate-700">
-                      {exp.payer}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => openEditExpense(exp)}
-                          aria-label={`Sửa khoản chi ${exp.description}`}
-                          className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 cursor-pointer"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPendingDelete({
-                              kind: "expense",
-                              id: exp.id,
-                              label: exp.description,
-                            })
-                          }
-                          aria-label={`Xoá khoản chi ${exp.description}`}
-                          className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredExpenses.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="p-4">
-                      <EmptyState
-                        title="Không tìm thấy khoản chi nào"
-                        description="Thử thay đổi bộ lọc hạng mục, khoảng thời gian hoặc từ khóa tìm kiếm."
-                        action={
-                          hasActiveFilters ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={clearAllFilters}
-                            >
-                              Xoá bộ lọc
-                            </Button>
-                          ) : undefined
-                        }
-                      />
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          expenses={expenses}
+          filteredExpenses={filteredExpenses}
+          hasActiveFilters={hasActiveFilters}
+          quickMatchId={quickMatchId}
+          setQuickMatchId={setQuickMatchId}
+          quickVenue={quickVenue}
+          setQuickVenue={setQuickVenue}
+          quickCost={quickCost}
+          setQuickCost={setQuickCost}
+          quickPayer={quickPayer}
+          setQuickPayer={setQuickPayer}
+          filterCategory={filterCategory}
+          setFilterCategory={setFilterCategory}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          fromDate={fromDate}
+          setFromDate={setFromDate}
+          toDate={toDate}
+          setToDate={setToDate}
+          isSaving={isSaving}
+          onMutate={onMutate}
+          clearAllFilters={clearAllFilters}
+          openEditExpense={openEditExpense}
+          onRequestDeleteExpense={(exp) =>
+            setPendingDelete({
+              kind: "expense",
+              id: exp.id,
+              label: `${exp.description} (${formatVND(exp.amount)})`,
+            })
+          }
+        />
       )}
 
-      {/* SUBVIEW 2: CÁC KHOẢN THU NGOÀI & TÀI TRỢ (Sheet '4. Thu Khác') */}
       {subView === "incomes" && (
-        <div className="space-y-4">
-          <div className="rounded-xl bg-navy-800 text-white border border-gold-500 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gold-300">
-                <Trophy className="h-3.5 w-3.5" />
-                <span>
-                  Quỹ Giải Đội Bóng (Theo dõi tách riêng ngoài quỹ sinh hoạt tuần)
-                </span>
-              </div>
-              <p className="text-xs text-slate-300">
-                {settings.tournament_fund_note}
-              </p>
-            </div>
-            <div className="text-lg sm:text-xl font-extrabold text-gold-300 shrink-0 tabular-nums">
-              Còn lại: {formatVND(settings.tournament_fund_reserve)}
-            </div>
-          </div>
-
-          <Card className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
-            <div className="sm:col-span-6 relative">
-              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <Input
-                type="search"
-                aria-label="Tìm khoản thu khác"
-                placeholder="Tìm người ủng hộ, loại quỹ, ghi chú..."
-                value={incomeSearch}
-                onChange={(e) => setIncomeSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <div className="sm:col-span-3">
-              <Input
-                type="date"
-                aria-label="Từ ngày"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-              />
-            </div>
-            <div className="sm:col-span-3">
-              <Input
-                type="date"
-                aria-label="Đến ngày"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-              />
-            </div>
-          </Card>
-
-          {/* Mobile Card List (< 768px) */}
-          <div className="md:hidden space-y-2.5" aria-label="Bảng các khoản thu ngoài và tài trợ (di động)">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center justify-between gap-3">
-              <span className="text-xs font-bold text-emerald-950">
-                TỔNG THU KHÁC CỘNG QUỸ ĐỘI
-              </span>
-              <span className="text-sm font-extrabold text-emerald-700 tabular-nums whitespace-nowrap">
-                +{formatVND(summary.totalOtherIncome)}
-              </span>
-            </div>
-
-            {filteredIncomes.map((inc, idx) => (
-              <Card key={inc.id} className="p-3.5 space-y-2.5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-                    <span className="text-[11px] font-bold text-slate-500 tabular-nums">
-                      #{idx + 1}
-                    </span>
-                    <span className="text-xs font-medium text-slate-600 tabular-nums">
-                      {formatDateVN(inc.income_date)}
-                    </span>
-                    <Badge
-                      variant={
-                        inc.fund_type === "Ghi chú Quỹ giải"
-                          ? "gold"
-                          : "success"
-                      }
-                    >
-                      {inc.fund_type}
-                    </Badge>
-                  </div>
-                  <span className="text-sm font-extrabold text-emerald-700 tabular-nums whitespace-nowrap shrink-0">
-                    +{formatVND(inc.amount)}
-                  </span>
-                </div>
-
-                <p className="text-sm font-semibold text-ink-primary break-words">
-                  {inc.contributor}
-                </p>
-
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                  <span className="text-xs text-slate-600 truncate">
-                    {inc.note || "Không có ghi chú"}
-                  </span>
-                  <div className="inline-flex items-center gap-1 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => openEditIncome(inc)}
-                      aria-label={`Sửa khoản thu ${inc.contributor}`}
-                      className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-2 rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPendingDelete({
-                          kind: "income",
-                          id: inc.id,
-                          label: inc.contributor,
-                        })
-                      }
-                      aria-label={`Xoá khoản thu ${inc.contributor}`}
-                      className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-2 rounded-lg text-rose-600 hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-focus-on-light cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-
-            {filteredIncomes.length === 0 && (
-              <EmptyState
-                title={
-                  otherIncomes.length === 0
-                    ? "Chưa có khoản thu khác nào"
-                    : "Không tìm thấy khoản thu phù hợp"
-                }
-                description={
-                  otherIncomes.length === 0
-                    ? "Nhấn Ghi Khoản Thu Khác để thêm nguồn thu tài trợ hoặc ủng hộ quỹ đội."
-                    : "Thử thay đổi bộ lọc tìm kiếm hoặc khoảng ngày."
-                }
-                action={
-                  hasActiveFilters ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={clearAllFilters}
-                    >
-                      Xoá bộ lọc
-                    </Button>
-                  ) : undefined
-                }
-              />
-            )}
-          </div>
-
-          {/* Desktop & Tablet Table (>= 768px) */}
-          <div
-            tabIndex={0}
-            role="region"
-            aria-label="Bảng các khoản thu ngoài và tài trợ"
-            className="hidden md:block ds-table-wrap focus-visible:outline-2 focus-visible:outline-focus-on-light"
-          >
-            <table className="w-full text-left text-xs sm:text-sm border-collapse">
-              <thead>
-                <tr className="bg-navy-600 text-white">
-                  <th className="px-3.5 py-3 font-bold">STT</th>
-                  <th className="px-3.5 py-3 font-bold">Ngày</th>
-                  <th className="px-3.5 py-3 font-bold">
-                    Người Ủng Hộ / Nguồn Thu
-                  </th>
-                  <th className="px-3.5 py-3 font-bold">Loại Quỹ</th>
-                  <th className="px-3.5 py-3 font-bold text-right">
-                    Số Tiền Cộng Quỹ Đội
-                  </th>
-                  <th className="px-3.5 py-3 font-bold">Ghi Chú / Mục Đích</th>
-                  <th className="px-3.5 py-3 font-bold text-right">Thao tác</th>
-                </tr>
-                <tr className="bg-emerald-50 text-emerald-950 font-bold border-b border-emerald-200">
-                  <td colSpan={4} className="px-3.5 py-2.5 text-right">
-                    TỔNG THU KHÁC CỘNG VÀO QUỸ ĐỘI:
-                  </td>
-                  <td className="px-3.5 py-2.5 text-right text-emerald-700 font-extrabold text-sm tabular-nums">
-                    +{formatVND(summary.totalOtherIncome)}
-                  </td>
-                  <td colSpan={2} />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {filteredIncomes.map((inc, idx) => (
-                  <tr key={inc.id} className="hover:bg-slate-50">
-                    <td className="px-3.5 py-2.5 text-slate-500 tabular-nums">
-                      {idx + 1}
-                    </td>
-                    <td className="px-3.5 py-2.5 whitespace-nowrap tabular-nums">
-                      {formatDateVN(inc.income_date)}
-                    </td>
-                    <td className="px-3.5 py-2.5 font-semibold text-ink-primary">
-                      {inc.contributor}
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <Badge
-                        variant={
-                          inc.fund_type === "Ghi chú Quỹ giải"
-                            ? "gold"
-                            : "success"
-                        }
-                      >
-                        {inc.fund_type}
-                      </Badge>
-                    </td>
-                    <td className="px-3.5 py-2.5 text-right font-bold text-emerald-700 whitespace-nowrap tabular-nums">
-                      +{formatVND(inc.amount)}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-slate-700">{inc.note}</td>
-                    <td className="px-3.5 py-2.5 text-right">
-                      <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => openEditIncome(inc)}
-                          aria-label={`Sửa khoản thu ${inc.contributor}`}
-                          className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 cursor-pointer"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPendingDelete({
-                              kind: "income",
-                              id: inc.id,
-                              label: inc.contributor,
-                            })
-                          }
-                          aria-label={`Xoá khoản thu ${inc.contributor}`}
-                          className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 cursor-pointer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredIncomes.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="p-4">
-                      <EmptyState
-                        title={
-                          otherIncomes.length === 0
-                            ? "Chưa có khoản thu khác nào"
-                            : "Không tìm thấy khoản thu phù hợp"
-                        }
-                        description={
-                          otherIncomes.length === 0
-                            ? "Nhấn Ghi Khoản Thu Khác để thêm nguồn thu tài trợ hoặc ủng hộ quỹ đội."
-                            : "Thử thay đổi bộ lọc tìm kiếm hoặc khoảng ngày."
-                        }
-                        action={
-                          hasActiveFilters ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={clearAllFilters}
-                            >
-                              Xoá bộ lọc
-                            </Button>
-                          ) : undefined
-                        }
-                      />
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <OtherIncomeSection
+          filteredIncomes={filteredIncomes}
+          settings={settings}
+          summary={summary}
+          otherIncomes={otherIncomes}
+          fromDate={fromDate}
+          setFromDate={setFromDate}
+          toDate={toDate}
+          setToDate={setToDate}
+          hasActiveFilters={hasActiveFilters}
+          clearAllFilters={clearAllFilters}
+          incomeSearch={incomeSearch}
+          setIncomeSearch={setIncomeSearch}
+          openEditIncome={openEditIncome}
+          onRequestDeleteIncome={(inc) =>
+            setPendingDelete({
+              kind: "income",
+              id: inc.id,
+              label: `${inc.contributor} (${formatVND(inc.amount)})`,
+            })
+          }
+        />
       )}
 
-      {/* SUBVIEW 3: CẤU HÌNH ĐỘI BÓNG & VIETQR THỦ QUỸ */}
       {subView === "settings" && (
         <Card className="max-w-2xl space-y-6">
           <div className="border-b border-slate-100 pb-3">
@@ -1349,296 +706,44 @@ export function FinanceTab({ data, onMutate, isSaving }: FinanceTabProps) {
         </Card>
       )}
 
-      {/* Modal Thêm / Sửa Khoản Chi */}
-      <ModalDialog
-        isOpen={expModalOpen}
-        onClose={() => {
-          if (!isSaving) setExpModalOpen(false);
-        }}
-        title={editingExpense ? "Cập Nhật Khoản Chi" : "Ghi Khoản Chi Tiêu Mới"}
-        subtitle="Tự động cộng luỹ kế vào hạng mục chi tương ứng trên Dashboard"
-      >
-        <form onSubmit={handleSaveExpense} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <FormField label="Ngày chi" htmlFor="exp-date" required>
-              <Input
-                id="exp-date"
-                name="expense_date"
-                type="date"
-                required
-                value={expDate}
-                onChange={(e) => setExpDate(e.target.value)}
-              />
-            </FormField>
-            <FormField label="Hạng Mục Chi" htmlFor="exp-cat">
-              <Select
-                id="exp-cat"
-                name="category"
-                value={expCategory}
-                onChange={(e) => setExpCategory(e.target.value)}
-              >
-                {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-          </div>
-
-          <FormField label="Nội dung chi tiết" htmlFor="exp-desc" required>
-            <Input
-              id="exp-desc"
-              name="description"
-              type="text"
-              required
-              placeholder="VD: Tiền sân trận tuần 16 - 04/11"
-              value={expDesc}
-              onChange={(e) => setExpDesc(e.target.value)}
-            />
-          </FormField>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <FormField label="Số tiền (VND)" htmlFor="exp-amount" required>
-              <Input
-                id="exp-amount"
-                name="amount"
-                type="text"
-                inputMode="numeric"
-                required
-                placeholder="VD: 900000"
-                value={expAmount}
-                onChange={(e) =>
-                  setExpAmount(e.target.value.replace(/[^0-9]/g, ""))
-                }
-                className="tabular-nums font-bold"
-              />
-            </FormField>
-            <FormField label="Người chi / Xác nhận" htmlFor="exp-payer">
-              <Input
-                id="exp-payer"
-                name="payer"
-                type="text"
-                placeholder="VD: Tiếng - Vĩnh Lộc"
-                value={expPayer}
-                onChange={(e) => setExpPayer(e.target.value)}
-              />
-            </FormField>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
-            <Button
-              type="button"
-              variant="outline"
-              size="md"
-              disabled={isSaving}
-              onClick={() => setExpModalOpen(false)}
-            >
-              Huỷ
-            </Button>
-            <Button
-              type="submit"
-              variant="danger"
-              size="md"
-              loading={isSaving}
-              disabled={isSaving}
-            >
-              Lưu Khoản Chi
-            </Button>
-          </div>
-        </form>
-      </ModalDialog>
-
-      {/* Modal Thêm / Sửa Khoản Thu Khác */}
-      <ModalDialog
-        isOpen={incModalOpen}
-        onClose={() => {
-          if (!isSaving) setIncModalOpen(false);
-        }}
-        title={
-          editingIncome
-            ? "Cập Nhật Khoản Thu Khác"
-            : "Thêm Khoản Thu Ngoài / Tài Trợ"
-        }
-        subtitle="Ghi nhận tiền tài trợ, ủng hộ vào Quỹ đội hoặc ghi chú Quỹ giải"
-      >
-        <form onSubmit={handleSaveIncome} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <FormField label="Ngày thu" htmlFor="inc-date" required>
-              <Input
-                id="inc-date"
-                name="income_date"
-                type="date"
-                required
-                value={incDate}
-                onChange={(e) => setIncDate(e.target.value)}
-              />
-            </FormField>
-            <FormField
-              label="Người ủng hộ / Nguồn thu"
-              htmlFor="inc-contributor"
-              required
-            >
-              <Input
-                id="inc-contributor"
-                name="contributor"
-                type="text"
-                required
-                placeholder="VD: Anh Sơn ủng hộ nước"
-                value={incContributor}
-                onChange={(e) => setIncContributor(e.target.value)}
-              />
-            </FormField>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <FormField
-              label="Số tiền cộng vào Quỹ Sinh Hoạt (VND)"
-              htmlFor="inc-amount"
-            >
-              <Input
-                id="inc-amount"
-                name="amount"
-                type="text"
-                inputMode="numeric"
-                placeholder="Nhập 0 nếu chỉ ghi chú quỹ giải riêng"
-                value={incAmount}
-                onChange={(e) =>
-                  setIncAmount(e.target.value.replace(/[^0-9]/g, ""))
-                }
-                className="tabular-nums font-bold"
-              />
-            </FormField>
-            <fieldset>
-              <legend className="block text-sm font-semibold text-ink-primary mb-1.5">
-                Phân loại
-              </legend>
-              <div className="flex items-center gap-3 min-h-[44px]">
-                {["Quỹ sinh hoạt", "Ghi chú Quỹ giải"].map((ft) => (
-                  <label
-                    key={ft}
-                    className="inline-flex items-center gap-1.5 text-sm cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name="fund_type"
-                      value={ft}
-                      checked={incFundType === ft}
-                      onChange={() => setIncFundType(ft)}
-                      className="accent-navy-600 h-4 w-4"
-                    />
-                    <span>{ft}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          </div>
-
-          {(data.sponsors || []).length > 0 && (
-            <FormField label="Liên kết Nhà tài trợ (tùy chọn)" htmlFor="inc-sponsor">
-              <Select
-                id="inc-sponsor"
-                name="sponsor_id"
-                value={incSponsorId}
-                onChange={(e) => setIncSponsorId(e.target.value)}
-              >
-                <option value="">— Chưa phân bổ —</option>
-                {(data.sponsors || []).map((s) => (
-                  <option key={s.id} value={String(s.id)}>
-                    {s.name} ({s.tier})
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-          )}
-
-          <FormField label="Ghi chú / Mục đích" htmlFor="inc-note">
-            <Input
-              id="inc-note"
-              name="note"
-              type="text"
-              placeholder="Nội dung chi tiết..."
-              value={incNote}
-              onChange={(e) => setIncNote(e.target.value)}
-            />
-          </FormField>
-
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
-            <Button
-              type="button"
-              variant="outline"
-              size="md"
-              disabled={isSaving}
-              onClick={() => setIncModalOpen(false)}
-            >
-              Huỷ
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              loading={isSaving}
-              disabled={isSaving}
-            >
-              Lưu Khoản Thu
-            </Button>
-          </div>
-        </form>
-      </ModalDialog>
-
-      {/* ConfirmDialog Xoá khoản chi / khoản thu (khóa khi isSaving) */}
-      <ConfirmDialog
-        isOpen={Boolean(pendingDelete)}
-        loading={isSaving}
-        onClose={() => {
-          if (!isSaving) setPendingDelete(null);
-        }}
-        onConfirm={async () => {
-          if (!pendingDelete || isSaving) return;
-          const action =
-            pendingDelete.kind === "expense"
-              ? "delete_expense"
-              : "delete_other_income";
-          const id = pendingDelete.id;
-          try {
-            await onMutate(action, { id });
-          } finally {
-            setPendingDelete(null);
-          }
-        }}
-        title={
-          pendingDelete?.kind === "expense"
-            ? "Xoá khoản chi tiêu?"
-            : "Xoá khoản thu khác?"
-        }
-        description={
-          pendingDelete
-            ? `Bạn có chắc muốn xoá "${pendingDelete.label}"? Thao tác này sẽ cập nhật lại số dư quỹ.`
-            : ""
-        }
-        confirmLabel="Xoá"
-        danger
-      />
-
-      {/* ConfirmDialog Khôi phục dữ liệu khởi tạo */}
-      <ConfirmDialog
-        isOpen={pendingResetExcel}
-        loading={isSaving}
-        onClose={() => {
-          if (!isSaving) setPendingResetExcel(false);
-        }}
-        onConfirm={async () => {
-          if (isSaving) return;
-          try {
-            await onMutate("reset_to_excel", {});
-          } finally {
-            setPendingResetExcel(false);
-          }
-        }}
-        title="Khôi phục dữ liệu khởi tạo?"
-        description="Thao tác này sẽ khôi phục toàn bộ hệ thống về bộ dữ liệu khởi tạo mặc định (không đọc từ file Excel): Danh sách cầu thủ sẽ được nạp lại; Lịch sử trận đấu và điểm danh sẽ được nạp lại; Toàn bộ khoản thu và chi hiện tại sẽ bị thay thế; Cấu hình đội bóng và quỹ dự phòng sẽ trở về giá trị trong bộ dữ liệu khởi tạo. Cảnh báo: Không thể hoàn tác nếu không có bản sao lưu."
-        confirmLabel="Khôi phục dữ liệu khởi tạo"
-        danger
+      <FinanceTransactionModal
+        isSaving={isSaving}
+        sponsors={data.sponsors || []}
+        expModalOpen={expModalOpen}
+        setExpModalOpen={setExpModalOpen}
+        editingExpense={editingExpense}
+        expDate={expDate}
+        setExpDate={setExpDate}
+        expCategory={expCategory}
+        setExpCategory={setExpCategory}
+        expDesc={expDesc}
+        setExpDesc={setExpDesc}
+        expAmount={expAmount}
+        setExpAmount={setExpAmount}
+        expPayer={expPayer}
+        setExpPayer={setExpPayer}
+        handleSaveExpense={handleSaveExpense}
+        incModalOpen={incModalOpen}
+        setIncModalOpen={setIncModalOpen}
+        editingIncome={editingIncome}
+        incDate={incDate}
+        setIncDate={setIncDate}
+        incContributor={incContributor}
+        setIncContributor={setIncContributor}
+        incAmount={incAmount}
+        setIncAmount={setIncAmount}
+        incFundType={incFundType}
+        setIncFundType={setIncFundType}
+        incSponsorId={incSponsorId}
+        setIncSponsorId={setIncSponsorId}
+        incNote={incNote}
+        setIncNote={setIncNote}
+        handleSaveIncome={handleSaveIncome}
+        pendingDelete={pendingDelete}
+        setPendingDelete={setPendingDelete}
+        pendingResetExcel={pendingResetExcel}
+        setPendingResetExcel={setPendingResetExcel}
+        onMutate={onMutate}
       />
     </div>
   );

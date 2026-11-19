@@ -1,6 +1,7 @@
 "use client";
 
 import React, { use, useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   CLUB_ACTIVITIES_POSTS,
@@ -111,10 +112,12 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
             href="/"
             className="inline-flex items-center gap-3 group cursor-pointer"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={OFFICIAL_LOGO_URL}
               alt="FC HĐH Gò Nổi"
+              width={40}
+              height={40}
+              priority
               className="h-10 w-10 rounded-full object-contain bg-white p-0.5 ring-2 ring-gold-500 group-hover:scale-105 transition"
             />
             <div>
@@ -191,7 +194,7 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
 
           <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-b border-white/10 pb-4 text-xs sm:text-sm text-sky-200/80">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-navy-500 border border-gold-500 flex items-center justify-center font-bold text-gold-500">
+              <div className="h-9 w-9 rounded-full bg-navy-800 border border-gold-500 flex items-center justify-center font-bold text-gold-300">
                 GN
               </div>
               <div>
@@ -238,11 +241,14 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
           }}
           className="relative aspect-video rounded-xl overflow-hidden mb-10 border-2 border-gold-500/40 shadow-2xl cursor-pointer group"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={post.featuredImage}
             alt={post.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition duration-700"
+            fill
+            priority
+            sizes="(max-width: 1024px) 100vw, 896px"
+            unoptimized={!post.featuredImage.startsWith("/")}
+            className="object-cover group-hover:scale-105 transition duration-700"
           />
           <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition" />
           <div className="absolute bottom-4 right-4 bg-black/70 backdrop-blur-md text-white text-xs font-bold px-3.5 py-1.5 rounded-full border border-white/20 flex items-center gap-1.5 shadow-lg group-hover:bg-gold-500 group-hover:text-slate-950 transition">
@@ -352,11 +358,13 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
                     onClick={() => openLightbox(allImgs, i + 1)}
                     className="group relative aspect-video rounded-xl overflow-hidden border border-gold-500/30 shadow-lg cursor-pointer"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                       src={imgSrc}
                       alt={`Hình ảnh hoạt động ${i + 1}`}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                      fill
+                      sizes="(max-width: 640px) 100vw, 448px"
+                      unoptimized={!imgSrc.startsWith("/")}
+                      className="object-cover group-hover:scale-105 transition duration-500"
                     />
                     <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition" />
                     <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition bg-black/70 text-white text-[11px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1">
@@ -401,11 +409,13 @@ export default function ChiTietHoatDongPage({ params }: PageProps) {
                   className="group flex flex-col rounded-xl overflow-hidden bg-navy-800/80 border border-white/10 hover:border-gold-500 transition p-3 cursor-pointer"
                 >
                   <div className="relative aspect-video rounded-xl overflow-hidden mb-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                       src={rel.featuredImage}
                       alt={rel.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      fill
+                      sizes="(max-width: 640px) 100vw, 300px"
+                      unoptimized={!rel.featuredImage.startsWith("/")}
+                      className="object-cover group-hover:scale-105 transition duration-300"
                     />
                   </div>
                   <span className="text-[10px] uppercase font-bold text-gold-500 mb-1">
