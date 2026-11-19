@@ -30,10 +30,11 @@ export class AuthSecretError extends Error {
 export function isProductionAuthEnv(
   env: Record<string, string | undefined> = process.env
 ): boolean {
-  return (
-    env.NODE_ENV?.trim().toLowerCase() === "production" ||
-    env.VERCEL_ENV?.trim().toLowerCase() === "production"
-  );
+  const vercelEnv = env.VERCEL_ENV?.trim().toLowerCase();
+  if (vercelEnv) {
+    return vercelEnv === "production";
+  }
+  return env.NODE_ENV?.trim().toLowerCase() === "production";
 }
 
 /**
@@ -482,6 +483,22 @@ export const UNIFIED_LOGIN_ERROR_MESSAGE =
 
 const DUMMY_SCRYPT_HASH = hashPassword("fc-gonoi-dummy-anti-enum-2026");
 
+let dummyScryptHookForTest: ((reason: "missing" | "inactive" | "legacy_wrong_pin") => void) | null = null;
+
+export function __setDummyScryptHookForTest(
+  hook: ((reason: "missing" | "inactive" | "legacy_wrong_pin") => void) | null
+): void {
+  dummyScryptHookForTest = hook;
+}
+
+function runDummyScryptVerification(
+  cleanPin: string,
+  reason: "missing" | "inactive" | "legacy_wrong_pin"
+): void {
+  dummyScryptHookForTest?.(reason);
+  verifyPassword(cleanPin, DUMMY_SCRYPT_HASH);
+}
+
 export const AUTH_PLAYER_PROFILE_COLUMNS = `
   id, code_order, full_name, short_name, username, jersey_number,
   position, phone, birth_year, avatar_url, profile_image_url,
@@ -507,13 +524,7 @@ export async function verifyCredentials(
   const cleanUsername = String(username || "").trim();
   const cleanPin = String(pin || "").trim();
 
-  if (!cleanUsername) {
-    return { success: false, status: 401, error: "Vui lòng nhập Tên đăng nhập hoặc Số áo." };
-  }
-  if (!cleanPin) {
-    return { success: false, status: 401, error: "Vui lòng nhập Mật khẩu bảo mật." };
-  }
-  if (cleanPin.length > 128) {
+  if (!cleanUsername || !cleanPin || cleanPin.length > 128) {
     return { success: false, status: 401, error: UNIFIED_LOGIN_ERROR_MESSAGE };
   }
 
@@ -531,7 +542,7 @@ export async function verifyCredentials(
     throw err;
   }
 
-  // 1. Distributed Rate Limiting (Account + IP + Pair) — fail-closed trên Production
+  // 1. Distributed Rate Limiting (IP + Account+IP pair) — fail-closed trên Production
   const rl = await evaluateAuthRateLimit({ username: cleanUsername, clientIp });
   if (!rl.allowed) {
     return {
@@ -543,7 +554,7 @@ export async function verifyCredentials(
     };
   }
 
-  // 2. Chỉ truy vấn các cột định danh tối thiểu phục vụ xác thực (không SELECT *)
+  // 2. Chỉ truy vấn các cột định danh tối thiểu phục vụ tìm kiếm ứng viên (không pin_code, không SELECT *)
   const db = getAsyncDb();
   const lookupCandidates = await db.query<{
     id: number;
@@ -552,11 +563,9 @@ export async function verifyCredentials(
     username: string | null;
     jersey_number: number | null;
     phone: string;
-    access_role: "manager" | "player";
-    pin_code: string;
     status: string;
   }>(
-    `SELECT id, full_name, short_name, username, jersey_number, phone, access_role, pin_code, status
+    `SELECT id, full_name, short_name, username, jersey_number, phone, status
      FROM players
      ORDER BY id ASC`
   );
@@ -579,7 +588,7 @@ export async function verifyCredentials(
 
   // Chống rò rỉ tài khoản & Timing Attack: luôn chạy Scrypt ngay cả khi tài khoản không tồn tại / bị khóa
   if (!matched || matched.status === "inactive") {
-    verifyPassword(cleanPin, DUMMY_SCRYPT_HASH);
+    runDummyScryptVerification(cleanPin, !matched ? "missing" : "inactive");
     return {
       success: false,
       status: 401,
@@ -587,10 +596,20 @@ export async function verifyCredentials(
     };
   }
 
-  const storedPinOrHash = matched.pin_code || "1234";
+  // Chỉ truy vấn pin_code cho đúng 1 ứng viên đã khớp và đang hoạt động
+  const pinRow = await db.queryOne<{ pin_code: string | null }>(
+    "SELECT pin_code FROM players WHERE id = ? LIMIT 1",
+    [matched.id]
+  );
+
+  const storedPinOrHash = pinRow?.pin_code || "1234";
   const isMatch = verifyPassword(cleanPin, storedPinOrHash);
 
   if (!isMatch) {
+    // Nếu tài khoản vẫn đang dùng plaintext PIN cũ, chạy thêm dummy Scrypt để tránh short-circuit qua SHA-256 nhanh
+    if (needsRehash(storedPinOrHash)) {
+      runDummyScryptVerification(cleanPin, "legacy_wrong_pin");
+    }
     return {
       success: false,
       status: 401,

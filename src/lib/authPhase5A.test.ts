@@ -6,10 +6,12 @@ import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET as getAuthRoute, POST as postAuthRoute } from "@/app/api/auth/route";
 import {
+  __setDummyScryptHookForTest,
   AuthSecretError,
   createSessionToken,
   getAuthSecret,
   hashPassword,
+  isProductionAuthEnv,
   requireManagerSession,
   requirePlayerSession,
   SESSION_COOKIE_NAME,
@@ -24,9 +26,11 @@ import {
   __resetAuthRateLimitForTest,
   __setAuthRateLimitDriverForTest,
   type AuthRateLimitDriver,
+  clearAuthRateLimitOnSuccess,
   evaluateAuthRateLimit,
   extractTrustedClientIp,
   hashAuthRateLimitIdentifier,
+  hasValidAuthUpstashConfig,
 } from "./authRateLimit";
 import * as dbModule from "./db";
 import type { AsyncDb } from "./db";
@@ -157,6 +161,7 @@ afterEach(() => {
   delete process.env.VERCEL_ENV;
   delete process.env.UPSTASH_REDIS_REST_URL;
   delete process.env.UPSTASH_REDIS_REST_TOKEN;
+  __setDummyScryptHookForTest(null);
   __resetAuthRateLimitForTest();
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
@@ -242,8 +247,31 @@ describe("Phase 5.1 – A. Session & Auth Secret Hardening", () => {
       })
     );
     expect(postRes.status).toBe(503);
-    const postJson = (await postRes.json()) as { code?: string };
+    const postJson = (await postAuthRoute(
+      new NextRequest("https://fchdhgonoi.vercel.app/api/auth", {
+        method: "POST",
+        headers: {
+          host: "fchdhgonoi.vercel.app",
+          origin: "https://fchdhgonoi.vercel.app",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ action: "login", username: "tieng", pin: "1234" }),
+      })
+    ).then((r) => r.json())) as { code?: string };
     expect(postJson.code).toBe("AUTH_SECRET_INVALID");
+  });
+
+  it("distinguishes Production vs Preview, Development, and Vitest in isProductionAuthEnv", () => {
+    expect(isProductionAuthEnv({ NODE_ENV: "production", VERCEL_ENV: "production" })).toBe(true);
+    expect(isProductionAuthEnv({ NODE_ENV: "production", VERCEL_ENV: "preview" })).toBe(false);
+    expect(isProductionAuthEnv({ NODE_ENV: "production" })).toBe(true);
+    expect(isProductionAuthEnv({ NODE_ENV: "development" })).toBe(false);
+    expect(isProductionAuthEnv({ NODE_ENV: "test", VITEST: "true" })).toBe(false);
+
+    // Preview (NODE_ENV=production + VERCEL_ENV=preview) must NOT fail-closed as Production
+    expect(() =>
+      getAuthSecret({ NODE_ENV: "production", VERCEL_ENV: "preview" })
+    ).not.toThrow();
   });
 });
 
@@ -300,6 +328,11 @@ describe("Phase 5.1 – B & D. Session Revocation, Password Policy & Login Anti-
     __setAuthRateLimitDriverForTest(createInMemorySharedDriver({ acctLimit: 20, ipLimit: 50, pairLimit: 20 }));
 
     try {
+      const dummyReasons: string[] = [];
+      __setDummyScryptHookForTest((reason) => {
+        dummyReasons.push(reason);
+      });
+
       const strongHash = hashPassword("StrongPass@2026");
       raw.prepare(
         `INSERT INTO players (code_order, full_name, short_name, jersey_number, access_role, username, pin_code, status)
@@ -308,22 +341,35 @@ describe("Phase 5.1 – B & D. Session Revocation, Password Policy & Login Anti-
                 (3, 'Legacy User', 'Legacy', 14, 'player', 'legacy14', '1234', 'Đang sinh hoạt')`
       ).run(strongHash, strongHash);
 
+      const emptyUser = await verifyCredentials("", "WrongPass@1", "10.0.0.1");
+      const emptyPin = await verifyCredentials("active10", "", "10.0.0.1");
       const wrongPassActive = await verifyCredentials("active10", "WrongPass@1", "10.0.0.1");
       const missingAccount = await verifyCredentials("nonexistent_user", "WrongPass@1", "10.0.0.1");
       const inactiveAccount = await verifyCredentials("inactive11", "StrongPass@2026", "10.0.0.1");
+      const wrongPassLegacy = await verifyCredentials("legacy14", "9999", "10.0.0.1");
 
-      // Zero enumeration difference across all three failure classes
-      expect(wrongPassActive.status).toBe(401);
-      expect(missingAccount.status).toBe(401);
-      expect(inactiveAccount.status).toBe(401);
-      expect(wrongPassActive.error).toBe(UNIFIED_LOGIN_ERROR_MESSAGE);
-      expect(missingAccount.error).toBe(UNIFIED_LOGIN_ERROR_MESSAGE);
-      expect(inactiveAccount.error).toBe(UNIFIED_LOGIN_ERROR_MESSAGE);
+      // Zero enumeration difference across ALL failure classes
+      for (const res of [
+        emptyUser,
+        emptyPin,
+        wrongPassActive,
+        missingAccount,
+        inactiveAccount,
+        wrongPassLegacy,
+      ]) {
+        expect(res.success).toBe(false);
+        expect(res.status).toBe(401);
+        expect(res.error).toBe(UNIFIED_LOGIN_ERROR_MESSAGE);
+      }
 
-      // Login lookup must NOT use SELECT *
-      const lookupSelect = executedQueries.find((q) => q.includes("FROM players"));
+      // Deterministic verification that dummy Scrypt ran on missing, inactive, AND wrong-PIN-on-legacy-plaintext
+      expect(dummyReasons).toEqual(["missing", "inactive", "legacy_wrong_pin"]);
+
+      // Login candidate lookup must NOT use SELECT * and must NOT select pin_code for all players
+      const lookupSelect = executedQueries.find((q) => q.includes("ORDER BY id ASC"));
       expect(lookupSelect).toBeDefined();
       expect(lookupSelect?.toUpperCase()).not.toContain("SELECT *");
+      expect(lookupSelect?.toLowerCase()).not.toContain("pin_code");
 
       // Legacy user still logs in seamlessly and auto-rehashes plaintext PIN to scrypt$
       const legacyLogin = await verifyCredentials("#14", "1234", "10.0.0.1");
@@ -343,10 +389,38 @@ describe("Phase 5.1 – B & D. Session Revocation, Password Policy & Login Anti-
     } finally {
       raw.close();
     }
-  });
+  }, 15_000);
 });
 
 describe("Phase 5.1 – C & E. Distributed Rate Limiting, Fail-Closed Redis, CSRF & RBAC", () => {
+  it("validates Upstash Redis config requires HTTPS URL and non-empty token", () => {
+    expect(
+      hasValidAuthUpstashConfig({
+        UPSTASH_REDIS_REST_URL: "https://example-redis.upstash.io",
+        UPSTASH_REDIS_REST_TOKEN: "valid-token",
+      })
+    ).toBe(true);
+    expect(
+      hasValidAuthUpstashConfig({
+        UPSTASH_REDIS_REST_URL: "http://example-redis.upstash.io",
+        UPSTASH_REDIS_REST_TOKEN: "valid-token",
+      })
+    ).toBe(false);
+    expect(
+      hasValidAuthUpstashConfig({
+        UPSTASH_REDIS_REST_URL: "not-a-valid-url",
+        UPSTASH_REDIS_REST_TOKEN: "valid-token",
+      })
+    ).toBe(false);
+    expect(
+      hasValidAuthUpstashConfig({
+        UPSTASH_REDIS_REST_URL: "https://example-redis.upstash.io",
+        UPSTASH_REDIS_REST_TOKEN: "",
+      })
+    ).toBe(false);
+    expect(hasValidAuthUpstashConfig({})).toBe(false);
+  });
+
   it("fails closed in Production when Redis env is missing (never falls back to in-memory Map) and hashes all Redis keys", async () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.AUTH_SECRET = VALID_TEST_SECRET;
@@ -380,7 +454,7 @@ describe("Phase 5.1 – C & E. Distributed Rate Limiting, Fail-Closed Redis, CSR
     }
   });
 
-  it("blocks brute-force per account across rotating IPs and credential stuffing per IP across rotating accounts", async () => {
+  it("blocks brute-force per account+IP pair and credential stuffing per IP without hard-locking legitimate owner on a clean IP", async () => {
     vi.stubEnv("NODE_ENV", "production");
     process.env.AUTH_SECRET = VALID_TEST_SECRET;
     const { raw, db } = createTempPlayersDb();
@@ -393,14 +467,25 @@ describe("Phase 5.1 – C & E. Distributed Rate Limiting, Fail-Closed Redis, CSR
          VALUES (1, 'Victim User', 'Victim', 9, 'player', 'victim9', ?, 'Đang sinh hoạt')`
       ).run(hashPassword("CorrectPass@2026"));
 
-      // 1. Brute-force same account from 6 different IPs -> 6th blocked with 429
-      for (let i = 1; i <= 5; i++) {
+      // 1. Attacker brute-forces victim9 from 6 rotating IPs -> does NOT globally DoS victim9
+      for (let i = 1; i <= 6; i++) {
         const res = await verifyCredentials("victim9", "WrongPass@1", `198.51.100.${i}`);
         expect(res.status).toBe(401);
       }
-      const blockedBrute = await verifyCredentials("victim9", "WrongPass@1", "198.51.100.99");
-      expect(blockedBrute.success).toBe(false);
-      expect(blockedBrute.status).toBe(429);
+
+      // Attacker hitting same account+IP pair >5 times is blocked with 429
+      for (let attempt = 2; attempt <= 5; attempt++) {
+        const res = await verifyCredentials("victim9", "WrongPass@1", "198.51.100.1");
+        expect(res.status).toBe(401);
+      }
+      const blockedPair = await verifyCredentials("victim9", "WrongPass@1", "198.51.100.1");
+      expect(blockedPair.success).toBe(false);
+      expect(blockedPair.status).toBe(429);
+
+      // Legitimate owner victim9 logging in from a clean IP with correct PIN STILL succeeds (no Account-Level DoS)
+      const ownerLogin = await verifyCredentials("victim9", "CorrectPass@2026", "203.0.113.200");
+      expect(ownerLogin.success).toBe(true);
+      expect(ownerLogin.status).toBe(200);
 
       // 2. Credential stuffing from single IP across 16 different accounts -> 16th blocked with 429
       const stuffingIp = "203.0.113.77";
@@ -414,7 +499,7 @@ describe("Phase 5.1 – C & E. Distributed Rate Limiting, Fail-Closed Redis, CSR
     } finally {
       raw.close();
     }
-  });
+  }, 30_000);
 
   it("fails closed (503) on Redis timeout and Redis runtime errors without in-memory fallback", async () => {
     vi.stubEnv("NODE_ENV", "production");
@@ -465,6 +550,32 @@ describe("Phase 5.1 – C & E. Distributed Rate Limiting, Fail-Closed Redis, CSR
       expect(errorRes.errorCode).toBe("AUTH_RATE_LIMIT_ERROR");
     }
     expect(__getLocalAuthRateLimitBucketCountForTest()).toBe(0);
+
+    // 3. clearAuthRateLimitOnSuccess also respects timeoutMs so hung Redis reset cannot hang login
+    __setAuthRateLimitDriverForTest({
+      async limitAccount() {
+        return { success: true };
+      },
+      async limitIp() {
+        return { success: true };
+      },
+      async limitPair() {
+        return { success: true };
+      },
+      async resetAccount() {
+        return new Promise(() => {});
+      },
+      async resetPair() {
+        return new Promise(() => {});
+      },
+    });
+    await expect(
+      clearAuthRateLimitOnSuccess({
+        username: "user1",
+        clientIp: "203.0.113.8",
+        timeoutMs: 20,
+      })
+    ).resolves.toBeUndefined();
   });
 
   it("enforces CSRF origin check, Retry-After on 429, and Manager RBAC on POST /api/auth", async () => {

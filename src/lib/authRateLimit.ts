@@ -75,7 +75,7 @@ export function hasValidAuthUpstashConfig(
   if (!url || !token) return false;
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "https:" || parsed.protocol === "http:";
+    return parsed.protocol === "https:";
   } catch {
     return false;
   }
@@ -263,9 +263,21 @@ export async function evaluateAuthRateLimit(params: {
     const acctRes = evaluateLocalDevBucket(`acct:${acctKey}`, AUTH_ACCOUNT_MAX_ATTEMPTS, now);
     const pairRes = evaluateLocalDevBucket(`pair:${pairKey}`, AUTH_PAIR_MAX_ATTEMPTS, now);
 
-    if (!ipRes.success || !acctRes.success || !pairRes.success) {
+    // Account-level tracking across rotating IPs is a soft/telemetry signal only;
+    // never hard-lock an account globally across clean IPs (prevents Account-Level DoS).
+    if (!acctRes.success) {
+      console.warn(
+        "[AUTH SECURITY] High login attempt velocity across IPs for hashed account:",
+        acctKey.slice(0, 8)
+      );
+    }
+
+    if (!ipRes.success || !pairRes.success) {
+      const blockedResets = [ipRes, pairRes]
+        .filter((r) => !r.success)
+        .map((r) => r.reset);
       const waitSeconds = computeWaitSeconds(
-        Math.min(ipRes.reset, acctRes.reset, pairRes.reset),
+        blockedResets.length > 0 ? Math.min(...blockedResets) : undefined,
         now
       );
       return {
@@ -291,9 +303,16 @@ export async function evaluateAuthRateLimit(params: {
       timeoutMs
     );
 
-    if (!ipRes.success || !acctRes.success || !pairRes.success) {
+    if (!acctRes.success) {
+      console.warn(
+        "[AUTH SECURITY] High login attempt velocity across IPs for hashed account:",
+        acctKey.slice(0, 8)
+      );
+    }
+
+    if (!ipRes.success || !pairRes.success) {
       const now = params.now ?? Date.now();
-      const blockedResets = [ipRes, acctRes, pairRes]
+      const blockedResets = [ipRes, pairRes]
         .filter((r) => !r.success && typeof r.reset === "number")
         .map((r) => r.reset as number);
       const waitSeconds = computeWaitSeconds(
@@ -330,6 +349,7 @@ export async function clearAuthRateLimitOnSuccess(params: {
   username: string;
   clientIp: string;
   env?: Record<string, string | undefined>;
+  timeoutMs?: number;
 }): Promise<void> {
   const env = params.env ?? process.env;
   const { acctKey, pairKey } = buildHashedRateLimitKeys(
@@ -347,8 +367,20 @@ export async function clearAuthRateLimitOnSuccess(params: {
     return;
   }
 
-  await Promise.allSettled([
-    driver.resetAccount ? driver.resetAccount(acctKey) : Promise.resolve(),
-    driver.resetPair ? driver.resetPair(pairKey) : Promise.resolve(),
-  ]);
+  const timeoutMs = params.timeoutMs ?? AUTH_REDIS_TIMEOUT_MS;
+  try {
+    await runWithTimeout(
+      Promise.allSettled([
+        driver.resetAccount ? driver.resetAccount(acctKey) : Promise.resolve(),
+        driver.resetPair ? driver.resetPair(pairKey) : Promise.resolve(),
+      ]),
+      timeoutMs
+    );
+  } catch (err) {
+    const isTimeout = err instanceof Error && err.message === "AUTH_REDIS_TIMEOUT";
+    console.warn(
+      "[AUTH SECURITY] Rate limit reset after login did not complete:",
+      isTimeout ? "TIMEOUT" : "REDIS_ERROR"
+    );
+  }
 }
