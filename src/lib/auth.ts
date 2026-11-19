@@ -1,49 +1,107 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 import { getAsyncDb } from "./db";
+import {
+  clearAuthRateLimitOnSuccess,
+  evaluateAuthRateLimit,
+} from "./authRateLimit";
 import type { Player, FullAppData, PublicPlayerDTO } from "@/types/app";
+
+const DEV_TEST_FALLBACK_SECRET =
+  "fc-hdh-go-noi-sapphire-secret-key-2026-secure-32chars";
+
+const FORBIDDEN_PRODUCTION_SECRETS = new Set([
+  "fc-hdh-go-noi-sapphire-secret-key-2026-production-fallback-key-32c",
+  DEV_TEST_FALLBACK_SECRET,
+  "changeme",
+  "default",
+]);
+
+export class AuthSecretError extends Error {
+  readonly code = "AUTH_SECRET_INVALID";
+  readonly status = 503;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "AuthSecretError";
+  }
+}
+
+export function isProductionAuthEnv(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  const vercelEnv = env.VERCEL_ENV?.trim().toLowerCase();
+  if (vercelEnv) {
+    return vercelEnv === "production";
+  }
+  return env.NODE_ENV?.trim().toLowerCase() === "production";
+}
+
+export function isPreviewAuthEnv(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  return env.VERCEL_ENV?.trim().toLowerCase() === "preview";
+}
+
+export function isDeployedAuthEnv(
+  env: Record<string, string | undefined> = process.env
+): boolean {
+  return isProductionAuthEnv(env) || isPreviewAuthEnv(env);
+}
 
 /**
  * Lấy khóa bí mật ký session token.
- * Thống nhất APP_SECRET / AUTH_SECRET / NEXTAUTH_SECRET.
- * Bắt buộc cấu hình tối thiểu 32 ký tự ở môi trường production (Fail-fast).
+ * Thống nhất APP_SECRET / AUTH_SECRET / NEXTAUTH_SECRET / SESSION_SECRET (và PREVIEW_AUTH_SECRET trên Preview).
+ * Production và Vercel Preview bắt buộc cấu hình tường minh tối thiểu 32 ký tự và không chấp nhận fallback/placeholder (fail-closed).
+ * Local Development và Vitest được phép dùng DEV_TEST_FALLBACK_SECRET khi chưa cấu hình secret riêng.
  */
-export function getAuthSecret(): string {
-  const secret =
-    process.env.APP_SECRET ||
-    process.env.AUTH_SECRET ||
-    process.env.NEXTAUTH_SECRET;
+export function getAuthSecret(
+  env: Record<string, string | undefined> = process.env
+): string {
+  const isProd = isProductionAuthEnv(env);
+  const isPreview = isPreviewAuthEnv(env);
+  const isDeployed = isProd || isPreview;
 
-  if (secret && secret.trim().length >= 32) {
-    return secret.trim();
-  }
+  const rawSecret = isPreview
+    ? env.PREVIEW_AUTH_SECRET ||
+      env.APP_SECRET ||
+      env.AUTH_SECRET ||
+      env.NEXTAUTH_SECRET ||
+      env.SESSION_SECRET ||
+      ""
+    : env.APP_SECRET ||
+      env.AUTH_SECRET ||
+      env.NEXTAUTH_SECRET ||
+      env.SESSION_SECRET ||
+      "";
+  const secret = rawSecret.trim();
 
-  // Trong môi trường kiểm thử tự động nghiêm ngặt Phase 1: fail fast
-  if (process.env.CI || process.env.VITEST) {
-    if (process.env.NODE_ENV === "production") {
-      if (!secret || secret.trim().length < 32) {
-        throw new Error(
-          "FATAL: APP_SECRET / AUTH_SECRET must be set and at least 32 characters in production."
-        );
-      }
+  if (isDeployed) {
+    if (
+      !secret ||
+      secret.length < 32 ||
+      FORBIDDEN_PRODUCTION_SECRETS.has(secret)
+    ) {
+      throw new AuthSecretError(
+        isPreview
+          ? "FATAL: Preview auth secret (PREVIEW_AUTH_SECRET / APP_SECRET / AUTH_SECRET / SESSION_SECRET) must be set, non-default, and at least 32 characters in Vercel Preview."
+          : "FATAL: APP_SECRET / AUTH_SECRET must be set, non-default, and at least 32 characters in production."
+      );
     }
+    return secret;
   }
 
-  // Nếu người dùng nhập secret ngắn (< 32 ký tự), băm SHA-256 để chuẩn hóa thành 64 hex characters HMAC
-  if (secret && secret.trim().length > 0) {
-    return crypto.createHash("sha256").update(secret.trim()).digest("hex");
+  if (secret.length > 0) {
+    if (secret.length < 32) {
+      throw new AuthSecretError(
+        "FATAL: APP_SECRET / AUTH_SECRET must be at least 32 characters when configured."
+      );
+    }
+    return secret;
   }
 
-  // Trên Vercel: nếu chưa kịp cấu hình biến môi trường, dùng fallback an toàn để không chặn người dùng
-  if (process.env.NODE_ENV === "production") {
-    console.warn(
-      "[SECURITY WARNING] AUTH_SECRET chưa được cấu hình trên Vercel. Đang sử dụng fallback an toàn tạm thời. Vui lòng thêm AUTH_SECRET (tối thiểu 32 ký tự) trên Vercel Dashboard."
-    );
-    return "fc-hdh-go-noi-sapphire-secret-key-2026-production-fallback-key-32c";
-  }
-
-  // Khóa phát triển nội bộ an toàn 32+ ký tự cho dev & test
-  return "fc-hdh-go-noi-sapphire-secret-key-2026-secure-32chars";
+  // Chỉ dùng khóa dev/test nội bộ khi không chạy ở Production/Preview và chưa cấu hình secret riêng
+  return DEV_TEST_FALLBACK_SECRET;
 }
 
 export const SESSION_COOKIE_NAME = "fc_session";
@@ -92,7 +150,7 @@ export function verifyPassword(password: string, storedHashOrPlain: string): boo
   const cleanInput = String(password || "").trim();
   const stored = String(storedHashOrPlain || "").trim();
 
-  if (!cleanInput || !stored) return false;
+  if (!cleanInput || cleanInput.length > 128 || !stored) return false;
 
   // Trường hợp 1: Mật khẩu đã được mã hóa chuẩn scrypt
   if (stored.startsWith("scrypt$")) {
@@ -100,22 +158,22 @@ export function verifyPassword(password: string, storedHashOrPlain: string): boo
     if (parts.length !== 3) return false;
     const salt = parts[1];
     const expectedKeyHex = parts[2];
+    if (!salt || !expectedKeyHex) return false;
 
-    const derivedKey = crypto.scryptSync(cleanInput, salt, 64);
-    const expectedKey = Buffer.from(expectedKeyHex, "hex");
-
-    if (derivedKey.length !== expectedKey.length) return false;
-    return crypto.timingSafeEqual(derivedKey, expectedKey);
+    try {
+      const derivedKey = crypto.scryptSync(cleanInput, salt, 64);
+      const expectedKey = Buffer.from(expectedKeyHex, "hex");
+      if (derivedKey.length !== expectedKey.length) return false;
+      return crypto.timingSafeEqual(derivedKey, expectedKey);
+    } catch {
+      return false;
+    }
   }
 
-  // Trường hợp 2: Mật khẩu cũ dạng văn bản thô (Plaintext e.g. "1234")
-  const inputBuf = Buffer.from(cleanInput);
-  const storedBuf = Buffer.from(stored);
-
-  if (inputBuf.length !== storedBuf.length) {
-    return cleanInput === stored;
-  }
-  return crypto.timingSafeEqual(inputBuf, storedBuf);
+  // Trường hợp 2: Mật khẩu cũ dạng văn bản thô (Plaintext e.g. "1234") — so sánh constant-length digest
+  const inputDigest = crypto.createHash("sha256").update(cleanInput).digest();
+  const storedDigest = crypto.createHash("sha256").update(stored).digest();
+  return crypto.timingSafeEqual(inputDigest, storedDigest);
 }
 
 /**
@@ -144,6 +202,26 @@ export function validatePasswordStrength(
 
   if (p.length < 6) {
     const msg = "Mật khẩu phải có độ dài tối thiểu từ 6 ký tự trở lên.";
+    return {
+      valid: false,
+      score: 1,
+      message: msg,
+      error: msg,
+    };
+  }
+
+  if (p.length > 128) {
+    const msg = "Mật khẩu không được vượt quá 128 ký tự.";
+    return {
+      valid: false,
+      score: 1,
+      message: msg,
+      error: msg,
+    };
+  }
+
+  if (/^(.)\1{5,}$/.test(p)) {
+    const msg = "Mật khẩu quá đơn giản và dễ đoán. Vui lòng chọn mật khẩu an toàn hơn.";
     return {
       valid: false,
       score: 1,
@@ -349,9 +427,16 @@ export function verifySessionToken(
   const [payloadBase64, providedSig] = token.split(".");
   if (!payloadBase64 || !providedSig) return null;
 
+  let secret: string;
+  try {
+    secret = getAuthSecret();
+  } catch {
+    return null; // Fail-closed nếu secret cấu hình không hợp lệ
+  }
+
   // Kiểm tra chữ ký mật mã
   const expectedSig = crypto
-    .createHmac("sha256", getAuthSecret())
+    .createHmac("sha256", secret)
     .update(payloadBase64)
     .digest("base64url");
 
@@ -366,6 +451,15 @@ export function verifySessionToken(
     const payload: SessionPayload = JSON.parse(
       Buffer.from(payloadBase64, "base64url").toString("utf-8")
     );
+
+    if (
+      typeof payload.playerId !== "number" ||
+      !Number.isInteger(payload.playerId) ||
+      typeof payload.exp !== "number" ||
+      (payload.accessRole !== "manager" && payload.accessRole !== "player")
+    ) {
+      return null;
+    }
 
     // Kiểm tra hạn sử dụng của phiên
     const now = Math.floor(Date.now() / 1000);
@@ -409,8 +503,35 @@ export function normalizeLoginString(str: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
+export const UNIFIED_LOGIN_ERROR_MESSAGE =
+  "Thông tin đăng nhập hoặc mật khẩu không chính xác.";
+
+const DUMMY_SCRYPT_HASH = hashPassword("fc-gonoi-dummy-anti-enum-2026");
+
+let dummyScryptHookForTest: ((reason: "missing" | "inactive" | "legacy_wrong_pin") => void) | null = null;
+
+export function __setDummyScryptHookForTest(
+  hook: ((reason: "missing" | "inactive" | "legacy_wrong_pin") => void) | null
+): void {
+  dummyScryptHookForTest = hook;
+}
+
+function runDummyScryptVerification(
+  cleanPin: string,
+  reason: "missing" | "inactive" | "legacy_wrong_pin"
+): void {
+  dummyScryptHookForTest?.(reason);
+  verifyPassword(cleanPin, DUMMY_SCRYPT_HASH);
+}
+
+export const AUTH_PLAYER_PROFILE_COLUMNS = `
+  id, code_order, full_name, short_name, username, jersey_number,
+  position, phone, birth_year, avatar_url, profile_image_url,
+  bio, role, access_role, pin_code, status, notes
+`;
+
 /**
- * Xác thực thông tin đăng nhập từ Server Database với cơ chế chống Brute-force & Auto Re-hash
+ * Xác thực thông tin đăng nhập từ Server Database với chuẩn chống Brute-force, Anti-Enumeration & Auto Re-hash
  */
 export async function verifyCredentials(
   username: string,
@@ -418,6 +539,9 @@ export async function verifyCredentials(
   clientIp = "local"
 ): Promise<{
   success: boolean;
+  status?: 200 | 401 | 429 | 503;
+  errorCode?: string;
+  waitSeconds?: number;
   player?: Player;
   error?: string;
   mustChangePassword?: boolean;
@@ -425,69 +549,103 @@ export async function verifyCredentials(
   const cleanUsername = String(username || "").trim();
   const cleanPin = String(pin || "").trim();
 
-  if (!cleanUsername) {
-    return { success: false, error: "Vui lòng nhập Tên đăng nhập hoặc Số áo." };
-  }
-  if (!cleanPin) {
-    return { success: false, error: "Vui lòng nhập Mật khẩu bảo mật." };
+  if (!cleanUsername || !cleanPin || cleanPin.length > 128) {
+    return { success: false, status: 401, error: UNIFIED_LOGIN_ERROR_MESSAGE };
   }
 
-  // 1. Kiểm tra Rate Limit trên Tên đăng nhập và IP
-  const rateLimitKey = `${cleanUsername}_${clientIp}`;
-  const rateLimitCheck = checkRateLimit(rateLimitKey);
-  if (!rateLimitCheck.allowed) {
+  try {
+    getAuthSecret();
+  } catch (err) {
+    if (err instanceof AuthSecretError) {
+      return {
+        success: false,
+        status: 503,
+        errorCode: err.code,
+        error: "Hệ thống xác thực tạm thời không khả dụng do thiếu cấu hình bảo mật máy chủ.",
+      };
+    }
+    throw err;
+  }
+
+  // 1. Distributed Rate Limiting (IP + Account+IP pair) — fail-closed trên Production
+  const rl = await evaluateAuthRateLimit({ username: cleanUsername, clientIp });
+  if (!rl.allowed) {
     return {
       success: false,
-      error: `Tài khoản tạm thời bị khóa do nhập sai nhiều lần. Vui lòng thử lại sau ${rateLimitCheck.waitSeconds} giây.`,
+      status: rl.status,
+      errorCode: rl.errorCode,
+      waitSeconds: rl.waitSeconds,
+      error: rl.error,
     };
   }
 
+  // 2. Chỉ truy vấn các cột định danh tối thiểu phục vụ tìm kiếm ứng viên (không pin_code, không SELECT *)
   const db = getAsyncDb();
-  const allPlayers = await db.query<Player>(
-    "SELECT * FROM players ORDER BY id ASC"
+  const lookupCandidates = await db.query<{
+    id: number;
+    full_name: string;
+    short_name: string;
+    username: string | null;
+    jersey_number: number | null;
+    phone: string;
+    status: string;
+  }>(
+    `SELECT id, full_name, short_name, username, jersey_number, phone, status
+     FROM players
+     ORDER BY id ASC`
   );
 
   const uNorm = normalizeLoginString(cleanUsername);
+  const cleanDigits = cleanUsername.replace(/\D/g, "");
+  const cleanJersey = cleanUsername.replace("#", "").trim();
 
   // Tìm cầu thủ theo: username (@tieng), tên sân, họ tên, số điện thoại, hoặc số áo (#12)
-  const matched = allPlayers.find((p) => {
+  const matched = lookupCandidates.find((p) => {
     if (p.username && p.username.toLowerCase() === cleanUsername.toLowerCase()) return true;
     if (p.username && normalizeLoginString(p.username) === uNorm) return true;
     if (normalizeLoginString(p.short_name) === uNorm) return true;
     if (normalizeLoginString(p.full_name) === uNorm) return true;
-    if (p.phone && p.phone.replace(/\D/g, "") === cleanUsername.replace(/\D/g, "")) return true;
+    if (p.phone && cleanDigits && p.phone.replace(/\D/g, "") === cleanDigits) return true;
     const jerseyStr = p.jersey_number !== null ? String(p.jersey_number) : "";
-    if (jerseyStr && jerseyStr === cleanUsername.replace("#", "").trim()) return true;
+    if (jerseyStr && jerseyStr === cleanJersey) return true;
     return false;
   });
 
-  // Chống rò rỉ tài khoản (Anti-Enumeration): Thông báo lỗi đồng nhất
-  if (!matched) {
-    const fail = recordFailedAttempt(rateLimitKey);
+  // Chống rò rỉ tài khoản & Timing Attack: luôn chạy Scrypt ngay cả khi tài khoản không tồn tại / bị khóa
+  if (!matched || matched.status === "inactive") {
+    runDummyScryptVerification(cleanPin, !matched ? "missing" : "inactive");
     return {
       success: false,
-      error: fail.locked
-        ? `Đăng nhập sai quá 5 lần. Tài khoản tạm khóa trong ${fail.waitSeconds} giây.`
-        : "Thông tin đăng nhập hoặc mật khẩu không chính xác.",
+      status: 401,
+      error: UNIFIED_LOGIN_ERROR_MESSAGE,
     };
   }
 
-  const storedPinOrHash = matched.pin_code || "1234";
+  // Chỉ truy vấn pin_code cho đúng 1 ứng viên đã khớp và đang hoạt động
+  const pinRow = await db.queryOne<{ pin_code: string | null }>(
+    "SELECT pin_code FROM players WHERE id = ? LIMIT 1",
+    [matched.id]
+  );
+
+  const storedPinOrHash = pinRow?.pin_code || "1234";
   const isMatch = verifyPassword(cleanPin, storedPinOrHash);
 
   if (!isMatch) {
-    const fail = recordFailedAttempt(rateLimitKey);
+    // Nếu tài khoản vẫn đang dùng plaintext PIN cũ, chạy thêm dummy Scrypt để tránh short-circuit qua SHA-256 nhanh
+    if (needsRehash(storedPinOrHash)) {
+      runDummyScryptVerification(cleanPin, "legacy_wrong_pin");
+    }
     return {
       success: false,
-      error: fail.locked
-        ? `Đăng nhập sai quá 5 lần. Tài khoản tạm khóa trong ${fail.waitSeconds} giây.`
-        : `Mật khẩu không chính xác. Bạn còn ${fail.remainingAttempts} lần thử.`,
+      status: 401,
+      error: UNIFIED_LOGIN_ERROR_MESSAGE,
     };
   }
 
-  // Đăng nhập thành công -> Xóa bộ đếm Rate Limit
-  clearRateLimit(rateLimitKey);
+  // Đăng nhập thành công -> Xóa bộ đếm Rate Limit theo tài khoản / cặp
+  await clearAuthRateLimitOnSuccess({ username: cleanUsername, clientIp });
 
+  let finalPinCode = storedPinOrHash;
   // Auto Re-hash: Nếu mật khẩu trong DB chưa được băm scrypt, tự động nâng cấp ngầm
   if (needsRehash(storedPinOrHash)) {
     try {
@@ -496,17 +654,34 @@ export async function verifyCredentials(
         secureHash,
         matched.id,
       ]);
-      matched.pin_code = secureHash;
+      finalPinCode = secureHash;
     } catch (err) {
       console.error("Auto re-hash failed:", err);
     }
   }
 
-  const isDefault = isDefaultPassword(matched.pin_code);
+  // Chỉ tải hồ sơ chi tiết cho đúng 1 người dùng đã xác thực thành công
+  const hydratedPlayer =
+    (await db.queryOne<Player>(
+      `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+      [matched.id]
+    )) || undefined;
+
+  if (!hydratedPlayer) {
+    return {
+      success: false,
+      status: 401,
+      error: UNIFIED_LOGIN_ERROR_MESSAGE,
+    };
+  }
+
+  hydratedPlayer.pin_code = finalPinCode;
+  const isDefault = isDefaultPassword(finalPinCode);
 
   return {
     success: true,
-    player: matched,
+    status: 200,
+    player: hydratedPlayer,
     mustChangePassword: isDefault,
   };
 }
@@ -576,7 +751,7 @@ export async function requireManagerSession(
 
   const db = getAsyncDb();
   const players = await db.query<Player>(
-    "SELECT * FROM players WHERE id = ? LIMIT 1",
+    `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
     [session.playerId]
   );
   const player = players[0];
@@ -630,7 +805,7 @@ export async function requirePlayerSession(
 
   const db = getAsyncDb();
   const players = await db.query<Player>(
-    "SELECT * FROM players WHERE id = ? LIMIT 1",
+    `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
     [session.playerId]
   );
   const player = players[0];
