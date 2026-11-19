@@ -19,8 +19,11 @@
 ## 3. Mobile Touch Target Remediation (`>=44×44px` on mobile)
 - `src/components/ui/Button.tsx`: Updated `sm` size from `min-h-9` to `min-h-11 sm:min-h-9`.
 - `src/components/ScheduleTab.tsx` & `src/components/PlayerPersonalTab.tsx` & `src/components/PlayersTab.tsx`: Upgraded gallery overlay action buttons from `h-7 w-7` to `min-h-11 min-w-11 sm:min-h-8 sm:min-w-8 sm:h-8 sm:w-8`, switched overlay visibility to `opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100`, adjusted mobile gallery grid to `grid-cols-2 sm:grid-cols-4 md:grid-cols-6`, and added `aria-label` to all icon-only gallery buttons.
-- `src/components/PlayersTab.tsx`: Upgraded roster selection, select-all/clear, Reset PIN, Edit, and Delete buttons to `min-h-11` (`min-h-11 min-w-11` on icon-only delete) on mobile.
-- `src/components/FinanceTab.tsx`: Upgraded venue presets, quick-payer buttons, category filters, and table Edit/Delete icon buttons to `min-h-11` (`min-h-11 min-w-11` for icon buttons) on mobile while keeping `sm:min-h-9` on desktop.
+- `src/components/PlayersTab.tsx`: Upgraded roster selection, select-all/clear, Reset PIN, Edit, Delete, status filter, search clear (`min-h-11 min-w-11`), and activity gallery crop buttons (`min-h-11 min-w-11 sm:min-h-7 sm:min-w-7`, `opacity-100 sm:opacity-0 sm:group-hover:opacity-100`, dynamic `aria-label`) to `>=44px` on mobile.
+- `src/components/FinanceTab.tsx`: Upgraded venue presets, quick-payer buttons, category filters, category summary selector (`min-h-11 sm:min-h-0`), and both mobile card (`<768px`) and desktop table Edit/Delete icon buttons to `min-h-11 min-w-11 sm:min-h-9 sm:min-w-9`.
+- `src/components/PublicGuestPortal.tsx`: Added `min-h-11` to the header login button.
+- `src/components/ModalDialog.tsx`: Upgraded dialog close button from `h-10 w-10` to `min-h-11 min-w-11 shrink-0`.
+- `src/components/TeamManagerApp.tsx`: Upgraded security banner `"Đổi mật khẩu ngay"` (`min-h-11 sm:min-h-9`) and `"Đóng cảnh báo bảo mật"` (`min-h-11 min-w-11 sm:min-h-9 sm:min-w-9`).
 - `src/components/CollectionTab.tsx`: Upgraded venue presets, quick-payer buttons, status filters, and quick walk-in member buttons to `min-h-11 sm:min-h-9`.
 
 ## 4. Persistent Excel Import Error Summary (`src/components/TeamManagerApp.tsx`)

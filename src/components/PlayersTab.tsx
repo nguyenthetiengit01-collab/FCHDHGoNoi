@@ -546,7 +546,7 @@ export function PlayersTab({
               aria-label="Lọc theo trạng thái sinh hoạt"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-ink-primary"
+              className="min-h-11 sm:min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-ink-primary"
             >
               <option value="Tất cả">Tất cả trạng thái</option>
               <option value="Đang sinh hoạt">Đang sinh hoạt ({activePlayersCount})</option>
@@ -561,16 +561,16 @@ export function PlayersTab({
                 placeholder="Tìm tên, số áo, vị trí..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-8 py-2 text-xs sm:text-sm text-ink-primary focus-visible:outline-2 focus-visible:outline-focus-on-light"
+                className="min-h-11 sm:min-h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-12 py-2 text-xs sm:text-sm text-ink-primary focus-visible:outline-2 focus-visible:outline-focus-on-light"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
                   aria-label="Xoá từ khoá tìm kiếm"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-700"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-500 hover:text-slate-800 cursor-pointer"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -1305,10 +1305,11 @@ export function PlayersTab({
                             setCropperSource(url);
                             setCropperOpen(true);
                           }}
-                          className="absolute top-1 right-1 bg-black/80 hover:bg-black text-gold-400 p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                          aria-label={`Canh chỉnh & cắt ảnh hoạt động #${idx + 1}`}
+                          className="absolute top-1 right-1 inline-flex min-h-11 min-w-11 sm:min-h-7 sm:min-w-7 items-center justify-center bg-black/80 hover:bg-black text-gold-400 p-1.5 sm:p-1 rounded-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                           title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
                         >
-                          <Crop className="h-3 w-3" />
+                          <Crop className="h-3.5 w-3.5 sm:h-3 sm:w-3" aria-hidden="true" />
                         </button>
                       </div>
                     );

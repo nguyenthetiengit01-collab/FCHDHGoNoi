@@ -703,7 +703,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 <button
                   type="button"
                   onClick={() => setActiveTab("personal")}
-                  className="inline-flex items-center gap-1.5 min-h-9 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition"
+                  className="inline-flex items-center gap-1.5 min-h-11 sm:min-h-9 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition"
                 >
                   <KeyRound className="h-3.5 w-3.5" />
                   <span>Đổi mật khẩu ngay</span>
@@ -712,7 +712,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   type="button"
                   onClick={() => setDismissSecurityBanner(true)}
                   aria-label="Đóng cảnh báo bảo mật"
-                  className="inline-flex items-center justify-center min-h-9 min-w-9 rounded-lg text-amber-700 hover:text-amber-950 hover:bg-amber-200/60 transition"
+                  className="inline-flex items-center justify-center min-h-11 min-w-11 sm:min-h-9 sm:min-w-9 rounded-lg text-amber-700 hover:text-amber-950 hover:bg-amber-200/60 transition"
                   title="Bỏ qua nhắc nhở"
                 >
                   <X className="h-4 w-4" />

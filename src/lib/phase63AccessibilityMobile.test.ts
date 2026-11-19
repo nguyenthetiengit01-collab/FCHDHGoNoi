@@ -210,14 +210,63 @@ describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
       expect(playersSrc).toContain("min-h-11 sm:min-h-9");
       expect(playersSrc).toContain("min-h-11 sm:min-h-8");
       expect(playersSrc).toContain("min-h-11 min-w-11 sm:min-h-8 sm:min-w-8");
+      // 4. PlayersTab search clear target
+      expect(playersSrc).toMatch(
+        /aria-label="Xoá từ khoá tìm kiếm"[\s\S]*?min-h-11 min-w-11/
+      );
+      // 5. PlayersTab activity gallery crop visible on touch + dynamic aria-label
+      expect(playersSrc).toMatch(
+        /aria-label=\{`Canh chỉnh & cắt ảnh hoạt động #\$\{idx \+ 1\}`\}[\s\S]*?min-h-11 min-w-11[\s\S]*?opacity-100 sm:opacity-0 sm:group-hover:opacity-100/
+      );
 
       const financeSrc = readSrc("src/components/FinanceTab.tsx");
       expect(financeSrc).toContain("min-h-11 min-w-11 sm:min-h-9 sm:min-w-9");
       expect(financeSrc).toContain("min-h-11 sm:min-h-9");
+      // 1. Finance mobile expense edit/delete >=44x44
+      expect(financeSrc).toMatch(
+        /aria-label=\{`Sửa khoản chi \$\{exp\.description\}`\}[\s\S]*?min-h-11 min-w-11 sm:min-h-9 sm:min-w-9/
+      );
+      expect(financeSrc).toMatch(
+        /aria-label=\{`Xoá khoản chi \$\{exp\.description\}`\}[\s\S]*?min-h-11 min-w-11 sm:min-h-9 sm:min-w-9/
+      );
+      // 2. Finance mobile income edit/delete >=44x44
+      expect(financeSrc).toMatch(
+        /aria-label=\{`Sửa khoản thu \$\{inc\.contributor\}`\}[\s\S]*?min-h-11 min-w-11 sm:min-h-9 sm:min-w-9/
+      );
+      expect(financeSrc).toMatch(
+        /aria-label=\{`Xoá khoản thu \$\{inc\.contributor\}`\}[\s\S]*?min-h-11 min-w-11 sm:min-h-9 sm:min-w-9/
+      );
+      // 3. Finance category selector interactive target >=44px on mobile
+      expect(financeSrc).toMatch(
+        /setFilterCategory\(item\.category\)[\s\S]*?min-h-11 sm:min-h-0/
+      );
 
       const collectionSrc = readSrc("src/components/CollectionTab.tsx");
       expect(collectionSrc).toContain("min-h-11 sm:min-h-9");
       expect(collectionSrc).not.toMatch(/className="[^"]*(?<!sm:)\bmin-h-9\b/);
+    });
+
+    it("PublicGuestPortal header login, ModalDialog close, and TeamManagerApp security banner targets meet >=44px on mobile", () => {
+      // 6. PublicGuestPortal header login min-h-11
+      const portalSrc = readSrc("src/components/PublicGuestPortal.tsx");
+      expect(portalSrc).toMatch(
+        /onClick=\{onOpenLogin\}[\s\S]*?inline-flex min-h-11 items-center[\s\S]*?Đăng nhập/
+      );
+
+      // 7. ModalDialog close button min-h-11 min-w-11
+      const modalSrc = readSrc("src/components/ModalDialog.tsx");
+      expect(modalSrc).toMatch(
+        /aria-label="Đóng hộp thoại"[\s\S]*?min-h-11 min-w-11/
+      );
+
+      // 8. TeamManagerApp security banner targets
+      const appSrc = readSrc("src/components/TeamManagerApp.tsx");
+      expect(appSrc).toMatch(
+        /onClick=\{\(\) => setActiveTab\("personal"\)\}[\s\S]*?min-h-11 sm:min-h-9[\s\S]*?Đổi mật khẩu ngay/
+      );
+      expect(appSrc).toMatch(
+        /aria-label="Đóng cảnh báo bảo mật"[\s\S]*?min-h-11 min-w-11 sm:min-h-9 sm:min-w-9/
+      );
     });
   });
 

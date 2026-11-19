@@ -543,7 +543,7 @@ export function PublicGuestPortal({
             <button
               type="button"
               onClick={onOpenLogin}
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-3.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition"
+              className="inline-flex min-h-11 items-center gap-2 bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] text-slate-950 font-extrabold px-3.5 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm uppercase tracking-wider rounded-xl cursor-pointer shadow-lg hover:shadow-xl transition"
             >
               <LogIn className="h-4 w-4" />
               <span>Đăng nhập</span>
