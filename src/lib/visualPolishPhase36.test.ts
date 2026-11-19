@@ -9,7 +9,7 @@ function readSrc(relPath: string): string {
 }
 
 describe("Phase 3.6 – UI Consistency & Visual Polish (UX-09, UX-10, UX-11)", () => {
-  it("UX-09: eliminates rounded-3xl and rounded-t-3xl bubble radii across src/", () => {
+  it("UX-09: eliminates rounded-2xl and rounded-3xl bubble radii across src/", () => {
     const violations: string[] = [];
     function scan(dir: string) {
       for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -17,7 +17,7 @@ describe("Phase 3.6 – UI Consistency & Visual Polish (UX-09, UX-10, UX-11)", (
         if (ent.isDirectory()) scan(full);
         else if (ent.name.endsWith(".tsx")) {
           const txt = fs.readFileSync(full, "utf8");
-          if (/\brounded-(?:[tlbr]-)?3xl\b/.test(txt)) {
+          if (/\brounded-(?:[tlbr]-)?(?:2|3)xl\b/.test(txt)) {
             violations.push(path.relative(ROOT, full));
           }
         }

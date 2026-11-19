@@ -973,7 +973,7 @@ export function ScheduleTab({
                 <button
                   type="button"
                   onClick={() => setPosterModalOpen(true)}
-                  className="w-full sm:w-auto sm:flex-1 sm:min-w-[205px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-4 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
+                  className="w-full sm:w-auto sm:flex-1 sm:min-w-[205px] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold-500 to-gold-450 hover:from-gold-450 hover:to-gold-300 px-4 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
                   title="Tải trực tiếp ảnh bảng điểm danh cầu thủ chất lượng cao về máy để chia sẻ vào Zalo"
                 >
                   <Camera className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -984,7 +984,7 @@ export function ScheduleTab({
                   href={settings.fanpage_url || FANPAGE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] px-3.5 py-2.5 text-xs font-bold text-white transition"
+                  className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-royal-600 hover:bg-royal-500 px-3.5 py-2.5 text-xs font-bold text-white transition"
                 >
                   <span>Fanpage</span>
                   <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -1025,7 +1025,7 @@ export function ScheduleTab({
                       <button
                         type="button"
                         onClick={openEditMyProfile}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-gold-400 hover:bg-[#ffd95e] px-3.5 py-1.5 text-xs font-extrabold text-slate-950 transition cursor-pointer shadow-xs"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-gold-400 hover:bg-gold-300 px-3.5 py-1.5 text-xs font-extrabold text-slate-950 transition cursor-pointer shadow-xs"
                       >
                         <Edit3 className="h-3.5 w-3.5" />
                         <span>Sửa Hồ Sơ & Bài Viết</span>
@@ -1054,7 +1054,7 @@ export function ScheduleTab({
                         <button
                           type="button"
                           onClick={openEditMyProfile}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-gold-400 to-[#f5c518] hover:from-[#f5c518] hover:to-gold-400 px-3.5 py-2 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-gold-400 to-gold-500 hover:from-gold-500 hover:to-gold-400 px-3.5 py-2 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-md"
                         >
                           <Edit3 className="h-3.5 w-3.5" />
                           <span>Sửa Hồ Sơ &amp; Bài Viết</span>
@@ -1158,7 +1158,7 @@ export function ScheduleTab({
                   </div>
 
                   {/* Mục Bài Viết / Lời Ngỏ Giới Thiệu Bản Thân (Bio) */}
-                  <div className="rounded-2xl bg-amber-50/70 border border-gold-400/50 p-4 space-y-2.5">
+                  <div className="rounded-xl bg-amber-50/70 border border-gold-400/50 p-4 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-royal-600">
                         <Quote className="h-4 w-4 text-gold-400" />
@@ -1258,7 +1258,7 @@ export function ScheduleTab({
                       <button
                         type="button"
                         onClick={() => setPosterModalOpen(true)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-gold-500 to-[#e6c466] hover:from-[#e6c466] hover:to-[#f5d97f] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-xs"
+                        className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-gold-500 to-gold-450 hover:from-gold-450 hover:to-gold-300 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-slate-950 transition cursor-pointer shadow-xs"
                         title="Tải trực tiếp ảnh bảng điểm danh cầu thủ chất lượng cao về máy để chia sẻ vào Zalo"
                       >
                         <Camera className="h-3.5 w-3.5" />

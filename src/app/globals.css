@@ -2,8 +2,10 @@
 
 @theme {
   /* Primitive Navy & Royal Scale (70% Surface & Backdrop) */
+  --color-navy-975: #030912;
   --color-navy-950: #040e1a;
   --color-navy-900: #081a33;
+  --color-navy-850: #071933;
   --color-navy-800: #092244;
   --color-navy-700: #0b2447;
   --color-navy-600: #0d2e5b;
@@ -14,6 +16,7 @@
   /* Royal Gold Scale (5% Brand Accent) */
   --color-gold-300: #fde047;
   --color-gold-400: #ffd700;
+  --color-gold-450: #e6c466;
   --color-gold-500: #d4af37;
   --color-gold-600: #b89635;
   --color-gold-700: #8a6d14;
@@ -70,9 +73,12 @@
   --border-subtle: var(--color-line-subtle);
 
   /* Brand Identity (70-25-5) */
+  --brand-navy-deepest: var(--color-navy-975);
   --brand-navy-deep: var(--color-navy-950);
+  --brand-navy-dark: var(--color-navy-850);
   --brand-navy: var(--color-navy-600);
   --brand-navy-mid: var(--color-navy-500);
+  --brand-gold-light: var(--color-gold-450);
   --brand-gold: var(--color-gold-500);
   --brand-gold-dark: var(--color-gold-600);
   --brand-gold-soft: #fef9c3;
@@ -210,7 +216,10 @@ button:disabled,
   .gn-kenburns,
   .gn-spin-slow,
   .tab-enter,
-  .sc-hologram-sweep {
+  .sc-hologram-sweep,
+  .animate-pulse,
+  .animate-spin,
+  .animate-fade-in {
     animation: none !important;
   }
   button,
@@ -371,7 +380,7 @@ dialog:modal {
   overscroll-behavior: contain;
   margin: auto;
   border: 1px solid var(--border-default);
-  border-radius: 1rem;
+  border-radius: 0.75rem;
   padding: 0;
   background: var(--bg-surface);
   color: var(--text-primary);
@@ -386,13 +395,32 @@ dialog.cropper-dialog:modal {
   width: 100%;
   max-height: calc(100dvh - 1rem);
   border: 1px solid rgba(212, 175, 55, 0.45);
-  border-radius: 1.25rem;
+  border-radius: 0.75rem;
   background: #071a33;
   color: #f8fafc;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+dialog.poster-dialog:modal {
+  max-width: min(48rem, calc(100vw - 1.25rem));
+  width: 100%;
+  max-height: calc(100dvh - 1.5rem);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 0.75rem;
+  background: var(--color-navy-975);
+  color: #ffffff;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+dialog.poster-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
 }
 
 dialog.cropper-dialog::backdrop {

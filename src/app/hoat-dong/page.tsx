@@ -234,7 +234,7 @@ export default function HoatDongPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm bài viết, tác giả, giải đấu..."
-                className="w-full bg-navy-900/90 border border-gold-500/40 rounded-2xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:ring-2 focus:ring-gold-500"
+                className="w-full bg-navy-900/90 border border-gold-500/40 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-dark focus:ring-2 focus:ring-gold-500"
               />
               {searchQuery && (
                 <button
@@ -495,7 +495,7 @@ export default function HoatDongPage() {
                       setGalleryCategory(isSelectedAlbum ? "all" : album.id);
                       setVisiblePhotoCount(INITIAL_GALLERY_LIMIT);
                     }}
-                    className={`group text-left rounded-2xl overflow-hidden border transition cursor-pointer bg-navy-800/70 ${
+                    className={`group text-left rounded-xl overflow-hidden border transition cursor-pointer bg-navy-800/70 ${
                       isSelectedAlbum
                         ? "border-gold-500 ring-2 ring-gold-500/40"
                         : "border-white/10 hover:border-gold-500/60"
@@ -586,7 +586,7 @@ export default function HoatDongPage() {
                         idx
                       )
                     }
-                    className="group relative aspect-[4/3] rounded-2xl overflow-hidden bg-navy-800 border border-white/10 hover:border-gold-500 transition text-left cursor-pointer shadow-lg"
+                    className="group relative aspect-[4/3] rounded-xl overflow-hidden bg-navy-800 border border-white/10 hover:border-gold-500 transition text-left cursor-pointer shadow-lg"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img

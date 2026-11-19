@@ -6,15 +6,16 @@
 
 ---
 
-## Phase 6.2 — Design Tokens, Radius & Reduced-Motion Consolidation
+## Phase 6.2 — Design Tokens, Radius, Reduced-Motion & P0 Dialog Hotfix (Implemented)
 
-- **Objective**: Eliminate remaining design-token drift (`rounded-2xl`, dialog radius, hardcoded HEX in workspace/shared files), extract `Toast` into `@/components/ui`, and close the `prefers-reduced-motion` gap.
-- **Scope**:
-  1. Add missing navy/gold semantic tokens in `src/app/globals.css` (`@theme` + `:root`).
-  2. Align `dialog:modal` (`1rem` → `0.75rem`) and `dialog.cropper-dialog` (`1.25rem` → `0.75rem`) in `src/app/globals.css:374,389`, and replace all `rounded-2xl` usages across TSX files with `rounded-xl` (12px).
-  3. Extend `@media (prefers-reduced-motion: reduce)` in `src/app/globals.css:203-225` to suppress `.animate-pulse`, `.animate-spin`, and `.animate-fade-in`.
-  4. Extract `Toast` into `src/components/ui/Toast.tsx` (with `min-h-11 min-w-11` close button) and fix `showToast(..., "error")` at `TeamManagerApp.tsx:344,353,361`.
-  5. Re-export `ModalDialog` from `src/components/ui/index.ts`.
+- **Baseline SHA**: `e61107749b6b14763e6ee458fd60c5b6c0176090` (`main`)
+- **Objective**: Eliminate remaining design-token drift (`rounded-2xl`, dialog radius, hardcoded HEX in workspace/shared files), extract `Toast` into `@/components/ui`, close the `prefers-reduced-motion` gap, and remediate P0 `A11Y-01` (`MatchdayRosterPoster` native `<dialog>`).
+- **Scope Implemented**:
+  1. Added `--color-navy-975`, `--color-navy-850`, `--color-gold-450` and `:root` aliases `--brand-navy-deepest`, `--brand-navy-dark`, `--brand-gold-light` in `src/app/globals.css`, and cleaned hardcoded HEX in the 9 workspace/shared components.
+  2. Aligned `dialog:modal` and `dialog.cropper-dialog:modal` to `0.75rem` (12px) and replaced all `rounded-2xl` usages across `src/**/*.tsx` with `rounded-xl`.
+  3. Extended `@media (prefers-reduced-motion: reduce)` in `src/app/globals.css` to suppress `.animate-pulse`, `.animate-spin`, and `.animate-fade-in`.
+  4. Extracted `Toast` / `ToastVariant` into `src/components/ui/Toast.tsx`, re-exported `Toast` and `ModalDialog` from `src/components/ui/index.ts`, and fixed `showToast(..., "error")` on error branches in `TeamManagerApp.tsx`.
+  5. Remediated P0 `A11Y-01` early by migrating `MatchdayRosterPoster.tsx` to native `<dialog>` + `useDialogA11y` while preserving `posterRef` PNG export (`pixelRatio: 2.5`, `quality: 0.98`).
 - **Files Affected**: `src/app/globals.css`, `src/components/ui/Toast.tsx` (new), `src/components/ui/index.ts`, `src/components/TeamManagerApp.tsx`, `src/components/ClubPostsTab.tsx`, `src/components/ScheduleTab.tsx`, `src/components/LoginModal.tsx`, `src/components/ImageLightboxModal.tsx`, `src/components/MatchdayRosterPoster.tsx`, `src/components/PlayerProfileClient.tsx`, `src/components/PublicGuestPortal.tsx`, `src/app/hoat-dong/page.tsx`, `src/app/hoat-dong/[id]/page.tsx`, `src/app/cau-thu/[id]/page.tsx`.
 - **Risk**: Low — CSS/class-level changes only; no business logic touched.
 - **Acceptance Criteria**:
@@ -27,12 +28,11 @@
 
 ---
 
-## Phase 6.3 — Accessibility (WCAG 2.2 AA) & Mobile Touch-Target Remediation
+## Phase 6.3 — Accessibility (WCAG 2.2 AA) & Mobile Touch-Target Remediation (Pending)
 
-- **Objective**: Close all remaining P0/P1 accessibility and mobile ergonomics gaps across Guest, Player, and Manager flows.
+- **Objective**: Close all remaining P1 accessibility and mobile ergonomics gaps across Guest, Player, and Manager flows (`A11Y-01` `MatchdayRosterPoster` was resolved early in Phase 6.2).
 - **Scope**:
-  1. Migrate `MatchdayRosterPoster.tsx:102` to native `<dialog>` + `useDialogA11y` (focus trap, `Escape`, focus restoration).
-  2. Add `useDialogA11y` (`role="dialog"`, `aria-modal="true"`, `Escape`, focus restoration) to `PublicGuestPortal.tsx:554-633` mobile navigation drawer, and upgrade hamburger button (`PublicGuestPortal.tsx:546`) to `min-h-11 min-w-11`.
+  1. Add `useDialogA11y` (`role="dialog"`, `aria-modal="true"`, `Escape`, focus restoration) to `PublicGuestPortal.tsx:554-633` mobile navigation drawer, and upgrade hamburger button (`PublicGuestPortal.tsx:546`) to `min-h-11 min-w-11`.
   3. Add `<a href="#main-content" className="skip-link">` and `<main id="main-content">` to `src/app/cau-thu/[id]/page.tsx:74-96` not-found view.
   4. Upgrade all sub-44px mobile touch targets to `min-h-11` (`min-w-11` for icon buttons) on `<640px` (`Button` `sm`, gallery `h-7 w-7` actions in `ScheduleTab`/`PlayerPersonalTab`/`PlayersTab`, `FinanceTab` edit/delete icons, `CollectionTab` filter buttons, `PlayersTab` `min-h-8` pills).
   5. Add inline/modal import error summary for Manager Excel import failures on mobile and desktop (`TeamManagerApp.tsx:297`).

@@ -134,7 +134,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
       }}
     >
       <div
-        className="relative w-full max-w-md my-auto rounded-2xl bg-gradient-to-b from-[#0f3468] via-navy-600 to-navy-800 border-2 border-gold-400/70 text-white shadow-[0_25px_60px_rgba(0,0,0,0.85)] overflow-hidden"
+        className="relative w-full max-w-md my-auto rounded-xl bg-gradient-to-b from-navy-500 via-navy-600 to-navy-800 border-2 border-gold-400/70 text-white shadow-[0_25px_60px_rgba(0,0,0,0.85)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Nút đóng */}
@@ -149,7 +149,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
         </button>
 
         {/* Header huy hiệu CLB Hoàng Gia Sapphire & Gold */}
-        <div className="p-6 pb-4 border-b border-white/15 bg-gradient-to-r from-[#144485] to-[#0f3468] relative">
+        <div className="p-6 pb-4 border-b border-white/15 bg-gradient-to-r from-navy-500 to-navy-600 relative">
           <div className="flex items-center gap-3.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -342,7 +342,7 @@ export function LoginModal({ isOpen, onClose, onSuccess }: LoginModalProps) {
               <button
                 type="submit"
                 disabled={isLoading || lockoutSeconds !== null}
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-gold-400 to-[#f5c518] hover:from-[#f5c518] hover:to-gold-400 text-slate-950 text-xs font-black uppercase tracking-wider transition shadow-lg hover:shadow-xl cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-gold-400 to-gold-500 hover:from-gold-500 hover:to-gold-400 text-slate-950 text-xs font-black uppercase tracking-wider transition shadow-lg hover:shadow-xl cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <>
