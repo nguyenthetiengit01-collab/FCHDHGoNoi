@@ -267,6 +267,45 @@ describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
       }
     });
 
+    it("PlayerPersonalTab & ScheduleTab activity gallery crop buttons meet >=44px below 768px, stay visible on touch/focus, and preserve handlers", () => {
+      const personalSrc = readSrc("src/components/PlayerPersonalTab.tsx");
+      const personalCropMatch = personalSrc.match(
+        /<button[\s\S]*?setCropperMode\("profile"\);\s*setCropperSource\(url\);\s*setCropperOpen\(true\);[\s\S]*?aria-label=\{`Canh chỉnh & cắt ảnh hoạt động #\$\{idx \+ 1\}`\}[\s\S]*?className="([^"]+)"/
+      );
+      expect(personalCropMatch).toBeTruthy();
+      const personalCropClass = personalCropMatch![1];
+      expect(personalCropClass).toContain("min-h-11 min-w-11 md:min-h-7 md:min-w-7");
+      expect(personalCropClass).toContain(
+        "opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+      );
+      expect(personalCropClass).toContain("focus-visible:outline-2 focus-visible:outline-white");
+      expect(personalCropClass).not.toMatch(/(?<!md:)\bopacity-0\b/);
+      expect(personalCropClass).not.toMatch(/\bsm:(?:min-h|min-w|opacity)-/);
+
+      const scheduleSrc = readSrc("src/components/ScheduleTab.tsx");
+      const scheduleCropMatch = scheduleSrc.match(
+        /<button[\s\S]*?setProfileCropperMode\("profile"\);\s*setProfileCropperSource\(url\);\s*setProfileCropperOpen\(true\);[\s\S]*?aria-label=\{`Canh chỉnh & cắt ảnh hoạt động #\$\{idx \+ 1\}`\}[\s\S]*?className="([^"]+)"/
+      );
+      expect(scheduleCropMatch).toBeTruthy();
+      const scheduleCropClass = scheduleCropMatch![1];
+      expect(scheduleCropClass).toContain("min-h-11 min-w-11 md:min-h-7 md:min-w-7");
+      expect(scheduleCropClass).toContain(
+        "opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+      );
+      expect(scheduleCropClass).toContain("focus-visible:outline-2 focus-visible:outline-white");
+      expect(scheduleCropClass).not.toMatch(/(?<!md:)\bopacity-0\b/);
+      expect(scheduleCropClass).not.toMatch(/\bsm:(?:min-h|min-w|opacity)-/);
+
+      for (const cls of [personalCropClass, scheduleCropClass]) {
+        for (const vw of [320, 375, 639, 640, 767]) {
+          expect(resolveMinPxAtViewport(cls, "h", vw)).toBe(44);
+          expect(resolveMinPxAtViewport(cls, "w", vw)).toBe(44);
+        }
+        expect(resolveMinPxAtViewport(cls, "h", 768)).toBe(28);
+        expect(resolveMinPxAtViewport(cls, "w", 768)).toBe(28);
+      }
+    });
+
     it("PlayersTab, FinanceTab, and CollectionTab keep 44px targets below 768px and reduce only at md:", () => {
       const playersSrc = readSrc("src/components/PlayersTab.tsx");
       expect(playersSrc).not.toContain("h-7 w-7");

@@ -2224,10 +2224,11 @@ export function ScheduleTab({
                               setProfileCropperSource(url);
                               setProfileCropperOpen(true);
                             }}
-                            className="absolute top-1 right-1 bg-black/80 hover:bg-black text-gold-400 p-1 rounded-md opacity-0 group-hover:opacity-100 transition shadow cursor-pointer"
+                            aria-label={`Canh chỉnh & cắt ảnh hoạt động #${idx + 1}`}
+                            className="absolute top-1 right-1 inline-flex min-h-11 min-w-11 md:min-h-7 md:min-w-7 items-center justify-center bg-black/80 hover:bg-black text-gold-400 p-1.5 md:p-1 rounded-md opacity-100 [@media(hover:none)]:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-white"
                             title="Canh chỉnh & cắt ảnh này theo khung rộng 16:9 / 4:3"
                           >
-                            <Crop className="h-3 w-3" />
+                            <Crop className="h-3.5 w-3.5 md:h-3 md:w-3" aria-hidden="true" />
                           </button>
                         </div>
                       );
