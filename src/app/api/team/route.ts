@@ -29,6 +29,175 @@ import {
 } from "@/lib/analytics/lifecycle";
 import type { FullAppData } from "@/types/app";
 
+type ValidationResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: string };
+
+function parseNonNegativeIntVnd(
+  raw: unknown,
+  fieldName = "Số tiền"
+): ValidationResult<number> {
+  if (raw === undefined || raw === null) {
+    return { ok: false, error: `${fieldName} không được để trống.` };
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return { ok: false, error: `${fieldName} không được để trống.` };
+    }
+    const num = Number(trimmed);
+    if (!Number.isFinite(num) || !Number.isInteger(num) || num < 0) {
+      return {
+        ok: false,
+        error: `${fieldName} phải là số nguyên VNĐ không âm (≥ 0).`,
+      };
+    }
+    return { ok: true, value: num === 0 ? 0 : num };
+  }
+  if (typeof raw === "number") {
+    if (!Number.isFinite(raw) || !Number.isInteger(raw) || raw < 0) {
+      return {
+        ok: false,
+        error: `${fieldName} phải là số nguyên VNĐ không âm (≥ 0).`,
+      };
+    }
+    return { ok: true, value: raw === 0 ? 0 : raw };
+  }
+  return {
+    ok: false,
+    error: `${fieldName} phải là số nguyên VNĐ hợp lệ.`,
+  };
+}
+
+function parsePositiveIntId(
+  raw: unknown,
+  fieldName = "Mã định danh"
+): ValidationResult<number> {
+  if (raw === undefined || raw === null || raw === "") {
+    return { ok: false, error: `Thiếu ${fieldName}.` };
+  }
+  const num =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string" && raw.trim() !== ""
+      ? Number(raw.trim())
+      : NaN;
+  if (!Number.isFinite(num) || !Number.isInteger(num) || num <= 0) {
+    return { ok: false, error: `${fieldName} không hợp lệ.` };
+  }
+  return { ok: true, value: num };
+}
+
+function parseBinaryFlag(
+  raw: unknown,
+  fieldName: string,
+  options?: { defaultWhenMissing?: 0 | 1 }
+): ValidationResult<0 | 1> {
+  if (raw === undefined || raw === null) {
+    if (options?.defaultWhenMissing !== undefined) {
+      return { ok: true, value: options.defaultWhenMissing };
+    }
+    return { ok: false, error: `${fieldName} không được để trống.` };
+  }
+  if (raw === true || raw === 1) {
+    return { ok: true, value: 1 };
+  }
+  if (raw === false || raw === 0) {
+    return { ok: true, value: 0 };
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed === "1" || trimmed === "true") {
+      return { ok: true, value: 1 };
+    }
+    if (trimmed === "0" || trimmed === "false") {
+      return { ok: true, value: 0 };
+    }
+  }
+  return {
+    ok: false,
+    error: `${fieldName} chỉ chấp nhận giá trị 0, 1, true hoặc false.`,
+  };
+}
+
+function resolveMatchFeeAmount(params: {
+  amount: unknown;
+  isPaid: 0 | 1;
+  isAttended: 0 | 1;
+  defaultFee: number;
+}): ValidationResult<number> {
+  const { amount, isPaid, isAttended, defaultFee } = params;
+  const hasExplicitAmount =
+    amount !== undefined &&
+    amount !== null &&
+    !(typeof amount === "string" && amount.trim() === "");
+
+  if (hasExplicitAmount) {
+    const parsed = parseNonNegativeIntVnd(amount, "Số tiền quỹ trận");
+    if (!parsed.ok) return parsed;
+    if (isPaid === 0 && isAttended === 0 && parsed.value > 0) {
+      return {
+        ok: false,
+        error:
+          "Không thể ghi nhận số tiền > 0 khi cầu thủ chưa ra sân và chưa đóng tiền.",
+      };
+    }
+    return parsed;
+  }
+
+  return {
+    ok: true,
+    value: isPaid === 1 || isAttended === 1 ? defaultFee : 0,
+  };
+}
+
+function parseMatchFeeFlagsAndAmount(params: {
+  attended: unknown;
+  paid: unknown;
+  walk_in: unknown;
+  amount: unknown;
+  defaultFee: number;
+}): ValidationResult<{
+  isAttended: 0 | 1;
+  isPaid: 0 | 1;
+  isWalkIn: 0 | 1;
+  finalAmount: number;
+}> {
+  const paidCheck = parseBinaryFlag(params.paid, "Trạng thái đóng tiền (paid)");
+  if (!paidCheck.ok) return paidCheck;
+
+  const attendedCheck = parseBinaryFlag(
+    params.attended,
+    "Trạng thái ra sân (attended)"
+  );
+  if (!attendedCheck.ok) return attendedCheck;
+
+  const walkInCheck = parseBinaryFlag(
+    params.walk_in,
+    "Trạng thái phát sinh (walk_in)",
+    { defaultWhenMissing: 0 }
+  );
+  if (!walkInCheck.ok) return walkInCheck;
+
+  const amountCheck = resolveMatchFeeAmount({
+    amount: params.amount,
+    isPaid: paidCheck.value,
+    isAttended: attendedCheck.value,
+    defaultFee: params.defaultFee,
+  });
+  if (!amountCheck.ok) return amountCheck;
+
+  return {
+    ok: true,
+    value: {
+      isAttended: attendedCheck.value,
+      isPaid: paidCheck.value,
+      isWalkIn: walkInCheck.value,
+      finalAmount: amountCheck.value,
+    },
+  };
+}
+
 export async function GET(req: NextRequest) {
   try {
     const data = await getFullAppData();
@@ -786,8 +955,15 @@ export async function POST(req: NextRequest) {
       // Ghi nhanh Chi Tiền Sân tiện lợi cho Ban Quản Lý
       case "quick_pitch_expense": {
         const { match_id, venue, pitch_cost, payer_name, expense_date } =
-          payload;
-        const costNum = Number(pitch_cost) || 0;
+          payload || {};
+        const costCheck = parseNonNegativeIntVnd(
+          pitch_cost,
+          "Chi phí tiền sân"
+        );
+        if (!costCheck.ok) {
+          return NextResponse.json({ error: costCheck.error }, { status: 400 });
+        }
+        const costNum = costCheck.value;
         const cleanVenue = String(venue || "Sân Vĩnh Lộc").trim();
         const shortVenue = cleanVenue.replace(/^Sân\s+/i, "");
         const rawPayer = String(payer_name || "Tiếng").trim();
@@ -795,7 +971,18 @@ export async function POST(req: NextRequest) {
           ? rawPayer
           : `${rawPayer} - ${shortVenue}`;
 
-        if (match_id) {
+        const hasMatchId =
+          match_id !== undefined && match_id !== null && match_id !== "";
+
+        if (hasMatchId) {
+          const matchIdCheck = parsePositiveIntId(match_id, "Mã trận đấu");
+          if (!matchIdCheck.ok) {
+            return NextResponse.json(
+              { error: matchIdCheck.error },
+              { status: 400 }
+            );
+          }
+
           const mRow = await db.queryOne<{
             id: number;
             match_number: number;
@@ -803,27 +990,36 @@ export async function POST(req: NextRequest) {
             match_date: string;
           }>(
             "SELECT id, match_number, label, match_date FROM matches WHERE id = ?",
-            [Number(match_id)]
+            [matchIdCheck.value]
           );
 
-          if (mRow) {
-            await db.run(
+          if (!mRow) {
+            return NextResponse.json(
+              { error: "Không tìm thấy trận đấu." },
+              { status: 404 }
+            );
+          }
+
+          const desc = `Tiền sân trận tuần ${mRow.match_number} - ${mRow.label.replace(/^Trận\s+\d+\s*-\s*/i, "")}`;
+
+          await db.transaction(async (tx) => {
+            await tx.run(
               `UPDATE matches
               SET venue = ?, pitch_cost = ?, payer_name = ?
               WHERE id = ?`,
               [cleanVenue, costNum, formattedPayer, mRow.id]
             );
 
-            const existingExp = await db.queryOne<{ id: number }>(
+            const existingExp = await tx.queryOne<{ id: number }>(
               `SELECT id FROM expenses
-               WHERE category = 'Tiền sân'
-                 AND (match_id = ? OR description LIKE ?)`,
-              [mRow.id, `%tuần ${mRow.match_number} %`]
+               WHERE match_id = ? AND category = 'Tiền sân'
+               ORDER BY id ASC
+               LIMIT 1`,
+              [mRow.id]
             );
 
-            const desc = `Tiền sân trận tuần ${mRow.match_number} - ${mRow.label.replace(/^Trận\s+\d+\s*-\s*/i, "")}`;
             if (existingExp) {
-              await db.run(
+              await tx.run(
                 `UPDATE expenses
                 SET expense_date = ?, description = ?, amount = ?, payer = ?, match_id = ?
                 WHERE id = ?`,
@@ -837,7 +1033,7 @@ export async function POST(req: NextRequest) {
                 ]
               );
             } else if (costNum > 0) {
-              await db.run(
+              await tx.run(
                 `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
                 VALUES (?, 'Tiền sân', ?, ?, ?, ?)`,
                 [
@@ -849,7 +1045,7 @@ export async function POST(req: NextRequest) {
                 ]
               );
             }
-          }
+          });
         } else if (costNum > 0) {
           const dStr =
             String(expense_date || "").trim() ||
@@ -907,24 +1103,61 @@ export async function POST(req: NextRequest) {
           walk_in,
           collected_by,
           note,
-        } = payload;
+        } = payload || {};
 
-        const matchRow = await db.queryOne<{ fee_per_player: number }>(
-          "SELECT fee_per_player FROM matches WHERE id = ?",
-          [Number(match_id)]
+        const matchIdCheck = parsePositiveIntId(match_id, "Mã trận đấu");
+        if (!matchIdCheck.ok) {
+          return NextResponse.json(
+            { error: matchIdCheck.error },
+            { status: 400 }
+          );
+        }
+        const playerIdCheck = parsePositiveIntId(player_id, "Mã cầu thủ");
+        if (!playerIdCheck.ok) {
+          return NextResponse.json(
+            { error: playerIdCheck.error },
+            { status: 400 }
+          );
+        }
+
+        const matchRow = await db.queryOne<{
+          id: number;
+          fee_per_player: number;
+        }>("SELECT id, fee_per_player FROM matches WHERE id = ?", [
+          matchIdCheck.value,
+        ]);
+        if (!matchRow) {
+          return NextResponse.json(
+            { error: "Không tìm thấy trận đấu." },
+            { status: 404 }
+          );
+        }
+
+        const playerRow = await db.queryOne<{ id: number }>(
+          "SELECT id FROM players WHERE id = ?",
+          [playerIdCheck.value]
         );
-        const defaultFee = matchRow?.fee_per_player ?? 100000;
+        if (!playerRow) {
+          return NextResponse.json(
+            { error: "Không tìm thấy cầu thủ." },
+            { status: 404 }
+          );
+        }
+
+        const defaultFee = matchRow.fee_per_player ?? 100000;
 
         // Chuẩn hóa 3 trạng thái độc lập: Attended và Paid hoàn toàn độc lập
-        const isPaid = Number(paid) === 1 ? 1 : 0;
-        const isAttended = Number(attended) === 1 ? 1 : 0;
-        const finalAmount =
-          amount !== undefined && amount !== null && amount !== ""
-            ? Number(amount)
-            : (isPaid === 1 || isAttended === 1)
-            ? defaultFee
-            : 0;
-        const isWalkIn = Number(walk_in) === 1 ? 1 : 0;
+        const feeCheck = parseMatchFeeFlagsAndAmount({
+          attended,
+          paid,
+          walk_in,
+          amount,
+          defaultFee,
+        });
+        if (!feeCheck.ok) {
+          return NextResponse.json({ error: feeCheck.error }, { status: 400 });
+        }
+        const { isPaid, isAttended, finalAmount, isWalkIn } = feeCheck.value;
 
         await db.run(
           `INSERT INTO match_attendances (
@@ -940,8 +1173,8 @@ export async function POST(req: NextRequest) {
             collected_by = CASE WHEN excluded.collected_by != '' THEN excluded.collected_by ELSE match_attendances.collected_by END,
             note = CASE WHEN excluded.note != '' THEN excluded.note ELSE match_attendances.note END`,
           [
-            Number(match_id),
-            Number(player_id),
+            matchIdCheck.value,
+            playerIdCheck.value,
             isWalkIn,
             isAttended,
             isPaid,
@@ -955,20 +1188,33 @@ export async function POST(req: NextRequest) {
 
       // THU TIỀN HÀNG LOẠT (Lưu tạm trên máy trước khi bấm lưu 1 lần theo transaction batch)
       case "collect_match_fees_batch": {
-        const { match_id, collected_by, items, idempotency_key } = payload;
+        const { match_id, collected_by, items, idempotency_key } =
+          payload || {};
         void idempotency_key;
-        if (!match_id) {
-          return NextResponse.json({ error: "Thiếu mã trận đấu" }, { status: 400 });
+        const matchIdCheck = parsePositiveIntId(match_id, "Mã trận đấu");
+        if (!matchIdCheck.ok) {
+          return NextResponse.json(
+            { error: matchIdCheck.error },
+            { status: 400 }
+          );
         }
         if (!Array.isArray(items) || items.length === 0) {
           break; // Không có thay đổi nào cần lưu
         }
 
-        const matchRow = await db.queryOne<{ fee_per_player: number }>(
-          "SELECT fee_per_player FROM matches WHERE id = ?",
-          [Number(match_id)]
-        );
-        const defaultFee = matchRow?.fee_per_player ?? 100000;
+        const matchRow = await db.queryOne<{
+          id: number;
+          fee_per_player: number;
+        }>("SELECT id, fee_per_player FROM matches WHERE id = ?", [
+          matchIdCheck.value,
+        ]);
+        if (!matchRow) {
+          return NextResponse.json(
+            { error: "Không tìm thấy trận đấu." },
+            { status: 404 }
+          );
+        }
+        const defaultFee = matchRow.fee_per_player ?? 100000;
         const collector = String(collected_by || "Tiếng").trim();
 
         const sql = `INSERT INTO match_attendances (
@@ -984,36 +1230,65 @@ export async function POST(req: NextRequest) {
           collected_by = CASE WHEN excluded.collected_by != '' THEN excluded.collected_by ELSE match_attendances.collected_by END,
           note = CASE WHEN excluded.note != '' THEN excluded.note ELSE match_attendances.note END`;
 
+        const verifiedPlayerIds = new Set<number>();
         const statements: Array<{ sql: string; params: unknown[] }> = [];
         for (const item of items) {
-          const playerId = Number(item.player_id);
-          if (!playerId) continue;
+          const playerIdCheck = parsePositiveIntId(
+            item?.player_id,
+            "Mã cầu thủ"
+          );
+          if (!playerIdCheck.ok) {
+            return NextResponse.json(
+              { error: playerIdCheck.error },
+              { status: 400 }
+            );
+          }
+          const playerId = playerIdCheck.value;
+
+          if (!verifiedPlayerIds.has(playerId)) {
+            const playerRow = await db.queryOne<{ id: number }>(
+              "SELECT id FROM players WHERE id = ?",
+              [playerId]
+            );
+            if (!playerRow) {
+              return NextResponse.json(
+                { error: `Không tìm thấy cầu thủ (ID: ${playerId}).` },
+                { status: 404 }
+              );
+            }
+            verifiedPlayerIds.add(playerId);
+          }
 
           if (item.remove) {
             statements.push({
               sql: `UPDATE match_attendances
                     SET attended = 0, paid = 0, amount = 0, rsvp_status = 'absent_notice'
                     WHERE match_id = ? AND player_id = ?`,
-              params: [Number(match_id), playerId],
+              params: [matchIdCheck.value, playerId],
             });
             continue;
           }
 
           // Chuẩn hóa 3 trạng thái độc lập: Không tự động coi Paid là Attended
-          const isPaid = Number(item.paid) === 1 ? 1 : 0;
-          const isAttended = Number(item.attended) === 1 ? 1 : 0;
-          const finalAmount =
-            item.amount !== undefined && item.amount !== null && item.amount !== ""
-              ? Number(item.amount)
-              : (isPaid === 1 || isAttended === 1)
-              ? defaultFee
-              : 0;
-          const isWalkIn = Number(item.walk_in) === 1 ? 1 : 0;
+          const feeCheck = parseMatchFeeFlagsAndAmount({
+            attended: item.attended,
+            paid: item.paid,
+            walk_in: item.walk_in,
+            amount: item.amount,
+            defaultFee,
+          });
+          if (!feeCheck.ok) {
+            return NextResponse.json(
+              { error: feeCheck.error },
+              { status: 400 }
+            );
+          }
+          const { isPaid, isAttended, finalAmount, isWalkIn } = feeCheck.value;
 
           statements.push({
             sql,
             params: [
-              Number(match_id),
+              matchIdCheck.value,
               playerId,
               isWalkIn,
               isAttended,
@@ -1117,8 +1392,43 @@ export async function POST(req: NextRequest) {
           amount,
           payer,
           match_id,
-        } = payload;
-        if (id) {
+        } = payload || {};
+
+        const amountCheck = parseNonNegativeIntVnd(amount, "Số tiền chi");
+        if (!amountCheck.ok) {
+          return NextResponse.json(
+            { error: amountCheck.error },
+            { status: 400 }
+          );
+        }
+
+        let validMatchId: number | null = null;
+        if (match_id !== undefined && match_id !== null && match_id !== "") {
+          const matchIdCheck = parsePositiveIntId(match_id, "Mã trận đấu");
+          if (!matchIdCheck.ok) {
+            return NextResponse.json(
+              { error: matchIdCheck.error },
+              { status: 400 }
+            );
+          }
+          const matchRow = await db.queryOne<{ id: number }>(
+            "SELECT id FROM matches WHERE id = ?",
+            [matchIdCheck.value]
+          );
+          if (!matchRow) {
+            return NextResponse.json(
+              { error: "Không tìm thấy trận đấu." },
+              { status: 404 }
+            );
+          }
+          validMatchId = matchIdCheck.value;
+        }
+
+        if (id !== undefined && id !== null && id !== "") {
+          const idCheck = parsePositiveIntId(id, "Mã khoản chi");
+          if (!idCheck.ok) {
+            return NextResponse.json({ error: idCheck.error }, { status: 400 });
+          }
           await db.run(
             `UPDATE expenses
             SET expense_date = ?, category = ?, description = ?, amount = ?, payer = ?, match_id = ?
@@ -1127,10 +1437,10 @@ export async function POST(req: NextRequest) {
               expense_date || "2026-11-03",
               category || "Tiền sân",
               description || "",
-              Number(amount) || 0,
+              amountCheck.value,
               payer || "",
-              match_id ? Number(match_id) : null,
-              Number(id),
+              validMatchId,
+              idCheck.value,
             ]
           );
         } else {
@@ -1141,9 +1451,9 @@ export async function POST(req: NextRequest) {
               expense_date || new Date().toISOString().slice(0, 10),
               category || "Tiền sân",
               description || "",
-              Number(amount) || 0,
+              amountCheck.value,
               payer || "",
-              match_id ? Number(match_id) : null,
+              validMatchId,
             ]
           );
         }
@@ -1158,12 +1468,23 @@ export async function POST(req: NextRequest) {
 
       case "upsert_other_income": {
         const { id, income_date, contributor, amount, fund_type, note, sponsor_id } =
-          payload;
+          payload || {};
+        const amountCheck = parseNonNegativeIntVnd(amount, "Số tiền thu");
+        if (!amountCheck.ok) {
+          return NextResponse.json(
+            { error: amountCheck.error },
+            { status: 400 }
+          );
+        }
         const sponsorCheck = await validateSponsorIdForIncome(db, sponsor_id);
         if (!sponsorCheck.ok) {
           return NextResponse.json({ error: sponsorCheck.error }, { status: 400 });
         }
-        if (id) {
+        if (id !== undefined && id !== null && id !== "") {
+          const idCheck = parsePositiveIntId(id, "Mã khoản thu");
+          if (!idCheck.ok) {
+            return NextResponse.json({ error: idCheck.error }, { status: 400 });
+          }
           if (sponsorCheck.columnSupported) {
             await db.run(
               `UPDATE other_incomes
@@ -1172,11 +1493,11 @@ export async function POST(req: NextRequest) {
               [
                 income_date || "2026-11-03",
                 contributor || "",
-                Number(amount) || 0,
+                amountCheck.value,
                 fund_type || "Quỹ sinh hoạt",
                 note || "",
                 sponsorCheck.sponsorId,
-                Number(id),
+                idCheck.value,
               ]
             );
           } else {
@@ -1187,10 +1508,10 @@ export async function POST(req: NextRequest) {
               [
                 income_date || "2026-11-03",
                 contributor || "",
-                Number(amount) || 0,
+                amountCheck.value,
                 fund_type || "Quỹ sinh hoạt",
                 note || "",
-                Number(id),
+                idCheck.value,
               ]
             );
           }
@@ -1202,7 +1523,7 @@ export async function POST(req: NextRequest) {
               [
                 income_date || new Date().toISOString().slice(0, 10),
                 contributor || "",
-                Number(amount) || 0,
+                amountCheck.value,
                 fund_type || "Quỹ sinh hoạt",
                 note || "",
                 sponsorCheck.sponsorId,
@@ -1215,7 +1536,7 @@ export async function POST(req: NextRequest) {
               [
                 income_date || new Date().toISOString().slice(0, 10),
                 contributor || "",
-                Number(amount) || 0,
+                amountCheck.value,
                 fund_type || "Quỹ sinh hoạt",
                 note || "",
               ]
