@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
 
     // 3. Sheet Thu Trận (Tích chọn) (Hỗ trợ động N trận đấu, tương thích 100% công thức Excel)
     const matchCount = data.matches.length;
-    const lastColIndex = 5 + matchCount - 1;
+    const lastColIndex = Math.max(5, 5 + matchCount - 1);
     const lastColLetter = XLSX.utils.encode_col(lastColIndex);
     const lastPlayerExcelRow = 8 + data.players.length;
 
@@ -151,17 +151,23 @@ export async function GET(req: NextRequest) {
     XLSX.utils.book_append_sheet(wb, wsThuTran, "3. Thu Trận (Tích chọn)");
 
     // 4. Sheet Thu Khác
+    const lastTkRow = Math.max(6, 5 + data.otherIncomes.length);
     const thuKhacRows: unknown[][] = [
       [],
       ["", "CÁC KHOẢN THU NGOÀI & TÀI TRỢ"],
       [],
-      ["", "STT", "Ngày", "Người Ủng Hộ / Nguồn Thu", "Số Tiền (VND)", "Ghi Chú / Mục Đích"],
+      ["", "STT", "Ngày", "Người Ủng Hộ / Nguồn Thu", "Số Tiền (VND)", "Ghi Chú / Mục Đích", "Loại Quỹ"],
       [
         "",
         "",
         "",
         "TỔNG THU KHÁC:",
-        { t: "n", v: data.summary.totalOtherIncome, f: `SUM(E6:E${Math.max(6, 5 + data.otherIncomes.length)})` },
+        {
+          t: "n",
+          v: data.summary.totalOtherIncome,
+          f: `SUMIFS(E6:E${lastTkRow}, G6:G${lastTkRow}, "<>Chuyển quỹ nội bộ", G6:G${lastTkRow}, "<>transfer")`,
+        },
+        "",
         "",
       ],
       ...data.otherIncomes.map((o, idx) => [
@@ -171,24 +177,31 @@ export async function GET(req: NextRequest) {
         o.contributor,
         o.amount,
         o.note,
+        o.fund_type || "Quỹ sinh hoạt",
       ]),
     ];
     const wsThuKhac = XLSX.utils.aoa_to_sheet(thuKhacRows);
     XLSX.utils.book_append_sheet(wb, wsThuKhac, "4. Thu Khác");
 
     // 5. Sheet Chi
+    const lastChiRow = Math.max(6, 5 + data.expenses.length);
     const chiRows: unknown[][] = [
       [],
       ["", "SỔ CHI TIÊU QUỸ ĐỘI BÓNG"],
       [],
-      ["", "STT", "Ngày", "Hạng Mục Luỹ Kế", "Nội Dung Chi Tiết", "Số Tiền (VND)", "Người Chi / Xác Nhận"],
+      ["", "STT", "Ngày", "Hạng Mục Luỹ Kế", "Nội Dung Chi Tiết", "Số Tiền (VND)", "Người Chi / Xác Nhận", "Mã Trận"],
       [
         "",
         "",
         "",
         "",
         "TỔNG CHI TIÊU:",
-        { t: "n", v: data.summary.totalExpense, f: `SUM(F6:F${Math.max(6, 5 + data.expenses.length)})` },
+        {
+          t: "n",
+          v: data.summary.totalExpense,
+          f: `SUMIF(D6:D${lastChiRow}, "<>Chuyển quỹ nội bộ", F6:F${lastChiRow})`,
+        },
+        "",
         "",
       ],
       ...data.expenses.map((e, idx) => [
@@ -199,10 +212,79 @@ export async function GET(req: NextRequest) {
         e.description,
         e.amount,
         e.payer,
+        e.match_id ?? "",
       ]),
     ];
     const wsChi = XLSX.utils.aoa_to_sheet(chiRows);
     XLSX.utils.book_append_sheet(wb, wsChi, "5. Chi");
+
+    // 6. Sheet Dữ liệu Chi tiết (App) - Bảo toàn 100% trạng thái attended/paid/amount/match_id khi Round-Trip
+    const playerNameById = new Map<number, string>(
+      data.players.map((p) => [p.id, p.full_name])
+    );
+    const detailRows: unknown[][] = [
+      ["[META]", "version", 1],
+      [],
+      ["[MATCHES]"],
+      [
+        "id",
+        "match_number",
+        "label",
+        "match_date",
+        "kickoff_time",
+        "venue",
+        "opponent",
+        "fee_per_player",
+        "pitch_cost",
+        "payer_name",
+        "team_score",
+        "opponent_score",
+        "status",
+        "notes",
+      ],
+      ...data.matches.map((m) => [
+        m.id,
+        m.match_number,
+        m.label,
+        m.match_date,
+        m.kickoff_time,
+        m.venue,
+        m.opponent,
+        m.fee_per_player,
+        m.pitch_cost,
+        m.payer_name,
+        m.team_score ?? "",
+        m.opponent_score ?? "",
+        m.status,
+        m.notes,
+      ]),
+      [],
+      ["[ATTENDANCES]"],
+      [
+        "match_id",
+        "player_name",
+        "rsvp_status",
+        "walk_in",
+        "attended",
+        "paid",
+        "amount",
+        "collected_by",
+        "note",
+      ],
+      ...data.attendances.map((a) => [
+        a.match_id,
+        playerNameById.get(a.player_id) || "",
+        a.rsvp_status,
+        a.walk_in,
+        a.attended,
+        a.paid,
+        a.amount,
+        a.collected_by,
+        a.note,
+      ]),
+    ];
+    const wsDetail = XLSX.utils.aoa_to_sheet(detailRows);
+    XLSX.utils.book_append_sheet(wb, wsDetail, "6. Dữ liệu Chi tiết (App)");
 
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
