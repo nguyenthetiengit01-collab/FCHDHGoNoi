@@ -78,6 +78,7 @@ export default async function CauThuProfilePage({ params }: PageProps) {
         </a>
         <main
           id="main-content"
+          tabIndex={-1}
           className="flex-1 flex flex-col items-center justify-center p-4"
         >
           <div className="max-w-md w-full rounded-xl bg-navy-800 border border-white/10 p-8 text-center space-y-4 shadow-xl">

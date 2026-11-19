@@ -169,6 +169,7 @@ describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
       expect(branch).toContain('href="#main-content"');
       expect(branch).toContain('id="main-content"');
       expect(branch).toContain("<main");
+      expect(branch).toMatch(/<main[\s\S]*?id="main-content"[\s\S]*?tabIndex=\{-1\}/);
       expect(branch).toContain("<h1");
       expect(branch).toContain("Không Tìm Thấy Hồ Sơ Cầu Thủ");
       expect(branch).toContain('href="/"');
@@ -381,6 +382,48 @@ describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
         expect(resolveMinPxAtViewport("min-h-11 min-w-11 md:min-h-9 md:min-w-9", "w", vw)).toBe(44);
       }
       expect(resolveMinPxAtViewport("min-h-11 md:min-h-9", "h", 768)).toBe(36);
+    });
+
+    it("PlayerPersonalTab & ScheduleTab PIN visibility buttons are keyboard-reachable, labeled, and >=44px below 768px", () => {
+      const personalSrc = readSrc("src/components/PlayerPersonalTab.tsx");
+      const personalPinPatterns = [
+        /<button[\s\S]*?onClick=\{\(\) => setShowNewPin\(!showNewPin\)\}[\s\S]*?aria-label=\{showNewPin \? "Ẩn mật khẩu mới" : "Hiện mật khẩu mới"\}[\s\S]*?className="([^"]+)"[\s\S]*?<\/button>/,
+        /<button[\s\S]*?onClick=\{\(\) => setShowConfirmPin\(!showConfirmPin\)\}[\s\S]*?aria-label=\{showConfirmPin \? "Ẩn xác nhận mật khẩu mới" : "Hiện xác nhận mật khẩu mới"\}[\s\S]*?className="([^"]+)"[\s\S]*?<\/button>/,
+        /<button[\s\S]*?onClick=\{\(\) => setShowOldPin\(!showOldPin\)\}[\s\S]*?aria-label=\{showOldPin \? "Ẩn mật khẩu hiện tại" : "Hiện mật khẩu hiện tại"\}[\s\S]*?className="([^"]+)"[\s\S]*?<\/button>/,
+      ];
+
+      for (const pattern of personalPinPatterns) {
+        const match = personalSrc.match(pattern);
+        expect(match).toBeTruthy();
+        expect(match![0]).not.toContain("tabIndex={-1}");
+        expect(match![1]).toContain("min-h-11 min-w-11 md:min-h-9 md:min-w-9");
+        for (const vw of [320, 375, 639, 640, 767]) {
+          expect(resolveMinPxAtViewport(match![1], "h", vw)).toBe(44);
+          expect(resolveMinPxAtViewport(match![1], "w", vw)).toBe(44);
+        }
+        expect(resolveMinPxAtViewport(match![1], "h", 768)).toBe(36);
+        expect(resolveMinPxAtViewport(match![1], "w", 768)).toBe(36);
+      }
+
+      const scheduleSrc = readSrc("src/components/ScheduleTab.tsx");
+      const schedulePinPatterns = [
+        /<button[\s\S]*?onClick=\{\(\) => setPwdShowOldPin\(!pwdShowOldPin\)\}[\s\S]*?aria-label=\{[\s\S]*?"Ẩn mật khẩu hiện tại"[\s\S]*?"Hiện mật khẩu hiện tại"[\s\S]*?\}[\s\S]*?className="([^"]+)"[\s\S]*?<\/button>/,
+        /<button[\s\S]*?onClick=\{\(\) => setPwdShowNewPin\(!pwdShowNewPin\)\}[\s\S]*?aria-label=\{[\s\S]*?"Ẩn mật khẩu mới"[\s\S]*?"Hiện mật khẩu mới"[\s\S]*?\}[\s\S]*?className="([^"]+)"[\s\S]*?<\/button>/,
+        /<button[\s\S]*?onClick=\{\(\) => setPwdShowConfirmPin\(!pwdShowConfirmPin\)\}[\s\S]*?aria-label=\{[\s\S]*?"Ẩn xác nhận mật khẩu mới"[\s\S]*?"Hiện xác nhận mật khẩu mới"[\s\S]*?\}[\s\S]*?className="([^"]+)"[\s\S]*?<\/button>/,
+      ];
+
+      for (const pattern of schedulePinPatterns) {
+        const match = scheduleSrc.match(pattern);
+        expect(match).toBeTruthy();
+        expect(match![0]).not.toContain("tabIndex={-1}");
+        expect(match![1]).toContain("min-h-11 min-w-11 md:min-h-9 md:min-w-9");
+        for (const vw of [320, 375, 639, 640, 767]) {
+          expect(resolveMinPxAtViewport(match![1], "h", vw)).toBe(44);
+          expect(resolveMinPxAtViewport(match![1], "w", vw)).toBe(44);
+        }
+        expect(resolveMinPxAtViewport(match![1], "h", 768)).toBe(36);
+        expect(resolveMinPxAtViewport(match![1], "w", 768)).toBe(36);
+      }
     });
   });
 

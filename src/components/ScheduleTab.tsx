@@ -2535,7 +2535,7 @@ export function ScheduleTab({
                   value={pwdOldPin}
                   onChange={(e) => setPwdOldPin(e.target.value)}
                   placeholder="Nhập mật khẩu hiện tại (mặc định 1234)"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-12 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
                 <button
                   type="button"
@@ -2545,8 +2545,7 @@ export function ScheduleTab({
                       ? "Ẩn mật khẩu hiện tại"
                       : "Hiện mật khẩu hiện tại"
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  tabIndex={-1}
+                  className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 >
                   {pwdShowOldPin ? (
                     <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -2568,7 +2567,7 @@ export function ScheduleTab({
                   value={pwdNewPin}
                   onChange={(e) => setPwdNewPin(e.target.value)}
                   placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-12 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
                 <button
                   type="button"
@@ -2576,8 +2575,7 @@ export function ScheduleTab({
                   aria-label={
                     pwdShowNewPin ? "Ẩn mật khẩu mới" : "Hiện mật khẩu mới"
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  tabIndex={-1}
+                  className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 >
                   {pwdShowNewPin ? (
                     <EyeOff className="h-4 w-4" aria-hidden="true" />
@@ -2637,7 +2635,7 @@ export function ScheduleTab({
                   value={pwdConfirmPin}
                   onChange={(e) => setPwdConfirmPin(e.target.value)}
                   placeholder="Nhập lại mật khẩu mới"
-                  className="w-full rounded-xl border border-slate-300 pl-3 pr-10 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
+                  className="w-full rounded-xl border border-slate-300 pl-3 pr-12 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
                 <button
                   type="button"
@@ -2647,8 +2645,7 @@ export function ScheduleTab({
                       ? "Ẩn xác nhận mật khẩu mới"
                       : "Hiện xác nhận mật khẩu mới"
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  tabIndex={-1}
+                  className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 >
                   {pwdShowConfirmPin ? (
                     <EyeOff className="h-4 w-4" aria-hidden="true" />

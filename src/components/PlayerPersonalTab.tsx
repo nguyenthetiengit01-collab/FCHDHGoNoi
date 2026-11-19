@@ -1123,18 +1123,18 @@ export function PlayerPersonalTab({
                     placeholder="Tối thiểu 6 ký tự"
                     value={newPin}
                     onChange={(e) => setNewPin(e.target.value)}
-                    className="form-input !pr-10"
+                    className="form-input !pr-12"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPin(!showNewPin)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    tabIndex={-1}
+                    aria-label={showNewPin ? "Ẩn mật khẩu mới" : "Hiện mật khẩu mới"}
+                    className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                   >
                     {showNewPin ? (
-                      <EyeOff className="h-4 w-4" />
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
                     ) : (
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-4 w-4" aria-hidden="true" />
                     )}
                   </button>
                 </div>
@@ -1153,18 +1153,18 @@ export function PlayerPersonalTab({
                     placeholder="Nhập lại mật khẩu mới"
                     value={confirmPin}
                     onChange={(e) => setConfirmPin(e.target.value)}
-                    className="form-input !pr-10"
+                    className="form-input !pr-12"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPin(!showConfirmPin)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    tabIndex={-1}
+                    aria-label={showConfirmPin ? "Ẩn xác nhận mật khẩu mới" : "Hiện xác nhận mật khẩu mới"}
+                    className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                   >
                     {showConfirmPin ? (
-                      <EyeOff className="h-4 w-4" />
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
                     ) : (
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-4 w-4" aria-hidden="true" />
                     )}
                   </button>
                 </div>
@@ -1221,18 +1221,18 @@ export function PlayerPersonalTab({
                 placeholder="Nhập mật khẩu hiện tại"
                 value={oldPin}
                 onChange={(e) => setOldPin(e.target.value)}
-                className="form-input !pr-10 font-bold"
+                className="form-input !pr-12 font-bold"
               />
               <button
                 type="button"
                 onClick={() => setShowOldPin(!showOldPin)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                tabIndex={-1}
+                aria-label={showOldPin ? "Ẩn mật khẩu hiện tại" : "Hiện mật khẩu hiện tại"}
+                className="absolute right-0.5 md:right-1 top-1/2 -translate-y-1/2 inline-flex min-h-11 min-w-11 md:min-h-9 md:min-w-9 items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
               >
                 {showOldPin ? (
-                  <EyeOff className="h-4 w-4" />
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
                 ) : (
-                  <Eye className="h-4 w-4" />
+                  <Eye className="h-4 w-4" aria-hidden="true" />
                 )}
               </button>
             </div>
