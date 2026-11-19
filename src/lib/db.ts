@@ -311,7 +311,8 @@ export class LocalSqliteAdapter implements AsyncDb {
     params: unknown[] = []
   ): Promise<T[]> {
     type QueryFn = (...args: unknown[]) => unknown[];
-    return (this.db.prepare(sql).all as QueryFn)(...params) as T[];
+    const rows = (this.db.prepare(sql).all as QueryFn)(...params);
+    return rows.map((row) => ({ ...(row as Record<string, unknown>) })) as T[];
   }
 
   private async rawQueryOne<T = Record<string, unknown>>(
@@ -319,7 +320,10 @@ export class LocalSqliteAdapter implements AsyncDb {
     params: unknown[] = []
   ): Promise<T | null> {
     type QueryOneFn = (...args: unknown[]) => unknown;
-    return ((this.db.prepare(sql).get as QueryOneFn)(...params) as T) || null;
+    const row = (this.db.prepare(sql).get as QueryOneFn)(...params) as
+      | Record<string, unknown>
+      | undefined;
+    return row ? ({ ...row } as T) : null;
   }
 
   private async rawRun(

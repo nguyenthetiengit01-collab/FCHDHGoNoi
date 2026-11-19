@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   CLUB_ACTIVITIES_POSTS,
@@ -153,10 +154,12 @@ export default function HoatDongPage() {
             href="/"
             className="inline-flex items-center gap-3 group cursor-pointer"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={OFFICIAL_LOGO_URL}
               alt="FC HĐH Gò Nổi"
+              width={40}
+              height={40}
+              priority
               className="h-10 w-10 rounded-full object-contain bg-white p-0.5 ring-2 ring-gold-500 group-hover:scale-105 transition"
             />
             <div>
@@ -356,13 +359,13 @@ export default function HoatDongPage() {
                   >
                     {/* Ảnh bài viết */}
                     <div className="relative aspect-video overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <Image
                         src={post.featuredImage}
                         alt={post.title}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        unoptimized={!post.featuredImage.startsWith("/")}
+                        className="object-cover group-hover:scale-105 transition duration-500"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-navy-900 via-transparent to-transparent opacity-80" />
 
@@ -502,13 +505,13 @@ export default function HoatDongPage() {
                     }`}
                   >
                     <div className="relative aspect-[16/10] overflow-hidden bg-navy-950">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <Image
                         src={album.coverImage}
                         alt={`Album ${album.label} - FC HĐH Gò Nổi`}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        unoptimized={!album.coverImage.startsWith("/")}
+                        className="object-cover group-hover:scale-105 transition duration-500"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-navy-950 via-navy-950/20 to-transparent" />
                       <span className="absolute top-2 right-2 rounded-full bg-black/70 border border-white/15 px-2.5 py-0.5 text-[10px] font-bold text-gold-300">
@@ -588,13 +591,13 @@ export default function HoatDongPage() {
                     }
                     className="group relative aspect-[4/3] rounded-xl overflow-hidden bg-navy-800 border border-white/10 hover:border-gold-500 transition text-left cursor-pointer shadow-lg"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                       src={photo.src}
                       alt={photo.alt}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      unoptimized={!photo.src.startsWith("/")}
+                      className="object-cover group-hover:scale-105 transition duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-navy-950/95 via-navy-950/25 to-transparent opacity-80 group-hover:opacity-95 transition" />
 

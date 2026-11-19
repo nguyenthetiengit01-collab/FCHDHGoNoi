@@ -356,7 +356,7 @@ export function BroadcastAthleteCard({
                 data-export-ignore="true"
                 onClick={handleExportCard}
                 disabled={isExporting}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2.5 text-xs font-bold transition cursor-pointer shadow-md disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white px-3.5 py-2.5 text-xs font-bold transition cursor-pointer shadow-md disabled:opacity-60"
                 title="Xuất ảnh thẻ vận động viên sắc nét để gửi Zalo"
               >
                 {isExporting ? (

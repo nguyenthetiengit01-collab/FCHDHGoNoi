@@ -70,8 +70,9 @@
 
 ---
 
-## Phase 6.5 — Image Optimization, Live Browser Visual QA & Polish
+## Phase 6.5 — Image Optimization, Live Browser Visual QA & Polish (Completed)
 
+- **Implementation Record**: `docs/phase-6/phase-6.5-implementation.md`
 - **Objective**: Optimize image delivery (`next/image` / explicit dimensions for zero CLS) and execute live headless-browser visual & WCAG contrast verification across all 4 target viewports (`360×800`, `390×844`, `768×1024`, `1440×900`).
 - **Scope**:
   1. Audit and migrate key public `<img>` tags in `PublicGuestPortal.tsx`, `hoat-dong/page.tsx`, `hoat-dong/[id]/page.tsx`, and `BroadcastAthleteCard.tsx` to `next/image` (or explicit `width`/`height` + `aspect-*` containers where dynamic external URLs apply).

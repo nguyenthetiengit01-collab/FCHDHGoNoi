@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, BookOpen, ChevronDown, HeartHandshake } from "lucide-react";
 import { HERO_PHOTOS, SoccerBallIcon, WRAP } from "./shared";
@@ -31,16 +32,17 @@ export function HeroBanner({
       >
         {/* Nền ảnh WebP từ folder hinhanh tự động xử lý */}
         {HERO_PHOTOS.map((src, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             key={src}
             src={src}
             alt={i === 0 ? "Tập thể FC HĐH Gò Nổi tại TP.HCM" : ""}
             aria-hidden={heroIdx !== i}
-            fetchPriority={i === 0 ? "high" : "low"}
+            fill
+            sizes="100vw"
+            priority={i === 0}
             loading={i === 0 ? "eager" : "lazy"}
-            decoding="async"
-            className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-1000 ${heroIdx === i ? "opacity-100 scale-100" : "opacity-0 scale-105"
+            unoptimized={!src.startsWith("/")}
+            className={`object-cover object-center transition-opacity duration-1000 ${heroIdx === i ? "opacity-100 scale-100" : "opacity-0 scale-105"
               }`}
           />
         ))}
@@ -71,7 +73,7 @@ export function HeroBanner({
           GO NOI FC
         </div>
 
-        <div className={`${WRAP} relative z-10 pt-40 pb-14 sm:pb-20`}>
+        <div className={`${WRAP} relative z-10 pt-36 sm:pt-40 pb-28 sm:pb-20`}>
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <span className="font-bold uppercase tracking-[0.35em] text-xs sm:text-sm text-gold-500 flex items-center gap-2">
               <SoccerBallIcon className="h-4 w-4 text-gold-500 gn-spin-slow" />
