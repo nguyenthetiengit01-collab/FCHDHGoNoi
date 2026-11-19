@@ -2,8 +2,7 @@ import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs";
 import path from "node:path";
-
-const SCREENSHOT_DIR = "D:\\Test1\\_tmp_phase65_qa\\screenshots";
+import { QA_DB_PATH, SCREENSHOT_DIR } from "./qaPaths";
 
 const VIEWPORTS = [
   { name: "mobile-360", width: 360, height: 800 },
@@ -16,6 +15,7 @@ const ROUTES = ["/", "/hoat-dong", "/hoat-dong/post-gd-1", "/cau-thu/1"] as cons
 
 test.beforeAll(() => {
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
+  expect(fs.existsSync(QA_DB_PATH)).toBe(true);
 });
 
 test.describe("Phase 6.5 – Live Browser Visual, Contrast & Layout QA", () => {
