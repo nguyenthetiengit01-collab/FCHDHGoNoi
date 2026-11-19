@@ -61,7 +61,12 @@ function parseVndAmount(
   context: string,
   options?: { allowEmptyZero?: boolean; defaultIfEmpty?: number }
 ): number {
-  if (raw === "" || raw === null || raw === undefined) {
+  if (
+    raw === "" ||
+    raw === null ||
+    raw === undefined ||
+    (typeof raw === "string" && raw.trim() === "")
+  ) {
     if (options?.defaultIfEmpty !== undefined) return options.defaultIfEmpty;
     if (options?.allowEmptyZero) return 0;
     throw new ImportValidationError(`${context}: số tiền không được để trống.`);
@@ -79,7 +84,18 @@ function parseVndAmount(
 }
 
 function parseBinaryFlag(raw: unknown, context: string): 0 | 1 {
-  const num = Number(raw);
+  if (
+    raw === "" ||
+    raw === null ||
+    raw === undefined ||
+    typeof raw === "boolean" ||
+    (typeof raw === "string" && raw.trim() === "")
+  ) {
+    throw new ImportValidationError(
+      `${context}: giá trị cờ phải là 0 hoặc 1 (nhận được "${String(raw)}").`
+    );
+  }
+  const num = typeof raw === "number" ? raw : Number(String(raw).trim());
   if (num !== 0 && num !== 1) {
     throw new ImportValidationError(
       `${context}: giá trị cờ phải là 0 hoặc 1 (nhận được "${String(raw)}").`
@@ -90,6 +106,22 @@ function parseBinaryFlag(raw: unknown, context: string): 0 | 1 {
 
 function parseNullableInt(raw: unknown, context: string): number | null {
   if (raw === "" || raw === null || raw === undefined) return null;
+  if (typeof raw === "boolean") {
+    throw new ImportValidationError(
+      `${context}: giá trị phải là số nguyên (nhận được "${String(raw)}").`
+    );
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed === "") return null;
+    const num = Number(trimmed);
+    if (!Number.isFinite(num) || !Number.isInteger(num)) {
+      throw new ImportValidationError(
+        `${context}: giá trị phải là số nguyên (nhận được "${String(raw)}").`
+      );
+    }
+    return num;
+  }
   const num = typeof raw === "number" ? raw : Number(String(raw).trim());
   if (!Number.isFinite(num) || !Number.isInteger(num)) {
     throw new ImportValidationError(
@@ -140,6 +172,7 @@ interface ParsedMatchData {
 
 interface ParsedAttendanceData {
   matchIndex: number; // index into parsedMatches
+  playerNameRaw: string;
   playerNameNormalized: string;
   rsvpStatus: string;
   walkIn: number;
@@ -178,12 +211,39 @@ function sheetToGrid(ws: XLSX.WorkSheet): unknown[][] {
   });
 }
 
-function parseDetailSheet(
-  wsDetail: XLSX.WorkSheet
-): {
+const REQUIRED_MATCH_DETAIL_COLUMNS = [
+  "id",
+  "match_number",
+  "label",
+  "match_date",
+  "kickoff_time",
+  "venue",
+  "opponent",
+  "fee_per_player",
+  "pitch_cost",
+  "payer_name",
+  "team_score",
+  "opponent_score",
+  "status",
+  "notes",
+] as const;
+
+const REQUIRED_ATTENDANCE_DETAIL_COLUMNS = [
+  "match_id",
+  "player_name",
+  "rsvp_status",
+  "walk_in",
+  "attended",
+  "paid",
+  "amount",
+  "collected_by",
+  "note",
+] as const;
+
+function parseDetailSheet(wsDetail: XLSX.WorkSheet): {
   matches: ParsedMatchData[];
   attendances: ParsedAttendanceData[];
-} | null {
+} {
   const rows = sheetToGrid(wsDetail);
   const matchesHeaderIdx = rows.findIndex(
     (r) => String(r?.[0] || "").trim() === "[MATCHES]"
@@ -193,12 +253,27 @@ function parseDetailSheet(
   );
 
   if (matchesHeaderIdx === -1 || attHeaderIdx === -1) {
-    return null;
+    throw new ImportValidationError(
+      "Sheet '6. Dữ liệu Chi tiết (App)' có cấu trúc không hợp lệ: thiếu mục [MATCHES] hoặc [ATTENDANCES]."
+    );
+  }
+  if (attHeaderIdx <= matchesHeaderIdx + 1 || attHeaderIdx + 1 >= rows.length) {
+    throw new ImportValidationError(
+      "Sheet '6. Dữ liệu Chi tiết (App)' có cấu trúc không hợp lệ: thiếu dòng tiêu đề cột."
+    );
   }
 
   const matchesColRow = rows[matchesHeaderIdx + 1] || [];
   const mCol = (name: string) =>
     matchesColRow.findIndex((c) => String(c).trim() === name);
+
+  for (const requiredCol of REQUIRED_MATCH_DETAIL_COLUMNS) {
+    if (mCol(requiredCol) === -1) {
+      throw new ImportValidationError(
+        `Sheet '6. Dữ liệu Chi tiết (App)' thiếu cột '${requiredCol}' trong mục [MATCHES].`
+      );
+    }
+  }
 
   const mIdIdx = mCol("id");
   const mNumIdx = mCol("match_number");
@@ -220,18 +295,44 @@ function parseDetailSheet(
 
   for (let r = matchesHeaderIdx + 2; r < attHeaderIdx; r++) {
     const row = rows[r];
-    if (!row || row.every((c) => c === "" || c === null || c === undefined)) {
+    if (
+      !row ||
+      row.every(
+        (c) =>
+          c === "" ||
+          c === null ||
+          c === undefined ||
+          (typeof c === "string" && c.trim() === "")
+      )
+    ) {
       continue;
     }
     const exportedId = parseNullableInt(
       row[mIdIdx],
       `Sheet '6. Dữ liệu Chi tiết (App)' trận dòng ${r + 1}`
     );
-    const matchNumber =
-      parseNullableInt(
-        row[mNumIdx],
-        `Sheet '6. Dữ liệu Chi tiết (App)' match_number dòng ${r + 1}`
-      ) ?? parsedMatches.length + 1;
+    if (exportedId === null || exportedId <= 0) {
+      throw new ImportValidationError(
+        `Sheet '6. Dữ liệu Chi tiết (App)' trận dòng ${r + 1}: id trận phải là số nguyên dương.`
+      );
+    }
+    if (matchIdxByExportedId.has(exportedId)) {
+      throw new ImportValidationError(
+        `Sheet '6. Dữ liệu Chi tiết (App)' trận dòng ${r + 1}: trùng lặp id trận (${exportedId}).`
+      );
+    }
+
+    const rawMatchNumber = parseNullableInt(
+      row[mNumIdx],
+      `Sheet '6. Dữ liệu Chi tiết (App)' match_number dòng ${r + 1}`
+    );
+    if (rawMatchNumber !== null && rawMatchNumber <= 0) {
+      throw new ImportValidationError(
+        `Sheet '6. Dữ liệu Chi tiết (App)' trận dòng ${r + 1}: match_number phải là số nguyên dương.`
+      );
+    }
+    const matchNumber = rawMatchNumber ?? parsedMatches.length + 1;
+
     const feePerPlayer = parseVndAmount(
       row[mFeeIdx],
       `Sheet '6. Dữ liệu Chi tiết (App)' fee_per_player dòng ${r + 1}`,
@@ -244,9 +345,7 @@ function parseDetailSheet(
     );
 
     const idx = parsedMatches.length;
-    if (exportedId !== null) {
-      matchIdxByExportedId.set(exportedId, idx);
-    }
+    matchIdxByExportedId.set(exportedId, idx);
 
     parsedMatches.push({
       exportedId,
@@ -259,20 +358,14 @@ function parseDetailSheet(
       feePerPlayer,
       pitchCost,
       payerName: String(row[mPayerIdx] || "Tiếng").trim(),
-      teamScore:
-        mTeamScoreIdx !== -1
-          ? parseNullableInt(
-              row[mTeamScoreIdx],
-              `Sheet '6. Dữ liệu Chi tiết (App)' team_score dòng ${r + 1}`
-            )
-          : null,
-      opponentScore:
-        mOppScoreIdx !== -1
-          ? parseNullableInt(
-              row[mOppScoreIdx],
-              `Sheet '6. Dữ liệu Chi tiết (App)' opponent_score dòng ${r + 1}`
-            )
-          : null,
+      teamScore: parseNullableInt(
+        row[mTeamScoreIdx],
+        `Sheet '6. Dữ liệu Chi tiết (App)' team_score dòng ${r + 1}`
+      ),
+      opponentScore: parseNullableInt(
+        row[mOppScoreIdx],
+        `Sheet '6. Dữ liệu Chi tiết (App)' opponent_score dòng ${r + 1}`
+      ),
       status: String(row[mStatusIdx] || "Đã kết thúc").trim(),
       notes: String(row[mNotesIdx] || "").trim(),
     });
@@ -281,6 +374,14 @@ function parseDetailSheet(
   const attColRow = rows[attHeaderIdx + 1] || [];
   const aCol = (name: string) =>
     attColRow.findIndex((c) => String(c).trim() === name);
+
+  for (const requiredCol of REQUIRED_ATTENDANCE_DETAIL_COLUMNS) {
+    if (aCol(requiredCol) === -1) {
+      throw new ImportValidationError(
+        `Sheet '6. Dữ liệu Chi tiết (App)' thiếu cột '${requiredCol}' trong mục [ATTENDANCES].`
+      );
+    }
+  }
 
   const aMatchIdIdx = aCol("match_id");
   const aPlayerNameIdx = aCol("player_name");
@@ -296,18 +397,40 @@ function parseDetailSheet(
 
   for (let r = attHeaderIdx + 2; r < rows.length; r++) {
     const row = rows[r];
-    if (!row || row.every((c) => c === "" || c === null || c === undefined)) {
+    if (
+      !row ||
+      row.every(
+        (c) =>
+          c === "" ||
+          c === null ||
+          c === undefined ||
+          (typeof c === "string" && c.trim() === "")
+      )
+    ) {
       continue;
     }
     const rawMatchId = parseNullableInt(
       row[aMatchIdIdx],
       `Sheet '6. Dữ liệu Chi tiết (App)' attendance match_id dòng ${r + 1}`
     );
-    if (rawMatchId === null || !matchIdxByExportedId.has(rawMatchId)) {
-      continue;
+    if (rawMatchId === null || rawMatchId <= 0) {
+      throw new ImportValidationError(
+        `Sheet '6. Dữ liệu Chi tiết (App)' attendance dòng ${r + 1}: thiếu hoặc sai match_id (phải là số nguyên dương).`
+      );
     }
+    const matchIndex = matchIdxByExportedId.get(rawMatchId);
+    if (matchIndex === undefined) {
+      throw new ImportValidationError(
+        `Sheet '6. Dữ liệu Chi tiết (App)' attendance dòng ${r + 1}: match_id (${rawMatchId}) không tồn tại trong [MATCHES].`
+      );
+    }
+
     const playerName = String(row[aPlayerNameIdx] || "").trim();
-    if (!playerName) continue;
+    if (!playerName) {
+      throw new ImportValidationError(
+        `Sheet '6. Dữ liệu Chi tiết (App)' attendance dòng ${r + 1}: thiếu tên cầu thủ (player_name).`
+      );
+    }
 
     const attended = parseBinaryFlag(
       row[aAttendedIdx],
@@ -317,13 +440,17 @@ function parseDetailSheet(
       row[aPaidIdx],
       `Sheet '6. Dữ liệu Chi tiết (App)' paid dòng ${r + 1}`
     );
+    const rawWalkIn = row[aWalkInIdx];
     const walkIn =
-      aWalkInIdx !== -1
-        ? parseBinaryFlag(
-            row[aWalkInIdx] === "" ? 0 : row[aWalkInIdx],
+      rawWalkIn === "" ||
+      rawWalkIn === null ||
+      rawWalkIn === undefined ||
+      (typeof rawWalkIn === "string" && rawWalkIn.trim() === "")
+        ? 0
+        : parseBinaryFlag(
+            rawWalkIn,
             `Sheet '6. Dữ liệu Chi tiết (App)' walk_in dòng ${r + 1}`
-          )
-        : 0;
+          );
     const amount = parseVndAmount(
       row[aAmountIdx],
       `Sheet '6. Dữ liệu Chi tiết (App)' amount dòng ${r + 1}`,
@@ -331,7 +458,8 @@ function parseDetailSheet(
     );
 
     parsedAttendances.push({
-      matchIndex: matchIdxByExportedId.get(rawMatchId)!,
+      matchIndex,
+      playerNameRaw: playerName,
       playerNameNormalized: playerName.toLowerCase(),
       rsvpStatus: String(row[aRsvpIdx] || "none").trim() || "none",
       walkIn,
@@ -848,8 +976,15 @@ export async function POST(req: NextRequest) {
     let parsedMatches: ParsedMatchData[] = [];
     let parsedAttendances: ParsedAttendanceData[] = [];
 
-    const detailParsed = wsDetail ? parseDetailSheet(wsDetail) : null;
-    if (detailParsed) {
+    if (wsDetail) {
+      const detailParsed = parseDetailSheet(wsDetail);
+      for (const att of detailParsed.attendances) {
+        if (!seenPlayerNames.has(att.playerNameNormalized)) {
+          throw new ImportValidationError(
+            `Sheet '6. Dữ liệu Chi tiết (App)': Không tìm thấy cầu thủ "${att.playerNameRaw}" trong sheet '2. Danh sách'.`
+          );
+        }
+      }
       parsedMatches = detailParsed.matches;
       parsedAttendances = detailParsed.attendances;
     } else {
@@ -935,6 +1070,7 @@ export async function POST(req: NextRequest) {
           const fee = parsedMatches[matchIndex].feePerPlayer;
           parsedAttendances.push({
             matchIndex,
+            playerNameRaw: fullName,
             playerNameNormalized: normalizedName,
             rsvpStatus: isPaid ? "registered" : "none",
             walkIn: 0,
@@ -945,6 +1081,24 @@ export async function POST(req: NextRequest) {
             note: "",
           });
         }
+      }
+    }
+
+    // Kiểm tra tham chiếu match_id của expenses TRƯỚC khi mở transaction
+    const validExportedMatchIds = new Set<number>();
+    for (const m of parsedMatches) {
+      if (m.exportedId !== null) {
+        validExportedMatchIds.add(m.exportedId);
+      }
+    }
+    for (const exp of parsedExpenses) {
+      if (
+        exp.exportedMatchId !== null &&
+        !validExportedMatchIds.has(exp.exportedMatchId)
+      ) {
+        throw new ImportValidationError(
+          `Sheet '5. Chi': Mã trận (${exp.exportedMatchId}) không tồn tại trong danh sách trận đấu.`
+        );
       }
     }
 
@@ -1062,7 +1216,16 @@ export async function POST(req: NextRequest) {
       for (const att of parsedAttendances) {
         const matchId = insertedMatchIds[att.matchIndex];
         const playerId = playerIdByName.get(att.playerNameNormalized);
-        if (!matchId || !playerId) continue;
+        if (!matchId) {
+          throw new ImportValidationError(
+            `Không tìm thấy match_id tương ứng cho dữ liệu điểm danh (matchIndex=${att.matchIndex}).`
+          );
+        }
+        if (!playerId) {
+          throw new ImportValidationError(
+            `Không tìm thấy cầu thủ "${att.playerNameRaw}" khi lưu dữ liệu điểm danh.`
+          );
+        }
 
         await tx.run(
           `INSERT OR REPLACE INTO match_attendances (
@@ -1091,10 +1254,16 @@ export async function POST(req: NextRequest) {
       }
 
       for (const exp of parsedExpenses) {
-        const resolvedMatchId =
-          exp.exportedMatchId !== null
-            ? exportedMatchIdToNewId.get(exp.exportedMatchId) ?? null
-            : null;
+        let resolvedMatchId: number | null = null;
+        if (exp.exportedMatchId !== null) {
+          const mapped = exportedMatchIdToNewId.get(exp.exportedMatchId);
+          if (mapped === undefined) {
+            throw new ImportValidationError(
+              `Sheet '5. Chi': Mã trận (${exp.exportedMatchId}) không tồn tại trong danh sách trận đấu.`
+            );
+          }
+          resolvedMatchId = mapped;
+        }
         await tx.run(
           `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
            VALUES (?, ?, ?, ?, ?, ?)`,

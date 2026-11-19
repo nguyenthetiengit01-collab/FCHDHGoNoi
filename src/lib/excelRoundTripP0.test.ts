@@ -14,8 +14,9 @@ import { NextRequest } from "next/server";
 import * as XLSX from "xlsx";
 import { POST as importPost } from "@/app/api/import/route";
 import { GET as exportGet } from "@/app/api/export/route";
-import { getAsyncDb, getAuditLogs, getFullAppData } from "@/lib/db";
+import { getAsyncDb, getAuditLogs, getFullAppData, TursoDbAdapter } from "@/lib/db";
 import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
+import type { Client } from "@libsql/client";
 import type { Player } from "@/types/app";
 
 function buildImportRequest(
@@ -404,5 +405,234 @@ describe("Phase 5.2 P0: Import Transaction Atomicity & Excel Round-Trip Integrit
     expect(data.otherIncomes[0].fund_type).toBe("Quỹ sinh hoạt");
     expect(data.expenses).toHaveLength(1);
     expect(data.expenses[0].match_id).toBeNull();
+  });
+
+  it("rejects detail sheet with unknown player, unknown match, missing match_id, duplicate exported match ID, malformed structure, or invalid expense match_id with 400 without mutating DB", async () => {
+    const db = getAsyncDb();
+    const currentPlayers = await db.query<Player>("SELECT * FROM players ORDER BY id ASC");
+    const currentManager = currentPlayers.find((p) => p.access_role === "manager");
+    if (!currentManager) throw new Error("Expected manager in DB");
+    const freshToken = createSessionToken(currentManager, 1);
+
+    const before = await getFullAppData();
+
+    const makeBaseDetailWorkbook = () => {
+      const wb = buildValidLegacyWorkbook();
+      const detailRows: unknown[][] = [
+        ["[META]", "version", 1],
+        [],
+        ["[MATCHES]"],
+        [
+          "id",
+          "match_number",
+          "label",
+          "match_date",
+          "kickoff_time",
+          "venue",
+          "opponent",
+          "fee_per_player",
+          "pitch_cost",
+          "payer_name",
+          "team_score",
+          "opponent_score",
+          "status",
+          "notes",
+        ],
+        [10, 1, "Trận 1 - 01/04", "2026-04-01", "19:00", "Sân Vĩnh Lộc", "FC Bạn", 100000, 300000, "Tiếng", "", "", "Đã kết thúc", ""],
+        [],
+        ["[ATTENDANCES]"],
+        [
+          "match_id",
+          "player_name",
+          "rsvp_status",
+          "walk_in",
+          "attended",
+          "paid",
+          "amount",
+          "collected_by",
+          "note",
+        ],
+        [10, "Nguyễn Thế Tiếng", "registered", 0, 1, 1, 100000, "Tiếng", ""],
+      ];
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.aoa_to_sheet(detailRows),
+        "6. Dữ liệu Chi tiết (App)"
+      );
+      return { wb, detailRows };
+    };
+
+    // 1. Unknown player in detail sheet
+    {
+      const { wb, detailRows } = makeBaseDetailWorkbook();
+      detailRows[8] = [10, "Cầu Thủ Không Tồn Tại", "registered", 0, 1, 1, 100000, "Tiếng", ""];
+      wb.Sheets["6. Dữ liệu Chi tiết (App)"] = XLSX.utils.aoa_to_sheet(detailRows);
+      const res = await importPost(buildImportRequest(wb, freshToken));
+      expect(res.status).toBe(400);
+    }
+
+    // 2. Unknown match_id in attendance
+    {
+      const { wb, detailRows } = makeBaseDetailWorkbook();
+      detailRows[8] = [999, "Nguyễn Thế Tiếng", "registered", 0, 1, 1, 100000, "Tiếng", ""];
+      wb.Sheets["6. Dữ liệu Chi tiết (App)"] = XLSX.utils.aoa_to_sheet(detailRows);
+      const res = await importPost(buildImportRequest(wb, freshToken));
+      expect(res.status).toBe(400);
+    }
+
+    // 3. Missing match_id in attendance
+    {
+      const { wb, detailRows } = makeBaseDetailWorkbook();
+      detailRows[8] = ["", "Nguyễn Thế Tiếng", "registered", 0, 1, 1, 100000, "Tiếng", ""];
+      wb.Sheets["6. Dữ liệu Chi tiết (App)"] = XLSX.utils.aoa_to_sheet(detailRows);
+      const res = await importPost(buildImportRequest(wb, freshToken));
+      expect(res.status).toBe(400);
+    }
+
+    // 4. Duplicate exported match ID
+    {
+      const { wb, detailRows } = makeBaseDetailWorkbook();
+      detailRows.splice(5, 0, [
+        10, 2, "Trận Trùng ID", "2026-04-08", "19:00", "Sân Vĩnh Lộc", "FC Bạn", 100000, 300000, "Tiếng", "", "", "Đã kết thúc", "",
+      ]);
+      wb.Sheets["6. Dữ liệu Chi tiết (App)"] = XLSX.utils.aoa_to_sheet(detailRows);
+      const res = await importPost(buildImportRequest(wb, freshToken));
+      expect(res.status).toBe(400);
+    }
+
+    // 5. Malformed detail sheet (missing [ATTENDANCES] -> must NOT fall back to legacy)
+    {
+      const wb = buildValidLegacyWorkbook();
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.aoa_to_sheet([["[MATCHES]"], ["id", "label"], [10, "Trận 1"]]),
+        "6. Dữ liệu Chi tiết (App)"
+      );
+      const res = await importPost(buildImportRequest(wb, freshToken));
+      expect(res.status).toBe(400);
+    }
+
+    // 6. Malformed detail sheet (missing required column header 'paid')
+    {
+      const { wb, detailRows } = makeBaseDetailWorkbook();
+      detailRows[7] = [
+        "match_id",
+        "player_name",
+        "rsvp_status",
+        "walk_in",
+        "attended",
+        "wrong_paid_col",
+        "amount",
+        "collected_by",
+        "note",
+      ];
+      wb.Sheets["6. Dữ liệu Chi tiết (App)"] = XLSX.utils.aoa_to_sheet(detailRows);
+      const res = await importPost(buildImportRequest(wb, freshToken));
+      expect(res.status).toBe(400);
+    }
+
+    // 7. Invalid expense match_id (references non-existent match instead of silently turning into NULL)
+    {
+      const { wb } = makeBaseDetailWorkbook();
+      wb.Sheets["5. Chi"] = XLSX.utils.aoa_to_sheet([
+        [],
+        ["", "SỔ CHI TIÊU QUỸ ĐỘI BÓNG"],
+        [],
+        ["", "STT", "Ngày", "Hạng Mục Luỹ Kế", "Nội Dung Chi Tiết", "Số Tiền (VND)", "Người Chi / Xác Nhận", "Mã Trận"],
+        ["", "", "", "", "TỔNG CHI TIÊU:", 300000, "", ""],
+        ["", 1, "2026-04-01", "Tiền sân", "Thuê sân tuần 1", 300000, "Tiếng", 999],
+      ]);
+      const res = await importPost(buildImportRequest(wb, freshToken));
+      expect(res.status).toBe(400);
+    }
+
+    const after = await getFullAppData();
+    expect(after.players.map((p) => p.full_name)).toEqual(
+      before.players.map((p) => p.full_name)
+    );
+    expect(after.matches.length).toBe(before.matches.length);
+    expect(after.attendances.length).toBe(before.attendances.length);
+    expect(after.expenses.length).toBe(before.expenses.length);
+  });
+
+  it("rolls back completely when audit log insertion fails inside transaction", async () => {
+    const db = getAsyncDb();
+    const currentPlayers = await db.query<Player>("SELECT * FROM players ORDER BY id ASC");
+    const currentManager = currentPlayers.find((p) => p.access_role === "manager");
+    if (!currentManager) throw new Error("Expected manager in DB");
+    const freshToken = createSessionToken(currentManager, 1);
+
+    const before = await getFullAppData();
+    const beforeAuditCount = (await getAuditLogs(200)).length;
+
+    const origTransaction = db.transaction.bind(db);
+    const txSpy = vi.spyOn(db, "transaction").mockImplementation(async (fn) => {
+      return origTransaction(async (tx) => {
+        const wrappedTx: typeof tx = {
+          query: tx.query,
+          queryOne: tx.queryOne,
+          exec: tx.exec,
+          run: async (sql, params) => {
+            if (sql.includes("INSERT INTO audit_logs")) {
+              throw new Error("Simulated audit_logs failure inside transaction");
+            }
+            return tx.run(sql, params);
+          },
+        };
+        return fn(wrappedTx);
+      });
+    });
+
+    try {
+      const wb = buildValidLegacyWorkbook();
+      const res = await importPost(buildImportRequest(wb, freshToken));
+      expect(res.status).toBe(500);
+    } finally {
+      txSpy.mockRestore();
+    }
+
+    const after = await getFullAppData();
+    const afterAuditCount = (await getAuditLogs(200)).length;
+
+    expect(after.players.map((p) => p.full_name)).toEqual(
+      before.players.map((p) => p.full_name)
+    );
+    expect(after.matches.length).toBe(before.matches.length);
+    expect(after.expenses.length).toBe(before.expenses.length);
+    expect(afterAuditCount).toBe(beforeAuditCount);
+  });
+
+  it("rolls back TursoDbAdapter.transaction on error and closes tx without committing", async () => {
+    const execute = vi.fn().mockResolvedValue({
+      rows: [],
+      lastInsertRowid: 1n,
+      rowsAffected: 1,
+    });
+    const commit = vi.fn().mockResolvedValue(undefined);
+    const rollback = vi.fn().mockResolvedValue(undefined);
+    const close = vi.fn();
+
+    const mockClient = {
+      transaction: vi.fn().mockResolvedValue({
+        execute,
+        executeMultiple: vi.fn().mockResolvedValue(undefined),
+        commit,
+        rollback,
+        close,
+      }),
+    } as unknown as Client;
+
+    const adapter = new TursoDbAdapter(mockClient);
+    await expect(
+      adapter.transaction(async (tx) => {
+        await tx.run("INSERT INTO players (full_name) VALUES (?)", ["Test"]);
+        throw new Error("Turso mid-tx failure");
+      })
+    ).rejects.toThrow("Turso mid-tx failure");
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(commit).not.toHaveBeenCalled();
+    expect(rollback).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(1);
   });
 });
