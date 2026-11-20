@@ -19,6 +19,8 @@
 | **Recovery Command Gap** | Runbook Section 3 Step 3 references `turso db shell` / client; `db-restore.mjs` only allows `fchdhgonoi-staging-restore` or local SQLite | Cannot run `db-restore.mjs` directly against a newly provisioned recovery DB | Document exact `sqlite3 ... .dump` / Turso CLI push command or add `--env recovery` preflight |
 | **Operational Ownership** | `NOT DOCUMENTED` (generic "Chủ sở hữu" / "Ban Quản Lý") | Unclear escalation during outage | Assign Primary & Backup DR Owners + contact channels |
 
+> **Scope Separation**: Section 3 below is a **Staging-only rehearsal** using `fchdhgonoi-staging` and `fchdhgonoi-staging-restore`. **Production recovery** is never executed via `db-restore.mjs --env staging` or automated CI; it requires explicit owner authorization and provisioning of a separate Production recovery Turso database per `docs/operations-runbook.md` Section 3.
+
 ---
 
 ## 2. Local Synthetic Restore Drill Evidence (2026-11-20)
@@ -29,25 +31,62 @@ Executed by Agent C in disposable `D:\Test1\_phase7-audit-evidence\drill-tmp\` (
 3. Generated v3 backup via `scripts/db-backup.mjs` (`14` tables, `9` indexes, `8` sequences).
 4. Generated ephemeral X25519 keypair, encrypted and decrypted via `scripts/backup-crypto.mjs` (`X25519-HKDF-SHA256-AES-256-GCM`, exit `0`).
 5. Validated payload via `validateBackupPayload()` (`valid: true`).
-6. Restored into a second disposable SQLite file via `scripts/db-restore.mjs --confirm`.
+6. Restored into a second disposable SQLite file via `scripts/db-restore.mjs --in <backup.json> --target <restored.sqlite> --confirm`.
 7. Verified parity: `14/14` tables, `9/9` indexes, `8/8` `sqlite_sequence` entries, exact row counts, `PRAGMA integrity_check` = `ok`, `PRAGMA foreign_key_check` = `[]`.
 8. Cleaned up `drill-tmp` (`Test-Path` = `False`) and verified worktree `git status` clean.
 
 ---
 
-## 3. Staging Rehearsal Plan (Pre-Launch Execution)
+## 3. Staging Rehearsal Plan (Staging-Only, Pre-Launch Execution)
 
-**Preconditions**: Phase 7.1 fixes merged to `main`; Staging Turso DB (`fchdhgonoi-staging-restore`) and Vercel Preview environment configured with non-Production secrets.
+### Staging Topology & Role Mapping
 
-### Step 1 — Pre-Flight & Baseline Snapshot
-1. Confirm `TURSO_STAGING_DATABASE_URL` points strictly to `fchdhgonoi-staging-restore` (never Production).
-2. Confirm `MEDIA_STORAGE_ENABLED=false` and `ANALYTICS_ENABLED=false` on Preview (unless explicitly testing flag-on scenarios).
+| Role | Environment Variables | Example Database Name | Access Level |
+| :--- | :--- | :--- | :--- |
+| **Source Staging DB** | `TURSO_STAGING_DATABASE_URL`, `TURSO_STAGING_AUTH_TOKEN` | `fchdhgonoi-staging` | **Read-only** (source snapshot / preflight) |
+| **Target Restore DB** | `TURSO_STAGING_RESTORE_DATABASE_URL`, `TURSO_STAGING_RESTORE_AUTH_TOKEN` | `fchdhgonoi-staging-restore` | **Read-write** (isolated restore target) |
 
-### Step 2 — Synthetic Data Backup & Restore Drill on Staging
-1. Seed synthetic dataset into a disposable local SQLite file (never `data/gonoifc.sqlite`).
-2. Generate encrypted v3 backup (`scripts/db-backup.mjs` + `scripts/backup-crypto.mjs`) using a Staging test X25519 keypair.
-3. Decrypt and execute `node scripts/db-restore.mjs --env staging --input <backup.json> --confirm`.
-4. Verify `rowCounts`, `PRAGMA foreign_key_check`, and financial summary totals (`totalIncome`, `totalExpense`, `currentBalance`, `tournament_fund_reserve`).
+- Source (`fchdhgonoi-staging`) and target (`fchdhgonoi-staging-restore`) **must be different databases**, and **both must differ from Production**.
+
+### Preconditions
+1. Phase 7.1 fixes are merged to `main`.
+2. Both the source Staging database (`fchdhgonoi-staging`) and the target restore Staging database (`fchdhgonoi-staging-restore`) exist and have been independently verified.
+3. Vercel Preview environment is configured with non-Production secrets only.
+
+### Step 1 — Pre-Flight Verification
+1. Verify `TURSO_STAGING_DATABASE_URL` points to `fchdhgonoi-staging` and `TURSO_STAGING_AUTH_TOKEN` is a **read-only** token for that source Staging DB.
+2. Verify `TURSO_STAGING_RESTORE_DATABASE_URL` points to `fchdhgonoi-staging-restore` and `TURSO_STAGING_RESTORE_AUTH_TOKEN` is a **read-write** token belonging **only** to the target restore DB.
+3. Verify source Staging URL, target restore URL, and Production URL are all distinct, and **no Production credentials** are present in the shell environment.
+4. Run non-destructive preflight checks before touching the target database:
+   ```bash
+   node scripts/db-backup.mjs --env staging --out /tmp/staging-preflight.json --preflight-only
+   node scripts/db-restore.mjs --env staging --preflight-only
+   ```
+5. Confirm `MEDIA_STORAGE_ENABLED=false` and `ANALYTICS_ENABLED=false` on Vercel Preview.
+
+### Step 2 — Synthetic Backup, Decrypt & Staging Restore Drill
+1. Generate a synthetic or source-Staging backup (`db-backup.mjs` reads `TURSO_STAGING_DATABASE_URL` + `TURSO_STAGING_AUTH_TOKEN` in read-only mode) and encrypt it using a Staging test X25519 keypair:
+   ```bash
+   node scripts/db-backup.mjs --env staging --out /tmp/staging-backup.json
+   BACKUP_ENCRYPTION_PUBLIC_KEY="gonoi-pub-v1:..." node scripts/backup-crypto.mjs encrypt --in /tmp/staging-backup.json --out /tmp/staging-backup.json.enc
+   rm -f /tmp/staging-backup.json
+   ```
+2. Decrypt the encrypted backup to a **disposable temporary JSON file**:
+   ```bash
+   BACKUP_DECRYPTION_PRIVATE_KEY="gonoi-priv-v1:..." node scripts/backup-crypto.mjs decrypt --in /tmp/staging-backup.json.enc --out /tmp/staging-decrypted.json
+   ```
+3. Restore into the isolated Staging restore target (`fchdhgonoi-staging-restore`, via `TURSO_STAGING_RESTORE_DATABASE_URL` + `TURSO_STAGING_RESTORE_AUTH_TOKEN`):
+   ```bash
+   node scripts/db-restore.mjs --env staging --in /tmp/staging-decrypted.json --confirm
+   ```
+4. Verify restore integrity:
+   - Compare `rowCounts` across all restored tables.
+   - Confirm `PRAGMA foreign_key_check` returns zero violations.
+   - Reconcile synthetic financial totals (`totalIncome`, `totalExpense`, `currentBalance`, `tournament_fund_reserve`).
+5. **Remove the temporary plaintext backup safely** immediately after verification:
+   ```bash
+   rm -f /tmp/staging-decrypted.json
+   ```
 
 ### Step 3 — Application & Security Smoke Tests on Vercel Preview
 1. Verify `GET /api/health` returns `200` (`status: "ok"`, `db: "connected"`).
@@ -58,7 +97,7 @@ Executed by Agent C in disposable `D:\Test1\_phase7-audit-evidence\drill-tmp\` (
 6. Verify `GET /api/export` neutralizes `=`, `+`, `-`, `@` formula prefixes.
 7. Verify Guest/Player/Manager UI & real-device PWA checklist (`docs/pwa-real-device-checklist.md`) on iOS Safari & Android Chrome.
 
-### Step 4 — Rollback & Recovery Drill
-1. Trigger a simulated bad Preview deployment or inspect `vercel ls` to identify the previous healthy Preview deployment.
+### Step 4 — Rollback & Recovery Drill (Preview Only)
+1. Identify the previous healthy Vercel Preview deployment via `npx vercel ls`.
 2. Execute Vercel Instant Rollback on Preview and re-run `GET /api/health` + guest/auth smoke checks.
 3. Record timestamps to validate actual **RTO <= 2 hours**.
