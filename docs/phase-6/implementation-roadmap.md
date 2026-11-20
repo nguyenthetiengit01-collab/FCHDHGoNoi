@@ -86,3 +86,10 @@
   - Core Web Vitals (LCP hero image `fetchPriority="high"`, CLS ~ 0) verified.
 - **Required Regression Tests**:
   - Full Vitest suite, `npm run lint`, `npx tsc --noEmit`, `npm run build`, and Playwright/DevTools visual verification report.
+
+---
+
+## Phase 6.5.1 — Playwright Portability, Synthetic QA Fixtures & Cross-Platform CI (In Progress)
+
+- **Implementation Record**: `docs/phase-6/phase-6.5.1-implementation.md`
+- **Objective**: Replace bundled DB copies and hardcoded Windows paths with validated per-run `QA_ROOT`, deterministic synthetic SQLite fixtures, Playwright-managed Chromium portability, and Windows + Linux CI matrix verification.
