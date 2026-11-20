@@ -1,11 +1,11 @@
 # Phase 7 — Production Readiness & Release Audit Report
 
 - **Project**: FC HĐH Gò Nổi tại TP.HCM (`nguyenthetiengit01-collab/FCHDHGoNoi`)
-- **Base Branch / Verified Merge Commit**: `main` @ `fd1b150c94c54f16b0f0888aa57de3c3cb4c1ea7` (PR #14)
-- **Audit Branch**: `audit/phase-7-production-readiness`
+- **Base Branch / Verified Merge Commit**: `main` @ `c37dfd3200547210e8c6308b34c44db4fe18c04e` (PR #15)
+- **Remediation Branch**: `fix/phase-7.1-pre-release-remediation` (Phase 7.1)
 - **Audit Date**: 2026-11-20
-- **Audit Mode**: Read-only audit-first phase (no application code, dependencies, env vars, or Production systems modified)
-- **Release Decision**: **NO-GO** (1 P0, 13 P1, 15 P2, 7 P3, 5 `NOT VERIFIED` operational items)
+- **Audit Mode**: Phase 7.1 Pre-Release Remediation (PR in DRAFT; no Production DB/deploy/merge)
+- **Release Decision**: **NO-GO** (`P0-01` Branch Protection on `main` remains **OPEN** pending Owner configuration; see [phase-7.1-remediation.md](./phase-7.1-remediation.md))
 
 ---
 

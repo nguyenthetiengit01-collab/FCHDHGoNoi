@@ -1,6 +1,6 @@
 # Phase 7 — Disaster Recovery Assessment & Staging Rehearsal Plan
 
-- **Baseline**: `main` @ `fd1b150c94c54f16b0f0888aa57de3c3cb4c1ea7`
+- **Baseline**: `main` @ `c37dfd3200547210e8c6308b34c44db4fe18c04e` (Phase 7.1 DR/Governance documented in `docs/operations-runbook.md`)
 - **Last Local Synthetic Drill**: 2026-11-20 (**PASSED** in isolated temp directory)
 
 ---

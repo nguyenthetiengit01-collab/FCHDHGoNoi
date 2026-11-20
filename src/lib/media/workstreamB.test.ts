@@ -225,6 +225,27 @@ describe("Workstream B — Public Homepage DTO & Legacy Compatibility", () => {
 describe("Workstream B — Media Storage Upload, Auth & Feature Flag", () => {
   it("enforces auth, RBAC, ownership, MIME/magic-bytes, and fail-closed storage config", async () => {
     const webpBuf = await makeTinyWebpBuffer();
+    const dbSpy = vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+      query: async (_sql: string, params?: unknown[]) => {
+        const id = Number(params?.[0]);
+        if (id === 1) {
+          return [{
+            id: 1, code_order: 1, full_name: "Manager 1", short_name: "M1", jersey_number: 1,
+            position: "GK", phone: "", birth_year: "1990", avatar_url: "", role: "Ban Quản Lý",
+            access_role: "manager", pin_code: "hash", status: "Đang sinh hoạt", notes: "",
+          }];
+        }
+        if (id === 2) {
+          return [{
+            id: 2, code_order: 2, full_name: "Player 2", short_name: "P2", jersey_number: 2,
+            position: "DF", phone: "", birth_year: "1995", avatar_url: "", role: "Thành viên",
+            access_role: "player", pin_code: "hash", status: "Đang sinh hoạt", notes: "",
+          }];
+        }
+        return [];
+      },
+    } as unknown as AsyncDb);
+    try {
 
     const makeUploadReq = (file: File, entity: string, cookie?: string, playerId?: string) => {
       const fd = new FormData();
@@ -329,6 +350,9 @@ describe("Workstream B — Media Storage Upload, Auth & Feature Flag", () => {
     await expect(
       ensureWebpDataUrlServer(`data:image/webp;base64,${webpBuf.toString("base64")}`)
     ).rejects.toThrow(MediaValidationError);
+    } finally {
+      dbSpy.mockRestore();
+    }
   });
 });
 
@@ -567,6 +591,15 @@ describe("Workstream B Remediation — Legacy Post TEXT IDs, Gallery Compatibili
     const webpBuf = await makeTinyWebpBuffer();
     const managerCookie = createSessionToken(makeTestPlayer(1, "manager"));
     const playerCookie = createSessionToken(makeTestPlayer(7, "player"));
+    const dbSpy = vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+      query: async (_sql: string, params?: unknown[]) => {
+        const id = Number(params?.[0]);
+        if (id === 1) return [makeTestPlayer(1, "manager")];
+        if (id === 7) return [makeTestPlayer(7, "player")];
+        return [];
+      },
+    } as unknown as AsyncDb);
+    try {
 
     process.env.MEDIA_STORAGE_ENABLED = "true";
     process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_test_token";
@@ -670,6 +703,9 @@ describe("Workstream B Remediation — Legacy Post TEXT IDs, Gallery Compatibili
     expect(disabledRes.status).toBe(503);
     const disabledJson = (await disabledRes.json()) as { code?: string };
     expect(disabledJson.code).toBeUndefined();
+    } finally {
+      dbSpy.mockRestore();
+    }
   });
 
   it("executes real migrate-legacy-media CLI on disposable OS temp SQLite (dry-run, env guard, remote guard)", async () => {

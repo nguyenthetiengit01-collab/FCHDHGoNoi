@@ -1,8 +1,9 @@
 # Phase 7 — Prioritized Risk Register
 
-- **Baseline**: `main` @ `fd1b150c94c54f16b0f0888aa57de3c3cb4c1ea7`
+- **Baseline**: `main` @ `c37dfd3200547210e8c6308b34c44db4fe18c04e` (Updated in Phase 7.1 `fix/phase-7.1-pre-release-remediation`)
 - **Audit Date**: 2026-11-20
-- **Summary**: **1 P0** | **13 P1** | **15 P2** | **7 P3** | **5 NOT VERIFIED**
+- **Phase 7.1 Status**: **P0-01 OPEN** (Owner GitHub UI action) | **P1-01..P1-13 Code/Docs Remediated (Pending Preview/Owner Sign-Off)** | **6 P2 + 2 P3 Remediated** | **5 NOT VERIFIED**
+- **Detailed Closure Matrix**: See [phase-7.1-remediation.md](./phase-7.1-remediation.md)
 
 ---
 

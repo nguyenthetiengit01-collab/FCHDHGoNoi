@@ -28,7 +28,7 @@ import {
   recordPlayerLifecycleEvent,
   validateSponsorIdForIncome,
 } from "@/lib/analytics/lifecycle";
-import type { FullAppData, Player } from "@/types/app";
+import type { Player } from "@/types/app";
 import {
   parseNonNegativeIntVnd,
   type ValidationResult,

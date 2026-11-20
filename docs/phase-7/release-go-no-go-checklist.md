@@ -1,8 +1,8 @@
 # Phase 7 — Release Go / No-Go Checklist
 
 - **Project**: FC HĐH Gò Nổi tại TP.HCM
-- **Target Baseline**: `main` @ `fd1b150c94c54f16b0f0888aa57de3c3cb4c1ea7`
-- **Current Decision**: **NO-GO** (Requires Phase 7.1 Remediation & Staging Rehearsal)
+- **Target Baseline**: `main` @ `c37dfd3200547210e8c6308b34c44db4fe18c04e` (+ Phase 7.1 `fix/phase-7.1-pre-release-remediation`)
+- **Current Decision**: **NO-GO** (`P0-01` Branch Protection still `protected: False`; Staging Rehearsal & Owner Sign-Off pending)
 
 ---
 
