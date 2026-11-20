@@ -29,46 +29,10 @@ import {
   validateSponsorIdForIncome,
 } from "@/lib/analytics/lifecycle";
 import type { FullAppData, Player } from "@/types/app";
-
-type ValidationResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; error: string };
-
-function parseNonNegativeIntVnd(
-  raw: unknown,
-  fieldName = "Số tiền"
-): ValidationResult<number> {
-  if (raw === undefined || raw === null) {
-    return { ok: false, error: `${fieldName} không được để trống.` };
-  }
-  if (typeof raw === "string") {
-    const trimmed = raw.trim();
-    if (!trimmed) {
-      return { ok: false, error: `${fieldName} không được để trống.` };
-    }
-    const num = Number(trimmed);
-    if (!Number.isFinite(num) || !Number.isInteger(num) || num < 0) {
-      return {
-        ok: false,
-        error: `${fieldName} phải là số nguyên VNĐ không âm (≥ 0).`,
-      };
-    }
-    return { ok: true, value: num === 0 ? 0 : num };
-  }
-  if (typeof raw === "number") {
-    if (!Number.isFinite(raw) || !Number.isInteger(raw) || raw < 0) {
-      return {
-        ok: false,
-        error: `${fieldName} phải là số nguyên VNĐ không âm (≥ 0).`,
-      };
-    }
-    return { ok: true, value: raw === 0 ? 0 : raw };
-  }
-  return {
-    ok: false,
-    error: `${fieldName} phải là số nguyên VNĐ hợp lệ.`,
-  };
-}
+import {
+  parseNonNegativeIntVnd,
+  type ValidationResult,
+} from "@/lib/financeValidation";
 
 function parsePositiveIntId(
   raw: unknown,
@@ -773,10 +737,54 @@ export async function POST(req: NextRequest) {
           sync_pitch_expense,
         } = payload;
 
-        const fee = Number(fee_per_player) || 100000;
-        const pitchCostNum = Number(pitch_cost) || 0;
+        const isMissing = (val: unknown) =>
+          val === undefined ||
+          val === null ||
+          (typeof val === "string" && val.trim() === "");
 
-        if (id) {
+        let fee = 100000;
+        if (!isMissing(fee_per_player)) {
+          const feeCheck = parseNonNegativeIntVnd(
+            fee_per_player,
+            "Tiền quỹ / người"
+          );
+          if (!feeCheck.ok) {
+            return NextResponse.json(
+              { error: feeCheck.error },
+              { status: 400 }
+            );
+          }
+          fee = feeCheck.value;
+        }
+
+        let pitchCostNum = 0;
+        if (!isMissing(pitch_cost)) {
+          const pitchCostCheck = parseNonNegativeIntVnd(
+            pitch_cost,
+            "Tiền sân"
+          );
+          if (!pitchCostCheck.ok) {
+            return NextResponse.json(
+              { error: pitchCostCheck.error },
+              { status: 400 }
+            );
+          }
+          pitchCostNum = pitchCostCheck.value;
+        }
+
+        let validMatchId: number | null = null;
+        if (!isMissing(id)) {
+          const idCheck = parsePositiveIntId(id, "Mã trận đấu");
+          if (!idCheck.ok) {
+            return NextResponse.json(
+              { error: idCheck.error },
+              { status: 400 }
+            );
+          }
+          validMatchId = idCheck.value;
+        }
+
+        if (validMatchId !== null) {
           await db.run(
             `UPDATE matches
             SET match_number = ?, label = ?, match_date = ?, kickoff_time = ?,
@@ -1326,18 +1334,69 @@ export async function POST(req: NextRequest) {
           collected_by,
         } = payload;
 
-        const matchRow = await db.queryOne<{ fee_per_player: number }>(
-          "SELECT fee_per_player FROM matches WHERE id = ?",
-          [Number(match_id)]
-        );
-        const defaultFee = matchRow?.fee_per_player ?? 100000;
-        const feeAmount =
-          amount !== undefined && amount !== null && amount !== ""
-            ? Number(amount)
-            : defaultFee;
-        const isPaid = paid === undefined ? 1 : Number(paid) === 1 ? 1 : 0;
+        const matchIdCheck = parsePositiveIntId(match_id, "Mã trận đấu");
+        if (!matchIdCheck.ok) {
+          return NextResponse.json(
+            { error: matchIdCheck.error },
+            { status: 400 }
+          );
+        }
 
-        let targetPlayerId = Number(player_id) || 0;
+        const matchRow = await db.queryOne<{ id: number; fee_per_player: number }>(
+          "SELECT id, fee_per_player FROM matches WHERE id = ?",
+          [matchIdCheck.value]
+        );
+        if (!matchRow) {
+          return NextResponse.json(
+            { error: "Không tìm thấy trận đấu." },
+            { status: 404 }
+          );
+        }
+
+        let feeAmount = matchRow.fee_per_player ?? 100000;
+        const hasAmount =
+          amount !== undefined &&
+          amount !== null &&
+          !(typeof amount === "string" && amount.trim() === "");
+        if (hasAmount) {
+          const amountCheck = parseNonNegativeIntVnd(amount, "Số tiền");
+          if (!amountCheck.ok) {
+            return NextResponse.json(
+              { error: amountCheck.error },
+              { status: 400 }
+            );
+          }
+          feeAmount = amountCheck.value;
+        }
+
+        const paidCheck = parseBinaryFlag(
+          paid,
+          "Trạng thái đóng tiền (paid)",
+          { defaultWhenMissing: 1 }
+        );
+        if (!paidCheck.ok) {
+          return NextResponse.json(
+            { error: paidCheck.error },
+            { status: 400 }
+          );
+        }
+        const isPaid = paidCheck.value;
+
+        let targetPlayerId = 0;
+        if (
+          player_id !== undefined &&
+          player_id !== null &&
+          !(typeof player_id === "string" && player_id.trim() === "")
+        ) {
+          const playerIdCheck = parsePositiveIntId(player_id, "Mã cầu thủ");
+          if (!playerIdCheck.ok) {
+            return NextResponse.json(
+              { error: playerIdCheck.error },
+              { status: 400 }
+            );
+          }
+          targetPlayerId = playerIdCheck.value;
+        }
 
         if (!targetPlayerId && String(new_player_name || "").trim()) {
           const cleanName = String(new_player_name).trim();
@@ -1382,7 +1441,7 @@ export async function POST(req: NextRequest) {
             collected_by = excluded.collected_by,
             note = 'Tham gia không đăng ký trước'`,
           [
-            Number(match_id),
+            matchIdCheck.value,
             targetPlayerId,
             isPaid,
             feeAmount,
@@ -1570,6 +1629,21 @@ export async function POST(req: NextRequest) {
           Object.prototype.hasOwnProperty.call(rawPayload, key) &&
           rawPayload[key] !== undefined;
 
+        const vndFields: Array<{ key: string; label: string }> = [
+          { key: "default_match_fee", label: "Tiền quỹ trận mặc định" },
+          { key: "tournament_fund_reserve", label: "Quỹ giải dự phòng" },
+        ];
+        const validatedVndValues = new Map<string, number>();
+        for (const vf of vndFields) {
+          if (hasOwn(vf.key)) {
+            const check = parseNonNegativeIntVnd(rawPayload[vf.key], vf.label);
+            if (!check.ok) {
+              return NextResponse.json({ error: check.error }, { status: 400 });
+            }
+            validatedVndValues.set(vf.key, check.value);
+          }
+        }
+
         const SETTINGS_UPDATERS: ReadonlyArray<{
           key: string;
           column: string;
@@ -1588,7 +1662,7 @@ export async function POST(req: NextRequest) {
           {
             key: "default_match_fee",
             column: "default_match_fee",
-            normalize: (v) => Number(v) || 100000,
+            normalize: () => validatedVndValues.get("default_match_fee")!,
           },
           {
             key: "bank_bin",
@@ -1613,7 +1687,7 @@ export async function POST(req: NextRequest) {
           {
             key: "tournament_fund_reserve",
             column: "tournament_fund_reserve",
-            normalize: (v) => Number(v) || 0,
+            normalize: () => validatedVndValues.get("tournament_fund_reserve")!,
           },
           {
             key: "tournament_fund_note",
