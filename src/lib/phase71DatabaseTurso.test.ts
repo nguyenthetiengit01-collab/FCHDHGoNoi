@@ -312,3 +312,116 @@ describe("Phase 7.1 – getFullAppData & getPublicFinancialReportData projection
     }
   });
 });
+
+describe("F7.1-14 – Deterministic TursoDbAdapter Foreign-Key Initialization", () => {
+  it("runs initialization once across 20 concurrent first queries and blocks queries/writes/transactions until ready", async () => {
+    const events: string[] = [];
+    let pragmaCount = 0;
+    let releasePragma!: () => void;
+    const pragmaGate = new Promise<void>((resolve) => {
+      releasePragma = resolve;
+    });
+
+    const mockClient = {
+      execute: vi.fn(async (stmt: unknown) => {
+        const sql =
+          typeof stmt === "string"
+            ? stmt
+            : (stmt as { sql: string }).sql;
+        if (sql.includes("PRAGMA foreign_keys")) {
+          pragmaCount += 1;
+          events.push("pragma:start");
+          await pragmaGate;
+          events.push("pragma:done");
+          return { rows: [], rowsAffected: 0, lastInsertRowid: 0n };
+        }
+        events.push(`op:${sql}`);
+        return { rows: [{ ok: 1 }], rowsAffected: 1, lastInsertRowid: 1n };
+      }),
+      batch: vi.fn(async () => {
+        events.push("op:batch");
+        return [];
+      }),
+      executeMultiple: vi.fn(async () => {
+        events.push("op:exec");
+      }),
+      transaction: vi.fn(async () => ({
+        execute: vi.fn(async () => {
+          events.push("op:tx.execute");
+          return { rows: [], rowsAffected: 1, lastInsertRowid: 1n };
+        }),
+        executeMultiple: vi.fn(async () => undefined),
+        commit: vi.fn(async () => undefined),
+        rollback: vi.fn(async () => undefined),
+        close: vi.fn(),
+      })),
+    };
+
+    const adapter = new TursoDbAdapter(
+      mockClient as unknown as import("@libsql/client").Client,
+      { requestTimeoutMs: 1000, maxReadRetries: 0 }
+    );
+
+    const concurrentOps = [
+      ...Array.from({ length: 20 }, (_, i) =>
+        adapter.query(`SELECT ${i}`)
+      ),
+      adapter.run("INSERT INTO t VALUES (1)"),
+      adapter.batch([{ sql: "INSERT INTO t VALUES (2)" }]),
+      adapter.transaction(async (tx) => {
+        await tx.run("INSERT INTO t VALUES (3)");
+      }),
+    ];
+
+    // Give microtasks a chance to start; no query/write/tx should run before pragma finishes
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(pragmaCount).toBe(1);
+    expect(events).toEqual(["pragma:start"]);
+
+    releasePragma();
+    await Promise.all(concurrentOps);
+
+    expect(pragmaCount).toBe(1);
+    expect(events[0]).toBe("pragma:start");
+    expect(events[1]).toBe("pragma:done");
+    expect(events.length).toBe(25);
+  });
+
+  it("rejects all waiting callers on initialization failure and retries cleanly on next call", async () => {
+    let failInit = true;
+    const mockClient = {
+      execute: vi.fn(async (stmt: unknown) => {
+        const sql =
+          typeof stmt === "string"
+            ? stmt
+            : (stmt as { sql: string }).sql;
+        if (sql.includes("PRAGMA foreign_keys")) {
+          if (failInit) {
+            throw new Error("FK_INIT_FAILED");
+          }
+          return { rows: [], rowsAffected: 0, lastInsertRowid: 0n };
+        }
+        return { rows: [{ ok: 1 }], rowsAffected: 0, lastInsertRowid: 0n };
+      }),
+    };
+
+    const adapter = new TursoDbAdapter(
+      mockClient as unknown as import("@libsql/client").Client,
+      { requestTimeoutMs: 500, maxReadRetries: 0 }
+    );
+
+    const results = await Promise.allSettled([
+      adapter.query("SELECT 1"),
+      adapter.run("INSERT INTO t VALUES (1)"),
+    ]);
+
+    expect(results[0].status).toBe("rejected");
+    expect(results[1].status).toBe("rejected");
+
+    // Not silently marked ready: next call retries initialization and succeeds when healthy
+    failInit = false;
+    const rows = await adapter.query<{ ok: number }>("SELECT 1");
+    expect(rows).toEqual([{ ok: 1 }]);
+  });
+});

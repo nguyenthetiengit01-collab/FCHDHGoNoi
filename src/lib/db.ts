@@ -286,7 +286,8 @@ export class TursoDbAdapter implements AsyncDb {
   private readonly maxReadRetries: number;
   private readonly baseRetryDelayMs: number;
   private readonly maxRetryDelayMs: number;
-  private foreignKeysEnabled = false;
+  private initState: "uninitialized" | "initializing" | "ready" = "uninitialized";
+  private initPromise: Promise<void> | null = null;
 
   constructor(client: Client, options: TursoAdapterOptions = {}) {
     this.client = client;
@@ -366,19 +367,35 @@ export class TursoDbAdapter implements AsyncDb {
     }
   }
 
+  async ensureReady(): Promise<void> {
+    if (this.initState === "ready") return;
+    if (this.initPromise) return this.initPromise;
+
+    this.initState = "initializing";
+    this.initPromise = (async () => {
+      await this.withTimeout(
+        () => this.client.execute("PRAGMA foreign_keys = ON;"),
+        "pragma.foreign_keys"
+      );
+      this.initState = "ready";
+    })().catch((err) => {
+      this.initState = "uninitialized";
+      this.initPromise = null;
+      throw err;
+    });
+
+    return this.initPromise;
+  }
+
   async enableForeignKeys(): Promise<void> {
-    if (this.foreignKeysEnabled) return;
-    await this.withTimeout(
-      () => this.client.execute("PRAGMA foreign_keys = ON;"),
-      "pragma.foreign_keys"
-    );
-    this.foreignKeysEnabled = true;
+    await this.ensureReady();
   }
 
   async query<T = Record<string, unknown>>(
     sql: string,
     params: unknown[] = []
   ): Promise<T[]> {
+    await this.ensureReady();
     const res = await this.executeReadWithRetry(
       () => this.client.execute({ sql, args: params as InArgs }),
       "query"
@@ -398,6 +415,7 @@ export class TursoDbAdapter implements AsyncDb {
     sql: string,
     params: unknown[] = []
   ): Promise<{ lastInsertRowid: number; changes: number }> {
+    await this.ensureReady();
     const res = await this.withTimeout(
       () => this.client.execute({ sql, args: params as InArgs }),
       "run"
@@ -411,6 +429,7 @@ export class TursoDbAdapter implements AsyncDb {
   async batch(
     statements: Array<{ sql: string; params?: unknown[] }>
   ): Promise<void> {
+    await this.ensureReady();
     if (statements.length === 0) return;
     await this.withTimeout(
       () =>
@@ -426,6 +445,7 @@ export class TursoDbAdapter implements AsyncDb {
   }
 
   async exec(sql: string): Promise<void> {
+    await this.ensureReady();
     await this.withTimeout(
       () => this.client.executeMultiple(sql),
       "exec"
@@ -433,6 +453,7 @@ export class TursoDbAdapter implements AsyncDb {
   }
 
   async transaction<T>(fn: (tx: AsyncDbTx) => Promise<T>): Promise<T> {
+    await this.ensureReady();
     const tx = await this.withTimeout(
       () => this.client.transaction("write"),
       "transaction.begin"
@@ -653,7 +674,6 @@ export function getAsyncDb(): AsyncDb {
       });
     }
     const adapter = new TursoDbAdapter(tursoClientInstance);
-    void adapter.enableForeignKeys().catch(() => {});
     asyncDbInstance = adapter;
     return asyncDbInstance;
   }
