@@ -1456,6 +1456,12 @@ const ATTENDANCE_MATRIX: Record<string, number[]> = {
   "Nguyễn Tấn Tuấn":     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
 };
 
+function hashSeedDefaultPin(pin = "1234"): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derived = crypto.scryptSync(pin, salt, 64).toString("hex");
+  return `scrypt$${salt}$${derived}`;
+}
+
 export async function seedAsyncInitialDataIfNeeded(
   db: AsyncDb,
   forceReset = false
@@ -1505,7 +1511,7 @@ export async function seedAsyncInitialDataIfNeeded(
       const picIdx = (idx % 14) + 1;
       const res = await tx.run(
         `INSERT INTO players (code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes)
-         VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', '')`,
+         VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, 'Đang sinh hoạt', '')`,
         [
           p.code_order,
           p.full_name,
@@ -1517,6 +1523,7 @@ export async function seedAsyncInitialDataIfNeeded(
           p.bio,
           p.role,
           p.access_role,
+          hashSeedDefaultPin("1234"),
         ]
       );
       playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
@@ -1661,7 +1668,7 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
 
     const insertPlayer = db.prepare(`
       INSERT INTO players (code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes)
-      VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', '')
+      VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, 'Đang sinh hoạt', '')
     `);
 
     const playerIdByName = new Map<string, number>();
@@ -1678,7 +1685,8 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
         `/uploads/avatars/member-${picIdx}.jpg`,
         p.bio,
         p.role,
-        p.access_role
+        p.access_role,
+        hashSeedDefaultPin("1234")
       );
       playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
     }

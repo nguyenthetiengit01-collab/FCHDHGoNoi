@@ -398,7 +398,7 @@ export async function POST(req: NextRequest) {
             [Number(id)]
           );
           const rawPin = String(pin_code || "").trim();
-          let finalPin = existing?.pin_code || "1234";
+          let finalPin = existing?.pin_code || hashPassword("1234");
           if (rawPin) {
             finalPin = rawPin.startsWith("scrypt$") ? rawPin : hashPassword(rawPin);
           }
@@ -1411,11 +1411,12 @@ export async function POST(req: NextRequest) {
               code_order, full_name, short_name, jersey_number,
               position, phone, role, access_role, pin_code, status, notes
             )
-            VALUES (?, ?, ?, NULL, 'Đa năng', '', 'Thành viên', 'player', '1234', 'Đang sinh hoạt', 'Bổ sung trực tiếp tại sân')`,
+            VALUES (?, ?, ?, NULL, 'Đa năng', '', 'Thành viên', 'player', ?, 'Đang sinh hoạt', 'Bổ sung trực tiếp tại sân')`,
             [
               ((maxRow?.maxOrder ?? 0) + 1),
               cleanName,
               derivedShort,
+              hashPassword("1234"),
             ]
           );
           targetPlayerId = Number(res.lastInsertRowid);

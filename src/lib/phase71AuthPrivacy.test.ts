@@ -770,4 +770,96 @@ describe("Phase 7.1 – Authentication, RBAC & Privacy Remediation", () => {
       raw.close();
     }
   });
+
+  it("F7.1-16: hashes walk-in default PIN with scrypt, omits pin_code from API response, and preserves reset/change flow", async () => {
+    const { raw, db } = createPhase71TestDb();
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(db);
+    spyFullAppDataFromTestDb(raw);
+
+    try {
+      raw.prepare(
+        `INSERT INTO players (code_order, full_name, short_name, jersey_number, phone, access_role, username, pin_code, status)
+         VALUES (1, 'Manager A', 'MgrA', 1, '0901111111', 'manager', 'mgra', ?, 'Đang sinh hoạt')`
+      ).run(hashPassword("MgrA@2026"));
+
+      raw.prepare(
+        `INSERT INTO matches (id, match_number, label, match_date, venue, fee_per_player, pitch_cost, payer_name, status)
+         VALUES (1, 1, 'Trận 1', '2026-06-01', 'Sân A', 100000, 700000, 'Manager A', 'Sắp đá')`
+      ).run();
+
+      const mgr = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+      const mgrToken = createSessionToken(mgr, 24);
+
+      const walkinRes = await postTeamRoute(
+        new NextRequest("http://localhost:3000/api/team", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            cookie: `${SESSION_COOKIE_NAME}=${mgrToken}`,
+          },
+          body: JSON.stringify({
+            action: "add_walkin_player",
+            payload: {
+              match_id: 1,
+              new_player_name: "Nguyễn Vãng Lai",
+              amount: 100000,
+              paid: 1,
+            },
+          }),
+        })
+      );
+
+      expect(walkinRes.status).toBe(200);
+      const walkinJson = await walkinRes.json();
+      const apiWalkin = walkinJson.players.find(
+        (p: { full_name: string }) => p.full_name === "Nguyễn Vãng Lai"
+      );
+      expect(apiWalkin).toBeDefined();
+      expect("pin_code" in apiWalkin).toBe(false);
+
+      const stored = raw
+        .prepare("SELECT id, pin_code FROM players WHERE full_name = ?")
+        .get("Nguyễn Vãng Lai") as { id: number; pin_code: string };
+
+      expect(stored.pin_code).not.toBe("1234");
+      expect(stored.pin_code.startsWith("scrypt$")).toBe(true);
+      expect(verifyPassword("1234", stored.pin_code)).toBe(true);
+      expect(verifyPassword("9999", stored.pin_code)).toBe(false);
+
+      // Walk-in player can change own PIN from default "1234"
+      const walkinPlayerRow = raw
+        .prepare("SELECT * FROM players WHERE id = ?")
+        .get(stored.id) as unknown as Player;
+      const walkinToken = createSessionToken(walkinPlayerRow, 24);
+
+      const changeRes = await postTeamRoute(
+        new NextRequest("http://localhost:3000/api/team", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            cookie: `${SESSION_COOKIE_NAME}=${walkinToken}`,
+          },
+          body: JSON.stringify({
+            action: "change_own_password",
+            payload: {
+              player_id: stored.id,
+              old_pin: "1234",
+              new_pin: "WalkinNew@2026",
+            },
+          }),
+        })
+      );
+      expect(changeRes.status).toBe(200);
+
+      const updatedStored = raw
+        .prepare("SELECT pin_code FROM players WHERE id = ?")
+        .get(stored.id) as { pin_code: string };
+      expect(verifyPassword("WalkinNew@2026", updatedStored.pin_code)).toBe(true);
+      expect(verifyPassword("1234", updatedStored.pin_code)).toBe(false);
+    } finally {
+      raw.close();
+    }
+  });
 });
