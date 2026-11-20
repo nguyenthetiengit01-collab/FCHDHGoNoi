@@ -269,3 +269,11 @@ Mọi thay đổi schema trên Turso Production bắt buộc tuân theo mô hìn
    - Kiểm tra trang chủ `/` (Guest view) hiển thị bình thường, không lỗi console/5xx trên `npx vercel logs`.
    - Kiểm tra đăng nhập Player/Manager và truy cập `/bao-cao-tai-chinh` hiển thị đúng số dư quỹ.
    - Xác nhận tương thích schema theo mục `5` (không có lỗi query cột/bảng từ bản `N-1`).
+
+---
+
+## 9. Xử lý lỗi `DB_WRITE_OUTCOME_UNKNOWN` (HTTP 503 — `F7.1-15`)
+
+- Khi ghi dữ liệu sang Turso vượt quá `TURSO_REQUEST_TIMEOUT_MS` (mặc định `5000ms`), hệ thống trả HTTP `503` với mã `DB_WRITE_OUTCOME_UNKNOWN` (`retryable: false`, `reconcileRequired: true`) và `correlationId`.
+- **Không tự động gửi lại (retry)** thao tác thu quỹ / chi tiêu / import.
+- Kiểm tra trạng thái thực tế trong bảng giao dịch tương ứng (`GET /api/team`, `GET /api/audit-logs`) trước khi quyết định nhập lại hoặc đối soát.

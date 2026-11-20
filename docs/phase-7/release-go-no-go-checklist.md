@@ -2,7 +2,7 @@
 
 - **Project**: FC HĐH Gò Nổi tại TP.HCM
 - **Target Baseline**: `main` @ `c37dfd3200547210e8c6308b34c44db4fe18c04e` (+ Phase 7.1 `fix/phase-7.1-pre-release-remediation`)
-- **Current Decision**: **NO-GO** (`P0-01` Branch Protection still `protected: False`; Staging Rehearsal & Owner Sign-Off pending)
+- **Current Decision**: **NO-GO** (`P0-01` Branch Protection still `protected: False`; Remote Staging Rehearsal, Preview Smoke/Rollback & Real-Device QA **BLOCKED / NOT VERIFIED** — see [phase-7.2-staging-rehearsal-results.md](./phase-7.2-staging-rehearsal-results.md))
 
 ---
 

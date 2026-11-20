@@ -1,7 +1,7 @@
 # Phase 7 — Disaster Recovery Assessment & Staging Rehearsal Plan
 
 - **Baseline**: `main` @ `c37dfd3200547210e8c6308b34c44db4fe18c04e` (Phase 7.1 DR/Governance documented in `docs/operations-runbook.md`)
-- **Last Local Synthetic Drill**: 2026-11-20 (**PASSED** in isolated temp directory)
+- **Last Local Synthetic Drill**: 2026-11-20 (**PASSED** in isolated `os.tmpdir()/phase72-local-dr-1795146863458-6473a9`; Remote Staging **BLOCKED** pending `P0-01` & PR #16 merge — see [phase-7.2-staging-rehearsal-results.md](./phase-7.2-staging-rehearsal-results.md))
 
 ---
 

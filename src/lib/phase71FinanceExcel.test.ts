@@ -63,12 +63,17 @@ describe("Phase 7.1 (P1-05): parseNonNegativeIntVnd & POST /api/team VND validat
   }
 
   beforeAll(async () => {
-    const { getFullAppData } = await import("./db");
+    const { getAsyncDb, getFullAppData } = await import("./db");
     const { createSessionToken, SESSION_COOKIE_NAME } = await import("./auth");
 
     const data = await getFullAppData();
-    const manager = data.players.find((p) => p.access_role === "manager");
-    const player = data.players.find((p) => p.access_role === "player");
+    const db = getAsyncDb();
+    const manager = await db.queryOne<import("@/types/app").Player>(
+      "SELECT * FROM players WHERE access_role = 'manager' ORDER BY id ASC LIMIT 1"
+    );
+    const player = await db.queryOne<import("@/types/app").Player>(
+      "SELECT * FROM players WHERE access_role = 'player' ORDER BY id ASC LIMIT 1"
+    );
     expect(manager).toBeTruthy();
     expect(player).toBeTruthy();
     expect(data.matches.length).toBeGreaterThanOrEqual(1);
@@ -313,9 +318,11 @@ describe("Phase 7.1 (P1-06): Excel Formula Injection Protection", () => {
     const { createSessionToken, SESSION_COOKIE_NAME } = await import("./auth");
     const { GET: exportGet } = await import("../app/api/export/route");
 
-    const data = await getFullAppData();
-    const manager = data.players.find((p) => p.access_role === "manager")!;
+    await getFullAppData();
     const db = getAsyncDb();
+    const manager = (await db.queryOne<import("@/types/app").Player>(
+      "SELECT * FROM players WHERE access_role = 'manager' ORDER BY id ASC LIMIT 1"
+    ))!;
 
     // Insert synthetic player, other income, and expense with formula payloads
     const playerRes = await db.run(

@@ -46,12 +46,17 @@ describe("Phase 5.2 (P1): Financial API Validation & Transaction Atomicity", () 
   }
 
   beforeAll(async () => {
-    const { getFullAppData } = await import("./db");
+    const { getAsyncDb, getFullAppData } = await import("./db");
     const { createSessionToken, SESSION_COOKIE_NAME } = await import("./auth");
 
     const data = await getFullAppData();
-    const manager = data.players.find((p) => p.access_role === "manager");
-    const player = data.players.find((p) => p.access_role === "player");
+    const db = getAsyncDb();
+    const manager = await db.queryOne<import("@/types/app").Player>(
+      "SELECT * FROM players WHERE access_role = 'manager' ORDER BY id ASC LIMIT 1"
+    );
+    const player = await db.queryOne<import("@/types/app").Player>(
+      "SELECT * FROM players WHERE access_role = 'player' ORDER BY id ASC LIMIT 1"
+    );
     expect(manager).toBeTruthy();
     expect(player).toBeTruthy();
     expect(data.matches.length).toBeGreaterThanOrEqual(2);

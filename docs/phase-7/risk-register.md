@@ -2,8 +2,8 @@
 
 - **Baseline**: `main` @ `c37dfd3200547210e8c6308b34c44db4fe18c04e` (Updated in Phase 7.1 `fix/phase-7.1-pre-release-remediation`)
 - **Audit Date**: 2026-11-20
-- **Phase 7.1 Status**: **P0-01 OPEN** (Owner GitHub UI action) | **P1-01..P1-13 Code/Docs Remediated (Pending Preview/Owner Sign-Off)** | **6 P2 + 2 P3 Remediated** | **5 NOT VERIFIED**
-- **Detailed Closure Matrix**: See [phase-7.1-remediation.md](./phase-7.1-remediation.md)
+- **Phase 7.1/7.2 Status**: **P0-01 OPEN** (Owner GitHub UI action) | **P1-01..P1-13 + F7.1-14..F7.1-16 Code/Docs Remediated (Pending Preview/Owner Sign-Off)** | **6 P2 + 2 P3 Remediated** | **Remote Staging & Preview BLOCKED; Real-Device QA NOT VERIFIED**
+- **Detailed Closure & Rehearsal Results**: See [phase-7.1-remediation.md](./phase-7.1-remediation.md) and [phase-7.2-staging-rehearsal-results.md](./phase-7.2-staging-rehearsal-results.md)
 
 ---
 
