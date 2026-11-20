@@ -101,3 +101,14 @@ Executed by Agent C in disposable `D:\Test1\_phase7-audit-evidence\drill-tmp\` (
 1. Identify the previous healthy Vercel Preview deployment via `npx vercel ls`.
 2. Execute Vercel Instant Rollback on Preview and re-run `GET /api/health` + guest/auth smoke checks.
 3. Record timestamps to validate actual **RTO <= 2 hours**.
+
+### 3.5. Staging Readiness & Migration Concurrency Checklist (`phase7-idempotency-v1.mjs`)
+- **Code & Synthetic Pre-Checks (`VERIFIED` locally)**:
+  - `scripts/migrations/phase7-idempotency-v1.mjs` accepts **only** `TURSO_STAGING_DATABASE_URL` + `TURSO_STAGING_AUTH_TOKEN` (`role: "source"`), disallows `TURSO_DATABASE_URL` fallback, runs `validateStagingTarget()` before `createClient()`, executes zero writes on `--dry-run`, wraps apply in a transaction, and enforces `realpathSync` symlink safety on `--sqlite`.
+- **Authorized Remote Staging Execution Checklist (`BLOCKED` / `NOT VERIFIED` until Owner authorization)**:
+  - [ ] Confirm separate `TURSO_STAGING_DATABASE_URL` & `TURSO_STAGING_AUTH_TOKEN` (never Production) and provision a **disposable** `fchdhgonoi-staging-restore` target for restore drills.
+  - [ ] Run `node scripts/migrations/phase7-idempotency-v1.mjs --env staging --dry-run` and confirm `applied: false` with expected action plan.
+  - [ ] Obtain explicit approval, then run `node scripts/migrations/phase7-idempotency-v1.mjs --env staging` and verify idempotent re-apply (`actions: []`).
+  - [ ] Execute real Remote Turso concurrency tests against Staging Preview: 2 concurrent identical `collect_match_fees_batch` requests (single financial + audit write, `X-Idempotent-Replay: true`), 2 concurrent conflicting payloads (`200` + `409`), `SQLITE_BUSY` behavior, and timeout `503 DB_WRITE_OUTCOME_UNKNOWN`.
+  - [ ] Complete Preview smoke/rollback (Steps 3–4) and Real-Device QA (`iPhone / Safari`, `Android / Chrome`, including offline/disconnect recovery during fee collection).
+  - [ ] Operator & Owner sign-off recorded in `phase-7.2-staging-rehearsal-results.md`.

@@ -150,6 +150,7 @@ Mọi thay đổi schema trên Turso Production bắt buộc tuân theo mô hìn
 ### 5.5. Danh Mục Schema Hiện Hành (Schema Version Inventory)
 - **9 bảng lõi (`src/lib/db.ts`)**: `team_settings`, `players`, `matches`, `match_attendances`, `other_incomes`, `expenses`, `club_posts`, `sponsors`, `audit_logs`.
 - **5 bảng phân tích & theo dõi migration (`scripts/migrations/phase4-analytics-v1.mjs`)**: `schema_migrations`, `player_lifecycle_events`, `product_analytics_events`, `product_analytics_daily`, `product_analytics_monthly_actors`.
+- **Bảng Idempotency (`scripts/migrations/phase7-idempotency-v1.mjs`, version `phase7-idempotency-v1`)**: `idempotency_keys` (`PRIMARY KEY (idempotency_key, actor_id, action)`) + index `idx_idempotency_expires_at` (chưa áp dụng lên Remote Staging / Production — chờ gate diễn tập).
 
 ---
 
@@ -169,6 +170,24 @@ Mọi thay đổi schema trên Turso Production bắt buộc tuân theo mô hìn
    - **Vercel Env Vars khác**: Xoay vòng `UPSTASH_REDIS_REST_TOKEN`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, `ANALYTICS_ACTOR_SECRET` trên Vercel Dashboard, sau đó **Redeploy Production** để nạp biến mới.
    - **GitHub Secrets & Backup Keypair**: Cập nhật `TURSO_PROD_AUTH_TOKEN_RO` trên GitHub. Nếu lộ `privateKey` backup (`gonoi-priv-v1:...`), sinh cặp khóa mới ngay (`node scripts/backup-crypto.mjs keygen`), cập nhật `TURSO_BACKUP_PUBLIC_KEY` trên GitHub và chạy `turso-backup.yml` thủ công để tạo bản mã hóa mới.
 5. **Thông báo thành viên & PIR**: Gửi thông báo qua nhóm Zalo (theo mẫu mục `7.3`) nếu yêu cầu đăng nhập lại hoặc đổi mã PIN; hoàn tất báo cáo PIR trong 48 giờ.
+
+### 6.1. Quy Trình Phân Loại Lịch Sử `P1-03` (`data/gonoifc.sqlite` Blob `67f415fa`)
+- **Metadata đã xác minh (không xuất dữ liệu)**:
+  - Blob SHA-1: `67f415fac8aaf1e80b22c356d01fa1f782083a03` (kích thước `274,432` bytes), tồn tại tại base commit `c37dfd3200547210e8c6308b34c44db4fe18c04e`.
+  - Lịch sử commit chạm `data/gonoifc.sqlite`: `7754daf7` (2026-11-04), `a927b019` (2026-11-05), `9fd2d6e0` (2026-11-10); đã xóa khỏi working tree tại `fd38939c` / `3b410cfb` (2026-11-20).
+- **Quy trình kiểm tra offline bảo mật của Owner**:
+  1. Export cục bộ vào thư mục tạm cô lập (`git show 67f415fac8aaf1e80b22c356d01fa1f782083a03 > "$TMP/p103-offline.sqlite"`), **tuyệt đối không** upload lên công cụ công cộng hoặc in SĐT/PIN/rows ra terminal/chat/tài liệu.
+  2. Mở ở chế độ read-only (`sqlite3 -readonly`), chỉ kiểm tra phân loại:
+     - **PII**: Có chứa số điện thoại thật, năm sinh thật, ghi chú cá nhân thật của thành viên hay dữ liệu mẫu?
+     - **Financial data**: Có chứa số liệu thu/chi/tài khoản ngân hàng thật của CLB hay dữ liệu tổng hợp?
+     - **Authentication material**: Có chứa PIN plaintext (`"1234"`), hash `scrypt$` thực tế của tài khoản đang dùng, hay mật khẩu quản trị thật?
+     - **Operational data**: Có chứa URL nội bộ/cấu hình thực tế?
+  3. Xóa file tạm ngay sau khi phân loại (`Remove-Item`).
+- **Mẫu báo cáo phân loại cho Owner (Status hiện tại: `OWNER CONFIRMATION PENDING`)**:
+  - `[ ] Không chứa dữ liệu nhạy cảm thực tế (chỉ dữ liệu mẫu/tổng hợp)`
+  - `[ ] Có dữ liệu cá nhân/tài chính thực tế (PII / Financial)`
+  - `[ ] Có credentials / PIN / secret thực tế`
+- **Hành động bắt buộc nếu phát hiện dữ liệu nhạy cảm thực tế**: Thực hiện ngay mục `6` (xoay vòng PIN toàn bộ tài khoản bị ảnh hưởng, xoay vòng `AUTH_SECRET` để thu hồi mọi session hiện hữu, đánh giá phạm vi clone/fork công khai, và lập kế hoạch xử lý lịch sử Git riêng được Owner phê duyệt).
 
 ---
 
