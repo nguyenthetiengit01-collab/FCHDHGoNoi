@@ -279,13 +279,19 @@ export function computeBatchPayloadFingerprint(
   return `v1:${canonical.length}:${(h1 >>> 0).toString(16).padStart(8, "0")}${(h2 >>> 0).toString(16).padStart(8, "0")}`;
 }
 
-export function loadPendingBatchSubmission(
+export type PendingBatchLoadResult =
+  | { status: "none" }
+  | { status: "ok"; submission: PendingBatchSubmission }
+  | { status: "corrupted" };
+
+export function loadPendingBatchSubmissionState(
   matchId: number
-): PendingBatchSubmission | null {
-  if (typeof window === "undefined") return null;
+): PendingBatchLoadResult {
+  if (typeof window === "undefined") return { status: "none" };
   try {
+    if (!window.localStorage) return { status: "corrupted" };
     const raw = window.localStorage.getItem(getPendingBatchStorageKey(matchId));
-    if (!raw) return null;
+    if (!raw) return { status: "none" };
     const parsed = JSON.parse(raw) as Partial<PendingBatchSubmission>;
     if (
       !parsed ||
@@ -295,39 +301,50 @@ export function loadPendingBatchSubmission(
       typeof parsed.payload_fingerprint !== "string" ||
       !parsed.payload_fingerprint
     ) {
-      return null;
+      return { status: "corrupted" };
     }
     const state: PendingBatchSubmissionState =
       parsed.state === "unknown_outcome" || parsed.state === "confirmed"
         ? parsed.state
         : "pending";
     return {
-      match_id: Number(matchId),
-      idempotency_key: parsed.idempotency_key,
-      payload_fingerprint: parsed.payload_fingerprint,
-      state,
-      created_at:
-        typeof parsed.created_at === "string"
-          ? parsed.created_at
-          : new Date().toISOString(),
+      status: "ok",
+      submission: {
+        match_id: Number(matchId),
+        idempotency_key: parsed.idempotency_key,
+        payload_fingerprint: parsed.payload_fingerprint,
+        state,
+        created_at:
+          typeof parsed.created_at === "string"
+            ? parsed.created_at
+            : new Date().toISOString(),
+      },
     };
   } catch {
-    return null;
+    return { status: "corrupted" };
   }
+}
+
+export function loadPendingBatchSubmission(
+  matchId: number
+): PendingBatchSubmission | null {
+  const res = loadPendingBatchSubmissionState(matchId);
+  return res.status === "ok" ? res.submission : null;
 }
 
 export function savePendingBatchSubmission(
   matchId: number,
   submission: PendingBatchSubmission
-): void {
-  if (typeof window === "undefined") return;
+): boolean {
+  if (typeof window === "undefined") return false;
   try {
-    window.localStorage.setItem(
-      getPendingBatchStorageKey(matchId),
-      JSON.stringify(submission)
-    );
+    if (!window.localStorage) return false;
+    const key = getPendingBatchStorageKey(matchId);
+    const serialized = JSON.stringify(submission);
+    window.localStorage.setItem(key, serialized);
+    return window.localStorage.getItem(key) === serialized;
   } catch {
-    // ignore storage quota errors
+    return false;
   }
 }
 
@@ -340,10 +357,41 @@ export function clearPendingBatchSubmission(matchId: number): void {
   }
 }
 
+export function isAmbiguousMutateFailure(result: {
+  ok?: boolean;
+  status?: number;
+  code?: string;
+  retryable?: boolean;
+}): boolean {
+  if (result.ok) return false;
+  if (result.code === "DB_WRITE_OUTCOME_UNKNOWN") return true;
+  if (result.status === 0 || result.status === 503) return true;
+  if (typeof result.status === "number" && result.status >= 500) return true;
+  if (result.retryable === true) return true;
+  if (result.status === 408) return true;
+  return result.status === undefined;
+}
+
+export function isDefinitiveNoWriteClientFailure(result: {
+  ok?: boolean;
+  status?: number;
+  code?: string;
+  retryable?: boolean;
+}): boolean {
+  if (result.ok || isAmbiguousMutateFailure(result)) return false;
+  return (
+    result.status === 400 ||
+    result.status === 401 ||
+    result.status === 403 ||
+    result.status === 404 ||
+    result.status === 422
+  );
+}
+
 export type BatchAttemptResolution =
   | {
       blocked: true;
-      reason: "unknown_outcome_payload_changed";
+      reason: "unknown_outcome_payload_changed" | "unresolved_pending_payload_changed";
       pending: PendingBatchSubmission;
     }
   | {
@@ -384,10 +432,16 @@ export function resolveBatchSubmissionAttempt(params: {
       };
     }
 
-    if (existingPending.state === "unknown_outcome") {
+    if (
+      existingPending.state === "unknown_outcome" ||
+      existingPending.state === "pending"
+    ) {
       return {
         blocked: true,
-        reason: "unknown_outcome_payload_changed",
+        reason:
+          existingPending.state === "unknown_outcome"
+            ? "unknown_outcome_payload_changed"
+            : "unresolved_pending_payload_changed",
         pending: existingPending,
       };
     }

@@ -27,10 +27,13 @@ import {
   loadDraftFromStorage,
   saveDraftToStorage,
   clearDraftFromStorage,
-  loadPendingBatchSubmission,
+  loadPendingBatchSubmissionState,
   savePendingBatchSubmission,
   clearPendingBatchSubmission,
   resolveBatchSubmissionAttempt,
+  isAmbiguousMutateFailure,
+  isDefinitiveNoWriteClientFailure,
+  type PendingBatchSubmission,
 } from "@/lib/collectionDraft";
 import {
   Badge,
@@ -333,7 +336,16 @@ export function CollectionTab({
     if (items.length === 0) return;
 
     setBatchError(null);
-    const existingPending = loadPendingBatchSubmission(activeMatch.id);
+    const pendingState = loadPendingBatchSubmissionState(activeMatch.id);
+    if (pendingState.status === "corrupted") {
+      setBatchError(
+        "Dữ liệu khóa an toàn của lần gửi trước trong trình duyệt bị hỏng hoặc không đọc được. Để tránh ghi trùng giao dịch, vui lòng kiểm tra bảng thu quỹ thực tế trước rồi bấm Huỷ Thay Đổi nếu cần gửi lại."
+      );
+      return;
+    }
+
+    const existingPending: PendingBatchSubmission | null =
+      pendingState.status === "ok" ? pendingState.submission : null;
     const resolution = resolveBatchSubmissionAttempt({
       existingPending,
       matchId: activeMatch.id,
@@ -343,13 +355,19 @@ export function CollectionTab({
 
     if (resolution.blocked) {
       setBatchError(
-        "Lần gửi phiếu thu trước chưa rõ kết quả trên máy chủ (DB_WRITE_OUTCOME_UNKNOWN). Vui lòng không sửa nội dung khi chưa đối chiếu: hãy giữ nguyên dữ liệu cũ để thử lại cùng khóa idempotency, hoặc bấm Huỷ Thay Đổi sau khi đã kiểm tra lại bảng thu quỹ."
+        "Lần gửi phiếu thu trước chưa xác nhận xong kết quả trên máy chủ (pending / DB_WRITE_OUTCOME_UNKNOWN). Vui lòng không đổi nội dung khi chưa đối chiếu: hãy giữ nguyên dữ liệu cũ để thử lại cùng khóa idempotency, hoặc kiểm tra lại bảng thu quỹ trước khi Huỷ Thay Đổi."
       );
       return;
     }
 
     const activeSubmission = resolution.submission;
-    savePendingBatchSubmission(activeMatch.id, activeSubmission);
+    const persisted = savePendingBatchSubmission(activeMatch.id, activeSubmission);
+    if (!persisted) {
+      setBatchError(
+        "Không thể lưu khóa idempotency vào bộ nhớ trình duyệt (localStorage đầy hoặc bị chặn). Hệ thống đã dừng gửi để tránh rủi ro ghi trùng thu quỹ."
+      );
+      return;
+    }
 
     try {
       const result = await onMutate("collect_match_fees_batch", {
@@ -360,24 +378,31 @@ export function CollectionTab({
       });
 
       if (result && !result.ok) {
-        const isUnknownOutcome =
-          result.status === 503 ||
-          result.code === "DB_WRITE_OUTCOME_UNKNOWN";
-        if (isUnknownOutcome) {
+        if (isAmbiguousMutateFailure(result)) {
           savePendingBatchSubmission(activeMatch.id, {
             ...activeSubmission,
             state: "unknown_outcome",
           });
           setBatchError(
             result.error ||
-              "Kết nối cơ sở dữ liệu bị gián đoạn khi xác nhận giao dịch. Khóa idempotency và bản nháp được giữ nguyên để bạn thử lại an toàn mà không ghi trùng."
+              "Mất kết nối hoặc chưa xác định được kết quả ghi cơ sở dữ liệu. Khóa idempotency và bản nháp được giữ nguyên (unknown_outcome) để bạn thử lại an toàn mà không ghi trùng."
           );
           return;
         }
 
+        if (isDefinitiveNoWriteClientFailure(result)) {
+          // Definitive 4xx validation/auth failure guarantees zero financial writes on server.
+          clearPendingBatchSubmission(activeMatch.id);
+        } else if (result.status === 409) {
+          savePendingBatchSubmission(activeMatch.id, {
+            ...activeSubmission,
+            state: "unknown_outcome",
+          });
+        }
+
         setBatchError(
           result.error ||
-            "Không thể lưu phiếu thu lên máy chủ. Dữ liệu nháp vẫn được giữ an toàn trên máy để bạn thử lại."
+            "Không thể lưu phiếu thu lên máy chủ. Dữ liệu nháp vẫn được giữ an toàn trên máy để bạn kiểm tra lại."
         );
         return;
       }
@@ -386,8 +411,12 @@ export function CollectionTab({
       clearDraftFromStorage(activeMatch.id);
       setDraft({});
     } catch {
+      savePendingBatchSubmission(activeMatch.id, {
+        ...activeSubmission,
+        state: "unknown_outcome",
+      });
       setBatchError(
-        "Mất kết nối máy chủ khi lưu phiếu thu. Khóa idempotency và bản nháp vẫn được giữ nguyên để bạn thử lại an toàn."
+        "Mất kết nối máy chủ khi lưu phiếu thu. Khóa idempotency và bản nháp được giữ nguyên (unknown_outcome) để bạn thử lại an toàn."
       );
     }
   };
@@ -1063,35 +1092,57 @@ export function CollectionTab({
       </div>
 
       {/* ConfirmDialog cho Huỷ Nháp hoặc Đổi Trận khi có thay đổi chưa lưu */}
-      <ConfirmDialog
-        isOpen={Boolean(pendingConfirm)}
-        onClose={() => setPendingConfirm(null)}
-        onConfirm={() => {
-          if (!pendingConfirm) return;
-          if (pendingConfirm.type === "discard") {
-            clearPendingBatchSubmission(activeMatch.id);
-            clearDraftFromStorage(activeMatch.id);
-            setDraft({});
-          } else if (pendingConfirm.type === "switch_match") {
-            applyMatchSwitch(pendingConfirm.matchId);
-          }
-          setPendingConfirm(null);
-        }}
-        title={
+      {(() => {
+        const discardPendingState =
           pendingConfirm?.type === "discard"
-            ? "Huỷ các thay đổi nháp?"
-            : "Chuyển sang trận đấu khác?"
-        }
-        description={
-          pendingConfirm?.type === "discard"
-            ? `Bạn có chắc muốn huỷ bỏ ${dirtyCount} thay đổi thu tiền chưa lưu của ${activeMatch.label}?`
-            : `Bạn đang có ${dirtyCount} thay đổi chưa lưu ở ${activeMatch.label}. Các thay đổi nháp vẫn được giữ tạm trên máy nếu bạn chuyển trận.`
-        }
-        confirmLabel={
-          pendingConfirm?.type === "discard" ? "Huỷ Thay Đổi" : "Chuyển Trận"
-        }
-        danger={pendingConfirm?.type === "discard"}
-      />
+            ? loadPendingBatchSubmissionState(activeMatch.id)
+            : { status: "none" as const };
+        const hasUnresolvedServerOutcome =
+          discardPendingState.status === "corrupted" ||
+          (discardPendingState.status === "ok" &&
+            (discardPendingState.submission.state === "unknown_outcome" ||
+              discardPendingState.submission.state === "pending"));
+        return (
+          <ConfirmDialog
+            isOpen={Boolean(pendingConfirm)}
+            onClose={() => setPendingConfirm(null)}
+            onConfirm={() => {
+              if (!pendingConfirm) return;
+              if (pendingConfirm.type === "discard") {
+                clearPendingBatchSubmission(activeMatch.id);
+                clearDraftFromStorage(activeMatch.id);
+                setDraft({});
+                setBatchError(null);
+              } else if (pendingConfirm.type === "switch_match") {
+                applyMatchSwitch(pendingConfirm.matchId);
+              }
+              setPendingConfirm(null);
+            }}
+            title={
+              pendingConfirm?.type === "discard"
+                ? hasUnresolvedServerOutcome
+                  ? "Cảnh báo: Giao dịch có thể đã được ghi nhận trên máy chủ!"
+                  : "Huỷ các thay đổi nháp?"
+                : "Chuyển sang trận đấu khác?"
+            }
+            description={
+              pendingConfirm?.type === "discard"
+                ? hasUnresolvedServerOutcome
+                  ? `CẢNH BÁO ĐỐI CHIẾU: Phiếu thu của ${activeMatch.label} đang có thao tác chưa rõ kết quả hoặc bị gián đoạn mạng trước đó — máy chủ CÓ THỂ ĐÃ GHI NHẬN giao dịch. Việc xóa bản nháp trên máy KHÔNG thể hoàn tác giao dịch đã lưu trên máy chủ. Hãy kiểm tra bảng thu quỹ thực tế trước khi xóa bản nháp và khóa idempotency.`
+                  : `Bạn có chắc muốn huỷ bỏ ${dirtyCount} thay đổi thu tiền chưa lưu của ${activeMatch.label}?`
+                : `Bạn đang có ${dirtyCount} thay đổi chưa lưu ở ${activeMatch.label}. Các thay đổi nháp vẫn được giữ tạm trên máy nếu bạn chuyển trận.`
+            }
+            confirmLabel={
+              pendingConfirm?.type === "discard"
+                ? hasUnresolvedServerOutcome
+                  ? "Tôi đã đối chiếu, vẫn xóa nháp"
+                  : "Huỷ Thay Đổi"
+                : "Chuyển Trận"
+            }
+            danger={pendingConfirm?.type === "discard"}
+          />
+        );
+      })()}
     </div>
   );
 }

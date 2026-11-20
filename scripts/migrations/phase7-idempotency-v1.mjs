@@ -32,33 +32,47 @@ export function validateLocalSqlitePath(
 
   const resolved = path.resolve(sqlitePath.trim());
   const resolvedRoot = path.resolve(repoRoot);
-  const normalizedTarget = process.platform === "win32" ? resolved.toLowerCase() : resolved;
-  const normalizedRoot = process.platform === "win32" ? resolvedRoot.toLowerCase() : resolvedRoot;
+  const realRoot = fs.existsSync(resolvedRoot)
+    ? fs.realpathSync(resolvedRoot)
+    : resolvedRoot;
 
-  if (
-    normalizedTarget === normalizedRoot ||
-    normalizedTarget.startsWith(`${normalizedRoot}${path.sep}`)
-  ) {
-    throw new Error(
-      "Local SQLite safety guard: refusing to target a database inside the repository directory. Use an isolated path outside the repo (e.g. os.tmpdir())."
-    );
-  }
+  const checkCandidate = (candidatePath, label) => {
+    const normalizedTarget =
+      process.platform === "win32" ? candidatePath.toLowerCase() : candidatePath;
+    for (const rootCandidate of [resolvedRoot, realRoot]) {
+      const normalizedRoot =
+        process.platform === "win32" ? rootCandidate.toLowerCase() : rootCandidate;
+      if (
+        normalizedTarget === normalizedRoot ||
+        normalizedTarget.startsWith(`${normalizedRoot}${path.sep}`)
+      ) {
+        throw new Error(
+          `Local SQLite safety guard: refusing to target a database inside the repository directory (${label}). Use an isolated path outside the repo (e.g. os.tmpdir()).`
+        );
+      }
+    }
 
-  const base = path.basename(normalizedTarget);
-  if (
-    base === "gonoifc.sqlite" ||
-    /(^|[-_.])(prod|production)([-_.]|$)/i.test(base)
-  ) {
-    throw new Error(
-      `Local SQLite safety guard: refusing to target protected or production-like database "${base}".`
-    );
-  }
+    const base = path.basename(normalizedTarget);
+    if (
+      base === "gonoifc.sqlite" ||
+      /(^|[-_.])(prod|production)([-_.]|$)/i.test(base)
+    ) {
+      throw new Error(
+        `Local SQLite safety guard: refusing to target protected or production-like database "${base}".`
+      );
+    }
+  };
+
+  checkCandidate(resolved, "direct path");
 
   if (!fs.existsSync(resolved)) {
     throw new Error(`SQLite file not found: ${resolved}`);
   }
 
-  return resolved;
+  const realResolved = fs.realpathSync(resolved);
+  checkCandidate(realResolved, "symlink realpath");
+
+  return realResolved;
 }
 
 export async function runPhase7IdempotencyMigration({
