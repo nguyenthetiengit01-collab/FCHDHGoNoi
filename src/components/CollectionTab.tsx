@@ -28,12 +28,10 @@ import {
   saveDraftToStorage,
   clearDraftFromStorage,
   loadPendingBatchSubmissionState,
-  savePendingBatchSubmission,
   clearPendingBatchSubmission,
-  resolveBatchSubmissionAttempt,
-  isAmbiguousMutateFailure,
-  isDefinitiveNoWriteClientFailure,
-  type PendingBatchSubmission,
+  runBatchOperationAttempt,
+  deriveCollectionFooterViewState,
+  type PendingBatchLoadResult,
 } from "@/lib/collectionDraft";
 import {
   Badge,
@@ -105,11 +103,25 @@ export function CollectionTab({
   const [draft, setDraft] = useState<CollectionDraftState>(() =>
     activeMatch ? loadDraftFromStorage(activeMatch.id) : {}
   );
+  const [pendingLoadState, setPendingLoadState] = useState<PendingBatchLoadResult>(() =>
+    activeMatch ? loadPendingBatchSubmissionState(activeMatch.id) : { status: "none" }
+  );
+  const [confirmedNotice, setConfirmedNotice] = useState<string | null>(null);
+
+  const footerState = deriveCollectionFooterViewState({
+    dirtyCount: Object.keys(draft).length,
+    pendingLoadState,
+    isSaving,
+    confirmedNotice,
+  });
+  const hasUnresolvedPending = footerState.hasUnresolvedPending;
 
   const applyMatchSwitch = (newMatchId: number) => {
     setSelectedMatchId(newMatchId);
     setDraft(loadDraftFromStorage(newMatchId));
+    setPendingLoadState(loadPendingBatchSubmissionState(newMatchId));
     setBatchError(null);
+    setConfirmedNotice(null);
     const found = matches.find((x) => x.id === newMatchId);
     if (found) {
       setPitchVenue(found.venue || "Sân Vĩnh Lộc");
@@ -319,13 +331,13 @@ export function CollectionTab({
     }));
   };
 
-  // Huỷ bỏ các thay đổi nháp
+  // Huỷ bỏ các thay đổi nháp hoặc bản ghi pending chưa đối chiếu
   const handleDiscardDraft = () => {
-    if (dirtyCount === 0) return;
+    if (dirtyCount === 0 && !hasUnresolvedPending) return;
     setPendingConfirm({ type: "discard" });
   };
 
-  // Lưu toàn bộ phiếu thu lên máy chủ qua 1 Transaction Batch duy nhất (kèm Idempotency Key bền vững)
+  // Lưu toàn bộ phiếu thu lên máy chủ qua 1 Transaction Batch duy nhất (kèm bản ghi thao tác bền vững)
   const handleSaveBatch = async () => {
     if (dirtyCount === 0 || isSaving) return;
     const items = buildBatchPayloadItems(
@@ -336,89 +348,46 @@ export function CollectionTab({
     if (items.length === 0) return;
 
     setBatchError(null);
-    const pendingState = loadPendingBatchSubmissionState(activeMatch.id);
-    if (pendingState.status === "corrupted") {
-      setBatchError(
-        "Dữ liệu khóa an toàn của lần gửi trước trong trình duyệt bị hỏng hoặc không đọc được. Để tránh ghi trùng giao dịch, vui lòng kiểm tra bảng thu quỹ thực tế trước rồi bấm Huỷ Thay Đổi nếu cần gửi lại."
-      );
-      return;
-    }
+    setConfirmedNotice(null);
 
-    const existingPending: PendingBatchSubmission | null =
-      pendingState.status === "ok" ? pendingState.submission : null;
-    const resolution = resolveBatchSubmissionAttempt({
-      existingPending,
+    const outcome = await runBatchOperationAttempt({
+      mode: "save",
       matchId: activeMatch.id,
       collectedBy: collectorName,
       items,
+      sendMutate: (payload) => onMutate("collect_match_fees_batch", payload),
     });
 
-    if (resolution.blocked) {
-      setBatchError(
-        "Lần gửi phiếu thu trước chưa xác nhận xong kết quả trên máy chủ (pending / DB_WRITE_OUTCOME_UNKNOWN). Vui lòng không đổi nội dung khi chưa đối chiếu: hãy giữ nguyên dữ liệu cũ để thử lại cùng khóa idempotency, hoặc kiểm tra lại bảng thu quỹ trước khi Huỷ Thay Đổi."
-      );
+    setPendingLoadState(outcome.pendingState);
+    if (!outcome.ok) {
+      setBatchError(outcome.error || "Không thể lưu phiếu thu lên máy chủ.");
       return;
     }
 
-    const activeSubmission = resolution.submission;
-    const persisted = savePendingBatchSubmission(activeMatch.id, activeSubmission);
-    if (!persisted) {
-      setBatchError(
-        "Không thể lưu khóa idempotency vào bộ nhớ trình duyệt (localStorage đầy hoặc bị chặn). Hệ thống đã dừng gửi để tránh rủi ro ghi trùng thu quỹ."
-      );
+    setDraft({});
+    setConfirmedNotice("Đã xác nhận ghi nhận & đồng bộ phiếu thu thành công!");
+  };
+
+  // Đối chiếu / Thử lại đúng payload gốc & idempotency_key gốc (kể cả khi dirtyCount === 0)
+  const handleReconcileRetry = async () => {
+    if (isSaving || pendingLoadState.status !== "ok") return;
+    setBatchError(null);
+    setConfirmedNotice(null);
+
+    const outcome = await runBatchOperationAttempt({
+      mode: "reconcile_retry",
+      matchId: activeMatch.id,
+      sendMutate: (payload) => onMutate("collect_match_fees_batch", payload),
+    });
+
+    setPendingLoadState(outcome.pendingState);
+    if (!outcome.ok) {
+      setBatchError(outcome.error || "Chưa thể đối chiếu phiếu thu với máy chủ.");
       return;
     }
 
-    try {
-      const result = await onMutate("collect_match_fees_batch", {
-        match_id: activeMatch.id,
-        collected_by: collectorName,
-        items,
-        idempotency_key: activeSubmission.idempotency_key,
-      });
-
-      if (result && !result.ok) {
-        if (isAmbiguousMutateFailure(result)) {
-          savePendingBatchSubmission(activeMatch.id, {
-            ...activeSubmission,
-            state: "unknown_outcome",
-          });
-          setBatchError(
-            result.error ||
-              "Mất kết nối hoặc chưa xác định được kết quả ghi cơ sở dữ liệu. Khóa idempotency và bản nháp được giữ nguyên (unknown_outcome) để bạn thử lại an toàn mà không ghi trùng."
-          );
-          return;
-        }
-
-        if (isDefinitiveNoWriteClientFailure(result)) {
-          // Definitive 4xx validation/auth failure guarantees zero financial writes on server.
-          clearPendingBatchSubmission(activeMatch.id);
-        } else if (result.status === 409) {
-          savePendingBatchSubmission(activeMatch.id, {
-            ...activeSubmission,
-            state: "unknown_outcome",
-          });
-        }
-
-        setBatchError(
-          result.error ||
-            "Không thể lưu phiếu thu lên máy chủ. Dữ liệu nháp vẫn được giữ an toàn trên máy để bạn kiểm tra lại."
-        );
-        return;
-      }
-
-      clearPendingBatchSubmission(activeMatch.id);
-      clearDraftFromStorage(activeMatch.id);
-      setDraft({});
-    } catch {
-      savePendingBatchSubmission(activeMatch.id, {
-        ...activeSubmission,
-        state: "unknown_outcome",
-      });
-      setBatchError(
-        "Mất kết nối máy chủ khi lưu phiếu thu. Khóa idempotency và bản nháp được giữ nguyên (unknown_outcome) để bạn thử lại an toàn."
-      );
-    }
+    setDraft({});
+    setConfirmedNotice("Đã đối chiếu & đồng bộ phiếu thu thành công!");
   };
 
   // Thêm thành viên có sẵn (Walk-in) trực tiếp vào draft
@@ -1028,15 +997,20 @@ export function CollectionTab({
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-navy-900/95 backdrop-blur-md border-t border-white/10 px-4 py-3 shadow-2xl transition-transform">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            {dirtyCount > 0 ? (
+            {footerState.statusKind === "unresolved" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/20 border border-rose-400/50 px-3 py-1 text-xs font-extrabold text-rose-200">
+                <AlertCircle className="h-3.5 w-3.5 text-rose-300" />
+                <span>{footerState.statusText}</span>
+              </span>
+            ) : footerState.statusKind === "dirty" ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 border border-amber-400/50 px-3 py-1 text-xs font-extrabold text-gold-300">
                 <span className="h-2 w-2 rounded-full bg-gold-300 animate-ping" />
-                <span>{dirtyCount} thay đổi chưa lưu</span>
+                <span>{footerState.statusText}</span>
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-xs font-semibold text-emerald-300">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Đã đồng bộ với máy chủ</span>
+                <span>{footerState.statusText}</span>
               </span>
             )}
 
@@ -1053,7 +1027,7 @@ export function CollectionTab({
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            {dirtyCount > 0 && (
+            {footerState.showDiscardButton && (
               <Button
                 type="button"
                 variant="outline"
@@ -1063,30 +1037,45 @@ export function CollectionTab({
                 leftIcon={<RotateCcw className="h-3.5 w-3.5" />}
                 className="min-h-11 md:min-h-9 border-slate-600 bg-slate-800/80 text-slate-200 hover:bg-slate-700 hover:text-white"
               >
-                Huỷ Thay Đổi
+                {footerState.discardButtonLabel}
               </Button>
             )}
 
-            <Button
-              type="button"
-              variant="gold"
-              size="md"
-              loading={isSaving}
-              disabled={dirtyCount === 0 || isSaving}
-              onClick={handleSaveBatch}
-              leftIcon={<Save className="h-4 w-4" />}
-              className={`min-h-11 md:min-h-10 font-extrabold ${
-                dirtyCount > 0 && !isSaving
-                  ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-500"
-                  : ""
-              }`}
-            >
-              {isSaving
-                ? "Đang ghi nhận..."
-                : dirtyCount > 0
-                ? `Lưu Phiếu Thu (${dirtyCount})`
-                : "Phiếu Thu Đã Lưu"}
-            </Button>
+            {footerState.showReconcileRetryButton ? (
+              <Button
+                type="button"
+                variant="gold"
+                size="md"
+                loading={isSaving}
+                disabled={isSaving}
+                onClick={handleReconcileRetry}
+                leftIcon={<Save className="h-4 w-4" />}
+                className="min-h-11 md:min-h-10 font-extrabold bg-amber-400 hover:bg-amber-300 text-slate-950 border-amber-400"
+              >
+                {isSaving ? "Đang đối chiếu..." : "Đối chiếu / Thử lại"}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="gold"
+                size="md"
+                loading={isSaving}
+                disabled={footerState.saveButtonDisabled}
+                onClick={handleSaveBatch}
+                leftIcon={<Save className="h-4 w-4" />}
+                className={`min-h-11 md:min-h-10 font-extrabold ${
+                  dirtyCount > 0 && !footerState.saveButtonDisabled
+                    ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-500"
+                    : ""
+                }`}
+              >
+                {isSaving
+                  ? "Đang ghi nhận..."
+                  : dirtyCount > 0
+                  ? `Lưu Phiếu Thu (${dirtyCount})`
+                  : "Phiếu Thu Đã Lưu"}
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -1111,6 +1100,7 @@ export function CollectionTab({
               if (pendingConfirm.type === "discard") {
                 clearPendingBatchSubmission(activeMatch.id);
                 clearDraftFromStorage(activeMatch.id);
+                setPendingLoadState({ status: "none" });
                 setDraft({});
                 setBatchError(null);
               } else if (pendingConfirm.type === "switch_match") {

@@ -218,6 +218,8 @@ export interface PendingBatchSubmission {
   match_id: number;
   idempotency_key: string;
   payload_fingerprint: string;
+  collected_by: string;
+  items: BatchCollectFeeItem[];
   state: PendingBatchSubmissionState;
   created_at: string;
 }
@@ -226,6 +228,21 @@ const PENDING_BATCH_PREFIX = "gonoi_fee_pending_batch_";
 
 export function getPendingBatchStorageKey(matchId: number): string {
   return `${PENDING_BATCH_PREFIX}${matchId}`;
+}
+
+export function normalizeBatchPayloadItems(
+  items: BatchCollectFeeItem[]
+): BatchCollectFeeItem[] {
+  return [...items]
+    .map((item) => ({
+      player_id: Number(item.player_id),
+      attended: Number(item.attended) ? 1 : 0,
+      paid: Number(item.paid) ? 1 : 0,
+      amount: Number(item.amount) || 0,
+      walk_in: Number(item.walk_in) ? 1 : 0,
+      remove: Boolean(item.remove),
+    }))
+    .sort((a, b) => a.player_id - b.player_id);
 }
 
 export function generateIdempotencyUuid(): string {
@@ -249,16 +266,7 @@ export function computeBatchPayloadFingerprint(
   collectedBy: string,
   items: BatchCollectFeeItem[]
 ): string {
-  const normalizedItems = [...items]
-    .map((item) => ({
-      player_id: Number(item.player_id),
-      attended: Number(item.attended) ? 1 : 0,
-      paid: Number(item.paid) ? 1 : 0,
-      amount: Number(item.amount) || 0,
-      walk_in: Number(item.walk_in) ? 1 : 0,
-      remove: Boolean(item.remove),
-    }))
-    .sort((a, b) => a.player_id - b.player_id);
+  const normalizedItems = normalizeBatchPayloadItems(items);
 
   const canonical = JSON.stringify({
     match_id: Number(matchId),
@@ -284,6 +292,18 @@ export type PendingBatchLoadResult =
   | { status: "ok"; submission: PendingBatchSubmission }
   | { status: "corrupted" };
 
+function isValidBatchItemList(raw: unknown): raw is BatchCollectFeeItem[] {
+  if (!Array.isArray(raw) || raw.length === 0) return false;
+  return raw.every(
+    (it) =>
+      it &&
+      typeof it === "object" &&
+      Number.isInteger(Number((it as BatchCollectFeeItem).player_id)) &&
+      Number((it as BatchCollectFeeItem).player_id) > 0 &&
+      Number.isFinite(Number((it as BatchCollectFeeItem).amount ?? 0))
+  );
+}
+
 export function loadPendingBatchSubmissionState(
   matchId: number
 ): PendingBatchLoadResult {
@@ -299,8 +319,19 @@ export function loadPendingBatchSubmissionState(
       typeof parsed.idempotency_key !== "string" ||
       !parsed.idempotency_key ||
       typeof parsed.payload_fingerprint !== "string" ||
-      !parsed.payload_fingerprint
+      !parsed.payload_fingerprint ||
+      typeof parsed.collected_by !== "string" ||
+      !isValidBatchItemList(parsed.items)
     ) {
+      return { status: "corrupted" };
+    }
+    const normalizedItems = normalizeBatchPayloadItems(parsed.items);
+    const expectedFingerprint = computeBatchPayloadFingerprint(
+      Number(matchId),
+      parsed.collected_by,
+      normalizedItems
+    );
+    if (parsed.payload_fingerprint !== expectedFingerprint) {
       return { status: "corrupted" };
     }
     const state: PendingBatchSubmissionState =
@@ -313,6 +344,8 @@ export function loadPendingBatchSubmissionState(
         match_id: Number(matchId),
         idempotency_key: parsed.idempotency_key,
         payload_fingerprint: parsed.payload_fingerprint,
+        collected_by: parsed.collected_by,
+        items: normalizedItems,
         state,
         created_at:
           typeof parsed.created_at === "string"
@@ -339,10 +372,45 @@ export function savePendingBatchSubmission(
   if (typeof window === "undefined") return false;
   try {
     if (!window.localStorage) return false;
+    const existingState = loadPendingBatchSubmissionState(matchId);
+    if (
+      existingState.status === "ok" &&
+      existingState.submission.state !== "confirmed" &&
+      existingState.submission.idempotency_key !== submission.idempotency_key
+    ) {
+      // Never overwrite an unresolved operation with a different idempotency key
+      return false;
+    }
+
+    const normalizedItems = normalizeBatchPayloadItems(submission.items);
+    const cleanSubmission: PendingBatchSubmission = {
+      match_id: Number(matchId),
+      idempotency_key: submission.idempotency_key,
+      payload_fingerprint: computeBatchPayloadFingerprint(
+        Number(matchId),
+        submission.collected_by,
+        normalizedItems
+      ),
+      collected_by: String(submission.collected_by || "").trim(),
+      items: normalizedItems,
+      state: submission.state,
+      created_at: submission.created_at,
+    };
+
     const key = getPendingBatchStorageKey(matchId);
-    const serialized = JSON.stringify(submission);
+    const serialized = JSON.stringify(cleanSubmission);
     window.localStorage.setItem(key, serialized);
-    return window.localStorage.getItem(key) === serialized;
+    const readBackRaw = window.localStorage.getItem(key);
+    if (readBackRaw !== serialized) {
+      return false;
+    }
+    const verified = loadPendingBatchSubmissionState(matchId);
+    return (
+      verified.status === "ok" &&
+      verified.submission.idempotency_key === cleanSubmission.idempotency_key &&
+      verified.submission.payload_fingerprint === cleanSubmission.payload_fingerprint &&
+      verified.submission.items.length === cleanSubmission.items.length
+    );
   } catch {
     return false;
   }
@@ -417,10 +485,12 @@ export function resolveBatchSubmissionAttempt(params: {
     now = new Date(),
   } = params;
 
+  const normalizedItems = normalizeBatchPayloadItems(items);
+  const cleanCollector = String(collectedBy || "").trim();
   const fingerprint = computeBatchPayloadFingerprint(
     matchId,
-    collectedBy,
-    items
+    cleanCollector,
+    normalizedItems
   );
 
   if (existingPending && existingPending.match_id === Number(matchId)) {
@@ -454,9 +524,206 @@ export function resolveBatchSubmissionAttempt(params: {
       match_id: Number(matchId),
       idempotency_key: generateKey(),
       payload_fingerprint: fingerprint,
+      collected_by: cleanCollector,
+      items: normalizedItems,
       state: "pending",
       created_at: now.toISOString(),
     },
+  };
+}
+
+export interface BatchOperationOutcome {
+  ok: boolean;
+  error?: string;
+  cleared?: boolean;
+  pendingState: PendingBatchLoadResult;
+}
+
+export async function runBatchOperationAttempt(params: {
+  mode: "save" | "reconcile_retry";
+  matchId: number;
+  collectedBy?: string;
+  items?: BatchCollectFeeItem[];
+  sendMutate: (payload: {
+    match_id: number;
+    collected_by: string;
+    items: BatchCollectFeeItem[];
+    idempotency_key: string;
+  }) => Promise<{
+    ok: boolean;
+    error?: string;
+    status?: number;
+    code?: string;
+    retryable?: boolean;
+  } | void>;
+}): Promise<BatchOperationOutcome> {
+  const { mode, matchId, sendMutate } = params;
+  const loaded = loadPendingBatchSubmissionState(matchId);
+
+  if (loaded.status === "corrupted") {
+    return {
+      ok: false,
+      error:
+        "Dữ liệu khóa an toàn của lần gửi trước trong trình duyệt bị hỏng hoặc thiếu thông tin. Để tránh ghi trùng giao dịch, vui lòng kiểm tra bảng thu quỹ thực tế trước rồi bấm Huỷ Thay Đổi / Xoá Khóa Tạm nếu cần gửi lại.",
+      pendingState: loaded,
+    };
+  }
+
+  let activeSubmission: PendingBatchSubmission;
+  if (mode === "reconcile_retry") {
+    if (loaded.status !== "ok") {
+      return {
+        ok: false,
+        error: "Không tìm thấy thao tác thu quỹ chưa đối chiếu để thử lại.",
+        pendingState: loaded,
+      };
+    }
+    // Always replay exact persisted original payload & key, never rebuild from server data
+    activeSubmission = loaded.submission;
+  } else {
+    const rawItems = params.items ?? [];
+    const rawCollector = String(params.collectedBy ?? "").trim();
+    const resolution = resolveBatchSubmissionAttempt({
+      existingPending: loaded.status === "ok" ? loaded.submission : null,
+      matchId,
+      collectedBy: rawCollector,
+      items: rawItems,
+    });
+    if (resolution.blocked) {
+      return {
+        ok: false,
+        error:
+          "Đang có thao tác thu quỹ trước chưa đối chiếu xong kết quả trên máy chủ. Hãy dùng nút 'Đối chiếu / Thử lại' với dữ liệu gốc hoặc kiểm tra bảng thu quỹ trước khi thay đổi.",
+        pendingState: loaded,
+      };
+    }
+    activeSubmission = resolution.submission;
+  }
+
+  const persisted = savePendingBatchSubmission(matchId, activeSubmission);
+  if (!persisted) {
+    return {
+      ok: false,
+      error:
+        "Không thể lưu đầy đủ bản ghi thao tác vào bộ nhớ trình duyệt (localStorage đầy, bị chặn hoặc đọc lại không khớp). Hệ thống đã dừng gửi để tránh rủi ro ghi trùng.",
+      pendingState: loadPendingBatchSubmissionState(matchId),
+    };
+  }
+
+  try {
+    const result = await sendMutate({
+      match_id: activeSubmission.match_id,
+      collected_by: activeSubmission.collected_by,
+      items: activeSubmission.items,
+      idempotency_key: activeSubmission.idempotency_key,
+    });
+
+    if (result && !result.ok) {
+      if (isAmbiguousMutateFailure(result) || result.status === 409) {
+        savePendingBatchSubmission(matchId, {
+          ...activeSubmission,
+          state: "unknown_outcome",
+        });
+        return {
+          ok: false,
+          error:
+            result.error ||
+            "Mất kết nối hoặc chưa xác định được kết quả ghi cơ sở dữ liệu. Bản ghi thao tác gốc và khóa idempotency được giữ nguyên để đối chiếu/thử lại an toàn.",
+          pendingState: loadPendingBatchSubmissionState(matchId),
+        };
+      }
+
+      if (isDefinitiveNoWriteClientFailure(result)) {
+        clearPendingBatchSubmission(matchId);
+      }
+
+      return {
+        ok: false,
+        error:
+          result.error ||
+          "Không thể lưu phiếu thu lên máy chủ. Dữ liệu nháp vẫn được giữ an toàn trên máy để bạn kiểm tra lại.",
+        pendingState: loadPendingBatchSubmissionState(matchId),
+      };
+    }
+
+    clearPendingBatchSubmission(matchId);
+    clearDraftFromStorage(matchId);
+    return {
+      ok: true,
+      cleared: true,
+      pendingState: { status: "none" },
+    };
+  } catch {
+    savePendingBatchSubmission(matchId, {
+      ...activeSubmission,
+      state: "unknown_outcome",
+    });
+    return {
+      ok: false,
+      error:
+        "Mất kết nối máy chủ khi lưu phiếu thu. Bản ghi thao tác gốc và khóa idempotency được giữ nguyên để đối chiếu/thử lại an toàn.",
+      pendingState: loadPendingBatchSubmissionState(matchId),
+    };
+  }
+}
+
+export interface CollectionFooterViewState {
+  hasUnresolvedPending: boolean;
+  statusKind: "unresolved" | "dirty" | "synced";
+  statusText: string;
+  showDiscardButton: boolean;
+  discardButtonLabel: string;
+  showReconcileRetryButton: boolean;
+  saveButtonDisabled: boolean;
+}
+
+export function deriveCollectionFooterViewState(params: {
+  dirtyCount: number;
+  pendingLoadState: PendingBatchLoadResult;
+  isSaving: boolean;
+  confirmedNotice?: string | null;
+}): CollectionFooterViewState {
+  const { dirtyCount, pendingLoadState, isSaving, confirmedNotice } = params;
+  const hasUnresolvedPending =
+    pendingLoadState.status === "corrupted" ||
+    (pendingLoadState.status === "ok" &&
+      pendingLoadState.submission.state !== "confirmed");
+
+  if (hasUnresolvedPending) {
+    return {
+      hasUnresolvedPending: true,
+      statusKind: "unresolved",
+      statusText:
+        pendingLoadState.status === "corrupted"
+          ? "Khóa thao tác bị hỏng — cần đối chiếu"
+          : "Có giao dịch thu quỹ chưa đối chiếu",
+      showDiscardButton: true,
+      discardButtonLabel: "Xoá Khóa Tạm",
+      showReconcileRetryButton: pendingLoadState.status === "ok",
+      saveButtonDisabled: true,
+    };
+  }
+
+  if (dirtyCount > 0) {
+    return {
+      hasUnresolvedPending: false,
+      statusKind: "dirty",
+      statusText: `${dirtyCount} thay đổi chưa lưu`,
+      showDiscardButton: true,
+      discardButtonLabel: "Huỷ Thay Đổi",
+      showReconcileRetryButton: false,
+      saveButtonDisabled: isSaving,
+    };
+  }
+
+  return {
+    hasUnresolvedPending: false,
+    statusKind: "synced",
+    statusText: confirmedNotice || "Đã đồng bộ với máy chủ",
+    showDiscardButton: false,
+    discardButtonLabel: "Huỷ Thay Đổi",
+    showReconcileRetryButton: false,
+    saveButtonDisabled: true,
   };
 }
 

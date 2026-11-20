@@ -150,6 +150,10 @@ describe("Phase 7.1.5 – Fail-Closed Network Recovery & Durable Local Key Persi
       match_id: 21,
       idempotency_key: "valid-key-21",
       payload_fingerprint: "fp-1",
+      collected_by: "Tiếng",
+      items: [
+        { player_id: 2, attended: 1, paid: 1, amount: 100000, walk_in: 0, remove: false },
+      ],
       state: "pending" as const,
       created_at: new Date().toISOString(),
     };
@@ -178,14 +182,19 @@ describe("Phase 7.1.5 – Fail-Closed Network Recovery & Durable Local Key Persi
     expect(savePendingBatchSubmission(21, sub1)).toBe(false);
     expect(loadPendingBatchSubmissionState(21).status).toBe("corrupted");
 
-    // 4. CollectionTab source checks: durable check before onMutate & fail-closed discard warning
+    // 4. CollectionTab & collectionDraft checks: durable check before send & fail-closed discard warning
     const collectionSrc = fs.readFileSync(
       path.join(process.cwd(), "src/components/CollectionTab.tsx"),
       "utf8"
     );
-    expect(collectionSrc).toContain("if (!persisted)");
-    expect(collectionSrc).toContain("isAmbiguousMutateFailure");
-    expect(collectionSrc).toContain("isDefinitiveNoWriteClientFailure");
+    const draftSrc = fs.readFileSync(
+      path.join(process.cwd(), "src/lib/collectionDraft.ts"),
+      "utf8"
+    );
+    expect(draftSrc).toContain("if (!persisted)");
+    expect(draftSrc).toContain("isAmbiguousMutateFailure");
+    expect(draftSrc).toContain("isDefinitiveNoWriteClientFailure");
+    expect(collectionSrc).toContain("runBatchOperationAttempt");
     expect(collectionSrc).toContain("CẢNH BÁO ĐỐI CHIẾU");
     expect(collectionSrc).toContain("KHÔNG thể hoàn tác giao dịch đã lưu trên máy chủ");
   });

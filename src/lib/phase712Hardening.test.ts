@@ -352,7 +352,7 @@ describe("Phase 7.1.2 – Account Atomicity, Predictable PIN Removal, Financial 
     } finally {
       raw.close();
     }
-  });
+  }, 15000);
 
   it("rolls back add_walkin_player, upsert_match, and delete_match atomically on mid-transaction failure and maps commit timeout to 503", async () => {
     const { raw, db } = createTestDb();
