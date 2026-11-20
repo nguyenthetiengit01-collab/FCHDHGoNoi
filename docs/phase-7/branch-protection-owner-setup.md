@@ -1,51 +1,36 @@
 # Phase 7.1 — GitHub `main` Branch Protection Owner Setup (`P0-01`)
 
-> **Status (`P0-01`)**: **OPEN** — `P0-01` remains **OPEN** until the repository owner configures these branch protection settings in GitHub and they are independently verified (via GitHub API `/repos/nguyenthetiengit01-collab/FCHDHGoNoi/branches/main/protection` or a live PR check). Agents must **not** modify GitHub branch protection settings directly.
+> **Status (`P0-01`)**: **CONFIGURATION VERIFIED — FINAL ENFORCEMENT VERIFICATION PENDING** (`Blocking = YES` until behavioral enforcement is verified via authorized PR-based validation).
 
 ---
 
-## 1. Repository & Target Branch
+## 1. Verified GitHub Configuration
 
+Independently verified via GitHub API on 2026-11-20:
 - **Repository**: `nguyenthetiengit01-collab/FCHDHGoNoi`
-- **Target Branch**: `main`
+- **Ruleset**: `main` (**ID**: `27703288`)
+- **Enforcement**: `active`
+- **Target**: `refs/heads/main`
+- **Branch API (`branches/main`)**: `"protected": true`
+- **Required Status Checks (3/3)**:
+  - `Quality Gates (Node 22.23.5)`
+  - `Playwright Visual & Accessibility QA (Linux)`
+  - `Playwright Visual & Accessibility QA (Windows)`
+- **Strict Required Checks**: `true`
+- **Required Approving Reviews**: `1`
+- **Dismiss Stale Reviews**: `true`
+- **Required Review Thread Resolution**: `true`
+- **Current User Bypass**: `never`
+- **Deletion**: `blocked`
+- **Non-Fast-Forward (Force Push)**: `blocked`
+- **Evidence URLs**:
+  - `https://github.com/nguyenthetiengit01-collab/FCHDHGoNoi/rules/27703288`
+  - `https://api.github.com/repos/nguyenthetiengit01-collab/FCHDHGoNoi/branches/main`
 
 ---
 
-## 2. Exact GitHub UI Steps (Classic Branch Protection Rule)
+## 2. Remaining Enforcement Verification Requirements
 
-1. Sign in as the **Repository Owner / Admin** and open:
-   `https://github.com/nguyenthetiengit01-collab/FCHDHGoNoi/settings/branches`
-2. Under **Branch protection rules**, click **Add branch protection rule** (or **Add rule**).
-3. In **Branch name pattern**, enter:
-   ```text
-   main
-   ```
-4. Under **Protect matching branches**, enable and configure the following options:
-   - **Require a pull request before merging**: **Checked**
-     - **Require approvals**: **Checked** — set required approving reviews per owner policy (recommended: `1`).
-     - **Dismiss stale pull request approvals when new commits are pushed**: **Checked**
-     - **Require conversation resolution before merging**: **Checked**
-   - **Require status checks to pass before merging**: **Checked**
-     - **Require branches to be up to date before merging**: **Checked**
-     - In the status checks search box, select these **exact** check names (must have run at least once on a PR/push so GitHub lists them):
-       - `Quality Gates (Node 22.23.5)`
-       - `Playwright Visual & Accessibility QA (Linux)`
-       - `Playwright Visual & Accessibility QA (Windows)`
-     - *(Optional per owner preference)*: Also add `Vercel` if Preview deployment success should block merge.
-   - **Do not allow bypassing the above settings** (Include administrators): **Checked** (recommended so `main` cannot be accidentally pushed directly).
-5. Under **Rules applied to everyone including administrators** (Force pushes & Deletions):
-   - **Allow force pushes**: **Unchecked** (restrict force pushes).
-   - **Allow deletions**: **Unchecked** (restrict branch deletion).
-6. Click **Create** (or **Save changes**).
-
----
-
-## 3. Independent Verification Checklist (After Owner Setup)
-
-1. Confirm `GET /repos/nguyenthetiengit01-collab/FCHDHGoNoi/branches/main` returns `"protected": true`.
-2. Confirm `GET /repos/nguyenthetiengit01-collab/FCHDHGoNoi/branches/main/protection` lists all three required status check contexts:
-   - `Quality Gates (Node 22.23.5)`
-   - `Playwright Visual & Accessibility QA (Linux)`
-   - `Playwright Visual & Accessibility QA (Windows)`
-3. Confirm direct `git push origin main` is rejected by GitHub, and a test PR displays all required checks and conversation/approval gates before merge.
-4. Only after steps 1–3 are independently verified should `P0-01` be marked **CLOSED** in `docs/phase-7/risk-register.md` and `docs/phase-7/release-go-no-go-checklist.md`.
+1. **Do NOT perform a real direct push to `main`** as a test operation.
+2. Validate effective PR/merge enforcement using an authorized PR-based validation (confirming merge is blocked when required checks are pending/failing, when `1` approving review is absent, or when review threads remain unresolved), or leave behavioral enforcement explicitly marked **NOT VERIFIED**.
+3. Only after behavioral enforcement is confirmed may `P0-01` be marked **CLOSED** in `docs/phase-7/risk-register.md` and `docs/phase-7/release-go-no-go-checklist.md`.

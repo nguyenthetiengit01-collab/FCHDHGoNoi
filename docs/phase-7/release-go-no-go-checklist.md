@@ -2,7 +2,7 @@
 
 - **Project**: FC HĐH Gò Nổi tại TP.HCM
 - **Target Baseline**: `main` @ `c37dfd3200547210e8c6308b34c44db4fe18c04e` (+ Phase 7.1 `fix/phase-7.1-pre-release-remediation`)
-- **Current Decision**: **NO-GO** (`P0-01` Branch Protection still `protected: False`; Remote Staging Rehearsal, Preview Smoke/Rollback & Real-Device QA **BLOCKED / NOT VERIFIED** — see [phase-7.2-staging-rehearsal-results.md](./phase-7.2-staging-rehearsal-results.md))
+- **Current Decision**: **NO-GO** (`P0-01` configuration verified / enforcement behavior verification pending; P1 owner/Preview sign-off pending; Remote Staging **BLOCKED**; Preview smoke/rollback **NOT VERIFIED**; Real-device QA **NOT VERIFIED** — see [phase-7.2-staging-rehearsal-results.md](./phase-7.2-staging-rehearsal-results.md))
 
 ---
 
@@ -10,11 +10,11 @@
 
 | Gate | Status | Evidence / Notes |
 | :--- | :---: | :--- |
-| **No unresolved P0 findings** | **FAIL** | `P0-01`: `main` branch protection is disabled (`protected: False` on GitHub). |
-| **No unresolved P1 findings (or accepted mitigation)** | **FAIL** | 13 P1 findings open (`P1-01` through `P1-13`). |
-| **Post-merge CI green on `main`** | **PASS** | Run `44658813350` on `fd1b150c`: `Quality Gates`, Playwright Linux & Windows all `success`. |
-| **Synthetic Backup & Restore drill verified** | **PASS** | Local synthetic v3 backup + X25519 encrypt/decrypt + restore + `integrity_check` (`ok`) + `foreign_key_check` (`[]`) passed. |
-| **Financial unit tests (`financialCalculations.test.ts`)** | **PASS** | `6/6` tests passed; API/Excel tests passed in CI `Quality Gates`. |
+| **Main branch protection configuration (`P0-01`)** | **CONFIGURATION PASS** | Ruleset `27703288` (`main`) is `active`; `branches/main` `protected: true`; 3/3 required checks (`Quality Gates (Node 22.23.5)`, `Playwright Visual & Accessibility QA (Linux)`, `Playwright Visual & Accessibility QA (Windows)`). **Full closure**: `PENDING FINAL ENFORCEMENT VERIFICATION`. |
+| **No unresolved P1 findings (or accepted mitigation)** | **FAIL** | P1 code/docs remediated in PR #16 (`8153da1d`), pending Preview/Owner sign-off. |
+| **Post-merge CI green on `main`** | **PASS** | Run `44664470156` on `c37dfd32` (and PR #16 Run `44675008948` on `8153da1d`): `Quality Gates`, Playwright Linux & Windows all `success`. |
+| **Synthetic Backup & Restore drill verified** | **PASS** | Local synthetic v3 backup + X25519 encrypt/decrypt + atomic local restore + failure injection (`phase72RestoreHardening.test.ts`) + `integrity_check` (`ok`) + `foreign_key_check` (`[]`) passed. |
+| **Financial unit tests (`financialCalculations.test.ts`)** | **PASS** | `6/6` tests passed (`46/46` files, `370/370` tests total in Vitest). |
 | **Production backup scheduled run verified** | **NOT VERIFIED** | Manual `workflow_dispatch` succeeded (`43839671777`); `0` `schedule` runs yet (first Sunday `2026-11-22`). |
 | **Production Vercel env & Preview separation verified** | **NOT VERIFIED** | External to repo; requires Owner Dashboard verification. |
 | **Real-device iOS/Android/PWA checklist signed off** | **NOT VERIFIED** | All items in `docs/pwa-real-device-checklist.md` are `[ ]`. |
@@ -24,7 +24,8 @@
 ## 2. Pre-Release Sign-Off Checklist (Required Before Phase 7.1 -> GO)
 
 ### A. Governance & GitHub (`P0-01`, `P2-15`, `P3-07`)
-- [ ] Enable GitHub Branch Protection on `main` (require PR + 1 approval, dismiss stale reviews, require `Quality Gates (Node 22.23.5)`, `Playwright Visual & Accessibility QA (Linux)`, `Playwright Visual & Accessibility QA (Windows)`, `Vercel`; block force-push/deletion).
+- [x] Configure GitHub `main` Ruleset (`ID: 27703288`) and independently verify all three required checks (`Quality Gates (Node 22.23.5)`, `Playwright Visual & Accessibility QA (Linux)`, `Playwright Visual & Accessibility QA (Windows)`) through GitHub API (`protected: true`, `enforcement: active`).
+- [ ] Verify effective PR/merge enforcement without performing a direct push to `main`.
 - [ ] Enable `delete_branch_on_merge` and prune merged phase branches.
 - [ ] Align `package.json` version, Git tag, GitHub Release, and release notes.
 
