@@ -782,11 +782,6 @@ describe("Phase 7.1 – Authentication, RBAC & Privacy Remediation", () => {
          VALUES (1, 'Manager A', 'MgrA', 1, '0901111111', 'manager', 'mgra', ?, 'Đang sinh hoạt')`
       ).run(hashPassword("MgrA@2026"));
 
-      raw.prepare(
-        `INSERT INTO matches (id, match_number, label, match_date, venue, fee_per_player, pitch_cost, payer_name, status)
-         VALUES (1, 1, 'Trận 1', '2026-06-01', 'Sân A', 100000, 700000, 'Manager A', 'Sắp đá')`
-      ).run();
-
       const mgr = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
       const mgrToken = createSessionToken(mgr, 24);
 
