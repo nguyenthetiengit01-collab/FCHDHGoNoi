@@ -27,6 +27,10 @@ import {
   loadDraftFromStorage,
   saveDraftToStorage,
   clearDraftFromStorage,
+  loadPendingBatchSubmission,
+  savePendingBatchSubmission,
+  clearPendingBatchSubmission,
+  resolveBatchSubmissionAttempt,
 } from "@/lib/collectionDraft";
 import {
   Badge,
@@ -318,7 +322,7 @@ export function CollectionTab({
     setPendingConfirm({ type: "discard" });
   };
 
-  // Lưu toàn bộ phiếu thu lên máy chủ qua 1 Transaction Batch duy nhất (kèm Idempotency Key)
+  // Lưu toàn bộ phiếu thu lên máy chủ qua 1 Transaction Batch duy nhất (kèm Idempotency Key bền vững)
   const handleSaveBatch = async () => {
     if (dirtyCount === 0 || isSaving) return;
     const items = buildBatchPayloadItems(
@@ -329,22 +333,61 @@ export function CollectionTab({
     if (items.length === 0) return;
 
     setBatchError(null);
-    const idempotencyKey = `batch_${activeMatch.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const existingPending = loadPendingBatchSubmission(activeMatch.id);
+    const resolution = resolveBatchSubmissionAttempt({
+      existingPending,
+      matchId: activeMatch.id,
+      collectedBy: collectorName,
+      items,
+    });
+
+    if (resolution.blocked) {
+      setBatchError(
+        "Lần gửi phiếu thu trước chưa rõ kết quả trên máy chủ (DB_WRITE_OUTCOME_UNKNOWN). Vui lòng không sửa nội dung khi chưa đối chiếu: hãy giữ nguyên dữ liệu cũ để thử lại cùng khóa idempotency, hoặc bấm Huỷ Thay Đổi sau khi đã kiểm tra lại bảng thu quỹ."
+      );
+      return;
+    }
+
+    const activeSubmission = resolution.submission;
+    savePendingBatchSubmission(activeMatch.id, activeSubmission);
 
     try {
-      await onMutate("collect_match_fees_batch", {
+      const result = await onMutate("collect_match_fees_batch", {
         match_id: activeMatch.id,
         collected_by: collectorName,
         items,
-        idempotency_key: idempotencyKey,
+        idempotency_key: activeSubmission.idempotency_key,
       });
 
+      if (result && !result.ok) {
+        const isUnknownOutcome =
+          result.status === 503 ||
+          result.code === "DB_WRITE_OUTCOME_UNKNOWN";
+        if (isUnknownOutcome) {
+          savePendingBatchSubmission(activeMatch.id, {
+            ...activeSubmission,
+            state: "unknown_outcome",
+          });
+          setBatchError(
+            result.error ||
+              "Kết nối cơ sở dữ liệu bị gián đoạn khi xác nhận giao dịch. Khóa idempotency và bản nháp được giữ nguyên để bạn thử lại an toàn mà không ghi trùng."
+          );
+          return;
+        }
+
+        setBatchError(
+          result.error ||
+            "Không thể lưu phiếu thu lên máy chủ. Dữ liệu nháp vẫn được giữ an toàn trên máy để bạn thử lại."
+        );
+        return;
+      }
+
+      clearPendingBatchSubmission(activeMatch.id);
       clearDraftFromStorage(activeMatch.id);
       setDraft({});
-    } catch (err) {
-      console.error("Lỗi khi lưu phiếu thu:", err);
+    } catch {
       setBatchError(
-        "Không thể lưu phiếu thu lên máy chủ. Dữ liệu nháp vẫn được giữ an toàn trên máy để bạn thử lại."
+        "Mất kết nối máy chủ khi lưu phiếu thu. Khóa idempotency và bản nháp vẫn được giữ nguyên để bạn thử lại an toàn."
       );
     }
   };
@@ -1026,6 +1069,7 @@ export function CollectionTab({
         onConfirm={() => {
           if (!pendingConfirm) return;
           if (pendingConfirm.type === "discard") {
+            clearPendingBatchSubmission(activeMatch.id);
             clearDraftFromStorage(activeMatch.id);
             setDraft({});
           } else if (pendingConfirm.type === "switch_match") {

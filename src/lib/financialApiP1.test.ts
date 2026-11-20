@@ -221,6 +221,7 @@ describe("Phase 5.2 (P1): Financial API Validation & Transaction Atomicity", () 
       action: "collect_match_fees_batch",
       payload: {
         match_id: matchId,
+        idempotency_key: "p52-valid-free-batch-1",
         items: [
           {
             player_id: playerId,
@@ -576,6 +577,7 @@ describe("Phase 5.2 (P1): Financial API Validation & Transaction Atomicity", () 
       action: "collect_match_fees_batch",
       payload: {
         match_id: matchId,
+        idempotency_key: "p52-bool-batch-1",
         items: [
           {
             player_id: playerId,

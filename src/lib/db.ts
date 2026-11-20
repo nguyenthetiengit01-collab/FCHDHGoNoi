@@ -2314,6 +2314,13 @@ export async function recordAuditLog(params: {
 
 const idempotencyTableInitByDb = new WeakMap<AsyncDb, Promise<void>>();
 
+/**
+ * Backward-compatibility safety net for `idempotency_keys`.
+ * Authoritative schema ownership lives in `scripts/migrations/phase7-idempotency-v1.mjs`
+ * (run pre-release on Staging/Production). This lazy initializer prevents runtime failure
+ * if an environment has not yet applied the migration, deduplicated per `AsyncDb` via WeakMap
+ * (requires CREATE TABLE / CREATE INDEX DDL permission if table is absent).
+ */
 export async function ensureIdempotencyKeysReady(targetDb?: AsyncDb): Promise<void> {
   const db = targetDb ?? getAsyncDb();
   let pending = idempotencyTableInitByDb.get(db);

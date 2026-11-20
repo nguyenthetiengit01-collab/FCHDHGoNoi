@@ -344,7 +344,7 @@ export function PlayersTab({
 
     const strength = validatePasswordStrength(
       resetNewPin,
-      resetPinTarget.phone || resetPinTarget.full_name
+      resetPinTarget.username || resetPinTarget.phone || resetPinTarget.full_name
     );
     if (!strength.valid) {
       setResetPinError(

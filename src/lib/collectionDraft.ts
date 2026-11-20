@@ -209,3 +209,200 @@ export function clearDraftFromStorage(matchId: number): void {
   }
 }
 
+export type PendingBatchSubmissionState =
+  | "pending"
+  | "unknown_outcome"
+  | "confirmed";
+
+export interface PendingBatchSubmission {
+  match_id: number;
+  idempotency_key: string;
+  payload_fingerprint: string;
+  state: PendingBatchSubmissionState;
+  created_at: string;
+}
+
+const PENDING_BATCH_PREFIX = "gonoi_fee_pending_batch_";
+
+export function getPendingBatchStorageKey(matchId: number): string {
+  return `${PENDING_BATCH_PREFIX}${matchId}`;
+}
+
+export function generateIdempotencyUuid(): string {
+  const webCrypto = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
+  if (webCrypto && typeof webCrypto.randomUUID === "function") {
+    return webCrypto.randomUUID();
+  }
+  if (webCrypto && typeof webCrypto.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    webCrypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  throw new Error("Trình duyệt không hỗ trợ Web Crypto API để tạo khóa idempotency an toàn.");
+}
+
+export function computeBatchPayloadFingerprint(
+  matchId: number,
+  collectedBy: string,
+  items: BatchCollectFeeItem[]
+): string {
+  const normalizedItems = [...items]
+    .map((item) => ({
+      player_id: Number(item.player_id),
+      attended: Number(item.attended) ? 1 : 0,
+      paid: Number(item.paid) ? 1 : 0,
+      amount: Number(item.amount) || 0,
+      walk_in: Number(item.walk_in) ? 1 : 0,
+      remove: Boolean(item.remove),
+    }))
+    .sort((a, b) => a.player_id - b.player_id);
+
+  const canonical = JSON.stringify({
+    match_id: Number(matchId),
+    collected_by: String(collectedBy || "").trim(),
+    items: normalizedItems,
+  });
+
+  // Deterministic 64-bit FNV-1a (two independent 32-bit lanes) + length tag
+  let h1 = 0x811c9dc5;
+  let h2 = 0x811c9dc5 ^ 0x9e3779b9;
+  for (let i = 0; i < canonical.length; i++) {
+    const c = canonical.charCodeAt(i);
+    h1 ^= c;
+    h1 = Math.imul(h1, 0x01000193);
+    h2 ^= c + (i & 0xff);
+    h2 = Math.imul(h2, 0x01000193);
+  }
+  return `v1:${canonical.length}:${(h1 >>> 0).toString(16).padStart(8, "0")}${(h2 >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+export function loadPendingBatchSubmission(
+  matchId: number
+): PendingBatchSubmission | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(getPendingBatchStorageKey(matchId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PendingBatchSubmission>;
+    if (
+      !parsed ||
+      Number(parsed.match_id) !== Number(matchId) ||
+      typeof parsed.idempotency_key !== "string" ||
+      !parsed.idempotency_key ||
+      typeof parsed.payload_fingerprint !== "string" ||
+      !parsed.payload_fingerprint
+    ) {
+      return null;
+    }
+    const state: PendingBatchSubmissionState =
+      parsed.state === "unknown_outcome" || parsed.state === "confirmed"
+        ? parsed.state
+        : "pending";
+    return {
+      match_id: Number(matchId),
+      idempotency_key: parsed.idempotency_key,
+      payload_fingerprint: parsed.payload_fingerprint,
+      state,
+      created_at:
+        typeof parsed.created_at === "string"
+          ? parsed.created_at
+          : new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function savePendingBatchSubmission(
+  matchId: number,
+  submission: PendingBatchSubmission
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      getPendingBatchStorageKey(matchId),
+      JSON.stringify(submission)
+    );
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+export function clearPendingBatchSubmission(matchId: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(getPendingBatchStorageKey(matchId));
+  } catch {
+    // ignore
+  }
+}
+
+export type BatchAttemptResolution =
+  | {
+      blocked: true;
+      reason: "unknown_outcome_payload_changed";
+      pending: PendingBatchSubmission;
+    }
+  | {
+      blocked: false;
+      reused: boolean;
+      submission: PendingBatchSubmission;
+    };
+
+export function resolveBatchSubmissionAttempt(params: {
+  existingPending: PendingBatchSubmission | null;
+  matchId: number;
+  collectedBy: string;
+  items: BatchCollectFeeItem[];
+  generateKey?: () => string;
+  now?: Date;
+}): BatchAttemptResolution {
+  const {
+    existingPending,
+    matchId,
+    collectedBy,
+    items,
+    generateKey = generateIdempotencyUuid,
+    now = new Date(),
+  } = params;
+
+  const fingerprint = computeBatchPayloadFingerprint(
+    matchId,
+    collectedBy,
+    items
+  );
+
+  if (existingPending && existingPending.match_id === Number(matchId)) {
+    if (existingPending.payload_fingerprint === fingerprint) {
+      return {
+        blocked: false,
+        reused: true,
+        submission: existingPending,
+      };
+    }
+
+    if (existingPending.state === "unknown_outcome") {
+      return {
+        blocked: true,
+        reason: "unknown_outcome_payload_changed",
+        pending: existingPending,
+      };
+    }
+  }
+
+  return {
+    blocked: false,
+    reused: false,
+    submission: {
+      match_id: Number(matchId),
+      idempotency_key: generateKey(),
+      payload_fingerprint: fingerprint,
+      state: "pending",
+      created_at: now.toISOString(),
+    },
+  };
+}
+

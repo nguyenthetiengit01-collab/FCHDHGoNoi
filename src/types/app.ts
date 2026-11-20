@@ -297,6 +297,9 @@ export interface PublicClubData {
 export type MutateActionResult = {
   ok: boolean;
   error?: string;
+  status?: number;
+  code?: string;
+  retryable?: boolean;
 };
 
 export type MutateActionFn = (

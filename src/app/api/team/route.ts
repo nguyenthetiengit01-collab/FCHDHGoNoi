@@ -1519,47 +1519,55 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
         }
+        if (!idempotencyKeyCheck.key) {
+          return NextResponse.json(
+            {
+              error:
+                "Thiếu Idempotency-Key cho thao tác thu quỹ hàng loạt. Vui lòng gửi kèm khóa duy nhất.",
+            },
+            { status: 400 }
+          );
+        }
         const idempotencyKey = idempotencyKeyCheck.key;
         const actorIdForIdempotency =
           effectiveSession?.playerId ?? session?.playerId ?? 0;
-        const payloadHash = idempotencyKey
-          ? computeIdempotencyPayloadHash(action, {
-              match_id: matchIdCheck.value,
-              collected_by: collected_by ?? null,
-              items,
-            })
-          : null;
+        const payloadHash = computeIdempotencyPayloadHash(action, {
+          match_id: matchIdCheck.value,
+          collected_by: collected_by ?? null,
+          items,
+        });
 
-        if (idempotencyKey) {
-          await ensureIdempotencyKeysReady(db);
-        }
+        await ensureIdempotencyKeysReady(db);
 
-        if (statements.length > 0 || idempotencyKey) {
-          const txResult = await db.transaction(async (tx) => {
-            if (idempotencyKey && payloadHash) {
-              const nowIso = new Date().toISOString();
-              await tx.run(
-                `DELETE FROM idempotency_keys
-                 WHERE idempotency_key = ? AND actor_id = ? AND action = ? AND expires_at <= ?`,
-                [idempotencyKey, actorIdForIdempotency, action, nowIso]
-              );
-              const existingIdem = await tx.queryOne<{
-                payload_hash: string;
-                status_code: number;
-                response_json: string;
-              }>(
-                `SELECT payload_hash, status_code, response_json
-                 FROM idempotency_keys
-                 WHERE idempotency_key = ? AND actor_id = ? AND action = ?
-                 LIMIT 1`,
-                [idempotencyKey, actorIdForIdempotency, action]
-              );
-              if (existingIdem) {
-                if (existingIdem.payload_hash !== payloadHash) {
-                  return { conflict: true as const };
-                }
-                return { replayed: true as const };
+        // Idempotency Response Contract (Option B):
+        // Persist deduplication metadata (payload_hash, status_code, summary response_json)
+        // atomically with financial + audit writes, and return an authorized fresh
+        // getFullAppData() snapshot with X-Idempotent-Replay: true on replay.
+        let txResult: { replayed: boolean; conflict: boolean };
+        try {
+          txResult = await db.transaction(async (tx) => {
+            const nowIso = new Date().toISOString();
+            await tx.run(
+              `DELETE FROM idempotency_keys
+               WHERE idempotency_key = ? AND actor_id = ? AND action = ? AND expires_at <= ?`,
+              [idempotencyKey, actorIdForIdempotency, action, nowIso]
+            );
+            const existingIdem = await tx.queryOne<{
+              payload_hash: string;
+              status_code: number;
+              response_json: string;
+            }>(
+              `SELECT payload_hash, status_code, response_json
+               FROM idempotency_keys
+               WHERE idempotency_key = ? AND actor_id = ? AND action = ?
+               LIMIT 1`,
+              [idempotencyKey, actorIdForIdempotency, action]
+            );
+            if (existingIdem) {
+              if (existingIdem.payload_hash !== payloadHash) {
+                return { conflict: true, replayed: false };
               }
+              return { replayed: true, conflict: false };
             }
 
             for (const stmt of statements) {
@@ -1572,49 +1580,68 @@ export async function POST(req: NextRequest) {
               `Thu quỹ hàng loạt (${statements.length} cầu thủ, trận #${matchIdCheck.value})`
             );
 
-            if (idempotencyKey && payloadHash) {
-              const expiresAt = new Date(
-                Date.now() + 24 * 3600 * 1000
-              ).toISOString();
-              await tx.run(
-                `INSERT INTO idempotency_keys (
-                  idempotency_key, actor_id, action, payload_hash, status_code, response_json, expires_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [
-                  idempotencyKey,
-                  actorIdForIdempotency,
-                  action,
-                  payloadHash,
-                  200,
-                  JSON.stringify({
-                    ok: true,
-                    processedCount: statements.length,
-                  }),
-                  expiresAt,
-                ]
-              );
-            }
-
-            return { replayed: false as const, conflict: false as const };
-          });
-
-          if (txResult.conflict) {
-            return NextResponse.json(
-              {
-                error:
-                  "Idempotency-Key đã được sử dụng cho một nội dung thu quỹ khác (409 Conflict).",
-              },
-              {
-                status: 409,
-                headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
-              }
+            const expiresAt = new Date(
+              Date.now() + 24 * 3600 * 1000
+            ).toISOString();
+            await tx.run(
+              `INSERT INTO idempotency_keys (
+                idempotency_key, actor_id, action, payload_hash, status_code, response_json, expires_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                idempotencyKey,
+                actorIdForIdempotency,
+                action,
+                payloadHash,
+                200,
+                JSON.stringify({
+                  ok: true,
+                  processedCount: statements.length,
+                }),
+                expiresAt,
+              ]
             );
+
+            return { replayed: false, conflict: false };
+          });
+        } catch (txErr) {
+          const msg = txErr instanceof Error ? txErr.message.toLowerCase() : "";
+          if (msg.includes("unique") || msg.includes("constraint")) {
+            const existingWinner = await db.queryOne<{ payload_hash: string }>(
+              `SELECT payload_hash
+               FROM idempotency_keys
+               WHERE idempotency_key = ? AND actor_id = ? AND action = ?
+               LIMIT 1`,
+              [idempotencyKey, actorIdForIdempotency, action]
+            );
+            if (existingWinner) {
+              txResult =
+                existingWinner.payload_hash === payloadHash
+                  ? { replayed: true, conflict: false }
+                  : { replayed: false, conflict: true };
+            } else {
+              throw txErr;
+            }
+          } else {
+            throw txErr;
           }
-          if (txResult.replayed) {
-            idempotentReplayed = true;
-          }
-          auditRecordedInTx = true;
         }
+
+        if (txResult.conflict) {
+          return NextResponse.json(
+            {
+              error:
+                "Idempotency-Key đã được sử dụng cho một nội dung thu quỹ khác (409 Conflict).",
+            },
+            {
+              status: 409,
+              headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+            }
+          );
+        }
+        if (txResult.replayed) {
+          idempotentReplayed = true;
+        }
+        auditRecordedInTx = true;
         break;
       }
 

@@ -242,7 +242,13 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const handleMutate = async (
     action: string,
     payload?: unknown
-  ): Promise<{ ok: boolean; error?: string }> => {
+  ): Promise<{
+    ok: boolean;
+    error?: string;
+    status?: number;
+    code?: string;
+    retryable?: boolean;
+  }> => {
     setIsSaving(true);
     try {
       const res = await fetch("/api/team", {
@@ -254,7 +260,13 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       if (!res.ok) {
         const message = json.error || "Có lỗi xảy ra";
         showToast(message, "error");
-        return { ok: false, error: message };
+        return {
+          ok: false,
+          error: message,
+          status: res.status,
+          code: typeof json?.code === "string" ? json.code : undefined,
+          retryable: typeof json?.retryable === "boolean" ? json.retryable : undefined,
+        };
       }
       setData(json);
       if (action === "change_own_password") {
@@ -282,7 +294,12 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
     } catch (err) {
       console.error(err);
       showToast("Không thể kết nối máy chủ", "error");
-      return { ok: false, error: "Không thể kết nối máy chủ" };
+      return {
+        ok: false,
+        error: "Không thể kết nối máy chủ",
+        status: 0,
+        retryable: true,
+      };
     } finally {
       setIsSaving(false);
     }
