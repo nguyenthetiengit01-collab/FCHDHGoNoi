@@ -17,7 +17,7 @@ Tài liệu vận hành chính thức cho hệ thống **FC HĐH Gò Nổi tại
   - **Monitoring Owner**: `TBD — Pending Owner Confirmation` (Primary + Backup).
   - **Healthcheck Probe Cadence**: Kiểm tra `GET /api/health` sau mỗi lần deploy Production và kiểm tra định kỳ hàng tuần (hoặc qua uptime monitor ngoài nếu chủ sở hữu kích hoạt).
   - **Alerting Channels**:
-    - **GitHub Actions**: Thông báo lỗi workflow `.github/workflows/ci.yml` và `.github/workflows/turso-backup.yml` qua GitHub Notifications/Email của Repository Owner (lưu ý: `turso-backup.yml` cần bổ sung step cảnh báo lỗi chủ động nếu backup thất bại).
+    - **GitHub Actions**: Thông báo lỗi workflow `.github/workflows/ci.yml` và `.github/workflows/turso-backup.yml` qua GitHub Notifications/Email của Repository Owner (bước `Report backup failure alert` trong `turso-backup.yml` hiện phát GitHub `::error::` annotation và ghi vào `$GITHUB_STEP_SUMMARY` khi thất bại; việc xác nhận nhận thông báo thực tế qua email/kênh ngoài của Owner/Ops vẫn đang chờ kiểm chứng).
     - **Vercel Dashboard**: Cảnh báo build/deployment failure và runtime `5xx` trên Production.
     - **Zalo Ban Quản Lý**: Kênh leo thang nội bộ khi phát hiện sự cố SEV1/SEV2.
 
@@ -322,7 +322,7 @@ P1-03 OWNER CLASSIFICATION REPORT
 
 ---
 
-## 9. Xử lý lỗi `DB_WRITE_OUTCOME_UNKNOWN` (HTTP 503 — `F7.1-15`)
+## 10. Xử lý lỗi `DB_WRITE_OUTCOME_UNKNOWN` (HTTP 503 — `F7.1-15`)
 
 - Khi ghi dữ liệu sang Turso vượt quá `TURSO_REQUEST_TIMEOUT_MS` (mặc định `5000ms`), hệ thống trả HTTP `503` với mã `DB_WRITE_OUTCOME_UNKNOWN` (`retryable: false`, `reconcileRequired: true`) và `correlationId`.
 - **Không tự động gửi lại (retry)** thao tác thu quỹ / chi tiêu / import.

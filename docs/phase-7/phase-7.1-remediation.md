@@ -3,7 +3,7 @@
 - **Feature Branch**: `fix/phase-7.1-pre-release-remediation`
 - **Base `main` SHA**: `c37dfd3200547210e8c6308b34c44db4fe18c04e` (PR #15 merge commit)
 - **Date**: 2026-11-20
-- **Release Decision**: **NO-GO** (`P0-01` Branch Protection on `main` remains **OPEN** pending Owner configuration; PR #16 created as **DRAFT**)
+- **Release Decision**: **NO-GO** (`P0-01` Branch Protection on `main` is **CONFIGURATION VERIFIED / ENFORCEMENT BEHAVIOR VERIFICATION PENDING**; Owner/Preview/Staging/Real-Device sign-off pending; PR #16 remains **OPEN / DRAFT / NOT MERGED**)
 
 ---
 
@@ -24,7 +24,7 @@
 
 | ID | Severity | Commit | File Paths | Verification & Tests | Status | Residual Risk |
 | :--- | :---: | :--- | :--- | :--- | :---: | :--- |
-| **P0-01** | **P0** | `1e0b38a` | `docs/phase-7/branch-protection-owner-setup.md` | GitHub API `/branches/main` still `protected: False` | **OPEN (Owner Action)** | `main` unprotected until owner applies UI checklist. |
+| **P0-01** | **P0** | `1e0b38a` + Ruleset `27703288` | `docs/phase-7/branch-protection-owner-setup.md` | GitHub API `/branches/main` `protected: true`, Ruleset `27703288` `enforcement: active`, 3/3 required checks | **CONFIGURATION VERIFIED / ENFORCEMENT BEHAVIOR VERIFICATION PENDING** | Direct push rejection & merge blocking via test PR have not yet been behaviorally verified. |
 | **P1-01** | **P1** | `1539d5b` | `src/lib/auth.ts`, `src/app/api/team/route.ts`, `src/app/api/import/route.ts`, `src/app/api/auth/route.ts` | `phase71AuthPrivacy.test.ts` (5/5) + `teamStatistics.test.ts` | **CODE & TEST VERIFIED** | Pending Preview smoke test. |
 | **P1-02** | **P1** | `1539d5b` | `src/app/api/team/route.ts` (`change_own_password`) | `phase71AuthPrivacy.test.ts` (full login -> change -> next request) | **CODE & TEST VERIFIED** | None after test pass. |
 | **P1-03** | **P1** | `fd38939` | `next.config.ts`, `src/lib/db.ts`, `.gitignore` (`git rm --cached data/gonoifc.sqlite`) | `next build` `.nft.json` trace count = `0`; `phase71DatabaseTurso.test.ts` | **CODE & BUILD VERIFIED** | Old Git history still holds prior snapshots; owner must confirm whether history scrub/PIN rotation is needed. |
@@ -43,7 +43,7 @@
 | **P2-03** | **P2** | `67524a6` + Final Audit | `package.json`, `package-lock.json` (`zod` override `^4.6.6` -> `4.6.7`) | `npm audit --omit=dev` = `0` vulnerabilities; full `npm audit` = `6 moderate` dev-only (`minimatch` `GHSA-g3hv-75wg-m249` + 5 `@typescript-eslint/*` via `eslint-config-next@15.5.29`, `0` runtime exposure) | **VERIFIED (PROD) / ACCEPTED RISK (DEV)** | Do not run `npm audit fix --force`; track upstream `eslint-config-next`. |
 | **P2-04** | **P2** | `1539d5b`, `85eeecb` | `/api/auth`, `/api/webp`, `POST /api/team` (`Cache-Control: no-store`) | `phase71HttpReliability.test.ts` | **CODE & TEST VERIFIED** | None. |
 | **P2-06** | **P2** | `fd38939` | `src/lib/db.ts` (`PRAGMA foreign_keys = ON` on Turso init) | `phase71DatabaseTurso.test.ts` | **CODE & TEST VERIFIED** | None. |
-| **P2-14** | **P2** | `67524a6`, `1e0b38a` | `.github/workflows/turso-backup.yml`, `docs/operations-runbook.md` | Workflow YAML review + docs review | **PARTIAL** | CI E2E `next dev` & missing `needs: quality-gates` remain open. |
+| **P2-14** | **P2** | `67524a6`, `1e0b38a` | `.github/workflows/turso-backup.yml`, `.github/workflows/ci.yml`, `docs/operations-runbook.md` | Workflow YAML review + docs review (`Report backup failure alert` emits GitHub `::error::` & `GITHUB_STEP_SUMMARY`; Sections 8–9 playbooks & `vercel ls` post-rollback smoke documented) | **PARTIAL** | External notification receipt unverified; `e2e-visual-qa` missing `needs: quality-gates` & running `next dev` remain `OPEN / NOT REMEDIATED`. |
 | **P3-05** | **P3** | `85eeecb` | `src/app/api/health/route.ts` (`!dbStatus.ok` -> `503`) | `phase71HttpReliability.test.ts` | **CODE & TEST VERIFIED** | None. |
 | **P3-06** | **P3** | `67524a6` | `.github/workflows/turso-backup.yml` (Node `22.23.5`, `upload-artifact` SHA) | Workflow YAML review | **VERIFIED** | None. |
 | **F7.1-14** | **P1 (Follow-up)** | `6d7c11e` | `src/lib/db.ts` (`TursoDbAdapter.ensureReady()`) | `phase71DatabaseTurso.test.ts` (20 concurrent queries + failure retry) | **CODE & TEST VERIFIED** | None. |
