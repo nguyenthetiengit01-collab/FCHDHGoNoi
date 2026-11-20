@@ -7,6 +7,7 @@ import {
   getAsyncDb,
   getFullAppData,
   recordAuditLog,
+  mapDatabaseErrorToHttpResponse,
 } from "@/lib/db";
 import {
   requireManagerSession,
@@ -1408,6 +1409,15 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err) {
+    const dbMapped = mapDatabaseErrorToHttpResponse(err);
+    if (dbMapped) {
+      return NextResponse.json(dbMapped.body, {
+        status: dbMapped.status,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      });
+    }
     if (err instanceof ImportValidationError) {
       return NextResponse.json(
         { error: err.message },

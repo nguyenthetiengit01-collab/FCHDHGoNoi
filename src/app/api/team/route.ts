@@ -6,6 +6,7 @@ import {
   ensureClubPostsReady,
   ensureSponsorsReady,
   recordAuditLog,
+  mapDatabaseErrorToHttpResponse,
 } from "@/lib/db";
 import {
   AUTH_PLAYER_PROFILE_COLUMNS,
@@ -2057,6 +2058,15 @@ export async function POST(req: NextRequest) {
 
     return res;
   } catch (error) {
+    const dbMapped = mapDatabaseErrorToHttpResponse(error);
+    if (dbMapped) {
+      return NextResponse.json(dbMapped.body, {
+        status: dbMapped.status,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      });
+    }
     if (error instanceof MediaValidationError) {
       return NextResponse.json(
         { error: error.message },

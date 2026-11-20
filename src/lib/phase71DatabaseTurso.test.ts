@@ -5,6 +5,8 @@ import type { Client } from "@libsql/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   TursoDbAdapter,
+  TursoWriteOutcomeUnknownError,
+  mapDatabaseErrorToHttpResponse,
   resolveDatabaseMode,
   resolveTursoRequestTimeoutMs,
 } from "./db";
@@ -52,7 +54,13 @@ describe("Phase 7.1 – TursoDbAdapter timeout, retry & database mode", () => {
   it("times out hung Turso read/write/batch/transaction operations without leaking credentials", async () => {
     const neverResolves = () => new Promise<never>(() => {});
     const mockClient = createMockLibsqlClient({
-      execute: vi.fn(neverResolves),
+      execute: vi.fn(async (stmt: unknown) => {
+        const sql = typeof stmt === "string" ? stmt : (stmt as { sql: string }).sql;
+        if (sql.includes("PRAGMA foreign_keys")) {
+          return { rows: [], columns: [], columnTypes: [], rowsAffected: 0, lastInsertRowid: undefined, toJSON: () => ({}) };
+        }
+        return neverResolves();
+      }),
       batch: vi.fn(neverResolves),
       transaction: vi.fn(neverResolves),
     });
@@ -68,10 +76,10 @@ describe("Phase 7.1 – TursoDbAdapter timeout, retry & database mode", () => {
     );
     await expect(
       adapter.run("INSERT INTO players (full_name) VALUES (?)", ["Test"])
-    ).rejects.toThrow(/Turso request timed out after 25ms \(run\)/);
+    ).rejects.toThrow(TursoWriteOutcomeUnknownError);
     await expect(
       adapter.batch([{ sql: "DELETE FROM players WHERE id = ?", params: [1] }])
-    ).rejects.toThrow(/Turso request timed out after 25ms \(batch\)/);
+    ).rejects.toThrow(TursoWriteOutcomeUnknownError);
     await expect(
       adapter.transaction(async () => "ok")
     ).rejects.toThrow(/Turso request timed out after 25ms \(transaction\.begin\)/);
@@ -85,18 +93,24 @@ describe("Phase 7.1 – TursoDbAdapter timeout, retry & database mode", () => {
       code: "SQLITE_BUSY",
     });
 
-    const executeMock = vi
-      .fn()
-      .mockRejectedValueOnce(transientErr)
-      .mockRejectedValueOnce(busyErr)
-      .mockResolvedValueOnce({
+    let readAttempts = 0;
+    const executeMock = vi.fn(async (stmt: unknown) => {
+      const sql = typeof stmt === "string" ? stmt : (stmt as { sql: string }).sql;
+      if (sql.includes("PRAGMA foreign_keys")) {
+        return { rows: [], columns: [], columnTypes: [], rowsAffected: 0, lastInsertRowid: undefined, toJSON: () => ({}) };
+      }
+      readAttempts += 1;
+      if (readAttempts === 1) throw transientErr;
+      if (readAttempts === 2) throw busyErr;
+      return {
         rows: [{ id: 1, ok: 1 }],
         columns: ["id", "ok"],
         columnTypes: ["INTEGER", "INTEGER"],
         rowsAffected: 0,
         lastInsertRowid: undefined,
         toJSON: () => ({}),
-      });
+      };
+    });
 
     const mockClient = createMockLibsqlClient({ execute: executeMock });
     const adapter = new TursoDbAdapter(mockClient, {
@@ -110,7 +124,7 @@ describe("Phase 7.1 – TursoDbAdapter timeout, retry & database mode", () => {
       "SELECT 1 AS id, 1 AS ok"
     );
     expect(row).toEqual({ id: 1, ok: 1 });
-    expect(executeMock).toHaveBeenCalledTimes(3);
+    expect(readAttempts).toBe(3);
   });
 
   it("does NOT retry non-transient SQL errors on read", async () => {
@@ -135,7 +149,15 @@ describe("Phase 7.1 – TursoDbAdapter timeout, retry & database mode", () => {
     const networkErr = Object.assign(new Error("network timeout"), {
       code: "ETIMEDOUT",
     });
-    const executeMock = vi.fn().mockRejectedValue(networkErr);
+    let writeCalls = 0;
+    const executeMock = vi.fn(async (stmt: unknown) => {
+      const sql = typeof stmt === "string" ? stmt : (stmt as { sql: string }).sql;
+      if (sql.includes("PRAGMA foreign_keys")) {
+        return { rows: [], columns: [], columnTypes: [], rowsAffected: 0, lastInsertRowid: undefined, toJSON: () => ({}) };
+      }
+      writeCalls += 1;
+      throw networkErr;
+    });
     const batchMock = vi.fn().mockRejectedValue(networkErr);
     const txMock = vi.fn().mockRejectedValue(networkErr);
 
@@ -153,7 +175,7 @@ describe("Phase 7.1 – TursoDbAdapter timeout, retry & database mode", () => {
     await expect(
       adapter.run("UPDATE team_settings SET default_match_fee = ?", [120000])
     ).rejects.toThrow(/network timeout/);
-    expect(executeMock).toHaveBeenCalledTimes(1);
+    expect(writeCalls).toBe(1);
 
     await expect(
       adapter.batch([{ sql: "DELETE FROM expenses WHERE id = ?", params: [99] }])
@@ -423,5 +445,99 @@ describe("F7.1-14 – Deterministic TursoDbAdapter Foreign-Key Initialization", 
     failInit = false;
     const rows = await adapter.query<{ ok: number }>("SELECT 1");
     expect(rows).toEqual([{ ok: 1 }]);
+  });
+});
+
+describe("F7.1-15 – Turso Write Timeout & Unknown Outcome", () => {
+  it("models write timeout as TursoWriteOutcomeUnknownError even if underlying promise settles later, and never retries", async () => {
+    let runCalls = 0;
+    let resolveDelayed!: (val: unknown) => void;
+    const executeMock = vi.fn(async (stmt: unknown) => {
+      const sql = typeof stmt === "string" ? stmt : (stmt as { sql: string }).sql;
+      if (sql.includes("PRAGMA foreign_keys")) {
+        return { rows: [], columns: [], columnTypes: [], rowsAffected: 0, lastInsertRowid: undefined, toJSON: () => ({}) };
+      }
+      runCalls += 1;
+      return new Promise((resolve) => {
+        resolveDelayed = resolve;
+      });
+    });
+
+    const adapter = new TursoDbAdapter(
+      createMockLibsqlClient({ execute: executeMock }),
+      { requestTimeoutMs: 25, maxReadRetries: 3, baseRetryDelayMs: 1 }
+    );
+
+    let caught: unknown;
+    try {
+      await adapter.run("INSERT INTO expenses (amount) VALUES (?)", [500000]);
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(TursoWriteOutcomeUnknownError);
+    const unknownErr = caught as TursoWriteOutcomeUnknownError;
+    expect(unknownErr.code).toBe("DB_WRITE_OUTCOME_UNKNOWN");
+    expect(unknownErr.outcome).toBe("unknown");
+    expect(unknownErr.retryable).toBe(false);
+    expect(unknownErr.reconcileRequired).toBe(true);
+    expect(unknownErr.operationType).toBe("run");
+    expect(unknownErr.message).not.toContain("500000");
+    expect(runCalls).toBe(1);
+
+    // Underlying operation completes after timeout — no unhandled rejection
+    resolveDelayed({ rows: [], rowsAffected: 1, lastInsertRowid: 1n });
+    await Promise.resolve();
+
+    const mapped = mapDatabaseErrorToHttpResponse(unknownErr);
+    expect(mapped?.status).toBe(503);
+    expect(mapped?.body).toMatchObject({
+      code: "DB_WRITE_OUTCOME_UNKNOWN",
+      retryable: false,
+      reconcileRequired: true,
+    });
+    expect(mapped?.body.error).toContain("Vui lòng không gửi lại");
+  });
+
+  it("treats transaction.commit timeout as unknown outcome without calling rollback or retrying", async () => {
+    const rollbackMock = vi.fn(async () => undefined);
+    const commitMock = vi.fn(() => new Promise<never>(() => {}));
+    const txObj = {
+      execute: vi.fn(async () => ({
+        rows: [],
+        rowsAffected: 1,
+        lastInsertRowid: 1n,
+      })),
+      executeMultiple: vi.fn(async () => undefined),
+      commit: commitMock,
+      rollback: rollbackMock,
+      close: vi.fn(),
+    };
+
+    const mockClient = createMockLibsqlClient({
+      execute: vi.fn(async () => ({
+        rows: [],
+        columns: [],
+        columnTypes: [],
+        rowsAffected: 0,
+        lastInsertRowid: undefined,
+        toJSON: () => ({}),
+      })),
+      transaction: vi.fn(async () => txObj as never),
+    });
+
+    const adapter = new TursoDbAdapter(mockClient, {
+      requestTimeoutMs: 25,
+      maxReadRetries: 2,
+    });
+
+    await expect(
+      adapter.transaction(async (tx) => {
+        await tx.run("UPDATE match_attendances SET paid = 1 WHERE id = ?", [10]);
+      })
+    ).rejects.toThrow(TursoWriteOutcomeUnknownError);
+
+    expect(commitMock).toHaveBeenCalledTimes(1);
+    expect(rollbackMock).not.toHaveBeenCalled();
   });
 });

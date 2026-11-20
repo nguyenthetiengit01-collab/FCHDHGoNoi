@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import os from "os";
+import crypto from "crypto";
 import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
 import { createClient, type Client, type InArgs } from "@libsql/client";
 import { EXPENSE_CATEGORIES, FANPAGE_URL } from "@/types/app";
@@ -192,6 +193,66 @@ export interface TursoAdapterOptions {
   maxRetryDelayMs?: number;
 }
 
+export class TursoWriteOutcomeUnknownError extends Error {
+  readonly code = "DB_WRITE_OUTCOME_UNKNOWN" as const;
+  readonly outcome = "unknown" as const;
+  readonly retryable = false as const;
+  readonly reconcileRequired = true as const;
+  readonly operationType: string;
+  readonly correlationId: string;
+  readonly timeoutMs: number;
+
+  constructor(params: {
+    operationType: string;
+    timeoutMs: number;
+    correlationId?: string;
+  }) {
+    const correlationId = params.correlationId || crypto.randomUUID();
+    super(
+      `Turso write outcome unknown after ${params.timeoutMs}ms timeout (${params.operationType}, correlationId=${correlationId})`
+    );
+    this.name = "TursoWriteOutcomeUnknownError";
+    this.operationType = params.operationType;
+    this.correlationId = correlationId;
+    this.timeoutMs = params.timeoutMs;
+  }
+}
+
+export function mapDatabaseErrorToHttpResponse(err: unknown): {
+  status: number;
+  body: {
+    error: string;
+    code: "DB_WRITE_OUTCOME_UNKNOWN";
+    retryable: false;
+    reconcileRequired: true;
+    correlationId: string;
+  };
+} | null {
+  if (
+    err instanceof TursoWriteOutcomeUnknownError ||
+    (err &&
+      typeof err === "object" &&
+      (err as { code?: unknown }).code === "DB_WRITE_OUTCOME_UNKNOWN")
+  ) {
+    const correlationId =
+      typeof (err as { correlationId?: unknown }).correlationId === "string"
+        ? (err as { correlationId: string }).correlationId
+        : crypto.randomUUID();
+    return {
+      status: 503,
+      body: {
+        error:
+          "Thao tác có thể đã được ghi nhận trên hệ thống. Vui lòng không gửi lại cho đến khi kiểm tra kết quả.",
+        code: "DB_WRITE_OUTCOME_UNKNOWN",
+        retryable: false,
+        reconcileRequired: true,
+        correlationId,
+      },
+    };
+  }
+  return null;
+}
+
 const DEFAULT_TURSO_REQUEST_TIMEOUT_MS = 5000;
 const DEFAULT_TURSO_MAX_READ_RETRIES = 2;
 const DEFAULT_TURSO_BASE_RETRY_DELAY_MS = 100;
@@ -311,7 +372,8 @@ export class TursoDbAdapter implements AsyncDb {
 
   private async withTimeout<T>(
     operation: () => Promise<T>,
-    label: string
+    label: string,
+    options: { isWrite?: boolean } = {}
   ): Promise<T> {
     const timeoutMs = this.requestTimeoutMs;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -321,6 +383,15 @@ export class TursoDbAdapter implements AsyncDb {
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
+        if (options.isWrite) {
+          reject(
+            new TursoWriteOutcomeUnknownError({
+              operationType: label,
+              timeoutMs,
+            })
+          );
+          return;
+        }
         const err = new Error(
           `Turso request timed out after ${timeoutMs}ms (${label})`
         ) as Error & { code?: string };
@@ -418,7 +489,8 @@ export class TursoDbAdapter implements AsyncDb {
     await this.ensureReady();
     const res = await this.withTimeout(
       () => this.client.execute({ sql, args: params as InArgs }),
-      "run"
+      "run",
+      { isWrite: true }
     );
     return {
       lastInsertRowid: Number(res.lastInsertRowid || 0),
@@ -440,7 +512,8 @@ export class TursoDbAdapter implements AsyncDb {
           })),
           "write"
         ),
-      "batch"
+      "batch",
+      { isWrite: true }
     );
   }
 
@@ -448,7 +521,8 @@ export class TursoDbAdapter implements AsyncDb {
     await this.ensureReady();
     await this.withTimeout(
       () => this.client.executeMultiple(sql),
-      "exec"
+      "exec",
+      { isWrite: true }
     );
   }
 
@@ -486,7 +560,8 @@ export class TursoDbAdapter implements AsyncDb {
       ): Promise<{ lastInsertRowid: number; changes: number }> => {
         const res = await this.withTimeout(
           () => tx.execute({ sql, args: params as InArgs }),
-          "transaction.run"
+          "transaction.run",
+          { isWrite: true }
         );
         return {
           lastInsertRowid: Number(res.lastInsertRowid || 0),
@@ -496,20 +571,28 @@ export class TursoDbAdapter implements AsyncDb {
       exec: async (sql: string): Promise<void> => {
         await this.withTimeout(
           () => tx.executeMultiple(sql),
-          "transaction.exec"
+          "transaction.exec",
+          { isWrite: true }
         );
       },
     };
 
     try {
       const result = await fn(txAdapter);
-      await this.withTimeout(() => tx.commit(), "transaction.commit");
+      await this.withTimeout(() => tx.commit(), "transaction.commit", {
+        isWrite: true,
+      });
       return result;
     } catch (err) {
-      try {
-        await this.withTimeout(() => tx.rollback(), "transaction.rollback");
-      } catch {
-        // rollback fail-safe
+      const commitTimedOut =
+        err instanceof TursoWriteOutcomeUnknownError &&
+        err.operationType === "transaction.commit";
+      if (!commitTimedOut) {
+        try {
+          await this.withTimeout(() => tx.rollback(), "transaction.rollback");
+        } catch {
+          // rollback fail-safe
+        }
       }
       throw err;
     } finally {
