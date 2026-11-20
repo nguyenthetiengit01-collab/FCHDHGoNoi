@@ -4,7 +4,11 @@ const isDev = process.env.NODE_ENV !== "production";
 
 /**
  * Content-Security-Policy (enforced):
- * - Allows 'unsafe-inline' for Next.js 15 App Router hydration scripts and Tailwind CSS v4 styles.
+ * - Allows 'unsafe-inline' for Next.js 15 App Router static prerendering hydration scripts
+ *   and Tailwind CSS v4 inline styles. Adopting strict nonce-based CSP requires middleware
+ *   per-request nonces and dynamic rendering on public static routes, plus Preview smoke verification.
+ * - Residual limitation: 'unsafe-inline' weakens XSS defense-in-depth; treat CSP here as
+ *   a baseline framing/source restriction rather than full XSS mitigation.
  * - Allows 'unsafe-eval' only in development for React Fast Refresh / HMR.
  * - Allows data:/blob:/https: for WebP data URLs, QR codes, and Vercel Blob media assets.
  * - Restricts framing (frame-ancestors 'none') and plugins (object-src 'none').

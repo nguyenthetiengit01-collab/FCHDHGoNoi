@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { requirePlayerSession, verifyCsrfOrigin } from "@/lib/auth";
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // 4MB an toàn dưới ngưỡng 4.5MB của Vercel Serverless
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, must-revalidate",
 };
@@ -33,6 +33,17 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get("content-type") || "";
 
     if (contentType.includes("multipart/form-data")) {
+      const contentLengthHeader = req.headers.get("content-length");
+      if (contentLengthHeader !== null) {
+        const parsedLength = Number(contentLengthHeader);
+        if (Number.isFinite(parsedLength) && parsedLength > MAX_UPLOAD_BYTES) {
+          return NextResponse.json(
+            { error: "Kích thước ảnh vượt quá giới hạn tối đa 4MB của máy chủ" },
+            { status: 413, headers: NO_STORE_HEADERS }
+          );
+        }
+      }
+
       const formData = await req.formData();
       const file = formData.get("file") as File | null;
       if (!file) {
@@ -44,7 +55,7 @@ export async function POST(req: NextRequest) {
 
       if (file.size > MAX_UPLOAD_BYTES) {
         return NextResponse.json(
-          { error: "Kích thước ảnh vượt quá giới hạn tối đa 10MB" },
+          { error: "Kích thước ảnh vượt quá giới hạn tối đa 4MB của máy chủ" },
           { status: 413, headers: NO_STORE_HEADERS }
         );
       }
@@ -54,6 +65,12 @@ export async function POST(req: NextRequest) {
       const quality = clampInt(formData.get("quality"), 85, 40, 95);
 
       const arrayBuffer = await file.arrayBuffer();
+      if (arrayBuffer.byteLength > MAX_UPLOAD_BYTES) {
+        return NextResponse.json(
+          { error: "Kích thước ảnh vượt quá giới hạn tối đa 4MB của máy chủ" },
+          { status: 413, headers: NO_STORE_HEADERS }
+        );
+      }
       const inputBuffer = Buffer.from(arrayBuffer);
 
       const webpBuffer = await sharp(inputBuffer)

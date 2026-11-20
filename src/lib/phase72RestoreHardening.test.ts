@@ -45,8 +45,8 @@ function makeValidV3Backup() {
           sql: "CREATE INDEX idx_members_team ON members(team_id)",
         },
       ],
-      triggers: [],
-      views: [],
+      triggers: [] as Array<{ name: string; sql: string }>,
+      views: [] as Array<{ name: string; sql: string }>,
     },
     tables: {
       teams: [{ id: 1, name: "Synthetic FC" }],
@@ -304,5 +304,40 @@ describe("Phase 7.2 – Restore Payload Validation & Failure Injection", () => {
         { client: mockClient, keepClientOpen: true }
       )
     ).rejects.toThrow(/not empty/);
+  });
+
+  it("rejects malicious/malformed DDL: table name mismatch, appended SQL statement, duplicate object, malformed trigger/view, and duplicate sequence", () => {
+    const mismatch = makeValidV3Backup();
+    mismatch.objects.tables[0].sql = "CREATE TABLE other_tbl (id INTEGER PRIMARY KEY)";
+    mismatch.schema.teams = mismatch.objects.tables[0].sql;
+    expect(() => validateBackupPayload(mismatch)).toThrow(/name mismatch/);
+
+    const appendedStmt = makeValidV3Backup();
+    appendedStmt.objects.tables[0].sql =
+      "CREATE TABLE teams (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL); DROP TABLE members;";
+    appendedStmt.schema.teams = appendedStmt.objects.tables[0].sql;
+    expect(() => validateBackupPayload(appendedStmt)).toThrow(/malformed tables DDL/);
+
+    const dupObj = makeValidV3Backup();
+    dupObj.objects.indexes.push({ ...dupObj.objects.indexes[0] });
+    expect(() => validateBackupPayload(dupObj)).toThrow(/duplicate indexes/);
+
+    const badTrigger = makeValidV3Backup();
+    badTrigger.objects.triggers.push({
+      name: "trg_evil",
+      sql: "CREATE TABLE trg_evil (id INT)",
+    });
+    expect(() => validateBackupPayload(badTrigger)).toThrow(/malformed triggers DDL/);
+
+    const badView = makeValidV3Backup();
+    badView.objects.views.push({
+      name: "v_evil",
+      sql: "CREATE VIEW v_other AS SELECT 1",
+    });
+    expect(() => validateBackupPayload(badView)).toThrow(/name mismatch/);
+
+    const dupSeq = makeValidV3Backup();
+    dupSeq.sequences.push({ name: "teams", seq: 5 });
+    expect(() => validateBackupPayload(dupSeq)).toThrow(/duplicate sqlite_sequence/);
   });
 });

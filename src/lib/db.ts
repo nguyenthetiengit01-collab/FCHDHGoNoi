@@ -1456,9 +1456,10 @@ const ATTENDANCE_MATRIX: Record<string, number[]> = {
   "Nguyễn Tấn Tuấn":     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
 };
 
-function hashSeedDefaultPin(pin = "1234"): string {
+function hashRandomUnclaimedPin(): string {
+  const randomSecret = crypto.randomBytes(24).toString("base64url");
   const salt = crypto.randomBytes(16).toString("hex");
-  const derived = crypto.scryptSync(pin, salt, 64).toString("hex");
+  const derived = crypto.scryptSync(randomSecret, salt, 64).toString("hex");
   return `scrypt$${salt}$${derived}`;
 }
 
@@ -1523,7 +1524,7 @@ export async function seedAsyncInitialDataIfNeeded(
           p.bio,
           p.role,
           p.access_role,
-          hashSeedDefaultPin("1234"),
+          hashRandomUnclaimedPin(),
         ]
       );
       playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
@@ -1686,7 +1687,7 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
         p.bio,
         p.role,
         p.access_role,
-        hashSeedDefaultPin("1234")
+        hashRandomUnclaimedPin()
       );
       playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
     }

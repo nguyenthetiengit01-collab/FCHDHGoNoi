@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getAsyncDb,
@@ -398,7 +399,7 @@ export async function POST(req: NextRequest) {
             [Number(id)]
           );
           const rawPin = String(pin_code || "").trim();
-          let finalPin = existing?.pin_code || hashPassword("1234");
+          let finalPin = existing?.pin_code || hashPassword(crypto.randomBytes(24).toString("base64url"));
           if (rawPin) {
             finalPin = rawPin.startsWith("scrypt$") ? rawPin : hashPassword(rawPin);
           }
@@ -486,9 +487,15 @@ export async function POST(req: NextRequest) {
               typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
               access_role === "manager" ? "manager" : "player",
-              String(pin_code || "1234").trim().startsWith("scrypt$")
-                ? String(pin_code || "1234").trim()
-                : hashPassword(String(pin_code || "1234").trim()),
+              (() => {
+                const rawCreatePin = String(pin_code || "").trim();
+                if (!rawCreatePin) {
+                  return hashPassword(crypto.randomBytes(24).toString("base64url"));
+                }
+                return rawCreatePin.startsWith("scrypt$")
+                  ? rawCreatePin
+                  : hashPassword(rawCreatePin);
+              })(),
               status || "Đang sinh hoạt",
               notes || "",
               String(hometown || "").trim(),
@@ -654,13 +661,14 @@ export async function POST(req: NextRequest) {
             { status: 404 }
           );
         }
-        if (!verifyPassword(providedOldPin, row.pin_code || "1234")) {
+        if (!verifyPassword(providedOldPin, row.pin_code)) {
           return NextResponse.json(
             { error: "Mật khẩu hiện tại không đúng. Vui lòng kiểm tra lại hoặc liên hệ Ban Quản Lý." },
             { status: 400 }
           );
         }
 
+        // Validate ALL fields before any database write
         if (cleanNewUser) {
           if (cleanNewUser.length < 3) {
             return NextResponse.json(
@@ -678,12 +686,9 @@ export async function POST(req: NextRequest) {
               { status: 400 }
             );
           }
-          await db.run(
-            "UPDATE players SET username = ? WHERE id = ?",
-            [cleanNewUser, Number(player_id)]
-          );
         }
 
+        let hashedPinToPersist: string | null = null;
         if (cleanNewPin) {
           const strength = validatePasswordStrength(cleanNewPin, cleanNewUser || row.username);
           if (!strength.valid) {
@@ -692,23 +697,74 @@ export async function POST(req: NextRequest) {
               { status: 400 }
             );
           }
-          const hashedPin = hashPassword(cleanNewPin);
-          await db.run(
-            "UPDATE players SET pin_code = ? WHERE id = ?",
-            [hashedPin, Number(player_id)]
-          );
+          hashedPinToPersist = hashPassword(cleanNewPin);
+        }
+
+        if (cleanNewUser || hashedPinToPersist) {
+          try {
+            await db.transaction(async (tx) => {
+              if (cleanNewUser) {
+                await tx.run(
+                  "UPDATE players SET username = ? WHERE id = ?",
+                  [cleanNewUser, Number(player_id)]
+                );
+              }
+              if (hashedPinToPersist) {
+                await tx.run(
+                  "UPDATE players SET pin_code = ? WHERE id = ?",
+                  [hashedPinToPersist, Number(player_id)]
+                );
+              }
+            });
+          } catch (txErr) {
+            const msg = txErr instanceof Error ? txErr.message.toLowerCase() : "";
+            if (msg.includes("unique") || msg.includes("constraint")) {
+              return NextResponse.json(
+                { error: "Tên đăng nhập này đã có người sử dụng. Vui lòng chọn tên khác." },
+                { status: 400 }
+              );
+            }
+            throw txErr;
+          }
         }
         break;
       }
 
-      // Ban quản lý reset mật khẩu giúp cầu thủ
+      // Ban quản lý reset mật khẩu giúp cầu thủ (bắt buộc nhập PIN mạnh tường minh, không fallback "1234")
       case "reset_player_password": {
         const { player_id, new_pin } = payload;
-        const cleanPin = String(new_pin || "1234").trim() || "1234";
+        const playerIdCheck = parsePositiveIntId(player_id, "Mã cầu thủ");
+        if (!playerIdCheck.ok) {
+          return NextResponse.json({ error: playerIdCheck.error }, { status: 400 });
+        }
+        const cleanPin = typeof new_pin === "string" ? new_pin.trim() : "";
+        if (!cleanPin) {
+          return NextResponse.json(
+            { error: "Vui lòng nhập mật khẩu mới (PIN) rõ ràng khi đặt lại mật khẩu." },
+            { status: 400 }
+          );
+        }
+        const targetRow = await db.queryOne<{ id: number; username: string }>(
+          "SELECT id, username FROM players WHERE id = ?",
+          [playerIdCheck.value]
+        );
+        if (!targetRow) {
+          return NextResponse.json(
+            { error: "Không tìm thấy hồ sơ cầu thủ." },
+            { status: 404 }
+          );
+        }
+        const strength = validatePasswordStrength(cleanPin, targetRow.username);
+        if (!strength.valid) {
+          return NextResponse.json(
+            { error: strength.message || "Mật khẩu đặt lại chưa đủ an toàn." },
+            { status: 400 }
+          );
+        }
         const hashedPin = hashPassword(cleanPin);
         await db.run(
           "UPDATE players SET pin_code = ? WHERE id = ?",
-          [hashedPin, Number(player_id)]
+          [hashedPin, playerIdCheck.value]
         );
         break;
       }
@@ -786,147 +842,157 @@ export async function POST(req: NextRequest) {
         }
 
         if (validMatchId !== null) {
-          await db.run(
-            `UPDATE matches
-            SET match_number = ?, label = ?, match_date = ?, kickoff_time = ?,
-                venue = ?, opponent = ?, fee_per_player = ?, pitch_cost = ?,
-                payer_name = ?, team_score = ?, opponent_score = ?, status = ?, notes = ?
-            WHERE id = ?`,
-            [
-              Number(match_number) || 1,
-              label || `Trận ${match_number}`,
-              match_date || "2026-11-03",
-              kickoff_time || "19:00",
-              venue || "Sân Vĩnh Lộc",
-              opponent || "Giao hữu / Nội bộ",
-              fee,
-              pitchCostNum,
-              payer_name || "Tiếng",
-              team_score !== "" &&
-                team_score !== null &&
-                team_score !== undefined
-                ? Number(team_score)
-                : null,
-              opponent_score !== "" &&
-                opponent_score !== null &&
-                opponent_score !== undefined
-                ? Number(opponent_score)
-                : null,
-              status || "Đã kết thúc",
-              notes || "",
-              Number(id),
-            ]
-          );
-
-          if (sync_pitch_expense && pitchCostNum > 0) {
-            const existingExp = await db.queryOne<{ id: number }>(
-              "SELECT id FROM expenses WHERE match_id = ? AND category = 'Tiền sân'",
-              [Number(id)]
+          await db.transaction(async (tx) => {
+            await tx.run(
+              `UPDATE matches
+              SET match_number = ?, label = ?, match_date = ?, kickoff_time = ?,
+                  venue = ?, opponent = ?, fee_per_player = ?, pitch_cost = ?,
+                  payer_name = ?, team_score = ?, opponent_score = ?, status = ?, notes = ?
+              WHERE id = ?`,
+              [
+                Number(match_number) || 1,
+                label || `Trận ${match_number}`,
+                match_date || "2026-11-03",
+                kickoff_time || "19:00",
+                venue || "Sân Vĩnh Lộc",
+                opponent || "Giao hữu / Nội bộ",
+                fee,
+                pitchCostNum,
+                payer_name || "Tiếng",
+                team_score !== "" &&
+                  team_score !== null &&
+                  team_score !== undefined
+                  ? Number(team_score)
+                  : null,
+                opponent_score !== "" &&
+                  opponent_score !== null &&
+                  opponent_score !== undefined
+                  ? Number(opponent_score)
+                  : null,
+                status || "Đã kết thúc",
+                notes || "",
+                Number(id),
+              ]
             );
-            if (existingExp) {
-              await db.run(
-                `UPDATE expenses
-                SET expense_date = ?, description = ?, amount = ?, payer = ?
-                WHERE id = ?`,
-                [
-                  match_date,
-                  `Tiền sân ${label}`,
-                  pitchCostNum,
-                  payer_name || "Tiếng",
-                  existingExp.id,
-                ]
+
+            if (sync_pitch_expense && pitchCostNum > 0) {
+              const existingExp = await tx.queryOne<{ id: number }>(
+                "SELECT id FROM expenses WHERE match_id = ? AND category = 'Tiền sân'",
+                [Number(id)]
               );
-            } else {
-              await db.run(
+              if (existingExp) {
+                await tx.run(
+                  `UPDATE expenses
+                  SET expense_date = ?, description = ?, amount = ?, payer = ?
+                  WHERE id = ?`,
+                  [
+                    match_date,
+                    `Tiền sân ${label}`,
+                    pitchCostNum,
+                    payer_name || "Tiếng",
+                    existingExp.id,
+                  ]
+                );
+              } else {
+                await tx.run(
+                  `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+                  VALUES (?, 'Tiền sân', ?, ?, ?, ?)`,
+                  [
+                    match_date,
+                    `Tiền sân ${label}`,
+                    pitchCostNum,
+                    payer_name || "Tiếng",
+                    Number(id),
+                  ]
+                );
+              }
+            }
+          });
+        } else {
+          await db.transaction(async (tx) => {
+            const maxMatch = await tx.queryOne<{ maxNum: number }>(
+              "SELECT COALESCE(MAX(match_number), 0) as maxNum FROM matches"
+            );
+            const nextNum = Number(match_number) || ((maxMatch?.maxNum ?? 0) + 1);
+            const dateStr = match_date || new Date().toISOString().slice(0, 10);
+            const [, monthStr, dayStr] = dateStr.split("-");
+            const computedLabel =
+              String(label || "").trim() ||
+              `Trận ${nextNum} - ${dayStr}/${Number(monthStr)}`;
+
+            const res = await tx.run(
+              `INSERT INTO matches (
+                match_number, label, match_date, kickoff_time, venue,
+                opponent, fee_per_player, pitch_cost, payer_name,
+                team_score, opponent_score, status, notes
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                nextNum,
+                computedLabel,
+                dateStr,
+                kickoff_time || "19:00",
+                venue || "Sân Vĩnh Lộc",
+                opponent || "Giao hữu / Nội bộ",
+                fee,
+                pitchCostNum,
+                payer_name || "Tiếng",
+                team_score !== "" &&
+                  team_score !== null &&
+                  team_score !== undefined
+                  ? Number(team_score)
+                  : null,
+                opponent_score !== "" &&
+                  opponent_score !== null &&
+                  opponent_score !== undefined
+                  ? Number(opponent_score)
+                  : null,
+                status || "Sắp diễn ra",
+                notes || "",
+              ]
+            );
+
+            const newMatchId = Number(res.lastInsertRowid);
+            const allPlayers = await tx.query<{ id: number }>(
+              "SELECT id FROM players"
+            );
+            for (const p of allPlayers) {
+              await tx.run(
+                `INSERT OR IGNORE INTO match_attendances (
+                  match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
+                )
+                VALUES (?, ?, 'none', 0, 0, 0, 0, '', '')`,
+                [newMatchId, p.id]
+              );
+            }
+
+            if (sync_pitch_expense && pitchCostNum > 0) {
+              await tx.run(
                 `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
                 VALUES (?, 'Tiền sân', ?, ?, ?, ?)`,
                 [
-                  match_date,
-                  `Tiền sân ${label}`,
+                  dateStr,
+                  `Tiền sân trận tuần ${nextNum} (${computedLabel})`,
                   pitchCostNum,
                   payer_name || "Tiếng",
-                  Number(id),
+                  newMatchId,
                 ]
               );
             }
-          }
-        } else {
-          const maxMatch = await db.queryOne<{ maxNum: number }>(
-            "SELECT COALESCE(MAX(match_number), 0) as maxNum FROM matches"
-          );
-          const nextNum = Number(match_number) || ((maxMatch?.maxNum ?? 0) + 1);
-          const dateStr = match_date || new Date().toISOString().slice(0, 10);
-          const [, monthStr, dayStr] = dateStr.split("-");
-          const computedLabel =
-            String(label || "").trim() ||
-            `Trận ${nextNum} - ${dayStr}/${Number(monthStr)}`;
-
-          const res = await db.run(
-            `INSERT INTO matches (
-              match_number, label, match_date, kickoff_time, venue,
-              opponent, fee_per_player, pitch_cost, payer_name,
-              team_score, opponent_score, status, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              nextNum,
-              computedLabel,
-              dateStr,
-              kickoff_time || "19:00",
-              venue || "Sân Vĩnh Lộc",
-              opponent || "Giao hữu / Nội bộ",
-              fee,
-              pitchCostNum,
-              payer_name || "Tiếng",
-              team_score !== "" &&
-                team_score !== null &&
-                team_score !== undefined
-                ? Number(team_score)
-                : null,
-              opponent_score !== "" &&
-                opponent_score !== null &&
-                opponent_score !== undefined
-                ? Number(opponent_score)
-                : null,
-              status || "Sắp diễn ra",
-              notes || "",
-            ]
-          );
-
-          const newMatchId = Number(res.lastInsertRowid);
-          const allPlayers = await db.query<{ id: number }>(
-            "SELECT id FROM players"
-          );
-          for (const p of allPlayers) {
-            await db.run(
-              `INSERT OR IGNORE INTO match_attendances (
-                match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
-              )
-              VALUES (?, ?, 'none', 0, 0, 0, 0, '', '')`,
-              [newMatchId, p.id]
-            );
-          }
-
-          if (sync_pitch_expense && pitchCostNum > 0) {
-            await db.run(
-              `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
-              VALUES (?, 'Tiền sân', ?, ?, ?, ?)`,
-              [
-                dateStr,
-                `Tiền sân trận tuần ${nextNum} (${computedLabel})`,
-                pitchCostNum,
-                payer_name || "Tiếng",
-                newMatchId,
-              ]
-            );
-          }
+          });
         }
         break;
       }
 
       case "delete_match": {
         const { id } = payload;
-        await db.run("DELETE FROM expenses WHERE match_id = ?", [Number(id)]);
-        await db.run("DELETE FROM matches WHERE id = ?", [Number(id)]);
+        const idCheck = parsePositiveIntId(id, "Mã trận đấu");
+        if (!idCheck.ok) {
+          return NextResponse.json({ error: idCheck.error }, { status: 400 });
+        }
+        await db.transaction(async (tx) => {
+          await tx.run("DELETE FROM expenses WHERE match_id = ?", [idCheck.value]);
+          await tx.run("DELETE FROM matches WHERE id = ?", [idCheck.value]);
+        });
         break;
       }
 
@@ -1399,57 +1465,63 @@ export async function POST(req: NextRequest) {
           targetPlayerId = playerIdCheck.value;
         }
 
-        if (!targetPlayerId && String(new_player_name || "").trim()) {
-          const cleanName = String(new_player_name).trim();
-          const derivedShort =
-            cleanName.split(/\s+/).slice(-1)[0] || cleanName;
-          const maxRow = await db.queryOne<{ maxOrder: number }>(
-            "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
-          );
-          const res = await db.run(
-            `INSERT INTO players (
-              code_order, full_name, short_name, jersey_number,
-              position, phone, role, access_role, pin_code, status, notes
-            )
-            VALUES (?, ?, ?, NULL, 'Đa năng', '', 'Thành viên', 'player', ?, 'Đang sinh hoạt', 'Bổ sung trực tiếp tại sân')`,
-            [
-              ((maxRow?.maxOrder ?? 0) + 1),
-              cleanName,
-              derivedShort,
-              hashPassword("1234"),
-            ]
-          );
-          targetPlayerId = Number(res.lastInsertRowid);
-        }
-
-        if (!targetPlayerId) {
+        const cleanWalkinName = String(new_player_name || "").trim();
+        if (!targetPlayerId && !cleanWalkinName) {
           return NextResponse.json(
             { error: "Vui lòng chọn cầu thủ hoặc nhập tên cầu thủ tham gia" },
             { status: 400 }
           );
         }
 
-        await db.run(
-          `INSERT INTO match_attendances (
-            match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
-          )
-          VALUES (?, ?, 'none', 1, 1, ?, ?, ?, 'Tham gia không đăng ký trước')
-          ON CONFLICT(match_id, player_id)
-          DO UPDATE SET
-            walk_in = 1,
-            attended = 1,
-            paid = excluded.paid,
-            amount = excluded.amount,
-            collected_by = excluded.collected_by,
-            note = 'Tham gia không đăng ký trước'`,
-          [
-            matchIdCheck.value,
-            targetPlayerId,
-            isPaid,
-            feeAmount,
-            String(collected_by || "Tiếng"),
-          ]
-        );
+        await db.transaction(async (tx) => {
+          let finalPlayerId = targetPlayerId;
+          if (!finalPlayerId && cleanWalkinName) {
+            const derivedShort =
+              cleanWalkinName.split(/\s+/).slice(-1)[0] || cleanWalkinName;
+            const maxRow = await tx.queryOne<{ maxOrder: number }>(
+              "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
+            );
+            const randomPinHash = hashPassword(
+              crypto.randomBytes(24).toString("base64url")
+            );
+            const res = await tx.run(
+              `INSERT INTO players (
+                code_order, full_name, short_name, jersey_number,
+                position, phone, role, access_role, pin_code, status, notes
+              )
+              VALUES (?, ?, ?, NULL, 'Đa năng', '', 'Thành viên', 'player', ?, 'Đang sinh hoạt', 'Bổ sung trực tiếp tại sân')`,
+              [
+                ((maxRow?.maxOrder ?? 0) + 1),
+                cleanWalkinName,
+                derivedShort,
+                randomPinHash,
+              ]
+            );
+            finalPlayerId = Number(res.lastInsertRowid);
+          }
+
+          await tx.run(
+            `INSERT INTO match_attendances (
+              match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
+            )
+            VALUES (?, ?, 'none', 1, 1, ?, ?, ?, 'Tham gia không đăng ký trước')
+            ON CONFLICT(match_id, player_id)
+            DO UPDATE SET
+              walk_in = 1,
+              attended = 1,
+              paid = excluded.paid,
+              amount = excluded.amount,
+              collected_by = excluded.collected_by,
+              note = 'Tham gia không đăng ký trước'`,
+            [
+              matchIdCheck.value,
+              finalPlayerId,
+              isPaid,
+              feeAmount,
+              String(collected_by || "Tiếng"),
+            ]
+          );
+        });
         break;
       }
 

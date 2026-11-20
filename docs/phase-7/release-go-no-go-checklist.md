@@ -53,6 +53,8 @@
 ### E. Operations, DR & Staging (`P1-10`–`P1-13`, `P2-14`)
 - [ ] Document RPO, RTO, restore drill cadence, DR owners, SEV1–SEV4 tiers, communication template, PIR process, credential-exposure playbook, and core schema rollback policy in `docs/operations-runbook.md`.
 - [ ] Add failure notification to `.github/workflows/turso-backup.yml` and confirm first scheduled run (`2026-11-22`).
+- [ ] **P1-03 Historical Public Git Exposure Classification**: Owner classifies whether historical `data/gonoifc.sqlite` (`c37dfd32` blob `67f415fac8aaf1e80b22c356d01fa1f782083a03`) contained real PII/credentials and executes incident response if needed.
+- [ ] **Batch Fee Idempotency (`P3-04` / `F7.1-15`)**: Remains **OPEN** pending owner approval of DB-level `idempotency_keys` migration.
 - [ ] Execute Staging Rehearsal Plan (`docs/phase-7/disaster-recovery-and-staging-rehearsal.md`) and record evidence.
 - [ ] Owner confirms Vercel Production env vars (`TURSO_*`, `AUTH_SECRET`, `UPSTASH_REDIS_*`, `CRON_SECRET`, `MEDIA_STORAGE_ENABLED=false`, `ANALYTICS_ENABLED=false`) are distinct from Preview and offline backup private key custody is verified.
 

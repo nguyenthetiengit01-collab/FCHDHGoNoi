@@ -37,7 +37,18 @@ Independently verified via GitHub API on 2026-11-20:
 ### Idempotency & Reconciliation Design Note (`F7.1-15`)
 - `collect_match_fees_batch` (`src/app/api/team/route.ts:1208-1210`) currently accepts `idempotency_key` (`void idempotency_key;`) without DB-level persistence (`P3-04` remains **OPEN**).
 - Per audit guardrails, no in-memory-only idempotency cache was added. All financial mutations (`collect_match_fee`, `collect_match_fees_batch`, `upsert_expense`, `upsert_other_income`) are documented as **reconciliation-required** when `DB_WRITE_OUTCOME_UNKNOWN` (`503`) occurs.
-- **Proposed DB-level Idempotency Design (For Owner Approval)**: Add an `idempotency_keys (key TEXT PRIMARY KEY, action TEXT NOT NULL, actor_id INTEGER NOT NULL, status TEXT NOT NULL, response_json TEXT, created_at TEXT NOT NULL)` table in a future migration so financial batch writes check/insert the key inside the same `db.transaction(...)`.
+- **Proposed DB-level Idempotency Design (For Owner Approval — Status: OPEN)**:
+  - Table `idempotency_keys (key TEXT PRIMARY KEY, actor_id INTEGER NOT NULL, action TEXT NOT NULL, payload_fingerprint TEXT NOT NULL, status TEXT NOT NULL, response_json TEXT, created_at TEXT NOT NULL)`.
+  - Retry with same `key` + same `payload_fingerprint` returns stored `response_json` without duplicating financial writes; reused `key` with a different `payload_fingerprint` is rejected (`409 Conflict`).
+
+### Phase 7.1.2 Residual Hardening Summary
+- **P1-03 Historical Exposure**: Current working tree remediated (`data/gonoifc.sqlite` deleted from PR #16, `0` `.nft.json` traces); historical public Git blob (`67f415fac8aaf1e80b22c356d01fa1f782083a03` in `c37dfd32`) awaits **Owner Classification**.
+- **`change_own_password` Atomicity**: All fields (current PIN, username length/uniqueness, new PIN strength) are validated before any write, then persisted inside one `db.transaction(...)`.
+- **Predictable Default PIN Removed**: `add_walkin_player`, `save_player`, and `seed*` generate unguessable random `scrypt$` hashes; `reset_player_password` requires an explicit strong PIN (`400` on missing/weak).
+- **`P2-08` Financial Multi-Write Atomicity**: `add_walkin_player`, `upsert_match`, and `delete_match` wrapped in `db.transaction(...)` (`recordAuditLog` remains outside `tx`).
+- **`P2-05` Serverless Upload Limits**: `/api/import` and `/api/webp` capped at `4 MB` (`413` on `Content-Length`, `file.size`, and actual body bytes).
+- **Restore DDL Hardening**: `scripts/lib/backup-format.mjs` enforces lexical single-statement SQL, exact `object.name` extraction match, duplicate object rejection, and `schema === objects.tables` parity.
+- **CSP Baseline Limitation**: `next.config.ts` retains `'unsafe-inline'` for Next.js 15 static prerendering & Tailwind CSS v4 compatibility; full nonce-based CSP requires `middleware.ts` dynamic rendering and Preview smoke verification.
 
 ---
 

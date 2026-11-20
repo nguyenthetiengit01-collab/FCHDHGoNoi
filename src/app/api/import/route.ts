@@ -18,7 +18,7 @@ import {
 import { recordPlayerLifecycleEvent } from "@/lib/analytics/lifecycle";
 import type { Player } from "@/types/app";
 
-const MAX_IMPORT_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn 5MB chống cạn kiệt bộ nhớ
+const MAX_IMPORT_SIZE_BYTES = 4 * 1024 * 1024; // Giới hạn 4MB an toàn dưới ngưỡng 4.5MB của Vercel Serverless
 
 class ImportValidationError extends Error {
   constructor(message: string) {
@@ -608,16 +608,38 @@ export async function POST(req: NextRequest) {
           { status: 400, headers: { "Cache-Control": "no-store" } }
         );
       }
+      const contentLengthHeader = req.headers.get("content-length");
+      if (contentLengthHeader !== null) {
+        const parsedLength = Number(contentLengthHeader);
+        if (Number.isFinite(parsedLength) && parsedLength > MAX_IMPORT_SIZE_BYTES) {
+          return NextResponse.json(
+            {
+              error:
+                "Kích thước file vượt quá giới hạn cho phép của máy chủ (tối đa 4MB).",
+            },
+            { status: 413, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+      }
       if (file.size > MAX_IMPORT_SIZE_BYTES) {
         return NextResponse.json(
           {
             error:
-              "Kích thước file vượt quá giới hạn cho phép (tối đa 5MB).",
+              "Kích thước file vượt quá giới hạn cho phép của máy chủ (tối đa 4MB).",
           },
-          { status: 400, headers: { "Cache-Control": "no-store" } }
+          { status: 413, headers: { "Cache-Control": "no-store" } }
         );
       }
       const arrayBuffer = await file.arrayBuffer();
+      if (arrayBuffer.byteLength > MAX_IMPORT_SIZE_BYTES) {
+        return NextResponse.json(
+          {
+            error:
+              "Kích thước file vượt quá giới hạn cho phép của máy chủ (tối đa 4MB).",
+          },
+          { status: 413, headers: { "Cache-Control": "no-store" } }
+        );
+      }
       buffer = Buffer.from(arrayBuffer);
     } else {
       const localPath = path.join(

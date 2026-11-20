@@ -772,7 +772,7 @@ describe("Phase 7.1 – Authentication, RBAC & Privacy Remediation", () => {
     }
   });
 
-  it("F7.1-16: hashes walk-in default PIN with scrypt, omits pin_code from API response, and preserves reset/change flow", async () => {
+  it("F7.1-16 / P2: hashes walk-in credential with unguessable scrypt hash (never '1234'), omits pin_code, and supports manager strong reset + change_own_password", async () => {
     const { raw, db } = createPhase71TestDb();
     vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(db);
     spyFullAppDataFromTestDb(raw);
@@ -820,10 +820,29 @@ describe("Phase 7.1 – Authentication, RBAC & Privacy Remediation", () => {
 
       expect(stored.pin_code).not.toBe("1234");
       expect(stored.pin_code.startsWith("scrypt$")).toBe(true);
-      expect(verifyPassword("1234", stored.pin_code)).toBe(true);
-      expect(verifyPassword("9999", stored.pin_code)).toBe(false);
+      expect(verifyPassword("1234", stored.pin_code)).toBe(false);
 
-      // Walk-in player can change own PIN from default "1234"
+      // Manager explicitly resets walk-in player's PIN to a strong credential
+      const resetRes = await postTeamRoute(
+        new NextRequest("http://localhost:3000/api/team", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            cookie: `${SESSION_COOKIE_NAME}=${mgrToken}`,
+          },
+          body: JSON.stringify({
+            action: "reset_player_password",
+            payload: {
+              player_id: stored.id,
+              new_pin: "WalkinInit@2026",
+            },
+          }),
+        })
+      );
+      expect(resetRes.status).toBe(200);
+
+      // Walk-in player can now change own PIN using the manager-assigned credential
       const walkinPlayerRow = raw
         .prepare("SELECT * FROM players WHERE id = ?")
         .get(stored.id) as unknown as Player;
@@ -841,7 +860,7 @@ describe("Phase 7.1 – Authentication, RBAC & Privacy Remediation", () => {
             action: "change_own_password",
             payload: {
               player_id: stored.id,
-              old_pin: "1234",
+              old_pin: "WalkinInit@2026",
               new_pin: "WalkinNew@2026",
             },
           }),
@@ -853,7 +872,7 @@ describe("Phase 7.1 – Authentication, RBAC & Privacy Remediation", () => {
         .prepare("SELECT pin_code FROM players WHERE id = ?")
         .get(stored.id) as { pin_code: string };
       expect(verifyPassword("WalkinNew@2026", updatedStored.pin_code)).toBe(true);
-      expect(verifyPassword("1234", updatedStored.pin_code)).toBe(false);
+      expect(verifyPassword("WalkinInit@2026", updatedStored.pin_code)).toBe(false);
     } finally {
       raw.close();
     }
