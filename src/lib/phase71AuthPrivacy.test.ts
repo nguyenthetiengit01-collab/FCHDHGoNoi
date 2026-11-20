@@ -11,6 +11,7 @@ import { POST as postImportRoute } from "@/app/api/import/route";
 import {
   createSessionToken,
   hashPassword,
+  verifyPassword,
   projectSafePlayer,
   sanitizeTeamResponseData,
   SESSION_COOKIE_NAME,
