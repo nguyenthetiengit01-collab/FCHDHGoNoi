@@ -318,6 +318,12 @@ describe("Backup/Restore v3 – Full Schema Completeness & Backward Compatibilit
           triggers: [],
           views: [],
         },
+        schema: {
+          parents: "CREATE TABLE parents (id INTEGER PRIMARY KEY)",
+          children:
+            "CREATE TABLE children (id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL REFERENCES parents(id))",
+        },
+        sequences: [],
         rowCounts: { parents: 1, children: 1 },
         tables: {
           parents: [{ id: 1 }],

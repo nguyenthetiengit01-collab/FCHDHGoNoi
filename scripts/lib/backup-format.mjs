@@ -87,9 +87,18 @@ export function validateBackupPayload(backup) {
   }
 
   if (version === 3) {
+    if (!backup.schema || typeof backup.schema !== "object" || Array.isArray(backup.schema)) {
+      throw new Error("Invalid v3 backup file: missing or invalid 'schema' object.");
+    }
     if (!backup.objects || typeof backup.objects !== "object" || Array.isArray(backup.objects)) {
       throw new Error("Invalid v3 backup file: missing 'objects' metadata.");
     }
+    const ddlMatchers = {
+      tables: /^\s*CREATE\s+TABLE\b/i,
+      indexes: /^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\b/i,
+      triggers: /^\s*CREATE\s+TRIGGER\b/i,
+      views: /^\s*CREATE\s+VIEW\b/i,
+    };
     for (const kind of ["tables", "indexes", "triggers", "views"]) {
       if (!Array.isArray(backup.objects[kind])) {
         throw new Error(`Invalid v3 backup file: 'objects.${kind}' must be an array.`);
@@ -100,30 +109,73 @@ export function validateBackupPayload(backup) {
           typeof obj !== "object" ||
           !isValidIdentifier(obj.name) ||
           typeof obj.sql !== "string" ||
-          !obj.sql.trim()
+          !obj.sql.trim() ||
+          !ddlMatchers[kind].test(obj.sql)
         ) {
           throw new Error(`Invalid v3 backup file: malformed ${kind} DDL entry.`);
         }
       }
     }
+
+    const declaredTables = new Set(backup.objects.tables.map((t) => t.name));
+    for (const t of backup.objects.tables) {
+      if (typeof backup.schema[t.name] !== "string" || !ddlMatchers.tables.test(backup.schema[t.name])) {
+        throw new Error(`Invalid v3 backup file: 'schema.${t.name}' missing or mismatched.`);
+      }
+    }
+    for (const [schemaTbl, schemaSql] of Object.entries(backup.schema)) {
+      if (!isValidIdentifier(schemaTbl) || typeof schemaSql !== "string" || !ddlMatchers.tables.test(schemaSql)) {
+        throw new Error(`Invalid v3 backup file: malformed schema entry "${schemaTbl}".`);
+      }
+      if (!declaredTables.has(schemaTbl)) {
+        throw new Error(`Invalid v3 backup file: schema table "${schemaTbl}" missing from objects.tables.`);
+      }
+    }
+
+    for (const tableName of Object.keys(backup.tables)) {
+      if (!declaredTables.has(tableName)) {
+        throw new Error(`Invalid v3 backup file: table "${tableName}" missing from objects.tables DDL metadata.`);
+      }
+    }
+
     if (!backup.rowCounts || typeof backup.rowCounts !== "object" || Array.isArray(backup.rowCounts)) {
       throw new Error("Invalid v3 backup file: missing 'rowCounts' object.");
     }
-    if (backup.sequences !== undefined) {
-      if (!Array.isArray(backup.sequences)) {
-        throw new Error("Invalid v3 backup file: 'sequences' must be an array.");
+    for (const [tableName, count] of Object.entries(backup.rowCounts)) {
+      if (!isValidIdentifier(tableName)) {
+        throw new Error(`Invalid v3 backup file: unsafe rowCounts table name "${tableName}".`);
       }
-      for (const s of backup.sequences) {
-        if (
-          !s ||
-          typeof s !== "object" ||
-          !isValidIdentifier(s.name) ||
-          typeof s.seq !== "number" ||
-          !Number.isInteger(s.seq) ||
-          s.seq < 0
-        ) {
-          throw new Error("Invalid v3 backup file: malformed sqlite_sequence entry.");
-        }
+      if (typeof count !== "number" || !Number.isInteger(count) || count < 0) {
+        throw new Error(`Invalid v3 backup file: rowCounts["${tableName}"] must be a non-negative integer.`);
+      }
+      if (!declaredTables.has(tableName) || !Array.isArray(backup.tables[tableName])) {
+        throw new Error(`Invalid v3 backup file: rowCounts["${tableName}"] has no matching table data.`);
+      }
+      if (backup.tables[tableName].length !== count) {
+        throw new Error(
+          `Invalid v3 backup file: rowCounts["${tableName}"] (${count}) does not match rows (${backup.tables[tableName].length}).`
+        );
+      }
+    }
+    for (const [tableName, rows] of Object.entries(backup.tables)) {
+      if (backup.rowCounts[tableName] !== rows.length) {
+        throw new Error(`Invalid v3 backup file: missing or mismatched rowCounts for "${tableName}".`);
+      }
+    }
+
+    if (!Array.isArray(backup.sequences)) {
+      throw new Error("Invalid v3 backup file: missing or invalid 'sequences' array.");
+    }
+    for (const s of backup.sequences) {
+      if (
+        !s ||
+        typeof s !== "object" ||
+        !isValidIdentifier(s.name) ||
+        typeof s.seq !== "number" ||
+        !Number.isInteger(s.seq) ||
+        s.seq < 0
+      ) {
+        throw new Error("Invalid v3 backup file: malformed sqlite_sequence entry.");
       }
     }
   }

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { Client } from "@libsql/client";
+import type { Client, InStatement, ResultSet, Row, Value } from "@libsql/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   TursoDbAdapter,
@@ -35,6 +35,39 @@ afterEach(() => {
     }
   }
 });
+
+function createMockRow(record: Record<string, Value>): Row {
+  const values = Object.values(record);
+  const row: Record<string, Value> = { ...record };
+  Object.defineProperty(row, "length", {
+    value: values.length,
+    enumerable: false,
+    configurable: true,
+  });
+  values.forEach((v, idx) => {
+    Object.defineProperty(row, idx, {
+      value: v,
+      enumerable: false,
+      configurable: true,
+    });
+  });
+  return row as unknown as Row;
+}
+
+function createMockResultSet(
+  rows: Row[] = [],
+  overrides: Partial<ResultSet> = {}
+): ResultSet {
+  return {
+    rows,
+    columns: [],
+    columnTypes: [],
+    rowsAffected: 0,
+    lastInsertRowid: undefined,
+    toJSON: () => ({}),
+    ...overrides,
+  };
+}
 
 function createMockLibsqlClient(overrides: Partial<Client> = {}): Client {
   return {
@@ -94,22 +127,18 @@ describe("Phase 7.1 – TursoDbAdapter timeout, retry & database mode", () => {
     });
 
     let readAttempts = 0;
-    const executeMock = vi.fn(async (stmt: unknown) => {
-      const sql = typeof stmt === "string" ? stmt : (stmt as { sql: string }).sql;
+    const executeMock = vi.fn(async (stmt: InStatement): Promise<ResultSet> => {
+      const sql = typeof stmt === "string" ? stmt : stmt.sql;
       if (sql.includes("PRAGMA foreign_keys")) {
-        return { rows: [], columns: [], columnTypes: [], rowsAffected: 0, lastInsertRowid: undefined, toJSON: () => ({}) };
+        return createMockResultSet();
       }
       readAttempts += 1;
       if (readAttempts === 1) throw transientErr;
       if (readAttempts === 2) throw busyErr;
-      return {
-        rows: [{ id: 1, ok: 1 }],
+      return createMockResultSet([createMockRow({ id: 1, ok: 1 })], {
         columns: ["id", "ok"],
         columnTypes: ["INTEGER", "INTEGER"],
-        rowsAffected: 0,
-        lastInsertRowid: undefined,
-        toJSON: () => ({}),
-      };
+      });
     });
 
     const mockClient = createMockLibsqlClient({ execute: executeMock });
@@ -451,14 +480,14 @@ describe("F7.1-14 – Deterministic TursoDbAdapter Foreign-Key Initialization", 
 describe("F7.1-15 – Turso Write Timeout & Unknown Outcome", () => {
   it("models write timeout as TursoWriteOutcomeUnknownError even if underlying promise settles later, and never retries", async () => {
     let runCalls = 0;
-    let resolveDelayed!: (val: unknown) => void;
-    const executeMock = vi.fn(async (stmt: unknown) => {
-      const sql = typeof stmt === "string" ? stmt : (stmt as { sql: string }).sql;
+    let resolveDelayed!: (val: ResultSet) => void;
+    const executeMock = vi.fn(async (stmt: InStatement): Promise<ResultSet> => {
+      const sql = typeof stmt === "string" ? stmt : stmt.sql;
       if (sql.includes("PRAGMA foreign_keys")) {
-        return { rows: [], columns: [], columnTypes: [], rowsAffected: 0, lastInsertRowid: undefined, toJSON: () => ({}) };
+        return createMockResultSet();
       }
       runCalls += 1;
-      return new Promise((resolve) => {
+      return new Promise<ResultSet>((resolve) => {
         resolveDelayed = resolve;
       });
     });
@@ -486,7 +515,7 @@ describe("F7.1-15 – Turso Write Timeout & Unknown Outcome", () => {
     expect(runCalls).toBe(1);
 
     // Underlying operation completes after timeout — no unhandled rejection
-    resolveDelayed({ rows: [], rowsAffected: 1, lastInsertRowid: 1n });
+    resolveDelayed(createMockResultSet([], { rowsAffected: 1, lastInsertRowid: 1n }));
     await Promise.resolve();
 
     const mapped = mapDatabaseErrorToHttpResponse(unknownErr);
