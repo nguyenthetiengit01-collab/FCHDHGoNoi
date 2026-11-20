@@ -8,6 +8,7 @@ import {
   getAuthSession,
   getPasswordFingerprint,
   isDefaultPassword,
+  projectSafePlayer,
   SESSION_COOKIE_NAME,
   requireManagerSession,
   verifyCsrfOrigin,
@@ -70,18 +71,15 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Luôn ẩn mã PIN trước khi gửi về client
-    const safePlayer: Player = {
-      ...playerRow,
-      pin_code: "",
-    };
+    // Luôn ẩn mã PIN trước khi gửi về client (allow-list projection)
+    const safePlayer = projectSafePlayer(playerRow);
 
     const mustChangePassword = isDefaultPassword(playerRow.pin_code);
 
     return NextResponse.json({
       authenticated: true,
       player: safePlayer,
-      role: session.accessRole,
+      role: playerRow.access_role,
       mustChangePassword,
     });
   } catch (error) {
@@ -170,10 +168,7 @@ export async function POST(req: NextRequest) {
       }
 
       const token = createSessionToken(playerRow, 24 * 7);
-      const safePlayer: Player = {
-        ...playerRow,
-        pin_code: "",
-      };
+      const safePlayer = projectSafePlayer(playerRow);
 
       const res = NextResponse.json({
         success: true,
@@ -221,11 +216,8 @@ export async function POST(req: NextRequest) {
       const durationHours = rememberMe ? 24 * 30 : 24;
       const token = createSessionToken(player, durationHours);
 
-      // Bảo mật: Xóa mã PIN trước khi trả về dữ liệu người dùng
-      const safePlayer: Player = {
-        ...player,
-        pin_code: "",
-      };
+      // Bảo mật: Loại bỏ hoàn toàn mã PIN trước khi trả về dữ liệu người dùng
+      const safePlayer = projectSafePlayer(player);
 
       const res = NextResponse.json({
         success: true,

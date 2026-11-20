@@ -10,6 +10,7 @@ import {
 } from "@/lib/db";
 import {
   requireManagerSession,
+  sanitizeTeamResponseData,
   verifyCsrfOrigin,
   hashPassword,
 } from "@/lib/auth";
@@ -1394,8 +1395,14 @@ export async function POST(req: NextRequest) {
     });
 
     const updated = await getFullAppData();
+    const safeUpdated = sanitizeTeamResponseData(
+      updated,
+      auth.player
+        ? { playerId: auth.player.id, accessRole: auth.player.access_role }
+        : auth.session ?? null
+    );
 
-    return NextResponse.json(updated, {
+    return NextResponse.json(safeUpdated, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },

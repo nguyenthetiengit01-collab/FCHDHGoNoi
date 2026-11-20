@@ -8,6 +8,7 @@ import {
   recordAuditLog,
 } from "@/lib/db";
 import {
+  AUTH_PLAYER_PROFILE_COLUMNS,
   getAuthSession,
   hashPassword,
   verifyPassword,
@@ -17,8 +18,8 @@ import {
   requireManagerSession,
   requirePlayerSession,
   verifyCsrfOrigin,
-  sanitizeDataForPublic,
-  sanitizeDataForPlayer,
+  sanitizeTeamResponseData,
+  type SessionPayload,
 } from "@/lib/auth";
 import { ensureWebpDataUrlServer, MediaValidationError } from "@/lib/serverWebp";
 import { formatBirthYear } from "@/lib/athleteProfile";
@@ -27,7 +28,7 @@ import {
   recordPlayerLifecycleEvent,
   validateSponsorIdForIncome,
 } from "@/lib/analytics/lifecycle";
-import type { FullAppData } from "@/types/app";
+import type { FullAppData, Player } from "@/types/app";
 
 type ValidationResult<T> =
   | { ok: true; value: T }
@@ -201,35 +202,26 @@ function parseMatchFeeFlagsAndAmount(params: {
 export async function GET(req: NextRequest) {
   try {
     const data = await getFullAppData();
-    const session = getAuthSession(req);
-    // Tính thống kê từ nguồn canonical trước khi sanitize theo vai trò
-    const statistics = getTeamStatistics(data);
+    const cookieSession = getAuthSession(req);
+    let effectiveSession: Pick<SessionPayload, "playerId" | "accessRole"> | null = null;
 
-    let sanitizedData: FullAppData;
-    if (session && session.accessRole === "manager") {
-      // Ban Quản Lý: Được xem toàn bộ dữ liệu (loại bỏ hoàn toàn pin_code khỏi JSON)
-      sanitizedData = {
-        ...data,
-        players: data.players.map((p) => ({ ...p, pin_code: "" })),
-      };
-    } else if (session) {
-      // Cầu thủ đăng nhập: Xem số liệu chung và hồ sơ của mình, ẩn SĐT/ghi chú riêng tư của người khác
-      sanitizedData = sanitizeDataForPlayer(data, session.playerId);
-    } else {
-      // Khách (Guest): Chỉ nhận thông tin công khai (ẩn liên hệ, ghi chú, sổ hóa đơn chi tiết)
-      sanitizedData = sanitizeDataForPublic(data);
+    if (cookieSession) {
+      const authCheck = await requirePlayerSession(req);
+      if (authCheck.authorized && authCheck.player) {
+        effectiveSession = {
+          playerId: authCheck.player.id,
+          accessRole: authCheck.player.access_role,
+        };
+      }
     }
 
-    const safePlayers = sanitizedData.players.map((player) => {
-      const { pin_code: _omittedPinCode, ...safePlayer } = player;
-      void _omittedPinCode;
-      return safePlayer;
-    });
+    // Tính thống kê từ nguồn canonical trước khi sanitize theo vai trò
+    const statistics = getTeamStatistics(data);
+    const sanitizedData = sanitizeTeamResponseData(data, effectiveSession);
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       {
         ...sanitizedData,
-        players: safePlayers,
         statistics,
       },
       {
@@ -238,6 +230,12 @@ export async function GET(req: NextRequest) {
         },
       }
     );
+
+    if (cookieSession && !effectiveSession) {
+      res.cookies.delete(SESSION_COOKIE_NAME);
+    }
+
+    return res;
   } catch (error) {
     console.error("GET /api/team error:", error);
     return NextResponse.json(
@@ -261,6 +259,8 @@ export async function POST(req: NextRequest) {
     const { action, payload } = body;
     const db = getAsyncDb();
     const session = getAuthSession(req);
+    let effectiveSession: Pick<SessionPayload, "playerId" | "accessRole"> | null =
+      session;
 
     // Danh sách các hành động nhạy cảm yêu cầu quyền Ban Quản Lý (Manager)
     const MANAGER_ONLY_ACTIONS = new Set([
@@ -298,6 +298,9 @@ export async function POST(req: NextRequest) {
           { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
+      effectiveSession = auth.player
+        ? { playerId: auth.player.id, accessRole: auth.player.access_role }
+        : auth.session ?? effectiveSession;
     }
 
     // Các hành động yêu cầu cầu thủ đã đăng nhập vào hệ thống
@@ -309,6 +312,9 @@ export async function POST(req: NextRequest) {
           { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
+      effectiveSession = auth.player
+        ? { playerId: auth.player.id, accessRole: auth.player.access_role }
+        : auth.session ?? effectiveSession;
       const targetPlayerId = Number(payload?.player_id ?? payload?.id);
       if (
         auth.player?.access_role !== "manager" &&
@@ -332,6 +338,9 @@ export async function POST(req: NextRequest) {
           { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
+      effectiveSession = auth.player
+        ? { playerId: auth.player.id, accessRole: auth.player.access_role }
+        : auth.session ?? effectiveSession;
       if (
         auth.player?.access_role !== "manager" &&
         Number(payload?.player_id) !== auth.player?.id
@@ -1945,13 +1954,21 @@ export async function POST(req: NextRequest) {
     }
 
     const updated = await getFullAppData();
-    const res = NextResponse.json(updated);
+    const safeUpdated = sanitizeTeamResponseData(updated, effectiveSession);
+    const res = NextResponse.json(safeUpdated, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
 
-    // Nếu vừa đổi mật khẩu của chính mình, cấp lại session token mới với vân tay mật khẩu mới
-    if (action === "change_own_password" && session) {
-      const updatedPlayer = updated.players.find((p) => p.id === session.playerId);
-      if (updatedPlayer) {
-        const token = createSessionToken(updatedPlayer, 24 * 7);
+    // Nếu vừa đổi mật khẩu của chính mình, cấp lại session token mới với vân tay mật khẩu mới từ DB
+    if (action === "change_own_password" && effectiveSession) {
+      const refreshedPlayer = await db.queryOne<Player>(
+        `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+        [effectiveSession.playerId]
+      );
+      if (refreshedPlayer) {
+        const token = createSessionToken(refreshedPlayer, 24 * 7);
         res.cookies.set({
           name: SESSION_COOKIE_NAME,
           value: token,
@@ -1969,13 +1986,23 @@ export async function POST(req: NextRequest) {
     if (error instanceof MediaValidationError) {
       return NextResponse.json(
         { error: error.message },
-        { status: error.status }
+        {
+          status: error.status,
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+          },
+        }
       );
     }
     console.error("POST /api/team error:", error);
     return NextResponse.json(
       { error: "Đã xảy ra lỗi khi lưu dữ liệu" },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
     );
   }
 }

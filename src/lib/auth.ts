@@ -5,7 +5,12 @@ import {
   clearAuthRateLimitOnSuccess,
   evaluateAuthRateLimit,
 } from "./authRateLimit";
-import type { Player, FullAppData, PublicPlayerDTO } from "@/types/app";
+import type {
+  Player,
+  FullAppData,
+  PublicPlayerDTO,
+  SafePlayerPayload,
+} from "@/types/app";
 
 const DEV_TEST_FALLBACK_SECRET =
   "fc-hdh-go-noi-sapphire-secret-key-2026-secure-32chars";
@@ -928,5 +933,61 @@ export function sanitizeDataForPlayer(
     summary: data.summary,
     posts: data.posts,
     sponsors: data.sponsors,
+  };
+}
+
+/**
+ * Chiếu đối tượng cầu thủ theo danh sách trường cho phép (allow-list),
+ * loại bỏ hoàn toàn pin_code và mọi thông tin băm/dấu vân tay mật khẩu khỏi API DTO.
+ */
+export function projectSafePlayer(player: Player): SafePlayerPayload {
+  return {
+    id: player.id,
+    code_order: player.code_order,
+    full_name: player.full_name,
+    short_name: player.short_name,
+    jersey_number: player.jersey_number,
+    position: player.position,
+    phone: player.phone,
+    birth_year: player.birth_year,
+    avatar_url: player.avatar_url,
+    profile_image_url: player.profile_image_url || "",
+    role: player.role,
+    access_role: player.access_role,
+    ...(player.username !== undefined ? { username: player.username } : {}),
+    status: player.status,
+    notes: player.notes,
+    ...(player.bio !== undefined ? { bio: player.bio } : {}),
+    ...(player.hometown !== undefined ? { hometown: player.hometown } : {}),
+    ...(player.nickname !== undefined ? { nickname: player.nickname } : {}),
+    ...(player.playing_style !== undefined ? { playing_style: player.playing_style } : {}),
+    ...(player.gallery_urls !== undefined ? { gallery_urls: player.gallery_urls } : {}),
+  };
+}
+
+export type SafeTeamResponseData = Omit<FullAppData, "players"> & {
+  players: SafePlayerPayload[];
+};
+
+/**
+ * Chuẩn hóa và lọc dữ liệu trả về cho API (/api/team, /api/import) theo vai trò hiện hành:
+ * - Manager: xem toàn bộ dữ liệu nhưng vẫn loại bỏ hoàn toàn thuộc tính pin_code.
+ * - Player: giữ hồ sơ của chính mình, ẩn SĐT/username/notes/access_role của người khác và tournament_fund_note.
+ * - Guest (null): chỉ giữ dữ liệu công khai.
+ */
+export function sanitizeTeamResponseData(
+  data: FullAppData,
+  session: Pick<SessionPayload, "playerId" | "accessRole"> | null
+): SafeTeamResponseData {
+  const scoped: FullAppData =
+    session && session.accessRole === "manager"
+      ? data
+      : session
+        ? sanitizeDataForPlayer(data, session.playerId)
+        : sanitizeDataForPublic(data);
+
+  return {
+    ...scoped,
+    players: scoped.players.map(projectSafePlayer),
   };
 }
