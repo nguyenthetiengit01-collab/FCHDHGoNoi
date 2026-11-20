@@ -6,9 +6,10 @@ import { EXPENSE_CATEGORIES, type FullAppData } from "@/types/app";
 
 vi.mock("@/lib/db", () => ({
   getFullAppData: vi.fn(),
+  getPublicFinancialReportData: vi.fn(),
 }));
 
-import { getFullAppData } from "@/lib/db";
+import { getPublicFinancialReportData } from "@/lib/db";
 import { GET } from "@/app/api/public/financial-report/route";
 
 function createSampleData(): FullAppData {
@@ -324,7 +325,7 @@ describe("publicFinancialReport", () => {
 
   it("GET /api/public/financial-report returns HTTP 200 with no-store and filtered totals", async () => {
     const sample = createSampleData();
-    vi.mocked(getFullAppData).mockResolvedValueOnce(sample);
+    vi.mocked(getPublicFinancialReportData).mockResolvedValueOnce(sample);
 
     const req = new NextRequest(
       "http://localhost:3000/api/public/financial-report?year=2026&month=2026-11"

@@ -185,19 +185,205 @@ export interface AsyncDb extends AsyncDbTx {
   transaction<T>(fn: (tx: AsyncDbTx) => Promise<T>): Promise<T>;
 }
 
+export interface TursoAdapterOptions {
+  requestTimeoutMs?: number;
+  maxReadRetries?: number;
+  baseRetryDelayMs?: number;
+  maxRetryDelayMs?: number;
+}
+
+const DEFAULT_TURSO_REQUEST_TIMEOUT_MS = 5000;
+const DEFAULT_TURSO_MAX_READ_RETRIES = 2;
+const DEFAULT_TURSO_BASE_RETRY_DELAY_MS = 100;
+const DEFAULT_TURSO_MAX_RETRY_DELAY_MS = 1500;
+
+export function resolveTursoRequestTimeoutMs(
+  env: NodeJS.ProcessEnv = process.env
+): number {
+  const raw = env.TURSO_REQUEST_TIMEOUT_MS?.trim();
+  if (!raw) return DEFAULT_TURSO_REQUEST_TIMEOUT_MS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.floor(parsed)
+    : DEFAULT_TURSO_REQUEST_TIMEOUT_MS;
+}
+
+function isTransientTursoReadError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const record = err as { code?: unknown; message?: unknown; name?: unknown; cause?: unknown };
+  const code = typeof record.code === "string" ? record.code.toUpperCase() : "";
+  const message =
+    typeof record.message === "string" ? record.message.toLowerCase() : "";
+  const name = typeof record.name === "string" ? record.name.toLowerCase() : "";
+
+  // Non-transient SQL/auth errors must fail immediately without retry
+  if (
+    code.includes("SQLITE_CONSTRAINT") ||
+    code === "SQLITE_ERROR" ||
+    message.includes("syntax error") ||
+    message.includes("no such table") ||
+    message.includes("no such column") ||
+    message.includes("unauthorized") ||
+    message.includes("forbidden") ||
+    message.includes("401") ||
+    message.includes("403")
+  ) {
+    return false;
+  }
+
+  if (
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET" ||
+    code === "ECONNREFUSED" ||
+    code === "EPIPE" ||
+    code === "ENOTFOUND" ||
+    code === "EAI_AGAIN" ||
+    code === "UND_ERR_CONNECT_TIMEOUT" ||
+    code === "UND_ERR_SOCKET" ||
+    code === "SQLITE_BUSY" ||
+    code === "SERVER_ERROR" ||
+    code === "HRANA_WEBSOCKET_ERROR" ||
+    code === "HTTP_STATUS_429" ||
+    code === "HTTP_STATUS_502" ||
+    code === "HTTP_STATUS_503" ||
+    code === "HTTP_STATUS_504"
+  ) {
+    return true;
+  }
+
+  if (
+    name.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("timeout") ||
+    message.includes("econnreset") ||
+    message.includes("econnrefused") ||
+    message.includes("socket hang up") ||
+    message.includes("fetch failed") ||
+    message.includes("network") ||
+    message.includes("sqlite_busy") ||
+    message.includes("502") ||
+    message.includes("503") ||
+    message.includes("504") ||
+    message.includes("429")
+  ) {
+    return true;
+  }
+
+  if (record.cause && record.cause !== err) {
+    return isTransientTursoReadError(record.cause);
+  }
+
+  return false;
+}
+
+function normalizeRows<T>(rows: unknown[]): T[] {
+  return rows.map((row) => ({ ...(row as Record<string, unknown>) })) as T[];
+}
+
 export class TursoDbAdapter implements AsyncDb {
   private client: Client;
+  private readonly requestTimeoutMs: number;
+  private readonly maxReadRetries: number;
+  private readonly baseRetryDelayMs: number;
+  private readonly maxRetryDelayMs: number;
+  private foreignKeysEnabled = false;
 
-  constructor(client: Client) {
+  constructor(client: Client, options: TursoAdapterOptions = {}) {
     this.client = client;
+    this.requestTimeoutMs =
+      options.requestTimeoutMs && options.requestTimeoutMs > 0
+        ? Math.floor(options.requestTimeoutMs)
+        : resolveTursoRequestTimeoutMs(process.env);
+    this.maxReadRetries =
+      options.maxReadRetries !== undefined && options.maxReadRetries >= 0
+        ? Math.floor(options.maxReadRetries)
+        : DEFAULT_TURSO_MAX_READ_RETRIES;
+    this.baseRetryDelayMs =
+      options.baseRetryDelayMs !== undefined && options.baseRetryDelayMs >= 0
+        ? options.baseRetryDelayMs
+        : DEFAULT_TURSO_BASE_RETRY_DELAY_MS;
+    this.maxRetryDelayMs =
+      options.maxRetryDelayMs !== undefined && options.maxRetryDelayMs > 0
+        ? options.maxRetryDelayMs
+        : DEFAULT_TURSO_MAX_RETRY_DELAY_MS;
+  }
+
+  private async withTimeout<T>(
+    operation: () => Promise<T>,
+    label: string
+  ): Promise<T> {
+    const timeoutMs = this.requestTimeoutMs;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const opPromise = operation();
+    // Prevent unhandled rejection if the operation settles after timeout wins the race
+    opPromise.catch(() => {});
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const err = new Error(
+          `Turso request timed out after ${timeoutMs}ms (${label})`
+        ) as Error & { code?: string };
+        err.code = "ETIMEDOUT";
+        reject(err);
+      }, timeoutMs);
+    });
+
+    try {
+      return await Promise.race([opPromise, timeoutPromise]);
+    } finally {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  private async executeReadWithRetry<T>(
+    operation: () => Promise<T>,
+    label: string
+  ): Promise<T> {
+    let attempt = 0;
+    while (true) {
+      try {
+        return await this.withTimeout(operation, label);
+      } catch (err) {
+        if (
+          attempt >= this.maxReadRetries ||
+          !isTransientTursoReadError(err)
+        ) {
+          throw err;
+        }
+        const expDelay = Math.min(
+          this.maxRetryDelayMs,
+          this.baseRetryDelayMs * 2 ** attempt
+        );
+        const jitter = Math.floor(Math.random() * Math.max(1, expDelay * 0.5));
+        const waitMs = Math.min(this.maxRetryDelayMs, expDelay + jitter);
+        attempt += 1;
+        if (waitMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+        }
+      }
+    }
+  }
+
+  async enableForeignKeys(): Promise<void> {
+    if (this.foreignKeysEnabled) return;
+    await this.withTimeout(
+      () => this.client.execute("PRAGMA foreign_keys = ON;"),
+      "pragma.foreign_keys"
+    );
+    this.foreignKeysEnabled = true;
   }
 
   async query<T = Record<string, unknown>>(
     sql: string,
     params: unknown[] = []
   ): Promise<T[]> {
-    const res = await this.client.execute({ sql, args: params as InArgs });
-    return res.rows as unknown as T[];
+    const res = await this.executeReadWithRetry(
+      () => this.client.execute({ sql, args: params as InArgs }),
+      "query"
+    );
+    return normalizeRows<T>(res.rows);
   }
 
   async queryOne<T = Record<string, unknown>>(
@@ -212,7 +398,10 @@ export class TursoDbAdapter implements AsyncDb {
     sql: string,
     params: unknown[] = []
   ): Promise<{ lastInsertRowid: number; changes: number }> {
-    const res = await this.client.execute({ sql, args: params as InArgs });
+    const res = await this.withTimeout(
+      () => this.client.execute({ sql, args: params as InArgs }),
+      "run"
+    );
     return {
       lastInsertRowid: Number(res.lastInsertRowid || 0),
       changes: Number(res.rowsAffected || 0),
@@ -223,58 +412,81 @@ export class TursoDbAdapter implements AsyncDb {
     statements: Array<{ sql: string; params?: unknown[] }>
   ): Promise<void> {
     if (statements.length === 0) return;
-    await this.client.batch(
-      statements.map((s) => ({
-        sql: s.sql,
-        args: (s.params || []) as InArgs,
-      })),
-      "write"
+    await this.withTimeout(
+      () =>
+        this.client.batch(
+          statements.map((s) => ({
+            sql: s.sql,
+            args: (s.params || []) as InArgs,
+          })),
+          "write"
+        ),
+      "batch"
     );
   }
 
   async exec(sql: string): Promise<void> {
-    await this.client.executeMultiple(sql);
+    await this.withTimeout(
+      () => this.client.executeMultiple(sql),
+      "exec"
+    );
   }
 
   async transaction<T>(fn: (tx: AsyncDbTx) => Promise<T>): Promise<T> {
-    const tx = await this.client.transaction("write");
+    const tx = await this.withTimeout(
+      () => this.client.transaction("write"),
+      "transaction.begin"
+    );
     const txAdapter: AsyncDbTx = {
       query: async <R = Record<string, unknown>>(
         sql: string,
         params: unknown[] = []
       ): Promise<R[]> => {
-        const res = await tx.execute({ sql, args: params as InArgs });
-        return res.rows as unknown as R[];
+        const res = await this.withTimeout(
+          () => tx.execute({ sql, args: params as InArgs }),
+          "transaction.query"
+        );
+        return normalizeRows<R>(res.rows);
       },
       queryOne: async <R = Record<string, unknown>>(
         sql: string,
         params: unknown[] = []
       ): Promise<R | null> => {
-        const res = await tx.execute({ sql, args: params as InArgs });
-        return (res.rows[0] as unknown as R) || null;
+        const res = await this.withTimeout(
+          () => tx.execute({ sql, args: params as InArgs }),
+          "transaction.queryOne"
+        );
+        const rows = normalizeRows<R>(res.rows);
+        return rows[0] || null;
       },
       run: async (
         sql: string,
         params: unknown[] = []
       ): Promise<{ lastInsertRowid: number; changes: number }> => {
-        const res = await tx.execute({ sql, args: params as InArgs });
+        const res = await this.withTimeout(
+          () => tx.execute({ sql, args: params as InArgs }),
+          "transaction.run"
+        );
         return {
           lastInsertRowid: Number(res.lastInsertRowid || 0),
           changes: Number(res.rowsAffected || 0),
         };
       },
       exec: async (sql: string): Promise<void> => {
-        await tx.executeMultiple(sql);
+        await this.withTimeout(
+          () => tx.executeMultiple(sql),
+          "transaction.exec"
+        );
       },
     };
 
     try {
       const result = await fn(txAdapter);
-      await tx.commit();
+      await this.withTimeout(() => tx.commit(), "transaction.commit");
       return result;
     } catch (err) {
       try {
-        await tx.rollback();
+        await this.withTimeout(() => tx.rollback(), "transaction.rollback");
       } catch {
         // rollback fail-safe
       }
@@ -440,7 +652,9 @@ export function getAsyncDb(): AsyncDb {
         authToken: mode.authToken,
       });
     }
-    asyncDbInstance = new TursoDbAdapter(tursoClientInstance);
+    const adapter = new TursoDbAdapter(tursoClientInstance);
+    void adapter.enableForeignKeys().catch(() => {});
+    asyncDbInstance = adapter;
     return asyncDbInstance;
   }
 
@@ -449,11 +663,8 @@ export function getAsyncDb(): AsyncDb {
   return asyncDbInstance;
 }
 
-const BUNDLED_DATA_DIR = path.join(process.cwd(), "data");
-const BUNDLED_DB_PATH = path.join(BUNDLED_DATA_DIR, "gonoifc.sqlite");
-const IS_VERCEL = Boolean(process.env.VERCEL);
-const DATA_DIR = IS_VERCEL ? os.tmpdir() : BUNDLED_DATA_DIR;
-const DB_PATH = path.join(DATA_DIR, "gonoifc.sqlite");
+const DEFAULT_DATA_DIR = path.join(process.cwd(), "data");
+const DEFAULT_DB_PATH = path.join(DEFAULT_DATA_DIR, "gonoifc.sqlite");
 
 let dbInstance: DatabaseSyncType | null = null;
 
@@ -471,27 +682,11 @@ export function getDb(customDbPath?: string): DatabaseSyncType {
   if (dbInstance) return dbInstance;
 
   const qaPath = customDbPath ? null : resolveLocalSqliteQaPath(process.env);
-  const resolvedPath = customDbPath ?? qaPath ?? DB_PATH;
+  const resolvedPath = customDbPath ?? qaPath ?? DEFAULT_DB_PATH;
   const targetDir = path.dirname(resolvedPath);
 
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
-  }
-
-  // Trên môi trường Serverless (Vercel), thư mục gốc là chỉ-đọc nên ta sao chép DB mẫu sang /tmp để đọc/ghi
-  // LƯU Ý QUAN TRỌNG: Chỉ copy một lần khi DB chưa tồn tại ở /tmp. Tuyệt đối không kiểm tra kích thước file
-  // vì khi người dùng cập nhật dữ liệu (ghi thêm trận, điểm danh, thu tiền), kích thước file sẽ thay đổi!
-  if (
-    IS_VERCEL &&
-    resolvedPath === DB_PATH &&
-    !fs.existsSync(DB_PATH) &&
-    fs.existsSync(BUNDLED_DB_PATH)
-  ) {
-    try {
-      fs.copyFileSync(BUNDLED_DB_PATH, DB_PATH);
-    } catch (err) {
-      console.warn("Không thể sao chép DB từ bundled data:", err);
-    }
   }
 
   const sqlite = process.getBuiltinModule(
@@ -1678,7 +1873,7 @@ interface RawClubPostRow {
   tagged_players_json?: string;
 }
 
-interface RawPlayerRow extends Player {
+interface RawPlayerRow extends Omit<Player, "pin_code"> {
   gallery_urls_json?: string;
 }
 
@@ -1708,6 +1903,87 @@ interface RawSponsorRow {
   created_at?: string;
 }
 
+const TEAM_SETTINGS_PROJECTION =
+  "id, team_name, short_name, default_match_fee, bank_bin, bank_name, bank_account_no, bank_account_name, tournament_fund_reserve, tournament_fund_note, fanpage_url";
+
+const PLAYER_PUBLIC_PROJECTION =
+  "id, code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, profile_image_url, bio, role, access_role, username, status, notes, hometown, nickname, playing_style, gallery_urls_json";
+
+const MATCH_PROJECTION =
+  "id, match_number, label, match_date, kickoff_time, venue, opponent, fee_per_player, pitch_cost, payer_name, team_score, opponent_score, status, notes";
+
+const MATCH_ATTENDANCE_PROJECTION =
+  "id, match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note";
+
+const OTHER_INCOME_PROJECTION =
+  "id, income_date, contributor, amount, fund_type, note";
+
+const EXPENSE_PROJECTION =
+  "id, expense_date, category, description, amount, payer, match_id";
+
+const CLUB_POST_PROJECTION =
+  "id, category, category_label, category_badge_class, title, slug, summary, published_date, event_year, author, featured_image, gallery_images_json, reading_time, paragraphs_json, quote, highlights_json, tagged_players_json";
+
+const SPONSOR_PROJECTION =
+  "id, name, tier, logo_url, banner_url, website_url, description, start_date, end_date, display_positions_json, is_active, sort_order, note, created_at";
+
+const DEFAULT_TEAM_SETTINGS: TeamSettings = {
+  id: 1,
+  team_name: "Đội Bóng HĐH Gò Nổi",
+  short_name: "FC HĐH GÒ NỔI",
+  default_match_fee: 100000,
+  bank_bin: "970422",
+  bank_name: "MB Bank",
+  bank_account_no: "",
+  bank_account_name: "NGUYEN THE TIENG",
+  tournament_fund_reserve: 2301700,
+  tournament_fund_note: "",
+  fanpage_url: FANPAGE_URL,
+};
+
+export type PublicFinancialReportSourceData = Pick<
+  FullAppData,
+  "settings" | "matches" | "attendances" | "otherIncomes" | "expenses"
+>;
+
+export async function getPublicFinancialReportData(): Promise<PublicFinancialReportSourceData> {
+  const db = getAsyncDb();
+  const [settingsRow, matches, attendances, otherIncomes, expenses] =
+    await Promise.all([
+      db.queryOne<Pick<TeamSettings, "team_name" | "tournament_fund_reserve">>(
+        "SELECT team_name, tournament_fund_reserve FROM team_settings WHERE id = 1"
+      ),
+      db.query<MatchRecord>(
+        `SELECT ${MATCH_PROJECTION} FROM matches ORDER BY match_number ASC, match_date ASC`
+      ),
+      db.query<MatchAttendance>(
+        `SELECT ${MATCH_ATTENDANCE_PROJECTION} FROM match_attendances`
+      ),
+      db.query<OtherIncome>(
+        `SELECT ${OTHER_INCOME_PROJECTION} FROM other_incomes ORDER BY income_date DESC, id DESC`
+      ),
+      db.query<ExpenseRecord>(
+        `SELECT ${EXPENSE_PROJECTION} FROM expenses ORDER BY expense_date ASC, id ASC`
+      ),
+    ]);
+
+  const settings: TeamSettings = {
+    ...DEFAULT_TEAM_SETTINGS,
+    team_name: settingsRow?.team_name ?? DEFAULT_TEAM_SETTINGS.team_name,
+    tournament_fund_reserve:
+      settingsRow?.tournament_fund_reserve ??
+      DEFAULT_TEAM_SETTINGS.tournament_fund_reserve,
+  };
+
+  return {
+    settings,
+    matches,
+    attendances,
+    otherIncomes,
+    expenses,
+  };
+}
+
 export async function getFullAppData(): Promise<FullAppData> {
   const db = getAsyncDb();
   await Promise.all([ensureClubPostsReady(db), ensureSponsorsReady(db)]);
@@ -1722,44 +1998,48 @@ export async function getFullAppData(): Promise<FullAppData> {
     rawPosts,
     rawSponsors,
   ] = await Promise.all([
-    db.queryOne<TeamSettings>("SELECT * FROM team_settings WHERE id = 1"),
-    db.query<RawPlayerRow>("SELECT * FROM players ORDER BY code_order ASC, id ASC"),
-    db.query<MatchRecord>("SELECT * FROM matches ORDER BY match_number ASC, match_date ASC"),
-    db.query<MatchAttendance>("SELECT * FROM match_attendances"),
-    db.query<OtherIncome>("SELECT * FROM other_incomes ORDER BY income_date DESC, id DESC"),
-    db.query<ExpenseRecord>("SELECT * FROM expenses ORDER BY expense_date ASC, id ASC"),
+    db.queryOne<TeamSettings>(
+      `SELECT ${TEAM_SETTINGS_PROJECTION} FROM team_settings WHERE id = 1`
+    ),
+    db.query<RawPlayerRow>(
+      `SELECT ${PLAYER_PUBLIC_PROJECTION} FROM players ORDER BY code_order ASC, id ASC`
+    ),
+    db.query<MatchRecord>(
+      `SELECT ${MATCH_PROJECTION} FROM matches ORDER BY match_number ASC, match_date ASC`
+    ),
+    db.query<MatchAttendance>(
+      `SELECT ${MATCH_ATTENDANCE_PROJECTION} FROM match_attendances`
+    ),
+    db.query<OtherIncome>(
+      `SELECT ${OTHER_INCOME_PROJECTION} FROM other_incomes ORDER BY income_date DESC, id DESC`
+    ),
+    db.query<ExpenseRecord>(
+      `SELECT ${EXPENSE_PROJECTION} FROM expenses ORDER BY expense_date ASC, id ASC`
+    ),
     db
-      .query<RawClubPostRow>("SELECT * FROM club_posts ORDER BY published_date DESC, rowid DESC")
+      .query<RawClubPostRow>(
+        `SELECT ${CLUB_POST_PROJECTION} FROM club_posts ORDER BY published_date DESC, rowid DESC`
+      )
       .catch(() => null),
     db
-      .query<RawSponsorRow>("SELECT * FROM sponsors ORDER BY sort_order ASC, id ASC")
+      .query<RawSponsorRow>(
+        `SELECT ${SPONSOR_PROJECTION} FROM sponsors ORDER BY sort_order ASC, id ASC`
+      )
       .catch((err) => {
         console.error("Failed to query sponsors:", err);
         return null;
       }),
   ]);
 
-  const settings = settingsRow || {
-    id: 1,
-    team_name: "Đội Bóng HĐH Gò Nổi",
-    short_name: "FC HĐH GÒ NỔI",
-    default_match_fee: 100000,
-    bank_bin: "970422",
-    bank_name: "MB Bank",
-    bank_account_no: "",
-    bank_account_name: "NGUYEN THE TIENG",
-    tournament_fund_reserve: 2301700,
-    tournament_fund_note: "",
-    fanpage_url: FANPAGE_URL,
-  };
+  const settings = settingsRow || DEFAULT_TEAM_SETTINGS;
 
-  // Bảo mật: Xóa mã PIN cá nhân trong dữ liệu trả về cho client/khách truy cập, chuẩn hóa năm sinh số nguyên
-  const players = rawPlayers.map((p) => ({
+  // Bảo mật: Không truy vấn/trả mã PIN cá nhân cho client/khách truy cập, chuẩn hóa năm sinh số nguyên
+  const players: Player[] = rawPlayers.map(({ gallery_urls_json, ...p }) => ({
     ...p,
     birth_year: formatBirthYear(p.birth_year),
     pin_code: "",
     profile_image_url: p.profile_image_url || "",
-    gallery_urls: safeJsonParseArray(p.gallery_urls_json || "[]"),
+    gallery_urls: safeJsonParseArray(gallery_urls_json || "[]"),
   }));
 
   const posts: ClubActivityPost[] =
@@ -1779,7 +2059,7 @@ export async function getFullAppData(): Promise<FullAppData> {
           galleryImages: safeJsonParseArray(r.gallery_images_json),
           readingTime: r.reading_time || "3 phút đọc",
           paragraphs: safeJsonParseArray(r.paragraphs_json),
-          quote: r.quote || undefined,
+          ...(r.quote ? { quote: r.quote } : {}),
           highlights: safeJsonParseArray(r.highlights_json),
           taggedPlayerNames: safeJsonParseArray(r.tagged_players_json || "[]"),
         }))
@@ -1810,19 +2090,17 @@ export async function getFullAppData(): Promise<FullAppData> {
     expenses,
   });
 
-  return JSON.parse(
-    JSON.stringify({
-      settings,
-      players,
-      matches,
-      attendances,
-      otherIncomes,
-      expenses,
-      summary,
-      posts,
-      sponsors,
-    })
-  );
+  return {
+    settings,
+    players,
+    matches,
+    attendances,
+    otherIncomes,
+    expenses,
+    summary,
+    posts,
+    sponsors,
+  };
 }
 
 export interface AuditLogEntry {
