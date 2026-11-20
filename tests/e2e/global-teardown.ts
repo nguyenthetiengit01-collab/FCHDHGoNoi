@@ -1,16 +1,14 @@
-import fs from "node:fs";
-import { QA_DB_PATH } from "./qaPaths";
+import { cleanupQaSqliteFiles } from "./qaPaths";
 
 export default async function globalTeardown() {
-  for (const suffix of ["", "-wal", "-shm", "-journal"]) {
-    const target = `${QA_DB_PATH}${suffix}`;
-    if (fs.existsSync(target)) {
-      try {
-        fs.rmSync(target, { force: true });
-      } catch {
-        // On Windows, Playwright's webServer may still hold an open SQLite handle until process exit;
-        // globalSetup cleans stale qa.sqlite* files before the next run.
-      }
-    }
+  const result = cleanupQaSqliteFiles();
+  if (result.locked.length > 0) {
+    console.warn(
+      `[QA globalTeardown] Cleanup partial — ${result.cleaned.length} file(s) removed; ${result.locked.length} file(s) still locked by webServer process (unique per-run QA_ROOT prevents reuse): ${JSON.stringify(result.locked)}`
+    );
+  } else {
+    console.log(
+      `[QA globalTeardown] Cleanup complete — removed ${result.cleaned.length} disposable SQLite file(s).`
+    );
   }
 }

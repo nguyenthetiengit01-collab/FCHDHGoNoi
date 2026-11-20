@@ -95,24 +95,51 @@ test.describe("Phase 6.5 – Live Browser Visual, Contrast & Layout QA", () => {
     });
   }
 
-  test("200% zoom equivalent (720x450 viewport) has zero horizontal overflow", async ({
+  // Note: Native browser UI zoom 200% is a separate manual check; this tests the 720x450
+  // CSS reflow viewport equivalent (1440px at 200% scale) per WCAG 1.4.10 Reflow.
+  test("200%-equivalent CSS reflow viewport (720x450) preserves layout, CTA, and navigation", async ({
     browser,
   }) => {
     const context = await browser.newContext({
       viewport: { width: 720, height: 450 },
-      deviceScaleFactor: 2,
       serviceWorkers: "block",
     });
     const page = await context.newPage();
-    await page.goto("http://127.0.0.1:3105/", { waitUntil: "load" });
+    await page.goto("/", { waitUntil: "load" });
     await page.waitForLoadState("networkidle");
-    const overflow = await page.evaluate(() => ({
-      scrollWidth: document.documentElement.scrollWidth,
-      innerWidth: window.innerWidth,
-    }));
-    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.innerWidth);
+
+    const mainContent = page.locator("main#main-content");
+    await expect(mainContent).toBeVisible();
+
+    const ctaButton = page.getByRole("button", { name: /Vào khu thành viên/i });
+    await expect(ctaButton).toBeVisible();
+
+    const menuBtn = page.getByRole("button", { name: /Mở menu điều hướng/i });
+    await expect(menuBtn).toBeVisible();
+
+    const layoutCheck = await page.evaluate(() => {
+      const header = document.querySelector("header");
+      const cta = Array.from(document.querySelectorAll("button")).find((b) =>
+        b.textContent?.includes("Vào khu thành viên")
+      );
+      const headerRect = header?.getBoundingClientRect();
+      const ctaRect = cta?.getBoundingClientRect();
+      const overlapsHeader =
+        Boolean(headerRect && ctaRect) &&
+        ctaRect!.top < headerRect!.bottom &&
+        ctaRect!.bottom > headerRect!.top;
+      return {
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+        overlapsHeader,
+      };
+    });
+
+    expect(layoutCheck.scrollWidth).toBeLessThanOrEqual(layoutCheck.innerWidth);
+    expect(layoutCheck.overlapsHeader).toBe(false);
+
     await page.screenshot({
-      path: path.join(SCREENSHOT_DIR, "home-zoom-200.png"),
+      path: path.join(SCREENSHOT_DIR, "home-reflow-720x450.png"),
       fullPage: false,
     });
     await context.close();

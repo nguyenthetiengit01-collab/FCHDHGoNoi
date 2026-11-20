@@ -67,9 +67,14 @@ jobs:
           echo "::endgroup::"
 
   e2e-visual-qa:
-    name: Playwright Visual & Accessibility QA (Node 22.23.5)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    name: >-
+      Playwright Visual & Accessibility QA (${{ matrix.os == 'ubuntu-latest' && 'Linux' || 'Windows' }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
 
     steps:
       - name: Checkout repository
@@ -84,19 +89,30 @@ jobs:
       - name: Install dependencies (npm ci)
         run: npm ci
 
-      - name: Install Playwright Chromium
+      - name: Install Playwright Chromium (Linux)
+        if: runner.os == 'Linux'
         run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright Chromium (Windows)
+        if: runner.os == 'Windows'
+        run: npx playwright install chromium
 
       - name: Run Playwright Visual & WCAG 2.2 AA QA (npm run test:e2e)
         env:
           CI: "true"
-          QA_ROOT: ${{ runner.temp }}/gonoifc-qa
+          QA_ROOT: ${{ runner.temp }}/gonoifc-qa-${{ github.run_id }}-${{ github.run_attempt }}
+          MEDIA_STORAGE_ENABLED: "false"
+          ANALYTICS_ENABLED: "false"
         run: npm run test:e2e
 
-      - name: Upload Playwright QA screenshots
+      - name: Upload Playwright QA artifacts
         if: always()
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
-          name: phase65-visual-qa-screenshots
-          path: ${{ runner.temp }}/gonoifc-qa/screenshots
+          name: playwright-qa-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          path: |
+            ${{ runner.temp }}/gonoifc-qa-${{ github.run_id }}-${{ github.run_attempt }}/screenshots
+            ${{ runner.temp }}/gonoifc-qa-${{ github.run_id }}-${{ github.run_attempt }}/test-results
+            ${{ runner.temp }}/gonoifc-qa-${{ github.run_id }}-${{ github.run_attempt }}/html-report
           if-no-files-found: warn

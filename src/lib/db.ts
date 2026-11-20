@@ -509,6 +509,21 @@ export function getDb(customDbPath?: string): DatabaseSyncType {
   return db;
 }
 
+export function initQaDatabaseSchema(db: DatabaseSyncType) {
+  initSchema(db);
+  runMigrations(db);
+  for (const [col, def] of [
+    ["hometown", "TEXT NOT NULL DEFAULT ''"],
+    ["nickname", "TEXT NOT NULL DEFAULT ''"],
+    ["playing_style", "TEXT NOT NULL DEFAULT ''"],
+    ["gallery_urls_json", "TEXT NOT NULL DEFAULT '[]'"],
+  ] as const) {
+    if (!hasColumn(db, "players", col)) {
+      db.exec(`ALTER TABLE players ADD COLUMN ${col} ${def};`);
+    }
+  }
+}
+
 function initSchema(db: DatabaseSyncType) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS team_settings (
