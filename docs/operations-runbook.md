@@ -183,11 +183,42 @@ Mọi thay đổi schema trên Turso Production bắt buộc tuân theo mô hìn
      - **Authentication material**: Có chứa PIN plaintext (`"1234"`), hash `scrypt$` thực tế của tài khoản đang dùng, hay mật khẩu quản trị thật?
      - **Operational data**: Có chứa URL nội bộ/cấu hình thực tế?
   3. Xóa file tạm ngay sau khi phân loại (`Remove-Item`).
-- **Mẫu báo cáo phân loại cho Owner (Status hiện tại: `OWNER CONFIRMATION PENDING`)**:
-  - `[ ] Không chứa dữ liệu nhạy cảm thực tế (chỉ dữ liệu mẫu/tổng hợp)`
-  - `[ ] Có dữ liệu cá nhân/tài chính thực tế (PII / Financial)`
-  - `[ ] Có credentials / PIN / secret thực tế`
-- **Hành động bắt buộc nếu phát hiện dữ liệu nhạy cảm thực tế**: Thực hiện ngay mục `6` (xoay vòng PIN toàn bộ tài khoản bị ảnh hưởng, xoay vòng `AUTH_SECRET` để thu hồi mọi session hiện hữu, đánh giá phạm vi clone/fork công khai, và lập kế hoạch xử lý lịch sử Git riêng được Owner phê duyệt).
+- **Bảng phân loại 4 nhóm dữ liệu (bắt buộc đánh dấu từng nhóm sau khi kiểm tra offline)**:
+
+| Nhóm dữ liệu | Không có dữ liệu thực | Chỉ dữ liệu mẫu | Có dữ liệu thực | Chưa xác định |
+| :--- | :---: | :---: | :---: | :---: |
+| **PII** (họ tên thật, SĐT, năm sinh, ghi chú cá nhân) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+| **Financial data** (giao dịch thu/chi, quỹ thực tế, tài trợ) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+| **Authentication material** (PIN, `scrypt$` hash, username/token) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+| **Operational data** (trận đấu, điểm danh, cài đặt vận hành) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+
+- **Mẫu báo cáo ký nhận cho Owner (`Status: OWNER CONFIRMATION PENDING`)**:
+
+```text
+P1-03 OWNER CLASSIFICATION REPORT
+- Blob SHA: 67f415fac8aaf1e80b22c356d01fa1f782083a03
+- Inspection date: YYYY-MM-DD
+- Inspector: <Name / Role>
+- Inspection mode: Offline / Read-only
+- Categories:
+  - PII: [Không có dữ liệu thực / Chỉ dữ liệu mẫu / Có dữ liệu thực / Chưa xác định]
+  - Financial data: [Không có dữ liệu thực / Chỉ dữ liệu mẫu / Có dữ liệu thực / Chưa xác định]
+  - Authentication material: [Không có dữ liệu thực / Chỉ dữ liệu mẫu / Có dữ liệu thực / Chưa xác định]
+  - Operational data: [Không có dữ liệu thực / Chỉ dữ liệu mẫu / Có dữ liệu thực / Chưa xác định]
+- Sensitive data found: YES / NO / UNKNOWN
+- Required actions:
+  - [ ] Rotate affected player/manager PINs
+  - [ ] Rotate AUTH_SECRET
+  - [ ] Plan separate Owner-approved Git history scrub (BFG / git-filter-repo)
+  - [ ] None required (synthetic/sample data only)
+- Temporary file deleted: YES / NO
+- Owner decision: [APPROVED / ACTION REQUIRED]
+- Owner name: <Owner Name>
+- Approval date: YYYY-MM-DD
+- Signature: <Signed / Initials>
+```
+
+- **Hành động bắt buộc nếu phát hiện dữ liệu nhạy cảm thực tế (`Sensitive data found: YES`)**: Thực hiện ngay mục `6` (xoay vòng PIN toàn bộ tài khoản bị ảnh hưởng, xoay vòng `AUTH_SECRET` để thu hồi mọi session hiện hữu, đánh giá phạm vi clone/fork công khai, và lập kế hoạch xử lý lịch sử Git riêng được Owner phê duyệt).
 
 ---
 

@@ -3,7 +3,7 @@
 - **Project**: FC HĐH Gò Nổi tại TP.HCM (`nguyenthetiengit01-collab/FCHDHGoNoi`)
 - **Feature Branch / PR**: `fix/phase-7.1-pre-release-remediation` (PR #16 — **DRAFT / OPEN / NOT MERGED**)
 - **Base `main` SHA**: `c37dfd3200547210e8c6308b34c44db4fe18c04e`
-- **Latest Verified Commit**: `8153da1d53b62041e104e2479e8d21e8339439a4`
+- **Latest Verified Code+E2E Commit**: `c7e95719467207441722a9fbc065fc73fa1f676c`
 - **Date**: 2026-11-20
 - **Overall Release Decision**: **NO-GO** (`P0-01` configuration verified / enforcement behavior verification pending; P1 owner/Preview sign-off pending; Remote Staging **BLOCKED**; Preview Smoke/Rollback & Real-Device QA **NOT VERIFIED**)
 
@@ -40,7 +40,7 @@ Independently verified via GitHub API on 2026-11-20:
   - Server (`POST /api/team` `collect_match_fees_batch`) requires `Idempotency-Key` (`400` if missing/invalid) and persists `idempotency_keys` atomically inside `db.transaction(...)` with `match_attendances` and `audit_logs` (verified against `LocalSqliteAdapter` and overlapping `TursoDbAdapter` mocked transactions including audit rollback & actor isolation).
   - **Response Contract (Option B)**: `idempotency_keys` stores deduplication metadata (`payload_hash`, `status_code`, summary `response_json`); HTTP replay returns `200` with `X-Idempotent-Replay: true` and an authorized fresh `getFullAppData()` snapshot (zero duplicate financial or audit writes).
   - **Remaining Limitations**: Manual discard only removes client state after explicit reconciliation warning (cannot roll back a committed server transaction); clearing browser site data/storage removes the local recovery record; mocked libSQL concurrency does not replace real Remote Staging Turso verification (`NOT VERIFIED`).
-  - **Live Browser E2E & Dependency Audit**: `tests/e2e/collection-recovery.spec.ts` verifies `CollectionTab` recovery in a real browser (`dirtyCount === 0` UI, `"Đối chiếu / Thử lại"` payload/key replay, `"Xoá Khóa Tạm"` warning, corrupted/quota `localStorage` blocking). `npm audit --omit=dev` = `0` vulnerabilities; full `npm audit` = `6` dev-only moderate advisories (`minimatch` `GHSA-g3hv-75wg-m249` + 5 `@typescript-eslint/*` via `eslint-config-next@15.5.29`, zero runtime exposure).
+  - **Live Browser E2E & Dependency Audit**: `tests/e2e/collection-recovery.spec.ts` — Live Chromium browser recovery test verifies `CollectionTab` UI state, persistence/recovery behavior, exact outgoing idempotency payload/key, reconciliation warning, and fail-closed behavior under corrupted/quota `localStorage`. The `POST` request is intercepted by Playwright; therefore, this test does not prove Remote Turso execution or real database concurrency. Remote Turso replay/concurrency remains `NOT VERIFIED` pending authorized Staging rehearsal. `npm audit --omit=dev` = `0` vulnerabilities; full `npm audit` = `6` dev-only moderate advisories (`minimatch` `GHSA-g3hv-75wg-m249` + 5 `@typescript-eslint/*` via `eslint-config-next@15.5.29`, zero runtime exposure).
   - Authoritative pre-release migration `scripts/migrations/phase7-idempotency-v1.mjs` enforces zero-write `--dry-run`, `TURSO_STAGING_DATABASE_URL` / `TURSO_STAGING_AUTH_TOKEN` allowlist preflight, and local SQLite `realpathSync` symlink safety guards (`ensureIdempotencyKeysReady` remains as a lazy backward-compatibility safety net).
 - On `DB_WRITE_OUTCOME_UNKNOWN` (`503`), retrying with the preserved `Idempotency-Key` and identical payload either replays cleanly (if committed) or executes once (if rolled back). Other single-row financial mutations remain reconciliation-required on `503`.
 
@@ -62,7 +62,7 @@ Independently verified via GitHub API on 2026-11-20:
 
 ---
 
-## 4. Local Synthetic DR Rehearsal & Hardening (`8153da1d`)
+## 4. Local Synthetic DR Rehearsal & Hardening (`8153da1d` -> `c7e95719`)
 
 Executed on 2026-11-20 using synthetic data in `os.tmpdir()` (zero `data/gonoifc.sqlite`, zero Production/Staging credentials):
 - **v3 Payload Validation (`scripts/lib/backup-format.mjs`)**: `sequences` array required; `schema` & `objects.tables` DDL consistency enforced; `rowCounts` non-negative integers matched against `tables[t].length`.
@@ -93,18 +93,18 @@ Executed on 2026-11-20 using synthetic data in `os.tmpdir()` (zero `data/gonoifc
 
 ---
 
-## 6. Verification Evidence (`8153da1d53b62041e104e2479e8d21e8339439a4`)
+## 6. Verification Evidence (`c7e95719467207441722a9fbc065fc73fa1f676c`)
 
-### A. Local Execution Evidence
-- `npm audit --omit=dev`: **0 vulnerabilities**
-- `npm test -- --maxWorkers=1`: **46/46 test files passed, 370/370 tests passed**.
-- `npm run lint` (`eslint src`): **0 errors, 0 warnings**.
+### A. Local Execution Evidence (Coding Agent)
+- `npm audit --omit=dev`: **0 vulnerabilities** (`npm audit` full = `6 moderate` dev-only via `eslint-config-next@15.5.29`).
+- `npm test -- --maxWorkers=1`: **51/51 test files passed, 390/390 tests passed**.
+- `npm run lint` (`eslint src`): **0 errors**.
 - `npx tsc --noEmit`: **0 errors**.
 - `npm run build`: **Passed** (`NFT_SQLITE_COUNT=0`).
-- `npm run test:e2e` (Windows, isolated `QA_ROOT`): **10/10 passed** (axe-core `0` violations, `LAB_VITALS_HOME: {"lcp":2524,"cls":0}`).
+- `npm run test:e2e` (Windows, isolated `QA_ROOT`): **11/11 passed** (`LCP: 2692ms`, `CLS: 0`).
 
 ### B. GitHub Actions CI Evidence
-- **Run ID**: `44675008948` (`https://github.com/nguyenthetiengit01-collab/FCHDHGoNoi/actions/runs/44675008948`)
+- **Run ID**: `44711932818` (`https://github.com/nguyenthetiengit01-collab/FCHDHGoNoi/actions/runs/44711932818`)
 - **Jobs**:
   - `Quality Gates (Node 22.23.5)`: **`success`**
   - `Playwright Visual & Accessibility QA (Linux)`: **`success`**
