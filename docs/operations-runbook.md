@@ -32,7 +32,7 @@ Tài liệu vận hành chính thức cho hệ thống **FC HĐH Gò Nổi tại
 | Hạng mục DR | Trạng thái đã chứng minh hiện tại | Mục tiêu đề xuất (Chờ Owner phê duyệt) |
 | :--- | :--- | :--- |
 | **Lịch Backup tự động** | Hàng tuần (`0 20 * * 0` UTC = 03:00 UTC+7 Thứ Hai) + `workflow_dispatch` trong `.github/workflows/turso-backup.yml` | Duy trì kiểm tra sau mỗi lần chạy; cân nhắc nâng lên **hàng ngày** |
-| **Lần Backup thành công gần nhất** | Run thủ công `43839671777` ngày `2026-11-16` (`0` lần chạy tự động theo `schedule` tính đến `2026-11-20`; lần `schedule` đầu tiên dự kiến `2026-11-22`) | Xác nhận run `2026-11-22` thành công và theo dõi liên tục |
+| **Lần Backup thành công gần nhất** | Run thủ công `43839671777` ngày `2026-11-16` (`0` lần chạy tự động theo `schedule` tính đến `2026-11-20`; lần `schedule` đầu tiên dự kiến `2026-11-22 20:00 UTC` = `2026-11-23 03:00 UTC+7` trên nhánh mặc định `main`, chưa gồm `Report backup failure alert` của PR #16) | Xác nhận run `2026-11-22/23` trên `main` thành công (tách biệt với bằng chứng workflow PR #16 sau merge) và theo dõi liên tục |
 | **RPO (Recovery Point Objective)** | `NOT DOCUMENTED` (RPO thực tế từ lịch tuần hiện tại = tối đa **7 ngày**; chưa cấu hình/tài liệu hóa Turso PITR) | **<= 24 giờ** (nếu bật backup hàng ngày hoặc xác minh Turso PITR) hoặc **<= 7 ngày** (nếu giữ lịch tuần) |
 | **RTO (Recovery Time Objective)** | `NOT DOCUMENTED` (chưa có SLA chính thức cho phục hồi thủ công Turso + Vercel) | **<= 2 giờ** cho quy trình phục hồi thủ công toàn phần |
 | **Tần suất Restore Drill** | Chưa định kỳ (Local synthetic drill gần nhất: `2026-11-20` — **PASSED** trong thư mục tạm cô lập) | **Hàng quý (Quarterly)** trên Staging + trước mỗi đợt migration lớn |
