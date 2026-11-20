@@ -64,6 +64,17 @@ function createTestDb() {
       playing_style TEXT NOT NULL DEFAULT '',
       gallery_urls_json TEXT NOT NULL DEFAULT '[]'
     );
+    CREATE TABLE IF NOT EXISTS idempotency_keys (
+      idempotency_key TEXT NOT NULL,
+      actor_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      payload_hash TEXT NOT NULL,
+      status_code INTEGER NOT NULL,
+      response_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL,
+      PRIMARY KEY (idempotency_key, actor_id, action)
+    );
     CREATE TABLE matches (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       match_number INTEGER NOT NULL,
@@ -518,6 +529,289 @@ describe("Phase 7.1.2 – Account Atomicity, Predictable PIN Removal, Financial 
         })
       );
       expect(bodyOverImport.status).toBe(413);
+
+      // 4. Invalid Content-Length header falls through to actual file size check; exact 4MB passes size gate
+      const fdWebpExact = new FormData();
+      fdWebpExact.append(
+        "file",
+        new File([new Uint8Array(FOUR_MB)], "exact.png", { type: "image/png" })
+      );
+      const exactWebpRes = await postWebpRoute(
+        new NextRequest("http://localhost:3000/api/webp", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            "content-length": "not-a-number",
+            cookie: `${SESSION_COOKIE_NAME}=${mgrToken}`,
+          },
+          body: fdWebpExact,
+        })
+      );
+      expect(exactWebpRes.status).not.toBe(413);
+
+      const fdImportExact = new FormData();
+      fdImportExact.append(
+        "file",
+        new File([new Uint8Array(FOUR_MB)], "exact.xlsx", {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        })
+      );
+      const exactImportRes = await postImportRoute(
+        new NextRequest("http://localhost:3000/api/import", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            cookie: `${SESSION_COOKIE_NAME}=${mgrToken}`,
+          },
+          body: fdImportExact,
+        })
+      );
+      expect(exactImportRes.status).not.toBe(413);
+
+      // 5. Invalid MIME type, empty file, and malformed multipart body -> 400
+      const fdBadMime = new FormData();
+      fdBadMime.append(
+        "file",
+        new File(["hello"], "bad.txt", { type: "text/plain" })
+      );
+      const badMimeRes = await postWebpRoute(
+        new NextRequest("http://localhost:3000/api/webp", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            cookie: `${SESSION_COOKIE_NAME}=${mgrToken}`,
+          },
+          body: fdBadMime,
+        })
+      );
+      expect(badMimeRes.status).toBe(400);
+
+      const fdEmpty = new FormData();
+      fdEmpty.append("file", new File([], "empty.png", { type: "image/png" }));
+      const emptyFileRes = await postWebpRoute(
+        new NextRequest("http://localhost:3000/api/webp", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            cookie: `${SESSION_COOKIE_NAME}=${mgrToken}`,
+          },
+          body: fdEmpty,
+        })
+      );
+      expect(emptyFileRes.status).toBe(400);
+
+      const badMultipartRes = await postImportRoute(
+        new NextRequest("http://localhost:3000/api/import", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            "content-type": "multipart/form-data; boundary=broken",
+            cookie: `${SESSION_COOKIE_NAME}=${mgrToken}`,
+          },
+          body: "corrupted-multipart-payload",
+        })
+      );
+      expect(badMultipartRes.status).toBe(400);
+    } finally {
+      raw.close();
+    }
+  });
+
+  it("enforces P2-08 audit-log transaction atomicity and DB-backed collect_match_fees_batch idempotency", async () => {
+    const { raw, db } = createTestDb();
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(db);
+    spyFullAppData(raw);
+
+    try {
+      raw.prepare(
+        `INSERT INTO players (code_order, full_name, short_name, access_role, username, pin_code, status)
+         VALUES
+           (1, 'Manager One', 'Mgr1', 'manager', 'mgr1', ?, 'Đang sinh hoạt'),
+           (2, 'Manager Two', 'Mgr2', 'manager', 'mgr2', ?, 'Đang sinh hoạt'),
+           (3, 'Player Three', 'P3', 'player', 'p3', ?, 'Đang sinh hoạt')`
+      ).run(
+        hashPassword("Mgr1Strong@2026"),
+        hashPassword("Mgr2Strong@2026"),
+        hashPassword("Player3@2026")
+      );
+      raw.prepare(
+        `INSERT INTO matches (id, match_number, label, match_date, fee_per_player, pitch_cost)
+         VALUES (1, 1, 'Trận 1', '2026-06-10', 100000, 600000)`
+      ).run();
+
+      const mgr1 = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+      const mgr2 = raw.prepare("SELECT * FROM players WHERE id = 2").get() as unknown as Player;
+      const token1 = createSessionToken(mgr1, 24);
+      const token2 = createSessionToken(mgr2, 24);
+
+      // 1. Audit failure inside transaction rolls back financial write (upsert_expense)
+      await dbModule.ensureAuditLogsReady(db);
+      raw.exec(
+        `CREATE TRIGGER trg_fail_audit BEFORE INSERT ON audit_logs
+         BEGIN SELECT RAISE(ABORT, 'Simulated audit write failure'); END;`
+      );
+      const auditFailRes = await postTeamRoute(
+        new NextRequest("http://localhost:3000/api/team", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            cookie: `${SESSION_COOKIE_NAME}=${token1}`,
+          },
+          body: JSON.stringify({
+            action: "upsert_expense",
+            payload: {
+              expense_date: "2026-06-10",
+              category: "Nước uống",
+              description: "Rollback Expense",
+              amount: 50000,
+              payer: "Mgr1",
+            },
+          }),
+        })
+      );
+      expect(auditFailRes.status).toBe(500);
+      expect(
+        raw.prepare("SELECT COUNT(*) AS c FROM expenses WHERE description = 'Rollback Expense'").get()
+      ).toEqual({ c: 0 });
+      raw.exec("DROP TRIGGER trg_fail_audit;");
+
+      // 2. collect_match_fees_batch idempotency: first call commits, replay returns 200 without duplicate audit/write, mismatch returns 409
+      const batchPayload = {
+        match_id: 1,
+        collected_by: "Mgr1",
+        items: [
+          {
+            player_id: 3,
+            attended: 1,
+            paid: 1,
+            amount: 100000,
+            note: "Idempotent batch",
+          },
+        ],
+      };
+
+      const firstBatchRes = await postTeamRoute(
+        new NextRequest("http://localhost:3000/api/team", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            "idempotency-key": "batch-key-1",
+            cookie: `${SESSION_COOKIE_NAME}=${token1}`,
+          },
+          body: JSON.stringify({
+            action: "collect_match_fees_batch",
+            payload: batchPayload,
+          }),
+        })
+      );
+      expect(firstBatchRes.status).toBe(200);
+      expect(firstBatchRes.headers.get("x-idempotent-replay")).toBeNull();
+      expect(
+        raw.prepare("SELECT COUNT(*) AS c FROM audit_logs WHERE action = 'collect_match_fees_batch'").get()
+      ).toEqual({ c: 1 });
+      expect(
+        raw.prepare("SELECT amount, paid FROM match_attendances WHERE match_id = 1 AND player_id = 3").get()
+      ).toEqual({ amount: 100000, paid: 1 });
+
+      // Replay identical payload with same key -> 200 with X-Idempotent-Replay: true, no duplicate audit log
+      const replayBatchRes = await postTeamRoute(
+        new NextRequest("http://localhost:3000/api/team", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            "idempotency-key": "batch-key-1",
+            cookie: `${SESSION_COOKIE_NAME}=${token1}`,
+          },
+          body: JSON.stringify({
+            action: "collect_match_fees_batch",
+            payload: batchPayload,
+          }),
+        })
+      );
+      expect(replayBatchRes.status).toBe(200);
+      expect(replayBatchRes.headers.get("x-idempotent-replay")).toBe("true");
+      expect(
+        raw.prepare("SELECT COUNT(*) AS c FROM audit_logs WHERE action = 'collect_match_fees_batch'").get()
+      ).toEqual({ c: 1 });
+
+      // Reuse key with different payload -> 409 Conflict
+      const conflictBatchRes = await postTeamRoute(
+        new NextRequest("http://localhost:3000/api/team", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            "idempotency-key": "batch-key-1",
+            cookie: `${SESSION_COOKIE_NAME}=${token1}`,
+          },
+          body: JSON.stringify({
+            action: "collect_match_fees_batch",
+            payload: {
+              ...batchPayload,
+              items: [{ player_id: 3, attended: 1, paid: 1, amount: 150000 }],
+            },
+          }),
+        })
+      );
+      expect(conflictBatchRes.status).toBe(409);
+      expect(
+        raw.prepare("SELECT amount FROM match_attendances WHERE match_id = 1 AND player_id = 3").get()
+      ).toEqual({ amount: 100000 });
+
+      // Same key used by another actor (mgr2) is isolated by actor_id
+      const otherActorRes = await postTeamRoute(
+        new NextRequest("http://localhost:3000/api/team", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            "idempotency-key": "batch-key-1",
+            cookie: `${SESSION_COOKIE_NAME}=${token2}`,
+          },
+          body: JSON.stringify({
+            action: "collect_match_fees_batch",
+            payload: {
+              match_id: 1,
+              collected_by: "Mgr2",
+              items: [{ player_id: 3, attended: 1, paid: 1, amount: 120000 }],
+            },
+          }),
+        })
+      );
+      expect(otherActorRes.status).toBe(200);
+      expect(
+        raw.prepare("SELECT COUNT(*) AS c FROM audit_logs WHERE action = 'collect_match_fees_batch'").get()
+      ).toEqual({ c: 2 });
+
+      // 3. Migration script phase7-idempotency-v1.mjs is idempotent on isolated synthetic SQLite
+      const { runPhase7IdempotencyMigration } = await import(
+        "../../scripts/migrations/phase7-idempotency-v1.mjs"
+      );
+      const { DatabaseSync } = await import("node:sqlite");
+      const migDb = new DatabaseSync(":memory:");
+      try {
+        const exec = async (sql: string, params: unknown[] = []) => {
+          migDb.prepare(sql).run(...(params as never[]));
+        };
+        const qry = async (sql: string, params: unknown[] = []) =>
+          migDb.prepare(sql).all(...(params as never[]));
+        const dryRes = await runPhase7IdempotencyMigration({ execute: exec, query: qry, dryRun: true });
+        expect(dryRes.actions).toContain("CREATE TABLE idempotency_keys");
+        const applyRes = await runPhase7IdempotencyMigration({ execute: exec, query: qry, dryRun: false });
+        expect(applyRes.actions).toContain("CREATE TABLE idempotency_keys");
+        const rerunRes = await runPhase7IdempotencyMigration({ execute: exec, query: qry, dryRun: false });
+        expect(rerunRes.actions).not.toContain("CREATE TABLE idempotency_keys");
+      } finally {
+        migDb.close();
+      }
     } finally {
       raw.close();
     }

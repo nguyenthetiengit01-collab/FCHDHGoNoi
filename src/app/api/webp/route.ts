@@ -53,6 +53,20 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      if (file.size <= 0) {
+        return NextResponse.json(
+          { error: "File ảnh trống (0 byte)" },
+          { status: 400, headers: NO_STORE_HEADERS }
+        );
+      }
+
+      if (file.type && !file.type.startsWith("image/")) {
+        return NextResponse.json(
+          { error: "Chỉ hỗ trợ định dạng tệp hình ảnh hợp lệ" },
+          { status: 400, headers: NO_STORE_HEADERS }
+        );
+      }
+
       if (file.size > MAX_UPLOAD_BYTES) {
         return NextResponse.json(
           { error: "Kích thước ảnh vượt quá giới hạn tối đa 4MB của máy chủ" },

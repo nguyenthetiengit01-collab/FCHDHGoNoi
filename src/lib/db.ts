@@ -952,6 +952,21 @@ function initSchema(db: DatabaseSyncType) {
       summary TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS idempotency_keys (
+      idempotency_key TEXT NOT NULL,
+      actor_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      payload_hash TEXT NOT NULL,
+      status_code INTEGER NOT NULL,
+      response_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL,
+      PRIMARY KEY (idempotency_key, actor_id, action)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_idempotency_expires_at
+      ON idempotency_keys(expires_at);
   `);
 }
 
@@ -2225,12 +2240,13 @@ export interface AuditLogEntry {
   created_at: string;
 }
 
-let auditTableInitPromise: Promise<void> | null = null;
+const auditTableInitByDb = new WeakMap<AsyncDb, Promise<void>>();
 
-export async function ensureAuditLogsReady(): Promise<void> {
-  if (!auditTableInitPromise) {
-    auditTableInitPromise = (async () => {
-      const db = getAsyncDb();
+export async function ensureAuditLogsReady(targetDb?: AsyncDb): Promise<void> {
+  const db = targetDb ?? getAsyncDb();
+  let pending = auditTableInitByDb.get(db);
+  if (!pending) {
+    pending = (async () => {
       await db.run(`
         CREATE TABLE IF NOT EXISTS audit_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2243,11 +2259,12 @@ export async function ensureAuditLogsReady(): Promise<void> {
         )
       `);
     })().catch((err) => {
-      auditTableInitPromise = null;
+      auditTableInitByDb.delete(db);
       throw err;
     });
+    auditTableInitByDb.set(db, pending);
   }
-  return auditTableInitPromise;
+  return pending;
 }
 
 export async function recordAuditLog(params: {
@@ -2261,7 +2278,7 @@ export async function recordAuditLog(params: {
   try {
     if (!params.tx) {
       await ensureAuditLogsReady();
-    } else if (!auditTableInitPromise) {
+    } else if (!auditTableInitByDb.has(getAsyncDb())) {
       await params.tx.run(`
         CREATE TABLE IF NOT EXISTS audit_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2276,14 +2293,15 @@ export async function recordAuditLog(params: {
     }
     const targetDb: AsyncDbTx = params.tx ?? getAsyncDb();
     await targetDb.run(
-      `INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, summary)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, summary, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         params.actorId,
         String(params.actorName || "").slice(0, 120),
         String(params.actorRole || "player").slice(0, 32),
         String(params.action || "").slice(0, 80),
         String(params.summary || "").slice(0, 300),
+        new Date().toISOString(),
       ]
     );
   } catch (err) {
@@ -2292,6 +2310,38 @@ export async function recordAuditLog(params: {
     }
     console.error("recordAuditLog warning:", err);
   }
+}
+
+const idempotencyTableInitByDb = new WeakMap<AsyncDb, Promise<void>>();
+
+export async function ensureIdempotencyKeysReady(targetDb?: AsyncDb): Promise<void> {
+  const db = targetDb ?? getAsyncDb();
+  let pending = idempotencyTableInitByDb.get(db);
+  if (!pending) {
+    pending = (async () => {
+      await db.run(`
+        CREATE TABLE IF NOT EXISTS idempotency_keys (
+          idempotency_key TEXT NOT NULL,
+          actor_id INTEGER NOT NULL,
+          action TEXT NOT NULL,
+          payload_hash TEXT NOT NULL,
+          status_code INTEGER NOT NULL,
+          response_json TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL,
+          PRIMARY KEY (idempotency_key, actor_id, action)
+        )
+      `);
+      await db.run(
+        "CREATE INDEX IF NOT EXISTS idx_idempotency_expires_at ON idempotency_keys(expires_at)"
+      );
+    })().catch((err) => {
+      idempotencyTableInitByDb.delete(db);
+      throw err;
+    });
+    idempotencyTableInitByDb.set(db, pending);
+  }
+  return pending;
 }
 
 export async function getAuditLogs(limit = 50): Promise<AuditLogEntry[]> {

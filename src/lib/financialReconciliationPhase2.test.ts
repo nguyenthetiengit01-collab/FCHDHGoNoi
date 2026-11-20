@@ -379,13 +379,27 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
   it("10. API batch collection hỗ trợ idempotency_key chống trùng lặp dữ liệu", async () => {
     const executeSpy = vi.fn().mockResolvedValue({ rows: [] });
     const querySpy = vi.fn().mockResolvedValue([mockManager]);
-    const queryOneSpy = vi.fn().mockResolvedValue({ fee_per_player: 100000 });
+    const queryOneSpy = vi.fn().mockImplementation(async (sql: string) => {
+      if (sql.includes("idempotency_keys")) return null;
+      return { id: 1, fee_per_player: 100000 };
+    });
+    const runSpy = vi.fn().mockResolvedValue({ lastInsertRowid: 1, changes: 1 });
     const batchSpy = vi.fn().mockResolvedValue([]);
+    const txObj = {
+      query: querySpy,
+      queryOne: queryOneSpy,
+      run: runSpy,
+    };
+    const transactionSpy = vi.fn(async (fn: (tx: typeof txObj) => Promise<unknown>) =>
+      fn(txObj)
+    );
     vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
       execute: executeSpy,
       query: querySpy,
       queryOne: queryOneSpy,
+      run: runSpy,
       batch: batchSpy,
+      transaction: transactionSpy,
     } as unknown as ReturnType<typeof dbModule.getAsyncDb>);
 
     vi.spyOn(dbModule, "getFullAppData").mockResolvedValue({
@@ -436,7 +450,8 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.players).toBeDefined();
-    expect(batchSpy).toHaveBeenCalledTimes(1);
+    expect(transactionSpy).toHaveBeenCalledTimes(1);
+    expect(runSpy).toHaveBeenCalled();
   });
 
   // 11. An toàn Import: file thiếu sheet hoặc format sai thì rollback và trả lỗi an toàn

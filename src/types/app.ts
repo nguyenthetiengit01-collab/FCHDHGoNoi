@@ -294,7 +294,12 @@ export interface PublicClubData {
   sponsors?: Sponsor[];
 }
 
+export type MutateActionResult = {
+  ok: boolean;
+  error?: string;
+};
+
 export type MutateActionFn = (
   action: string,
   payload: Record<string, unknown>
-) => Promise<void>;
+) => Promise<MutateActionResult | void>;

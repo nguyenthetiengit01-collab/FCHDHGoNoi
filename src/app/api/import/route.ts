@@ -593,7 +593,25 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get("content-type") || "";
 
     if (contentType.includes("multipart/form-data")) {
-      const formData = await req.formData();
+      const contentLengthHeader = req.headers.get("content-length");
+      if (contentLengthHeader !== null) {
+        const parsedLength = Number(contentLengthHeader);
+        if (Number.isFinite(parsedLength) && parsedLength > MAX_IMPORT_SIZE_BYTES) {
+          return NextResponse.json(
+            { error: "File Excel vượt quá giới hạn tối đa 4MB của máy chủ." },
+            { status: 413, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+      }
+      let formData: FormData;
+      try {
+        formData = await req.formData();
+      } catch {
+        return NextResponse.json(
+          { error: "Dữ liệu tải lên không đúng định dạng multipart/form-data." },
+          { status: 400, headers: { "Cache-Control": "no-store" } }
+        );
+      }
       const file = formData.get("file") as File | null;
       if (!file) {
         return NextResponse.json(
@@ -607,19 +625,6 @@ export async function POST(req: NextRequest) {
           { error: "Chỉ hỗ trợ định dạng file Excel (.xlsx, .xls, .xlsm)." },
           { status: 400, headers: { "Cache-Control": "no-store" } }
         );
-      }
-      const contentLengthHeader = req.headers.get("content-length");
-      if (contentLengthHeader !== null) {
-        const parsedLength = Number(contentLengthHeader);
-        if (Number.isFinite(parsedLength) && parsedLength > MAX_IMPORT_SIZE_BYTES) {
-          return NextResponse.json(
-            {
-              error:
-                "Kích thước file vượt quá giới hạn cho phép của máy chủ (tối đa 4MB).",
-            },
-            { status: 413, headers: { "Cache-Control": "no-store" } }
-          );
-        }
       }
       if (file.size > MAX_IMPORT_SIZE_BYTES) {
         return NextResponse.json(

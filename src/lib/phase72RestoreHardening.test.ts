@@ -340,4 +340,113 @@ describe("Phase 7.2 – Restore Payload Validation & Failure Injection", () => {
     dupSeq.sequences.push({ name: "teams", seq: 5 });
     expect(() => validateBackupPayload(dupSeq)).toThrow(/duplicate sqlite_sequence/);
   });
+
+  it("handles adversarial DDL scanner cases: literals, quoted identifiers, escaped quotes, comments, triggers with BEGIN/END and CASE/END, and real sqlite_master DDL", async () => {
+    const { hasMultipleSqlStatements, extractDdlObjectName } = await import(
+      "../../scripts/lib/backup-format.mjs"
+    );
+    const { DatabaseSync } = await import("node:sqlite");
+
+    // 1. String literals with semicolons & escaped single quotes
+    const litSql =
+      "CREATE TABLE notes_tbl (id INTEGER PRIMARY KEY, val TEXT DEFAULT 'a;b''c;d')";
+    expect(hasMultipleSqlStatements(litSql, "tables")).toBe(false);
+    expect(extractDdlObjectName(litSql, "tables")).toBe("notes_tbl");
+
+    // 2. Quoted identifiers (double quotes, backticks, brackets) with semicolons & escaped quotes
+    expect(
+      hasMultipleSqlStatements(
+        'CREATE TABLE "odd;""name" (id INTEGER PRIMARY KEY)',
+        "tables"
+      )
+    ).toBe(false);
+    expect(
+      hasMultipleSqlStatements(
+        "CREATE TABLE `back;tick` (id INTEGER PRIMARY KEY)",
+        "tables"
+      )
+    ).toBe(false);
+    expect(
+      hasMultipleSqlStatements(
+        "CREATE TABLE [bracket;tbl] (id INTEGER PRIMARY KEY)",
+        "tables"
+      )
+    ).toBe(false);
+
+    // 3. Line comments, block comments, and trailing comments
+    const commentedSql = `
+      /* leading ; comment */
+      CREATE TABLE clean_tbl (
+        id INTEGER PRIMARY KEY, -- inline ; comment
+        note TEXT DEFAULT 'ok'
+      ); -- trailing ; comment
+    `;
+    expect(hasMultipleSqlStatements(commentedSql, "tables")).toBe(false);
+    expect(extractDdlObjectName(commentedSql, "tables")).toBe("clean_tbl");
+
+    // 4. Multiple statements (even disguised after comments/literals) must be rejected
+    expect(
+      hasMultipleSqlStatements(
+        "CREATE TABLE ok_tbl (id INT); DROP TABLE other_tbl;",
+        "tables"
+      )
+    ).toBe(true);
+    expect(
+      hasMultipleSqlStatements(
+        "CREATE TABLE ok_tbl (id INT DEFAULT 'x;y'); SELECT 1",
+        "tables"
+      )
+    ).toBe(true);
+
+    // 5. CREATE TRIGGER with BEGIN/END and nested CASE/END
+    const validTriggerSql = `
+      CREATE TRIGGER trg_audit_case AFTER INSERT ON teams
+      BEGIN
+        UPDATE teams
+        SET name = CASE WHEN NEW.name = '' THEN 'x;y' ELSE NEW.name END
+        WHERE id = NEW.id;
+      END;
+    `;
+    expect(hasMultipleSqlStatements(validTriggerSql, "triggers")).toBe(false);
+    expect(extractDdlObjectName(validTriggerSql, "triggers")).toBe(
+      "trg_audit_case"
+    );
+
+    // Trigger followed by injected statement must be rejected
+    const evilTriggerSql = `${validTriggerSql} DROP TABLE teams;`;
+    expect(hasMultipleSqlStatements(evilTriggerSql, "triggers")).toBe(true);
+
+    // 6. Real synthetic SQLite sqlite_master DDL round-trip
+    const mem = new DatabaseSync(":memory:");
+    try {
+      mem.exec(`
+        CREATE TABLE teams (id INTEGER PRIMARY KEY AUTOINCREMENT, note TEXT DEFAULT 'a;b');
+        CREATE INDEX idx_teams_note ON teams(note);
+        CREATE VIEW v_teams AS SELECT id, note FROM teams;
+        CREATE TRIGGER trg_teams_ins AFTER INSERT ON teams
+        BEGIN
+          UPDATE teams SET note = CASE WHEN NEW.note IS NULL THEN 'n;a' ELSE NEW.note END WHERE id = NEW.id;
+        END;
+      `);
+      const masterRows = mem
+        .prepare(
+          "SELECT type, name, sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%'"
+        )
+        .all() as Array<{ type: string; name: string; sql: string }>;
+
+      const kindMap: Record<string, string> = {
+        table: "tables",
+        index: "indexes",
+        view: "views",
+        trigger: "triggers",
+      };
+      for (const row of masterRows) {
+        const kind = kindMap[row.type];
+        expect(hasMultipleSqlStatements(row.sql, kind)).toBe(false);
+        expect(extractDdlObjectName(row.sql, kind)).toBe(row.name);
+      }
+    } finally {
+      mem.close();
+    }
+  });
 });

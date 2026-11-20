@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 import { getAsyncDb } from "./db";
+import { validatePasswordStrength, type PasswordStrengthResult } from "./passwordStrength";
+export { validatePasswordStrength, type PasswordStrengthResult };
 import {
   clearAuthRateLimitOnSuccess,
   evaluateAuthRateLimit,
@@ -196,89 +198,7 @@ export function isDefaultPassword(pinOrHash?: string | null): boolean {
   return verifyPassword("1234", pinOrHash);
 }
 
-/**
- * Kiểm tra độ mạnh và tính hợp lệ của mật khẩu mới
- */
-export function validatePasswordStrength(
-  password: string,
-  username = ""
-): { valid: boolean; score: number; message?: string; error?: string } {
-  const p = String(password || "").trim();
-
-  if (p.length < 6) {
-    const msg = "Mật khẩu phải có độ dài tối thiểu từ 6 ký tự trở lên.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  if (p.length > 128) {
-    const msg = "Mật khẩu không được vượt quá 128 ký tự.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  if (/^(.)\1{5,}$/.test(p)) {
-    const msg = "Mật khẩu quá đơn giản và dễ đoán. Vui lòng chọn mật khẩu an toàn hơn.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  const commonWeak = [
-    "123456",
-    "12345678",
-    "123456789",
-    "000000",
-    "111111",
-    "666666",
-    "888888",
-    "password",
-    "matkhau",
-    "qwerty",
-    "admin123",
-    "fchdhgonoi",
-    "gonoi123",
-  ];
-
-  if (commonWeak.includes(p.toLowerCase())) {
-    const msg = "Mật khẩu quá đơn giản và dễ đoán. Vui lòng chọn mật khẩu an toàn hơn.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  if (username && p.toLowerCase() === username.trim().toLowerCase()) {
-    const msg = "Mật khẩu không được trùng với tên đăng nhập.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  // Đánh giá điểm sức mạnh từ 1 đến 4
-  let score = 1;
-  if (p.length >= 8) score++;
-  if (/[a-zA-Z]/.test(p) && /[0-9]/.test(p)) score++;
-  if (/[^a-zA-Z0-9]/.test(p) || p.length >= 10) score++;
-
-  return { valid: true, score };
-}
+// validatePasswordStrength re-exported from ./passwordStrength
 
 // =========================================================================
 // 2. CHỐNG BRUTE-FORCE VÀ TẠM KHÓA ĐĂNG NHẬP (RATE LIMITING)
