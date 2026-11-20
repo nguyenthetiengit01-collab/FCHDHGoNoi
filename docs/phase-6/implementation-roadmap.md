@@ -89,7 +89,9 @@
 
 ---
 
-## Phase 6.5.1 — Playwright Portability, Synthetic QA Fixtures & Cross-Platform CI (In Progress)
+## Phase 6.5.1 — Playwright Portability, Synthetic QA Fixtures & Cross-Platform CI (Completed)
 
 - **Implementation Record**: `docs/phase-6/phase-6.5.1-implementation.md`
+- **PR & Merge Commit**: PR #14 — merged to `main` at `fd1b150c94c54f16b0f0888aa57de3c3cb4c1ea7`
+- **CI Verification**: Post-merge `CI Quality Gates` run `44658813350` passed `Quality Gates (Node 22.23.5)`, `Playwright Visual & Accessibility QA (Linux)`, and `Playwright Visual & Accessibility QA (Windows)` using deterministic synthetic SQLite fixtures under `QA_ROOT`.
 - **Objective**: Replace bundled DB copies and hardcoded Windows paths with validated per-run `QA_ROOT`, deterministic synthetic SQLite fixtures, Playwright-managed Chromium portability, and Windows + Linux CI matrix verification.

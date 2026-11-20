@@ -1,0 +1,79 @@
+# Phase 7 — Prioritized Risk Register
+
+- **Baseline**: `main` @ `fd1b150c94c54f16b0f0888aa57de3c3cb4c1ea7`
+- **Audit Date**: 2026-11-20
+- **Summary**: **1 P0** | **13 P1** | **15 P2** | **7 P3** | **5 NOT VERIFIED**
+
+---
+
+## P0 — Critical (Release Blocking)
+
+| ID | Category | Description & Evidence | Impact / Probability | Recommended Remediation | Owner | Blocking |
+| :--- | :--- | :--- | :--- | :--- | :--- | :---: |
+| **P0-01** | Release Control | `main` branch protection is **disabled** (`protected: False` via GitHub API `/branches`), despite policy in `docs/operations/ci-cd.md:54-61`. Direct pushes, force-pushes, unreviewed PRs, and failing checks are not blocked. | **Impact**: Critical (unreviewed/broken code can reach Production). **Prob**: High | Enable GitHub Branch Protection on `main`: require PR (`>=1` approval, dismiss stale reviews), require `Quality Gates (Node 22.23.5)`, `Playwright Visual & Accessibility QA (Linux)`, `Playwright Visual & Accessibility QA (Windows)`, and `Vercel`; disable force-pushes/deletions. | Repo Owner | **YES** |
+
+---
+
+## P1 — High (Release Blocking Without Accepted Mitigation)
+
+| ID | Category | Description & Evidence | Impact / Probability | Recommended Remediation | Owner | Blocking |
+| :--- | :--- | :--- | :--- | :--- | :--- | :---: |
+| **P1-01** | Security / Privacy | `POST /api/team` (`src/app/api/team/route.ts:1947-1948`) returns unsanitized `getFullAppData()` to `player` sessions (`set_rsvp`, `update_own_profile`, `change_own_password`), leaking teammates' `phone`, `username`, `notes`, `access_role`, and `settings.tournament_fund_note`, and keeping `pin_code: ""` (also in `src/app/api/import/route.ts:1396-1398`). | **Impact**: High (PII & manager-note exposure to players). **Prob**: High (every player action) | Apply `sanitizeDataForPlayer(updated, session.playerId)` when `session.accessRole !== "manager"` and omit `pin_code` property in `POST /api/team` and `POST /api/import`. | Backend / Security | **YES** |
+| **P1-02** | Auth / Session | `change_own_password` in `POST /api/team` (`src/app/api/team/route.ts:1951-1965`) builds the new cookie from `getFullAppData()` where `pin_code` is `""`, causing `createSessionToken` (`src/lib/auth.ts:404`) to embed `pwdFingerprint` of `"1234"` instead of the new `scrypt$` hash. Next request fails with `401`. | **Impact**: High (every user changing PIN is locked out of session). **Prob**: High (100% on PIN change) | Query `AUTH_PLAYER_PROFILE_COLUMNS` from `db` for `session.playerId` (or pass `hashedPin`) when calling `createSessionToken`. | Backend / Auth | **YES** |
+| **P1-03** | Runtime / Privacy | `data/gonoifc.sqlite` (274,432 bytes) is tracked in Git (`.gitignore:17`) and traced into every serverless `.nft.json` via `outputFileTracingIncludes` (`next.config.ts:5-8`) and dead `BUNDLED_DB_PATH` copy (`src/lib/db.ts:452-495`). Production strictly uses Turso (`src/lib/db.ts:111-137`). *(Escalates to **P0** if file contains real PII).* | **Impact**: High (DB snapshot in Git & Vercel artifacts). **Prob**: High (every build) | Remove `outputFileTracingIncludes` from `next.config.ts`, remove dead `BUNDLED_DB_PATH` copy from `src/lib/db.ts`, untrack `data/gonoifc.sqlite`, and ignore `data/*.sqlite`. | Platform / Security | **YES** |
+| **P1-04** | HTTP Security | Missing HTTP security headers: no `headers()` in `next.config.ts` and no `src/middleware.ts`/`src/proxy.ts`. Absent: `CSP`, `HSTS`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, global `X-Content-Type-Options: nosniff`. | **Impact**: High (clickjacking, MIME sniffing, XSS defense-in-depth). **Prob**: Medium | Configure `async headers()` in `next.config.ts` with `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Strict-Transport-Security`, `Permissions-Policy`, and `Content-Security-Policy`. | Platform / Security | **YES** |
+| **P1-05** | Financial Integrity | `add_walkin_player` (`src/app/api/team/route.ts:1320-1331`), `upsert_match` (`767-768`), and `update_settings` (`1580-1608`) bypass `parseNonNegativeIntVnd`, allowing negative/float/NaN amounts and silently converting `0` fees to `100,000`. | **Impact**: High (corrupts `totalMatchIncome` & `currentBalance`). **Prob**: Medium | Validate all monetary fields with `parseNonNegativeIntVnd` and validate `match_id` existence in `add_walkin_player`. | Backend / Finance | **YES** |
+| **P1-06** | Excel Security | `GET /api/export` (`src/app/api/export/route.ts:68-285`) writes raw user-controlled strings to `.xlsx` cells without escaping leading `=`, `+`, `-`, `@`, `\t`, `\r`. | **Impact**: High (spreadsheet formula injection on manager devices). **Prob**: Medium | Add `sanitizeExcelCell()` prefixing `'` on text cells matching `/^[=+\-@\t\r]/` while preserving explicit numeric/formula cells. | Backend / Security | **YES** |
+| **P1-07** | Reliability | Missing `src/app/error.tsx`, `src/app/global-error.tsx`, and `src/app/not-found.tsx` for `force-dynamic` SSR routes (`/`, `/cau-thu/[id]`). | **Impact**: High (raw Next.js 500 page on DB outage). **Prob**: Medium | Add branded Vietnamese `error.tsx`, `global-error.tsx`, and `not-found.tsx` with retry UI. | Frontend / Reliability | **YES** |
+| **P1-08** | Reliability | `TursoDbAdapter` (`src/lib/db.ts:188-250`) has no request timeout or transient retry/backoff on `@libsql/client`. | **Impact**: High (hung SSR/API until Vercel 10s timeout). **Prob**: Medium | Wrap Turso client calls in bounded timeout (e.g., 3000–5000 ms) and safe idempotent read retry. | Backend / Reliability | **YES** |
+| **P1-09** | Performance | `getFullAppData()` (`src/lib/db.ts:1711-1826`) runs 8 `SELECT *` queries + `JSON.parse(JSON.stringify(...))` on `/api/team`, `/api/public/financial-report`, and authenticated `/` SSR. | **Impact**: High (latency & memory spikes under load). **Prob**: High | Create lightweight projected query for `/api/public/financial-report` and remove redundant deep cloning. | Backend / Perf | **YES** |
+| **P1-10** | Incident Ops | No playbook for suspected credential exposure (`AUTH_SECRET`, `TURSO_*`, backup keys, Upstash/CRON/Blob) in `docs/operations-runbook.md:81-88`. | **Impact**: High (delayed/incomplete secret rotation). **Prob**: Low-Med | Add step-by-step credential rotation, session invalidation, and `audit_logs` forensic playbook. | Ops Owner | **YES** |
+| **P1-11** | Rollback | No schema compatibility matrix or migration rollback policy for core tables during Vercel code rollback (`docs/operations-runbook.md:81-86`). | **Impact**: High (broken app after code rollback on newer schema). **Prob**: Medium | Document expand/contract schema policy and rollback compatibility rules for core tables. | Ops / Backend | **YES** |
+| **P1-12** | Disaster Recovery | Weekly backup (`0 20 * * 0` UTC) yields 7-day RPO, no Turso PITR documented, 0 `schedule` runs yet, and RPO/RTO/drill cadence/DR ownership are `NOT DOCUMENTED` (`docs/operations-runbook.md`). Runbook Section 3 Step 3 lacks scripted Turso recovery push command. | **Impact**: High (up to 7 days of lost financial/match data; unclear recovery SLA). **Prob**: Medium | Document RPO/RTO targets, name DR owners, evaluate daily backup or Turso PITR, verify `2026-11-22` scheduled run, and document exact Turso recovery push command. | Ops / DB Owner | **YES** |
+| **P1-13** | Incident Governance | `docs/operations-runbook.md` lacks SEV1–SEV4 tiers, incident owner/escalation, member communication templates, and PIR process. | **Impact**: High (uncoordinated incident response). **Prob**: Medium | Add SEV1–SEV4 matrix, owner/escalation roster, Zalo communication template, and PIR checklist. | Ops Owner | **YES** |
+
+---
+
+## P2 — Medium (Non-Blocking with Tracking / Hardening Plan)
+
+| ID | Category | Description & Evidence | Recommended Remediation | Owner |
+| :--- | :--- | :--- | :--- | :--- |
+| **P2-01** | Auth / RBAC | 5 routes (`GET /api/team:204`, `GET /api/analytics:26`, `POST /api/media/upload:43`, `POST /api/media/client-upload:54`, `POST /api/webp:15`) use stateless `getAuthSession(req)` instead of DB-backed `requirePlayerSession(req)`, allowing deactivated/demoted/password-reset users access until cookie `exp`. | Switch to `requirePlayerSession(req)` (and validate DB status/`access_role`/`pwdFingerprint` on `GET /api/team` when cookie present). | Backend / Auth |
+| **P2-02** | CSRF | `POST /api/webp` (`src/app/api/webp/route.ts:13-22`) lacks `verifyCsrfOrigin(req)`. | Add `verifyCsrfOrigin(req)` check returning `403`. | Backend / Security |
+| **P2-03** | Dependencies | `npm audit --omit=dev --json` reports 4 high advisories (`zod <4.6.6`, `GHSA-mrhx-c7xc-m3w5`) via `@vercel/blob` -> `@vercel/oidc` -> `@vercel/cli-config`. | Upgrade `@vercel/blob` / `@vercel/oidc` or override `zod >=4.6.6` after compatibility check. | Platform |
+| **P2-04** | HTTP Caching | `GET/POST /api/auth`, `POST /api/webp`, and `POST /api/team` (final `200`/`catch`) omit `Cache-Control: no-store`. | Add `Cache-Control: no-store, no-cache, must-revalidate` to all auth/mutation responses. | Backend |
+| **P2-05** | Vercel Limits | `/api/import` (`5 MB`) and `/api/webp` (`10 MB`) exceed Vercel's 4.5 MB serverless request body limit. | Align server upload caps to `<= 4 MB` (or use client-upload pattern) and return clear client guidance. | Backend |
+| **P2-06** | Database | `TursoDbAdapter` (`src/lib/db.ts:436-445`) does not run `PRAGMA foreign_keys = ON;`. | Execute `PRAGMA foreign_keys = ON;` on Turso adapter initialization/session. | Backend / DB |
+| **P2-07** | Restore Ops | `scripts/db-restore.mjs` is non-transactional across the full DB on partial failure; `restoreToLocalSqlite()` omits `PRAGMA integrity_check;`. | Run `PRAGMA integrity_check;` in `restoreToLocalSqlite()` and enforce clean target DB pre-check. | DB / Ops |
+| **P2-08** | Atomicity | `upsert_match`, `delete_match`, `add_walkin_player`, and decoupled `recordAuditLog` in `POST /api/team` run outside a single transaction. | Wrap multi-table mutations in `db.transaction(...)`. | Backend / Finance |
+| **P2-09** | Finance Logic | Non-canonical expense categories included in `totalExpense` but dropped from `categoryBreakdown`; `calculateMatchStats` diverges from `buildEnrichedMatches`; `upsert_expense`/`upsert_other_income` lack `YYYY-MM-DD` validation. | Validate categories and `YYYY-MM-DD` dates; unify match expense calculation helpers. | Backend / Finance |
+| **P2-10** | Excel Round-Trip | `other_incomes.sponsor_id` is omitted from `GET /api/export` and wiped to `NULL` on `POST /api/import`. | Include `sponsor_id` in Sheet 6 (or Sheet 4) and restore on import. | Backend / Finance |
+| **P2-11** | Performance | N+1 sequential `db.run()` loops in `POST /api/team` (`save_match`, `save_player`). | Replace sequential loops with `db.batch()`. | Backend |
+| **P2-12** | Observability | Auth failures/lockouts not logged; raw `error` objects logged in several API routes; `docs/operations-runbook.md` lacks monitoring ownership, probe cadence, and alerting channels. | Extend allowlisted JSON logging (`observability.ts` pattern) to all APIs & auth failures; document monitoring/alerting in runbook. | Backend / Ops |
+| **P2-13** | Perf / PWA / QA | No Field RUM / INP; `SponsorsTab` uses `unoptimized` + 12 raw `<img>` tags; stale `public/manifest.json`; static `sw.js` `CACHE_VERSION`; Playwright omits 4 public routes & auth flows; real-device iOS/Android/PWA checklist unchecked. | Remove `public/manifest.json`, dynamic/release-bump `CACHE_VERSION`, expand Playwright routes, and execute real-device QA. | Frontend / QA |
+| **P2-14** | CI / Playbooks | `e2e-visual-qa` runs `next dev` without `needs: quality-gates`; `turso-backup.yml` has no failure alert; missing playbooks for Blob/Auth/Finance/Backup incidents; runbook lacks `vercel ls` & post-rollback smoke tests. | Add failure notification to `turso-backup.yml`, add `needs: quality-gates`, and complete missing runbook playbooks. | Ops / CI |
+| **P2-15** | Release Control | Version drift: `package.json` `1.0.0`, tags at `v2.0.2`, `0` GitHub Releases, `docs/release-readiness-v2.0.md` outdated. | Align `package.json`, Git tag, GitHub Release, and release docs for `v2.1` / release cut. | Release Owner |
+
+---
+
+## P3 — Low (Non-Blocking Maintenance)
+
+| ID | Category | Description & Evidence | Recommended Remediation |
+| :--- | :--- | :--- | :--- |
+| **P3-01** | Config / Docs | Missing `images.remotePatterns` for Vercel Blob in `next.config.ts`; implicit `dynamic` on 6 API routes; 9 undocumented env vars/aliases. | Add `remotePatterns`, explicit `force-dynamic`, and document all env vars (see `environment-configuration-matrix.md`). |
+| **P3-02** | Input Hardening | `add_walkin_player` inserts plaintext `'1234'`; `POST /api/team` lacks explicit body size cap & null `payload` guard. | Hash default PIN with `hashPassword('1234')`; add body size & object payload guards. |
+| **P3-03** | DB Hygiene | Schema DDL split across 4 places; unconditional `UPDATE players SET birth_year` in `runMigrations`; `db-restore.mjs` local `--target` unguarded. | Consolidate DDL into `initSchema` / migrations; gate `birth_year` backfill; restrict local restore path. |
+| **P3-04** | Finance Edge | `idempotency_key` discarded in `collect_match_fees_batch`; `getEffectiveAttendance` shows `defaultFee` when `paid === 1 && amount === 0`; legacy 5-sheet year inference & float jersey. | Enforce idempotency key or remove unused param; fix `paid === 1 && amount === 0` draft display; enforce `Number.isInteger` on jersey. |
+| **P3-05** | Health Check | `GET /api/health` (`src/app/api/health/route.ts:9-22`) returns HTTP `200` if `pingDatabase()` ever returns `{ ok: false }` without throwing. | Return `503` whenever `!dbStatus.ok`. |
+| **P3-06** | CI Hygiene | `turso-backup.yml` uses floating `node-version: "22"` and a different `actions/upload-artifact` SHA than `ci.yml`. | Pin `"22.23.5"` and unify `upload-artifact` SHA across workflows. |
+| **P3-07** | Repo Hygiene | 28 unpruned remote branches; `delete_branch_on_merge` unset on GitHub. | Enable `delete_branch_on_merge` and prune merged branches. |
+
+---
+
+## NOT VERIFIED Items (External / Out-of-Scope for Read-Only Audit)
+
+1. **Vercel Dashboard Production Env Vars & Scopes**: `TURSO_*`, `AUTH_SECRET`, `UPSTASH_REDIS_*`, `CRON_SECRET`, `MEDIA_STORAGE_ENABLED=false`, `ANALYTICS_ENABLED=false` values and Preview/Production separation.
+2. **Live Production `/api/health` & Deployment Health**: No live Production probing performed per guardrails.
+3. **Turso Production PITR & Token Permissions**: Whether Turso plan includes Point-in-Time Recovery and whether `TURSO_PROD_AUTH_TOKEN_RO` is strictly read-only on Turso.
+4. **Offline Private Key Custody**: Whether `TURSO_BACKUP_PRIVATE_KEY` is stored in 2 independent offline locations per runbook.
+5. **Real-Device & Field CWV**: iOS Safari, Android Chrome, standalone PWA, network loss/recovery (`docs/pwa-real-device-checklist.md`), and Real User Monitoring (INP/LCP/CLS).
