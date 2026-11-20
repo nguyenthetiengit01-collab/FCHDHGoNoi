@@ -17,10 +17,21 @@ import { extractTrustedClientIp } from "@/lib/authRateLimit";
 import { getAsyncDb } from "@/lib/db";
 import type { Player } from "@/types/app";
 
+const NO_STORE_CACHE_CONTROL = "no-store, no-cache, must-revalidate";
+
+function withNoStore(res: NextResponse): NextResponse {
+  res.headers.set("Cache-Control", NO_STORE_CACHE_CONTROL);
+  return res;
+}
+
 /**
  * Lấy thông tin phiên làm việc hiện tại và kiểm tra tính hợp lệ
  */
 export async function GET(req: NextRequest) {
+  return withNoStore(await handleGetAuth(req));
+}
+
+async function handleGetAuth(req: NextRequest): Promise<NextResponse> {
   try {
     try {
       getAuthSecret();
@@ -95,6 +106,10 @@ export async function GET(req: NextRequest) {
  * Xử lý đăng nhập và đăng xuất an toàn với chuẩn chống Brute-force và Session Timeout
  */
 export async function POST(req: NextRequest) {
+  return withNoStore(await handlePostAuth(req));
+}
+
+async function handlePostAuth(req: NextRequest): Promise<NextResponse> {
   try {
     if (!verifyCsrfOrigin(req)) {
       return NextResponse.json(

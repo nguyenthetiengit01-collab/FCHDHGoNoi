@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
-import { getAuthSession } from "@/lib/auth";
+import { requirePlayerSession, verifyCsrfOrigin } from "@/lib/auth";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+};
 
 function clampInt(raw: FormDataEntryValue | null, fallback: number, min: number, max: number) {
   const n = Number(raw);
@@ -12,11 +15,18 @@ function clampInt(raw: FormDataEntryValue | null, fallback: number, min: number,
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAuthSession(req);
-    if (!session) {
+    if (!verifyCsrfOrigin(req)) {
       return NextResponse.json(
-        { error: "Vui lòng đăng nhập để tải và xử lý ảnh" },
-        { status: 401 }
+        { error: "Yêu cầu bị từ chối do vi phạm bảo mật CSRF / Origin." },
+        { status: 403, headers: NO_STORE_HEADERS }
+      );
+    }
+
+    const auth = await requirePlayerSession(req);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { error: auth.error || "Vui lòng đăng nhập để tải và xử lý ảnh" },
+        { status: auth.status, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -28,14 +38,14 @@ export async function POST(req: NextRequest) {
       if (!file) {
         return NextResponse.json(
           { error: "Không tìm thấy file ảnh tải lên" },
-          { status: 400 }
+          { status: 400, headers: NO_STORE_HEADERS }
         );
       }
 
       if (file.size > MAX_UPLOAD_BYTES) {
         return NextResponse.json(
           { error: "Kích thước ảnh vượt quá giới hạn tối đa 10MB" },
-          { status: 413 }
+          { status: 413, headers: NO_STORE_HEADERS }
         );
       }
 
@@ -58,22 +68,25 @@ export async function POST(req: NextRequest) {
         .toBuffer();
 
       const dataUrl = `data:image/webp;base64,${webpBuffer.toString("base64")}`;
-      return NextResponse.json({
-        dataUrl,
-        originalSizeKB: Math.max(1, Math.round(inputBuffer.length / 1024)),
-        webpSizeKB: Math.max(1, Math.round(webpBuffer.length / 1024)),
-      });
+      return NextResponse.json(
+        {
+          dataUrl,
+          originalSizeKB: Math.max(1, Math.round(inputBuffer.length / 1024)),
+          webpSizeKB: Math.max(1, Math.round(webpBuffer.length / 1024)),
+        },
+        { headers: NO_STORE_HEADERS }
+      );
     }
 
     return NextResponse.json(
       { error: "Định dạng yêu cầu không hợp lệ" },
-      { status: 400 }
+      { status: 400, headers: NO_STORE_HEADERS }
     );
   } catch (err) {
     console.error("POST /api/webp error:", err);
     return NextResponse.json(
       { error: "Không thể chuyển đổi ảnh sang chuẩn WebP" },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }

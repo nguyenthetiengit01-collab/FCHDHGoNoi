@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
-import { getAuthSession, verifyCsrfOrigin } from "@/lib/auth";
+import { requirePlayerSession, verifyCsrfOrigin } from "@/lib/auth";
 import {
   MediaStorageError,
   getMediaStorageProvider,
@@ -40,13 +40,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const session = getAuthSession(req);
-    if (!session) {
+    const auth = await requirePlayerSession(req);
+    if (!auth.authorized || !auth.player) {
       return NextResponse.json(
-        { error: "Vui lòng đăng nhập để tải ảnh lên." },
-        { status: 401, headers: NO_STORE_HEADERS }
+        { error: auth.error || "Vui lòng đăng nhập để tải ảnh lên." },
+        { status: auth.status, headers: NO_STORE_HEADERS }
       );
     }
+
+    const accessRole = auth.player.access_role;
+    const playerId = auth.player.id;
 
     if (!isMediaStorageEnabled()) {
       return NextResponse.json(
@@ -73,7 +76,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (entityRaw === "post" || entityRaw === "sponsor") {
-      if (session.accessRole !== "manager") {
+      if (accessRole !== "manager") {
         return NextResponse.json(
           { error: "Chỉ Ban Quản Lý mới có quyền tải ảnh bài viết hoặc nhà tài trợ." },
           { status: 403, headers: NO_STORE_HEADERS }
@@ -81,10 +84,10 @@ export async function POST(req: NextRequest) {
       }
     } else {
       const targetPlayerIdRaw = formData.get("playerId");
-      const targetPlayerId = targetPlayerIdRaw ? Number(targetPlayerIdRaw) : session.playerId;
+      const targetPlayerId = targetPlayerIdRaw ? Number(targetPlayerIdRaw) : playerId;
       if (
-        session.accessRole !== "manager" &&
-        (!Number.isInteger(targetPlayerId) || targetPlayerId !== session.playerId)
+        accessRole !== "manager" &&
+        (!Number.isInteger(targetPlayerId) || targetPlayerId !== playerId)
       ) {
         return NextResponse.json(
           { error: "Bạn không có quyền tải ảnh cho hồ sơ cầu thủ khác." },

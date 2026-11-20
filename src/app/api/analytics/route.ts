@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthSession } from "@/lib/auth";
+import { requirePlayerSession } from "@/lib/auth";
 import { getAsyncDb, recordAuditLog } from "@/lib/db";
 import { ANALYTICS_TIMEZONE, isAnalyticsEnabled } from "@/lib/analytics/config";
 import { queryAnalyticsSection } from "@/lib/analytics/queries";
@@ -23,13 +23,17 @@ const MANAGER_ONLY_SECTIONS = new Set([
 
 export async function GET(req: NextRequest) {
   try {
-    const session = getAuthSession(req);
-    if (!session) {
+    const auth = await requirePlayerSession(req);
+    if (!auth.authorized || !auth.player) {
       return NextResponse.json(
-        { error: "Vui lòng đăng nhập để truy cập dữ liệu phân tích" },
-        { status: 401, headers: NO_STORE_HEADERS }
+        { error: auth.error || "Vui lòng đăng nhập để truy cập dữ liệu phân tích" },
+        { status: auth.status, headers: NO_STORE_HEADERS }
       );
     }
+
+    const accessRole = auth.player.access_role;
+    const playerId = auth.player.id;
+    const fullName = auth.player.full_name;
 
     const searchParams = req.nextUrl.searchParams;
     const section = parseSection(searchParams.get("section"));
@@ -40,7 +44,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    if (session.accessRole !== "manager" && MANAGER_ONLY_SECTIONS.has(section)) {
+    if (accessRole !== "manager" && MANAGER_ONLY_SECTIONS.has(section)) {
       return NextResponse.json(
         { error: "Chỉ Ban Quản Lý mới có quyền xem phân hệ phân tích này" },
         { status: 403, headers: NO_STORE_HEADERS }
@@ -49,10 +53,10 @@ export async function GET(req: NextRequest) {
 
     const requestedPlayerIdRaw = searchParams.get("playerId");
     if (
-      session.accessRole !== "manager" &&
+      accessRole !== "manager" &&
       requestedPlayerIdRaw !== null &&
       requestedPlayerIdRaw !== "" &&
-      Number(requestedPlayerIdRaw) !== session.playerId
+      Number(requestedPlayerIdRaw) !== playerId
     ) {
       return NextResponse.json(
         { error: "Không được phép truy cập thống kê cá nhân của cầu thủ khác" },
@@ -98,20 +102,20 @@ export async function GET(req: NextRequest) {
 
     const targetPlayerId =
       section === "my-insights"
-        ? session.accessRole === "manager" && requestedPlayerIdRaw
+        ? accessRole === "manager" && requestedPlayerIdRaw
           ? Number(requestedPlayerIdRaw)
-          : session.playerId
-        : session.playerId;
+          : playerId
+        : playerId;
 
     if (
       section === "my-insights" &&
-      session.accessRole === "manager" &&
+      accessRole === "manager" &&
       requestedPlayerIdRaw &&
-      Number(requestedPlayerIdRaw) !== session.playerId
+      Number(requestedPlayerIdRaw) !== playerId
     ) {
       await recordAuditLog({
-        actorId: session.playerId,
-        actorName: session.fullName,
+        actorId: playerId,
+        actorName: fullName,
         actorRole: "manager",
         action: "view_player_insights",
         summary: `Xem thống kê cá nhân cầu thủ #${Number(requestedPlayerIdRaw)}`,
