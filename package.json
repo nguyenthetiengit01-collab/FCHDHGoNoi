@@ -32,7 +32,8 @@
   "overrides": {
     "next": {
       "postcss": "8.5.32"
-    }
+    },
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
