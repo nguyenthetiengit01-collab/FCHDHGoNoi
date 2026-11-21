@@ -287,16 +287,31 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
       ]);
       expect([cf1.status, cf2.status].sort()).toEqual([200, 409]);
 
-      // 5. Expired key is replaced cleanly
-      raw.prepare(
-        `INSERT INTO idempotency_keys (idempotency_key, actor_id, action, payload_hash, status_code, response_json, expires_at)
-         VALUES ('expired-k1', 1, 'collect_match_fees_batch', 'old-hash', 200, '{}', '2020-01-01T00:00:00.000Z')`
-      ).run();
+      // 5. Expired key is NEVER deleted before lookup and NEVER re-executed as a new transaction (P1)
+      const firstExpiredTarget = await postTeamRoute(
+        makeReq(t1, { headerKey: "expired-k1", amount: 120000 })
+      );
+      expect(firstExpiredTarget.status).toBe(200);
+      const auditCountBeforeExpiredRetry = (
+        raw.prepare("SELECT COUNT(*) AS c FROM audit_logs").get() as { c: number }
+      ).c;
+      raw
+        .prepare(
+          `UPDATE idempotency_keys SET expires_at = '2020-01-01T00:00:00.000Z'
+           WHERE idempotency_key = 'expired-k1' AND actor_id = 1`
+        )
+        .run();
       const expiredRes = await postTeamRoute(
         makeReq(t1, { headerKey: "expired-k1", amount: 120000 })
       );
-      expect(expiredRes.status).toBe(200);
-      expect(expiredRes.headers.get("x-idempotent-replay")).toBeNull();
+      expect(expiredRes.status).toBe(409);
+      const expiredJson = await expiredRes.json();
+      expect(expiredJson.code).toBe("IDEMPOTENCY_KEY_EXPIRED");
+      expect(expiredJson.reconcileRequired).toBe(true);
+      const auditCountAfterExpiredRetry = (
+        raw.prepare("SELECT COUNT(*) AS c FROM audit_logs").get() as { c: number }
+      ).c;
+      expect(auditCountAfterExpiredRetry).toBe(auditCountBeforeExpiredRetry);
 
       // 6. Actor isolation
       const actor2Res = await postTeamRoute(
@@ -362,8 +377,63 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
       await Promise.all(
         Array.from({ length: 10 }, () => dbModule.ensureIdempotencyKeysReady(db2))
       );
-      expect(querySpy).toHaveBeenCalledTimes(1);
+      expect(
+        querySpy.mock.calls.filter(([s]) => String(s).includes("sqlite_master"))
+      ).toHaveLength(1);
       expect(runSpy).toHaveBeenCalledTimes(0);
+
+      // 9. P2 Schema Contract: fail closed when columns, composite PK, or index definition deviate
+      const rawBadPk = new DatabaseSync(":memory:");
+      rawBadPk.exec(`
+        CREATE TABLE idempotency_keys (
+          idempotency_key TEXT PRIMARY KEY,
+          actor_id INTEGER NOT NULL,
+          action TEXT NOT NULL,
+          payload_hash TEXT NOT NULL,
+          status_code INTEGER NOT NULL,
+          response_json TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL
+        );
+        CREATE INDEX idx_idempotency_expires_at ON idempotency_keys(expires_at);
+      `);
+      const dbBadPk = new dbModule.LocalSqliteAdapter(rawBadPk);
+      const { runPhase7IdempotencyMigration } = await import(
+        "../../scripts/migrations/phase7-idempotency-v1.mjs"
+      );
+      await expect(dbModule.ensureIdempotencyKeysReady(dbBadPk)).rejects.toThrow(
+        /pk:idempotency_keys/i
+      );
+      await expect(
+        runPhase7IdempotencyMigration({
+          execute: async (sql: string) => {
+            rawBadPk.exec(sql);
+          },
+          query: async (sql: string, params?: unknown[]) => dbBadPk.query(sql, params),
+        })
+      ).rejects.toThrow(/Idempotency schema contract violation/i);
+      rawBadPk.close();
+
+      const rawBadIdx = new DatabaseSync(":memory:");
+      rawBadIdx.exec(`
+        CREATE TABLE idempotency_keys (
+          idempotency_key TEXT NOT NULL,
+          actor_id INTEGER NOT NULL,
+          action TEXT NOT NULL,
+          payload_hash TEXT NOT NULL,
+          status_code INTEGER NOT NULL,
+          response_json TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL,
+          PRIMARY KEY (idempotency_key, actor_id, action)
+        );
+        CREATE INDEX idx_idempotency_expires_at ON idempotency_keys(created_at);
+      `);
+      const dbBadIdx = new dbModule.LocalSqliteAdapter(rawBadIdx);
+      await expect(dbModule.ensureIdempotencyKeysReady(dbBadIdx)).rejects.toThrow(
+        /index_cols:idx_idempotency_expires_at/i
+      );
+      rawBadIdx.close();
       raw2.close();
     } finally {
       raw.close();

@@ -553,5 +553,38 @@ describe("IDEMPOTENCY_SCHEMA_NOT_READY & unknown-write error semantics", () => {
     expect(loadPendingBatchSubmission(49)).toBeNull();
     expect(loadDraftFromStorage(49)).toEqual(sampleDraft);
   });
+
+  it("P1 — Client pending key expired after 24h blocks automatic retry/re-execution to prevent duplicate financial writes", async () => {
+    const originalKey = "44444444-4444-4444-8444-444444444444";
+    const fingerprint = computeBatchPayloadFingerprint(50, "Tieng", sampleItems);
+    saveDraftToStorage(50, sampleDraft);
+    savePendingBatchSubmission(50, {
+      match_id: 50,
+      idempotency_key: originalKey,
+      payload_fingerprint: fingerprint,
+      collected_by: "Tieng",
+      items: sampleItems,
+      state: "unknown_outcome",
+      created_at: "2026-11-20T08:00:00.000Z",
+      expires_at: "2026-11-21T08:00:00.000Z",
+    });
+
+    let mutateCalled = false;
+    const outcome = await runBatchOperationAttempt({
+      mode: "reconcile_retry",
+      matchId: 50,
+      now: new Date("2026-11-21T08:05:00.000Z"),
+      sendMutate: async () => {
+        mutateCalled = true;
+        return { ok: true };
+      },
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(mutateCalled).toBe(false);
+    expect(outcome.error).toMatch(/24 giờ|tránh ghi trùng/i);
+    expect(loadPendingBatchSubmission(50)?.idempotency_key).toBe(originalKey);
+    expect(loadDraftFromStorage(50)).toEqual(sampleDraft);
+  });
 });
 

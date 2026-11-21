@@ -1571,21 +1571,17 @@ export async function POST(req: NextRequest) {
         // Persist deduplication metadata (payload_hash, status_code, summary response_json)
         // atomically with financial + audit writes, and return an authorized fresh
         // getFullAppData() snapshot with X-Idempotent-Replay: true on replay.
-        let txResult: { replayed: boolean; conflict: boolean };
+        let txResult: { replayed: boolean; conflict: boolean; expired?: boolean };
         try {
           txResult = await db.transaction(async (tx) => {
             const nowIso = new Date().toISOString();
-            await tx.run(
-              `DELETE FROM idempotency_keys
-               WHERE idempotency_key = ? AND actor_id = ? AND action = ? AND expires_at <= ?`,
-              [idempotencyKey, actorIdForIdempotency, action, nowIso]
-            );
             const existingIdem = await tx.queryOne<{
               payload_hash: string;
               status_code: number;
               response_json: string;
+              expires_at: string;
             }>(
-              `SELECT payload_hash, status_code, response_json
+              `SELECT payload_hash, status_code, response_json, expires_at
                FROM idempotency_keys
                WHERE idempotency_key = ? AND actor_id = ? AND action = ?
                LIMIT 1`,
@@ -1594,6 +1590,9 @@ export async function POST(req: NextRequest) {
             if (existingIdem) {
               if (existingIdem.payload_hash !== payloadHash) {
                 return { conflict: true, replayed: false };
+              }
+              if (existingIdem.expires_at <= nowIso) {
+                return { conflict: false, replayed: false, expired: true };
               }
               return { replayed: true, conflict: false };
             }
@@ -1654,6 +1653,21 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        if (txResult.expired) {
+          return NextResponse.json(
+            {
+              error:
+                "Khóa giao dịch (Idempotency-Key) đã hết hạn 24 giờ và từng được sử dụng trước đó. Không tự động ghi lại giao dịch để tránh trùng lặp; vui lòng kiểm tra bảng thu quỹ thực tế.",
+              code: "IDEMPOTENCY_KEY_EXPIRED",
+              retryable: false,
+              reconcileRequired: true,
+            },
+            {
+              status: 409,
+              headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+            }
+          );
+        }
         if (txResult.conflict) {
           return NextResponse.json(
             {

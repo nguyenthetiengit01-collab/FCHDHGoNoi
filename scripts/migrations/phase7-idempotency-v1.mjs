@@ -78,6 +78,93 @@ export function validateLocalSqlitePath(
   return realResolved;
 }
 
+const REQUIRED_IDEMPOTENCY_COLUMNS = [
+  "idempotency_key",
+  "actor_id",
+  "action",
+  "payload_hash",
+  "status_code",
+  "response_json",
+  "created_at",
+  "expires_at",
+];
+const REQUIRED_IDEMPOTENCY_PK = ["idempotency_key", "actor_id", "action"];
+
+export async function verifyIdempotencySchemaContract(
+  query,
+  { requireTable = true, requireIndex = true } = {}
+) {
+  const existingObjects = await query(
+    `SELECT type, name FROM sqlite_master
+     WHERE (type = 'table' AND name = 'idempotency_keys')
+        OR (type = 'index' AND name = 'idx_idempotency_expires_at')`
+  );
+  const hasTable = existingObjects.some(
+    (r) => String(r.type) === "table" && String(r.name) === "idempotency_keys"
+  );
+  const hasIndex = existingObjects.some(
+    (r) => String(r.type) === "index" && String(r.name) === "idx_idempotency_expires_at"
+  );
+
+  const violations = [];
+  if (requireTable && !hasTable) {
+    violations.push("missing table:idempotency_keys");
+  }
+  if (requireIndex && !hasIndex) {
+    violations.push("missing index:idx_idempotency_expires_at");
+  }
+
+  if (hasTable) {
+    const cols = await query(`PRAGMA table_info(idempotency_keys)`);
+    const colNames = new Set(cols.map((c) => String(c.name)));
+    for (const reqCol of REQUIRED_IDEMPOTENCY_COLUMNS) {
+      if (!colNames.has(reqCol)) {
+        violations.push(`missing column:idempotency_keys.${reqCol}`);
+      }
+    }
+    const pkCols = cols
+      .filter((c) => Number(c.pk) > 0)
+      .sort((a, b) => Number(a.pk) - Number(b.pk))
+      .map((c) => String(c.name));
+    const pkMatches =
+      pkCols.length === REQUIRED_IDEMPOTENCY_PK.length &&
+      REQUIRED_IDEMPOTENCY_PK.every((col, idx) => pkCols[idx] === col);
+    if (!pkMatches) {
+      violations.push(
+        `invalid primary key on idempotency_keys: expected (${REQUIRED_IDEMPOTENCY_PK.join(", ")}), got (${pkCols.join(", ") || "none"})`
+      );
+    }
+  }
+
+  if (hasTable && hasIndex) {
+    const idxList = await query(`PRAGMA index_list(idempotency_keys)`);
+    const attached = idxList.some(
+      (idx) => String(idx.name) === "idx_idempotency_expires_at"
+    );
+    if (!attached) {
+      violations.push(
+        "invalid index: idx_idempotency_expires_at is not attached to idempotency_keys"
+      );
+    } else {
+      const idxInfo = await query(`PRAGMA index_info('idx_idempotency_expires_at')`);
+      const orderedCols = [...idxInfo]
+        .sort((a, b) => Number(a.seqno) - Number(b.seqno))
+        .map((c) => String(c.name));
+      if (orderedCols.length !== 1 || orderedCols[0] !== "expires_at") {
+        violations.push(
+          `invalid index columns on idx_idempotency_expires_at: expected (expires_at), got (${orderedCols.join(", ") || "none"})`
+        );
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new Error(
+      `Idempotency schema contract violation: ${violations.join("; ")}`
+    );
+  }
+}
+
 export async function runPhase7IdempotencyMigration({
   execute,
   query,
@@ -102,6 +189,14 @@ export async function runPhase7IdempotencyMigration({
   const hasExpiresIndex = existingObjects.some(
     (r) => r.type === "index" && r.name === "idx_idempotency_expires_at"
   );
+
+  // Preflight: validate existing idempotency table/index contract when already present
+  if (hasIdempotencyTable || hasExpiresIndex) {
+    await verifyIdempotencySchemaContract(query, {
+      requireTable: false,
+      requireIndex: false,
+    });
+  }
 
   let alreadyRecorded = false;
   if (hasMigrationsTable) {
@@ -184,6 +279,11 @@ export async function runPhase7IdempotencyMigration({
   } else {
     await runApply(execute);
   }
+
+  await verifyIdempotencySchemaContract(query, {
+    requireTable: true,
+    requireIndex: true,
+  });
 
   return {
     version: MIGRATION_VERSION,

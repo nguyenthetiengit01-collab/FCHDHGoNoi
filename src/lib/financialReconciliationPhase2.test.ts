@@ -385,6 +385,24 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
           { type: "index", name: "idx_idempotency_expires_at" },
         ];
       }
+      if (sql.includes("PRAGMA table_info(idempotency_keys)")) {
+        return [
+          { name: "idempotency_key", pk: 1 },
+          { name: "actor_id", pk: 2 },
+          { name: "action", pk: 3 },
+          { name: "payload_hash", pk: 0 },
+          { name: "status_code", pk: 0 },
+          { name: "response_json", pk: 0 },
+          { name: "created_at", pk: 0 },
+          { name: "expires_at", pk: 0 },
+        ];
+      }
+      if (sql.includes("PRAGMA index_list(idempotency_keys)")) {
+        return [{ name: "idx_idempotency_expires_at" }];
+      }
+      if (sql.includes("PRAGMA index_info('idx_idempotency_expires_at')")) {
+        return [{ seqno: 0, name: "expires_at" }];
+      }
       return [mockManager];
     });
     const queryOneSpy = vi.fn().mockImplementation(async (sql: string) => {

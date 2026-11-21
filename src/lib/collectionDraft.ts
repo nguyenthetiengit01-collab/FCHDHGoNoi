@@ -222,6 +222,26 @@ export interface PendingBatchSubmission {
   items: BatchCollectFeeItem[];
   state: PendingBatchSubmissionState;
   created_at: string;
+  expires_at?: string;
+}
+
+export const PENDING_BATCH_TTL_MS = 24 * 3600 * 1000;
+
+export function isPendingSubmissionExpired(
+  submission: Pick<PendingBatchSubmission, "created_at" | "expires_at">,
+  now: Date = new Date()
+): boolean {
+  const explicitExpiry =
+    typeof submission.expires_at === "string"
+      ? Date.parse(submission.expires_at)
+      : Number.NaN;
+  const createdMs = Date.parse(submission.created_at);
+  const expiryMs = Number.isFinite(explicitExpiry)
+    ? explicitExpiry
+    : Number.isFinite(createdMs)
+      ? createdMs + PENDING_BATCH_TTL_MS
+      : Number.NaN;
+  return Number.isFinite(expiryMs) && now.getTime() >= expiryMs;
 }
 
 const PENDING_BATCH_PREFIX = "gonoi_fee_pending_batch_";
@@ -351,6 +371,9 @@ export function loadPendingBatchSubmissionState(
           typeof parsed.created_at === "string"
             ? parsed.created_at
             : new Date().toISOString(),
+        ...(typeof parsed.expires_at === "string" && parsed.expires_at
+          ? { expires_at: parsed.expires_at }
+          : {}),
       },
     };
   } catch {
@@ -542,6 +565,7 @@ export function resolveBatchSubmissionAttempt(params: {
       items: normalizedItems,
       state: "pending",
       created_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + PENDING_BATCH_TTL_MS).toISOString(),
     },
   };
 }
@@ -558,6 +582,7 @@ export async function runBatchOperationAttempt(params: {
   matchId: number;
   collectedBy?: string;
   items?: BatchCollectFeeItem[];
+  now?: Date;
   sendMutate: (payload: {
     match_id: number;
     collected_by: string;
@@ -572,7 +597,7 @@ export async function runBatchOperationAttempt(params: {
     reconcileRequired?: boolean;
   } | void>;
 }): Promise<BatchOperationOutcome> {
-  const { mode, matchId, sendMutate } = params;
+  const { mode, matchId, sendMutate, now = new Date() } = params;
   const loaded = loadPendingBatchSubmissionState(matchId);
 
   if (loaded.status === "corrupted") {
@@ -617,6 +642,15 @@ export async function runBatchOperationAttempt(params: {
     activeSubmission = resolution.submission;
     wasPreexistingUnresolved =
       resolution.reused && activeSubmission.state !== "confirmed";
+  }
+
+  if (wasPreexistingUnresolved && isPendingSubmissionExpired(activeSubmission, now)) {
+    return {
+      ok: false,
+      error:
+        "Khóa đối chiếu giao dịch đã hết hạn 24 giờ. Để tránh ghi trùng giao dịch tài chính, vui lòng kiểm tra bảng thu quỹ thực tế trước rồi bấm 'Xoá Khóa Tạm' nếu giao dịch trước chưa được ghi nhận.",
+      pendingState: loadPendingBatchSubmissionState(matchId),
+    };
   }
 
   const persisted = savePendingBatchSubmission(matchId, activeSubmission);

@@ -2343,12 +2343,26 @@ export async function recordAuditLog(params: {
 
 const idempotencyTableInitByDb = new WeakMap<AsyncDb, Promise<void>>();
 
+const REQUIRED_IDEMPOTENCY_COLUMNS = [
+  "idempotency_key",
+  "actor_id",
+  "action",
+  "payload_hash",
+  "status_code",
+  "response_json",
+  "created_at",
+  "expires_at",
+] as const;
+
+const REQUIRED_IDEMPOTENCY_PK = ["idempotency_key", "actor_id", "action"] as const;
+
 /**
  * Read-only runtime readiness check for `idempotency_keys` and `idx_idempotency_expires_at`.
+ * Verifies object presence, required columns, composite primary key, and index definition.
  * Schema creation is performed exclusively via an explicitly authorized migration procedure
  * (`scripts/migrations/phase7-idempotency-v1.mjs` for `--sqlite` / `--env staging`, or an
  * Owner-authorized Production DDL procedure). Runtime request handling never executes DDL.
- * Fails closed with `IdempotencySchemaMissingError` (HTTP 503) if required objects are absent.
+ * Fails closed with `IdempotencySchemaMissingError` (HTTP 503) if contract validation fails.
  */
 export async function ensureIdempotencyKeysReady(targetDb?: AsyncDb): Promise<void> {
   const db = targetDb ?? getAsyncDb();
@@ -2366,10 +2380,59 @@ export async function ensureIdempotencyKeysReady(targetDb?: AsyncDb): Promise<vo
       const hasIndex = rows.some(
         (r) => String(r.type) === "index" && String(r.name) === "idx_idempotency_expires_at"
       );
-      if (!hasTable || !hasIndex) {
-        const missing: string[] = [];
-        if (!hasTable) missing.push("table:idempotency_keys");
-        if (!hasIndex) missing.push("index:idx_idempotency_expires_at");
+      const missing: string[] = [];
+      if (!hasTable) missing.push("table:idempotency_keys");
+      if (!hasIndex) missing.push("index:idx_idempotency_expires_at");
+
+      if (hasTable) {
+        const tableCols = await db.query<{ name: string; pk: number }>(
+          `PRAGMA table_info(idempotency_keys)`
+        );
+        const colNames = new Set(tableCols.map((c) => String(c.name)));
+        for (const reqCol of REQUIRED_IDEMPOTENCY_COLUMNS) {
+          if (!colNames.has(reqCol)) {
+            missing.push(`column:idempotency_keys.${reqCol}`);
+          }
+        }
+        const pkCols = tableCols
+          .filter((c) => Number(c.pk) > 0)
+          .sort((a, b) => Number(a.pk) - Number(b.pk))
+          .map((c) => String(c.name));
+        const pkMatches =
+          pkCols.length === REQUIRED_IDEMPOTENCY_PK.length &&
+          REQUIRED_IDEMPOTENCY_PK.every((col, idx) => pkCols[idx] === col);
+        if (!pkMatches) {
+          missing.push(
+            `pk:idempotency_keys(${pkCols.join(",") || "none"}!=${REQUIRED_IDEMPOTENCY_PK.join(",")})`
+          );
+        }
+      }
+
+      if (hasTable && hasIndex) {
+        const indexList = await db.query<{ name: string }>(
+          `PRAGMA index_list(idempotency_keys)`
+        );
+        const indexAttached = indexList.some(
+          (idx) => String(idx.name) === "idx_idempotency_expires_at"
+        );
+        if (!indexAttached) {
+          missing.push("index_table:idx_idempotency_expires_at!=idempotency_keys");
+        } else {
+          const indexCols = await db.query<{ seqno: number; name: string }>(
+            `PRAGMA index_info('idx_idempotency_expires_at')`
+          );
+          const orderedIndexCols = [...indexCols]
+            .sort((a, b) => Number(a.seqno) - Number(b.seqno))
+            .map((c) => String(c.name));
+          if (orderedIndexCols.length !== 1 || orderedIndexCols[0] !== "expires_at") {
+            missing.push(
+              `index_cols:idx_idempotency_expires_at(${orderedIndexCols.join(",") || "none"}!=expires_at)`
+            );
+          }
+        }
+      }
+
+      if (missing.length > 0) {
         throw new IdempotencySchemaMissingError(missing);
       }
     })().catch((err) => {
