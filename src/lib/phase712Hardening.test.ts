@@ -793,7 +793,7 @@ describe("Phase 7.1.2 – Account Atomicity, Predictable PIN Removal, Financial 
       ).toEqual({ c: 2 });
 
       // 3. Migration script phase7-idempotency-v1.mjs is idempotent on isolated synthetic SQLite
-      const { runPhase7IdempotencyMigration } = await import(
+      const { runPhase7IdempotencyMigration, createLocalSqliteTransactionRunner } = await import(
         "../../scripts/migrations/phase7-idempotency-v1.mjs"
       );
       const { DatabaseSync } = await import("node:sqlite");
@@ -804,11 +804,22 @@ describe("Phase 7.1.2 – Account Atomicity, Predictable PIN Removal, Financial 
         };
         const qry = async (sql: string, params: unknown[] = []) =>
           migDb.prepare(sql).all(...(params as never[]));
+        const txRunner = createLocalSqliteTransactionRunner(migDb);
         const dryRes = await runPhase7IdempotencyMigration({ execute: exec, query: qry, dryRun: true });
         expect(dryRes.actions).toContain("CREATE TABLE idempotency_keys");
-        const applyRes = await runPhase7IdempotencyMigration({ execute: exec, query: qry, dryRun: false });
+        const applyRes = await runPhase7IdempotencyMigration({
+          execute: exec,
+          query: qry,
+          withTransaction: txRunner as never,
+          dryRun: false,
+        });
         expect(applyRes.actions).toContain("CREATE TABLE idempotency_keys");
-        const rerunRes = await runPhase7IdempotencyMigration({ execute: exec, query: qry, dryRun: false });
+        const rerunRes = await runPhase7IdempotencyMigration({
+          execute: exec,
+          query: qry,
+          withTransaction: txRunner as never,
+          dryRun: false,
+        });
         expect(rerunRes.actions).not.toContain("CREATE TABLE idempotency_keys");
       } finally {
         migDb.close();

@@ -416,7 +416,7 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
         CREATE INDEX idx_idempotency_expires_at ON idempotency_keys(expires_at);
       `);
       const dbBadPk = new dbModule.LocalSqliteAdapter(rawBadPk);
-      const { runPhase7IdempotencyMigration } = await import(
+      const { runPhase7IdempotencyMigration, createLocalSqliteTransactionRunner } = await import(
         "../../scripts/migrations/phase7-idempotency-v1.mjs"
       );
       await expect(dbModule.ensureIdempotencyKeysReady(dbBadPk)).rejects.toThrow(
@@ -428,6 +428,7 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
             rawBadPk.exec(sql);
           },
           query: async (sql: string, params?: unknown[]) => dbBadPk.query(sql, params),
+          withTransaction: createLocalSqliteTransactionRunner(rawBadPk) as never,
         })
       ).rejects.toThrow(/Idempotency schema contract violation/i);
       rawBadPk.close();
@@ -457,6 +458,7 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
             rawBadIdx.exec(sql);
           },
           query: async (sql: string, params?: unknown[]) => dbBadIdx.query(sql, params),
+          withTransaction: createLocalSqliteTransactionRunner(rawBadIdx) as never,
         })
       ).rejects.toThrow(/Idempotency schema contract violation/i);
       rawBadIdx.close();
@@ -502,6 +504,7 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
             rawMissingCol.exec(sql);
           },
           query: async (sql: string, params?: unknown[]) => dbMissingCol.query(sql, params),
+          withTransaction: createLocalSqliteTransactionRunner(rawMissingCol) as never,
         })
       ).rejects.toThrow(/Idempotency schema contract violation/i);
       rawMissingCol.close();
@@ -521,6 +524,7 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
             rawOrphanIdx.exec(sql);
           },
           query: async (sql: string, params?: unknown[]) => dbOrphanIdx.query(sql, params),
+          withTransaction: createLocalSqliteTransactionRunner(rawOrphanIdx) as never,
         })
       ).rejects.toThrow(/invalid index ownership/i);
       expect(orphanExecCalls).toHaveLength(0);
@@ -558,6 +562,7 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
             rawWrongOwner.exec(sql);
           },
           query: async (sql: string, params?: unknown[]) => dbWrongOwner.query(sql, params),
+          withTransaction: createLocalSqliteTransactionRunner(rawWrongOwner) as never,
         })
       ).rejects.toThrow(/invalid index ownership/i);
       expect(wrongOwnerExecCalls).toHaveLength(0);
@@ -689,15 +694,18 @@ describe("Phase 7.1.4 – Migration Staging Preflight, Dry-Run Zero-Write & Loca
       expect(getSchemaSnapshot()).toEqual(partialBefore);
 
       // Apply & re-apply
+      const txRunner = mod.createLocalSqliteTransactionRunner(db);
       const applied = await mod.runPhase7IdempotencyMigration({
         execute: execFn,
         query: queryFn,
+        withTransaction: txRunner as never,
         dryRun: false,
       });
       expect(applied.applied).toBe(true);
       const reapplied = await mod.runPhase7IdempotencyMigration({
         execute: execFn,
         query: queryFn,
+        withTransaction: txRunner as never,
         dryRun: false,
       });
       expect(reapplied.actions).toEqual([]);
@@ -851,5 +859,169 @@ describe("Phase 7.1.4b – Transaction-Scoped Schema Verification & Race Rollbac
     expect(txObj.commit).toHaveBeenCalledTimes(0);
     expect(txObj.rollback).toHaveBeenCalledTimes(1);
     expect(txObj.close).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Phase 7.1.4c – Mandatory Transaction Guard", () => {
+  it("A. rejects dryRun=false when withTransaction is missing before any DDL/DML or table/version creation", async () => {
+    const mod = await import("../../scripts/migrations/phase7-idempotency-v1.mjs");
+    const db = new DatabaseSync(":memory:");
+    try {
+      const executeSpy = vi.fn(async (sql: string) => {
+        db.exec(sql);
+      });
+      await expect(
+        mod.runPhase7IdempotencyMigration({
+          execute: executeSpy,
+          query: async (sql: string, params: unknown[] = []) =>
+            db.prepare(sql).all(...(params as never[])),
+          dryRun: false,
+        })
+      ).rejects.toThrow(/requires a transaction runner/i);
+
+      expect(executeSpy).toHaveBeenCalledTimes(0);
+      const tables = db
+        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`)
+        .all();
+      expect(tables).toHaveLength(0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("B. rejects invalid transaction contexts missing execute() or query() with zero writes", async () => {
+    const mod = await import("../../scripts/migrations/phase7-idempotency-v1.mjs");
+    const db = new DatabaseSync(":memory:");
+    try {
+      const executeSpy = vi.fn(async (sql: string) => {
+        db.exec(sql);
+      });
+      const queryFn = async (sql: string, params: unknown[] = []) =>
+        db.prepare(sql).all(...(params as never[]));
+
+      await expect(
+        mod.runPhase7IdempotencyMigration({
+          execute: executeSpy,
+          query: queryFn,
+          withTransaction: (async (fn: (ctx: unknown) => Promise<void>) => {
+            await fn({ execute: executeSpy });
+          }) as never,
+          dryRun: false,
+        })
+      ).rejects.toThrow(/both transaction-bound execute\(\) and query\(\)/i);
+
+      await expect(
+        mod.runPhase7IdempotencyMigration({
+          execute: executeSpy,
+          query: queryFn,
+          withTransaction: (async (fn: (ctx: unknown) => Promise<void>) => {
+            await fn({ query: queryFn });
+          }) as never,
+          dryRun: false,
+        })
+      ).rejects.toThrow(/both transaction-bound execute\(\) and query\(\)/i);
+
+      expect(executeSpy).toHaveBeenCalledTimes(0);
+      const tables = db
+        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`)
+        .all();
+      expect(tables).toHaveLength(0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("C. valid local SQLite migration uses createLocalSqliteTransactionRunner(), verifies before COMMIT, commits, and re-runs idempotently", async () => {
+    const mod = await import("../../scripts/migrations/phase7-idempotency-v1.mjs");
+    const validDbPath = makeTempSqlitePath("valid-tx-runner.sqlite");
+    const db = new DatabaseSync(validDbPath);
+    try {
+      const origExec = db.exec.bind(db);
+      const lifecycle: string[] = [];
+      const execSpy = vi.spyOn(db, "exec").mockImplementation((sql: string) => {
+        lifecycle.push(sql.trim());
+        return origExec(sql);
+      });
+      const baseRunner = mod.createLocalSqliteTransactionRunner(db);
+      let verifiedInsideTx = false;
+      const wrappedRunner = async (
+        fn: (ctx: {
+          execute: (sql: string, params?: unknown[]) => Promise<void>;
+          query: (sql: string, params?: unknown[]) => Promise<Record<string, unknown>[]>;
+        }) => Promise<void>
+      ) => {
+        await baseRunner(
+          async (ctx: {
+            execute: (sql: string, params?: unknown[]) => Promise<void>;
+            query: (sql: string, params?: unknown[]) => Promise<Record<string, unknown>[]>;
+          }) => {
+            await fn({
+              execute: ctx.execute,
+              query: async (sql: string, params?: unknown[]) => {
+                if (db.isTransaction) {
+                  verifiedInsideTx = true;
+                  lifecycle.push("TX_VERIFY_QUERY");
+                }
+                return ctx.query(sql, params);
+              },
+            });
+          }
+        );
+      };
+
+      const first = await mod.runPhase7IdempotencyMigration({
+        execute: async (sql: string, params: unknown[] = []) => {
+          db.prepare(sql).run(...(params as never[]));
+        },
+        query: async (sql: string, params: unknown[] = []) =>
+          db.prepare(sql).all(...(params as never[])),
+        withTransaction: wrappedRunner as never,
+        dryRun: false,
+      });
+      execSpy.mockRestore();
+
+      expect(first.applied).toBe(true);
+      expect(verifiedInsideTx).toBe(true);
+      const verifyIdx = lifecycle.indexOf("TX_VERIFY_QUERY");
+      const commitIdx = lifecycle.indexOf("COMMIT");
+      expect(verifyIdx).toBeGreaterThan(-1);
+      expect(commitIdx).toBeGreaterThan(verifyIdx);
+
+      const second = await mod.runPhase7IdempotencyMigration({
+        execute: async (sql: string, params: unknown[] = []) => {
+          db.prepare(sql).run(...(params as never[]));
+        },
+        query: async (sql: string, params: unknown[] = []) =>
+          db.prepare(sql).all(...(params as never[])),
+        withTransaction: mod.createLocalSqliteTransactionRunner(db) as never,
+        dryRun: false,
+      });
+      expect(second.applied).toBe(false);
+      expect(second.actions).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("D. Staging client without transaction() fails closed on dryRun=false without outer-client DDL/DML", async () => {
+    const mod = await import("../../scripts/migrations/phase7-idempotency-v1.mjs");
+    const mockClientNoTx = {
+      execute: vi.fn(async () => ({ rows: [] })),
+      close: vi.fn(),
+    };
+
+    await expect(
+      mod.runStagingMigration({
+        env: {
+          TURSO_STAGING_DATABASE_URL: "libsql://fchdhgonoi-staging.turso.io",
+          TURSO_STAGING_AUTH_TOKEN: "staging-tok",
+        } as unknown as NodeJS.ProcessEnv,
+        dryRun: false,
+        clientFactory: () => mockClientNoTx as never,
+      })
+    ).rejects.toThrow(/requires client\.transaction\(\) support/i);
+
+    expect(mockClientNoTx.execute).toHaveBeenCalledTimes(0);
+    expect(mockClientNoTx.close).toHaveBeenCalledTimes(1);
   });
 });

@@ -250,6 +250,12 @@ export async function runPhase7IdempotencyMigration({
     };
   }
 
+  if (typeof withTransaction !== "function") {
+    throw new Error(
+      "Migration apply requires a transaction runner (withTransaction); non-transactional execution is prohibited."
+    );
+  }
+
   const runApply = async (execFn, txQueryFn) => {
     if (!hasMigrationsTable) {
       await execFn(`
@@ -301,20 +307,16 @@ export async function runPhase7IdempotencyMigration({
     });
   };
 
-  if (typeof withTransaction === "function") {
-    await withTransaction(async (txCtx) => {
-      const txExecute = typeof txCtx === "function" ? txCtx : txCtx?.execute;
-      const txQuery = typeof txCtx === "function" ? undefined : txCtx?.query;
-      if (typeof txExecute !== "function" || typeof txQuery !== "function") {
-        throw new Error(
-          "Transaction context must provide both transaction-bound execute() and query()."
-        );
-      }
-      await runApply(txExecute, txQuery);
-    });
-  } else {
-    await runApply(execute, query);
-  }
+  await withTransaction(async (txCtx) => {
+    const txExecute = txCtx && typeof txCtx === "object" ? txCtx.execute : undefined;
+    const txQuery = txCtx && typeof txCtx === "object" ? txCtx.query : undefined;
+    if (typeof txExecute !== "function" || typeof txQuery !== "function") {
+      throw new Error(
+        "Transaction context must provide both transaction-bound execute() and query()."
+      );
+    }
+    await runApply(txExecute, txQuery);
+  });
 
   return {
     version: MIGRATION_VERSION,
@@ -356,6 +358,17 @@ export async function runStagingMigration({
     url: stagingUrl,
     authToken: stagingToken,
   });
+
+  if (!dryRun && typeof client.transaction !== "function") {
+    try {
+      client.close();
+    } catch {
+      // ignore close error
+    }
+    throw new Error(
+      "Staging migration apply requires client.transaction() support; refusing non-transactional apply."
+    );
+  }
 
   try {
     const result = await runPhase7IdempotencyMigration({
