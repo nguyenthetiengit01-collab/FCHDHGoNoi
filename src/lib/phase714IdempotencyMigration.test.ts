@@ -726,3 +726,130 @@ describe("Phase 7.1.4 – Migration Staging Preflight, Dry-Run Zero-Write & Loca
     expect(mod.validateLocalSqlitePath(validPath)).toBe(path.resolve(validPath));
   });
 });
+
+describe("Phase 7.1.4b – Transaction-Scoped Schema Verification & Race Rollback", () => {
+  it("verifies schema inside the open SQLite transaction before COMMIT and rolls back all migration writes on preflight-to-tx race", async () => {
+    const mod = await import("../../scripts/migrations/phase7-idempotency-v1.mjs");
+    const racePath = makeTempSqlitePath("race-mig.sqlite");
+    const db = new DatabaseSync(racePath);
+    try {
+      const txEvents: string[] = [];
+      let verifiedInsideOpenTx = false;
+      const baseRunner = mod.createLocalSqliteTransactionRunner(db);
+
+      const raceWithTransaction = async (
+        fn: (ctx: {
+          execute: (sql: string, params?: unknown[]) => Promise<void>;
+          query: (sql: string, params?: unknown[]) => Promise<Record<string, unknown>[]>;
+        }) => Promise<void>
+      ) => {
+        // Simulate another writer racing AFTER preflight succeeded and BEFORE BEGIN IMMEDIATE
+        const racerDb = new DatabaseSync(racePath);
+        try {
+          racerDb.exec(`
+            CREATE TABLE unrelated_table (id INTEGER PRIMARY KEY, expires_at TEXT);
+            CREATE INDEX idx_idempotency_expires_at ON unrelated_table(expires_at);
+          `);
+        } finally {
+          racerDb.close();
+        }
+
+        const origExec = db.exec.bind(db);
+        const execSpy = vi.spyOn(db, "exec").mockImplementation((sql: string) => {
+          txEvents.push(sql.trim());
+          return origExec(sql);
+        });
+
+        try {
+          await baseRunner(
+            async (txCtx: {
+              execute: (sql: string, params?: unknown[]) => Promise<void>;
+              query: (sql: string, params?: unknown[]) => Promise<Record<string, unknown>[]>;
+            }) => {
+              await fn({
+                execute: txCtx.execute,
+                query: async (sql: string, params?: unknown[]) => {
+                  if (db.isTransaction) {
+                    verifiedInsideOpenTx = true;
+                  }
+                  return txCtx.query(sql, params);
+                },
+              });
+            }
+          );
+        } finally {
+          execSpy.mockRestore();
+        }
+      };
+
+      await expect(
+        mod.runPhase7IdempotencyMigration({
+          execute: async (sql: string, params: unknown[] = []) => {
+            db.prepare(sql).run(...(params as never[]));
+          },
+          query: async (sql: string, params: unknown[] = []) =>
+            db.prepare(sql).all(...(params as never[])),
+          withTransaction: raceWithTransaction as never,
+        })
+      ).rejects.toThrow(/invalid index ownership/i);
+
+      expect(verifiedInsideOpenTx).toBe(true);
+      expect(txEvents).toContain("BEGIN IMMEDIATE");
+      expect(txEvents).toContain("ROLLBACK");
+      expect(txEvents).not.toContain("COMMIT");
+
+      const tablesAfterRollback = db
+        .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`)
+        .all() as Array<{ name: string }>;
+      expect(tablesAfterRollback.map((t) => t.name)).toEqual(["unrelated_table"]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("verifies schema inside the Staging libSQL transaction before tx.commit() and rolls back on contract failure", async () => {
+    const mod = await import("../../scripts/migrations/phase7-idempotency-v1.mjs");
+    const txExecutes: string[] = [];
+    const txObj = {
+      execute: vi.fn(async ({ sql }: { sql: string }) => {
+        txExecutes.push(sql);
+        if (sql.includes("sqlite_master")) {
+          return {
+            rows: [
+              { type: "table", name: "idempotency_keys", tbl_name: "idempotency_keys" },
+              { type: "index", name: "idx_idempotency_expires_at", tbl_name: "unrelated_table" },
+            ],
+          };
+        }
+        return { rows: [] };
+      }),
+      commit: vi.fn(async () => {}),
+      rollback: vi.fn(async () => {}),
+      close: vi.fn(),
+    };
+
+    const outerClient = {
+      execute: vi.fn(async () => ({ rows: [] })),
+      transaction: vi.fn(async () => txObj),
+      close: vi.fn(),
+    };
+
+    await expect(
+      mod.runStagingMigration({
+        env: {
+          TURSO_STAGING_DATABASE_URL: "libsql://fchdhgonoi-staging.turso.io",
+          TURSO_STAGING_AUTH_TOKEN: "staging-tok",
+        } as unknown as NodeJS.ProcessEnv,
+        dryRun: false,
+        clientFactory: () => outerClient as never,
+      })
+    ).rejects.toThrow(/invalid index ownership/i);
+
+    // Outer client ran only initial preflight (1 call), never post-commit verification
+    expect(outerClient.execute).toHaveBeenCalledTimes(1);
+    expect(txObj.execute.mock.calls.some(([arg]) => String(arg.sql).includes("sqlite_master"))).toBe(true);
+    expect(txObj.commit).toHaveBeenCalledTimes(0);
+    expect(txObj.rollback).toHaveBeenCalledTimes(1);
+    expect(txObj.close).toHaveBeenCalledTimes(1);
+  });
+});

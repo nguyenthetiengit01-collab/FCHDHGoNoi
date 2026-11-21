@@ -250,7 +250,7 @@ export async function runPhase7IdempotencyMigration({
     };
   }
 
-  const runApply = async (execFn) => {
+  const runApply = async (execFn, txQueryFn) => {
     if (!hasMigrationsTable) {
       await execFn(`
         CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -293,18 +293,28 @@ export async function runPhase7IdempotencyMigration({
         ]
       );
     }
+
+    // Verify full schema contract INSIDE the same open transaction BEFORE COMMIT
+    await verifyIdempotencySchemaContract(txQueryFn, {
+      requireTable: true,
+      requireIndex: true,
+    });
   };
 
   if (typeof withTransaction === "function") {
-    await withTransaction(runApply);
+    await withTransaction(async (txCtx) => {
+      const txExecute = typeof txCtx === "function" ? txCtx : txCtx?.execute;
+      const txQuery = typeof txCtx === "function" ? undefined : txCtx?.query;
+      if (typeof txExecute !== "function" || typeof txQuery !== "function") {
+        throw new Error(
+          "Transaction context must provide both transaction-bound execute() and query()."
+        );
+      }
+      await runApply(txExecute, txQuery);
+    });
   } else {
-    await runApply(execute);
+    await runApply(execute, query);
   }
-
-  await verifyIdempotencySchemaContract(query, {
-    requireTable: true,
-    requireIndex: true,
-  });
 
   return {
     version: MIGRATION_VERSION,
@@ -361,8 +371,14 @@ export async function runStagingMigration({
           ? async (fn) => {
               const tx = await client.transaction("write");
               try {
-                await fn(async (sql, params = []) => {
-                  await tx.execute({ sql, args: params });
+                await fn({
+                  execute: async (sql, params = []) => {
+                    await tx.execute({ sql, args: params });
+                  },
+                  query: async (sql, params = []) => {
+                    const res = await tx.execute({ sql, args: params });
+                    return res.rows.map((r) => ({ ...r }));
+                  },
                 });
                 await tx.commit();
               } catch (err) {
@@ -393,6 +409,28 @@ export async function runStagingMigration({
   }
 }
 
+export function createLocalSqliteTransactionRunner(db) {
+  return async (fn) => {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      await fn({
+        execute: async (sql, params = []) => {
+          db.prepare(sql).run(...params);
+        },
+        query: async (sql, params = []) => db.prepare(sql).all(...params),
+      });
+      db.exec("COMMIT");
+    } catch (err) {
+      try {
+        db.exec("ROLLBACK");
+      } catch {
+        // ignore rollback error
+      }
+      throw err;
+    }
+  };
+}
+
 async function main() {
   const dryRun = process.argv.includes("--dry-run");
   const sqlitePath = getArg("--sqlite");
@@ -415,22 +453,7 @@ async function main() {
           db.prepare(sql).run(...params);
         },
         query: async (sql, params = []) => db.prepare(sql).all(...params),
-        withTransaction: async (fn) => {
-          db.exec("BEGIN IMMEDIATE");
-          try {
-            await fn(async (sql, params = []) => {
-              db.prepare(sql).run(...params);
-            });
-            db.exec("COMMIT");
-          } catch (err) {
-            try {
-              db.exec("ROLLBACK");
-            } catch {
-              // ignore rollback error
-            }
-            throw err;
-          }
-        },
+        withTransaction: createLocalSqliteTransactionRunner(db),
         dryRun,
       });
       console.log(JSON.stringify(result, null, 2));
