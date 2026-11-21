@@ -183,15 +183,16 @@ Mọi thay đổi schema trên Turso Production bắt buộc tuân theo mô hìn
      - **Authentication material**: Có chứa PIN plaintext (`"1234"`), hash `scrypt$` thực tế của tài khoản đang dùng, hay mật khẩu quản trị thật?
      - **Operational data**: Có chứa URL nội bộ/cấu hình thực tế?
   3. Xóa file tạm ngay sau khi phân loại (`Remove-Item`).
-- **Bảng phân loại 4 nhóm dữ liệu (kết quả kiểm tra kỹ thuật offline read-only ngày `2026-11-21`, `SQLite 3.50.4`, `6` bảng — không in dữ liệu nhạy cảm)**:
-  - Thống kê tổng hợp an toàn: `players` (`23` dòng: `non_empty_phone=0`, `vn_phone_pattern=0`, `has_birth_year=23`, `scrypt_pin=0`, `default_1234_pin=23`, `other_plaintext_pin=0`), `matches` (`17`), `match_attendances` (`391`, `paid_pos=162`), `expenses` (`18`, `pos=18`), `other_incomes` (`2`, `pos=0`), `team_settings` (`1`). File tạm đã xóa sạch sau khi kiểm tra.
+- **Bảng phân loại 4 nhóm dữ liệu cho Owner (kết quả kiểm tra kỹ thuật offline read-only ngày `2026-11-21`, `SQLite 3.50.4`, `6` bảng — không in dữ liệu cá nhân hay nội dung dòng)**:
+  - Thống kê tổng hợp kỹ thuật: `players` (`23` dòng: `non_empty_phone=0`, `vn_phone_pattern=0`, `has_birth_year=23`, `scrypt_pin=0`, `default_1234_pin=23`, `other_plaintext_pin=0`), `matches` (`17`), `match_attendances` (`391`, `paid_pos=162`), `expenses` (`18`, `pos=18`), `other_incomes` (`2`, `pos=0`), `team_settings` (`1`). File tạm đã xóa sạch sau khi kiểm tra.
+  - **Lưu ý kỹ thuật quan trọng**: `23/23` bản ghi mang cùng mã PIN plaintext mặc định (`"1234"`) có thể là dữ liệu seed/mẫu **hoặc** là tài khoản thật vẫn đang dùng chung mã PIN mặc định; bản thân quét kỹ thuật không thể tự kết luận. Do đó trạng thái **Authentication material** là `UNKNOWN — DEFAULT PLAINTEXT AUTHENTICATION MATERIAL PRESENT; OWNER DOMAIN CONFIRMATION PENDING`, và `Sensitive data found = UNKNOWN` cho đến khi Security Owner xác nhận.
 
-| Nhóm dữ liệu | Không có dữ liệu thực | Chỉ dữ liệu mẫu | Có dữ liệu thực | Chưa xác định |
+| Nhóm dữ liệu (Technical Finding) | Không có dữ liệu thực (`no real data`) | Chỉ dữ liệu mẫu (`synthetic/sample only`) | Có dữ liệu thực (`real data detected`) | Chưa xác định (`inconclusive`) |
 | :--- | :---: | :---: | :---: | :---: |
-| **PII** (`non_empty_phone=0`, `vn_phone_pattern=0`, `has_birth_year=23`) | `[ ]` | `[ ]` | `[ ]` | `[x]` *(cần Owner xác nhận tên/năm sinh)* |
-| **Financial data** (`expenses=18` dương, `match_attendances=162` đã thu dương) | `[ ]` | `[ ]` | `[ ]` | `[x]` *(cần Owner xác nhận sổ thật hay mẫu)* |
-| **Authentication material** (`23/23` là `"1234"`, `0` `scrypt$`, `0` PIN riêng) | `[ ]` | `[x]` | `[ ]` | `[ ]` |
-| **Operational data** (`matches=17`, `team_settings=1`, `match_attendances=391`) | `[ ]` | `[ ]` | `[ ]` | `[x]` *(cần Owner xác nhận)* |
+| **PII** (`0` SĐT; `23` dòng có `birth_year > 1900` — chưa rõ thật/mẫu) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+| **Financial data** (`18` khoản chi dương, `162` điểm danh đã thu dương — chưa rõ thật/mẫu) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+| **Authentication material** (`UNKNOWN — DEFAULT PLAINTEXT AUTHENTICATION MATERIAL PRESENT; OWNER DOMAIN CONFIRMATION PENDING`: `23/23` cùng PIN plaintext mặc định, `0` `scrypt$`, `0` PIN khác) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+| **Operational data** (`17` trận, `1` `team_settings`, `391` điểm danh — chưa rõ thật/mẫu) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
 
 - **Mẫu báo cáo ký nhận cho Owner (`Status: OWNER CONFIRMATION PENDING`)**:
 
@@ -201,26 +202,30 @@ P1-03 OWNER CLASSIFICATION REPORT
 - Inspection date: 2026-11-21
 - Inspector: Automated Technical Inspection (Offline / Read-Only, no row values printed)
 - Inspection mode: Offline / Read-only (node:sqlite readOnly, temp file deleted)
-- Technical aggregate summary: 6 tables (players=23, matches=17, match_attendances=391, expenses=18, other_incomes=2, team_settings=1); non_empty_phone=0, default_1234_pin=23, scrypt_pin=0, other_plaintext_pin=0
-- Categories (Technical Pre-Fill; Owner Confirmation Pending):
-  - PII: Chưa xác định (0 phone numbers; 23 player rows with birth_year > 1900)
-  - Financial data: Chưa xác định (18 positive expenses, 162 positive paid attendances)
-  - Authentication material: Chỉ dữ liệu mẫu (23/23 default "1234" placeholder; 0 scrypt$/custom PINs)
-  - Operational data: Chưa xác định (17 matches, 1 team_settings)
-- Sensitive data found: UNKNOWN (Awaiting Security Owner domain confirmation)
-- Required actions (Pending Owner Decision):
-  - [ ] Rotate affected player/manager PINs
-  - [ ] Rotate AUTH_SECRET
-  - [ ] Plan separate Owner-approved Git history scrub (BFG / git-filter-repo)
-  - [ ] None required (synthetic/sample data only)
+- Technical aggregate summary: 6 tables (players=23, matches=17, match_attendances=391, expenses=18, other_incomes=2, team_settings=1); 0 phone values, 23/23 same default plaintext PIN, 0 scrypt hashes, 0 alternate plaintext PINs
+- Technical status:
+  - PII: UNKNOWN (no phone values; birth-year records exist; real vs synthetic unknown)
+  - Financial data: UNKNOWN (18 positive expenses, 162 positive paid attendances; real vs synthetic unknown)
+  - Authentication material: UNKNOWN — DEFAULT PLAINTEXT AUTHENTICATION MATERIAL PRESENT; OWNER DOMAIN CONFIRMATION PENDING (23/23 default plaintext PINs could be seeded data or real accounts still using a shared default)
+  - Operational data: UNKNOWN (17 matches, 1 team_settings; real vs synthetic unknown)
+- Owner Classification Selection (select one per category):
+  - PII:                    [ ] no real data  [ ] synthetic/sample only  [ ] real data detected  [ ] inconclusive
+  - Financial data:         [ ] no real data  [ ] synthetic/sample only  [ ] real data detected  [ ] inconclusive
+  - Authentication material:[ ] no real data  [ ] synthetic/sample only  [ ] real data detected  [ ] inconclusive
+  - Operational data:       [ ] no real data  [ ] synthetic/sample only  [ ] real data detected  [ ] inconclusive
+- Sensitive data found: UNKNOWN (Owner selects YES / NO / UNKNOWN: ____________)
 - Temporary file deleted: YES
-- Owner decision: [APPROVED / ACTION REQUIRED] (PENDING)
 - Owner name: ________________________
-- Approval date: YYYY-MM-DD
-- Signature: ________________________
+- Owner decision: ____________________
+- Approval date: _____________________
+- Signature: _________________________
 ```
 
-- **Hành động bắt buộc nếu phát hiện dữ liệu nhạy cảm thực tế (`Sensitive data found: YES`)**: Thực hiện ngay mục `6` (xoay vòng PIN toàn bộ tài khoản bị ảnh hưởng, xoay vòng `AUTH_SECRET` để thu hồi mọi session hiện hữu, đánh giá phạm vi clone/fork công khai, và lập kế hoạch xử lý lịch sử Git riêng được Owner phê duyệt).
+- **Kế hoạch hành động bảo mật có điều kiện (chỉ kích hoạt nếu Owner xác nhận tài khoản thật đã dùng mã PIN mặc định bị lộ)**:
+  1. **Kế hoạch reset / vô hiệu hóa PIN có phạm vi (Scoped PIN Reset)**: Bắt buộc đổi PIN sang mã cá nhân mạnh (`scrypt$`) cho toàn bộ tài khoản thật từng dùng PIN mặc định trong giai đoạn lịch sử bị lộ.
+  2. **Kế hoạch thu hồi phiên đăng nhập (Session Invalidation)**: Xoay vòng `AUTH_SECRET` trên Vercel Production (theo mục `6`) khi cần thu hồi đồng loạt toàn bộ cookie/phiên hiện hữu.
+  3. **Đánh giá phạm vi lộ lọt công khai**: Kiểm tra lịch sử truy cập, fork/clone công khai của repository `nguyenthetiengit01-collab/FCHDHGoNoi`.
+  4. **Quyết định xử lý lịch sử Git tách biệt**: Trình phương án rewrite lịch sử (`BFG` / `git-filter-repo`) như một **quyết định phê duyệt riêng của Owner** (tuyệt đối không tự động thực thi khi chưa có phê duyệt).
 
 ---
 
