@@ -378,7 +378,15 @@ describe("Phase 2 — Financial & Business Reconciliation Test Suite", () => {
   // 10. Idempotency thu tiền hàng loạt (Batch collection)
   it("10. API batch collection hỗ trợ idempotency_key chống trùng lặp dữ liệu", async () => {
     const executeSpy = vi.fn().mockResolvedValue({ rows: [] });
-    const querySpy = vi.fn().mockResolvedValue([mockManager]);
+    const querySpy = vi.fn().mockImplementation(async (sql: string) => {
+      if (sql.includes("sqlite_master")) {
+        return [
+          { type: "table", name: "idempotency_keys" },
+          { type: "index", name: "idx_idempotency_expires_at" },
+        ];
+      }
+      return [mockManager];
+    });
     const queryOneSpy = vi.fn().mockImplementation(async (sql: string) => {
       if (sql.includes("idempotency_keys")) return null;
       return { id: 1, fee_per_player: 100000 };

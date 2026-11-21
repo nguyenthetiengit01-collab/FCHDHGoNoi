@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Idempotent Phase 7.1.4 Batch Fee Idempotency Migration (v1).
- * Authoritative pre-release schema migration for `idempotency_keys`.
+ * Authoritative schema migration for `idempotency_keys` on isolated local SQLite
+ * (`--sqlite`) or authorized Staging (`--env staging`) ONLY.
+ * No Production target is supported by this script; Production schema preparation
+ * requires a separate Owner/Operator-authorized DDL procedure.
  *
  * Usage:
  *   node scripts/migrations/phase7-idempotency-v1.mjs --sqlite <isolated-temp-path.sqlite> [--dry-run]

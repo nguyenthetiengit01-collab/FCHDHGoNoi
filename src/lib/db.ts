@@ -218,16 +218,45 @@ export class TursoWriteOutcomeUnknownError extends Error {
   }
 }
 
+export class IdempotencySchemaMissingError extends Error {
+  readonly code = "IDEMPOTENCY_SCHEMA_NOT_READY" as const;
+
+  constructor(missingObjects: string[]) {
+    super(
+      `Idempotency schema is not ready (missing: ${missingObjects.join(", ")}). Apply the authorized migration before enabling batch fee collection.`
+    );
+    this.name = "IdempotencySchemaMissingError";
+  }
+}
+
 export function mapDatabaseErrorToHttpResponse(err: unknown): {
   status: number;
   body: {
     error: string;
-    code: "DB_WRITE_OUTCOME_UNKNOWN";
+    code: "DB_WRITE_OUTCOME_UNKNOWN" | "IDEMPOTENCY_SCHEMA_NOT_READY";
     retryable: false;
-    reconcileRequired: true;
+    reconcileRequired: boolean;
     correlationId: string;
   };
 } | null {
+  if (
+    err instanceof IdempotencySchemaMissingError ||
+    (err &&
+      typeof err === "object" &&
+      (err as { code?: unknown }).code === "IDEMPOTENCY_SCHEMA_NOT_READY")
+  ) {
+    return {
+      status: 503,
+      body: {
+        error:
+          "Chức năng thu quỹ hàng loạt tạm thời chưa sẵn sàng do cấu trúc bảng idempotency_keys chưa được khởi tạo. Vui lòng liên hệ Quản trị viên.",
+        code: "IDEMPOTENCY_SCHEMA_NOT_READY",
+        retryable: false,
+        reconcileRequired: false,
+        correlationId: crypto.randomUUID(),
+      },
+    };
+  }
   if (
     err instanceof TursoWriteOutcomeUnknownError ||
     (err &&
@@ -2315,33 +2344,34 @@ export async function recordAuditLog(params: {
 const idempotencyTableInitByDb = new WeakMap<AsyncDb, Promise<void>>();
 
 /**
- * Backward-compatibility safety net for `idempotency_keys`.
- * Authoritative schema ownership lives in `scripts/migrations/phase7-idempotency-v1.mjs`
- * (run pre-release on Staging/Production). This lazy initializer prevents runtime failure
- * if an environment has not yet applied the migration, deduplicated per `AsyncDb` via WeakMap
- * (requires CREATE TABLE / CREATE INDEX DDL permission if table is absent).
+ * Read-only runtime readiness check for `idempotency_keys` and `idx_idempotency_expires_at`.
+ * Schema creation is performed exclusively via an explicitly authorized migration procedure
+ * (`scripts/migrations/phase7-idempotency-v1.mjs` for `--sqlite` / `--env staging`, or an
+ * Owner-authorized Production DDL procedure). Runtime request handling never executes DDL.
+ * Fails closed with `IdempotencySchemaMissingError` (HTTP 503) if required objects are absent.
  */
 export async function ensureIdempotencyKeysReady(targetDb?: AsyncDb): Promise<void> {
   const db = targetDb ?? getAsyncDb();
   let pending = idempotencyTableInitByDb.get(db);
   if (!pending) {
     pending = (async () => {
-      await db.run(`
-        CREATE TABLE IF NOT EXISTS idempotency_keys (
-          idempotency_key TEXT NOT NULL,
-          actor_id INTEGER NOT NULL,
-          action TEXT NOT NULL,
-          payload_hash TEXT NOT NULL,
-          status_code INTEGER NOT NULL,
-          response_json TEXT NOT NULL,
-          created_at TEXT NOT NULL DEFAULT (datetime('now')),
-          expires_at TEXT NOT NULL,
-          PRIMARY KEY (idempotency_key, actor_id, action)
-        )
-      `);
-      await db.run(
-        "CREATE INDEX IF NOT EXISTS idx_idempotency_expires_at ON idempotency_keys(expires_at)"
+      const rows = await db.query<{ type: string; name: string }>(
+        `SELECT type, name FROM sqlite_master
+         WHERE (type = 'table' AND name = 'idempotency_keys')
+            OR (type = 'index' AND name = 'idx_idempotency_expires_at')`
       );
+      const hasTable = rows.some(
+        (r) => String(r.type) === "table" && String(r.name) === "idempotency_keys"
+      );
+      const hasIndex = rows.some(
+        (r) => String(r.type) === "index" && String(r.name) === "idx_idempotency_expires_at"
+      );
+      if (!hasTable || !hasIndex) {
+        const missing: string[] = [];
+        if (!hasTable) missing.push("table:idempotency_keys");
+        if (!hasIndex) missing.push("index:idx_idempotency_expires_at");
+        throw new IdempotencySchemaMissingError(missing);
+      }
     })().catch((err) => {
       idempotencyTableInitByDb.delete(db);
       throw err;

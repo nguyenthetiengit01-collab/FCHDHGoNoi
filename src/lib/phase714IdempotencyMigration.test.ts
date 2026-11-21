@@ -320,14 +320,50 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
       expect(timeoutJson.code).toBe("DB_WRITE_OUTCOME_UNKNOWN");
       expect(timeoutJson.retryable).toBe(false);
 
-      // 8. Concurrent ensureIdempotencyKeysReady deduplication on fresh AsyncDb
+      // 8. Read-only ensureIdempotencyKeysReady: fails closed with zero DDL on missing schema,
+      // and deduplicates metadata check after migration
       const raw2 = new DatabaseSync(":memory:");
       const db2 = new dbModule.LocalSqliteAdapter(raw2);
       const runSpy = vi.spyOn(db2, "run");
+      await expect(dbModule.ensureIdempotencyKeysReady(db2)).rejects.toThrow(
+        /Idempotency schema is not ready/i
+      );
+      expect(runSpy).toHaveBeenCalledTimes(0);
+
+      // Verify POST /api/team collect_match_fees_batch fails closed (503) without running DDL
+      dbModule.initQaDatabaseSchema(raw2);
+      raw2.exec("DROP TABLE IF EXISTS idempotency_keys;");
+      raw2.exec("INSERT INTO matches (id, match_number, label, match_date, fee_per_player) VALUES (1, 1, 'Trận 1', '2026-11-21', 100000);");
+      raw2
+        .prepare("INSERT INTO players (id, code_order, full_name, short_name, access_role, username, pin_code, status) VALUES (1, 1, 'Mgr', 'M1', 'manager', 'mgr1', ?, 'Đang sinh hoạt'), (3, 3, 'Player 3', 'P3', 'player', 'p3', ?, 'Đang sinh hoạt')")
+        .run(hashPassword("MgrStrong@2026"), hashPassword("Player3@2026"));
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(
+        db2 as unknown as ReturnType<typeof dbModule.getAsyncDb>
+      );
+      const mgr2Row = raw2.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+      const mgr2Token = createSessionToken(mgr2Row, 24);
+      const missingSchemaRes = await postTeamRoute(makeReq(mgr2Token, { headerKey: "missing-schema-k1", amount: 100000 }));
+      expect(missingSchemaRes.status).toBe(503);
+      expect((await missingSchemaRes.json()).code).toBe("IDEMPOTENCY_SCHEMA_NOT_READY");
+      const idempotencyDdlCalls = runSpy.mock.calls.filter(([sql]) =>
+        /\b(CREATE\s+TABLE|CREATE\s+INDEX|ALTER\s+TABLE|DROP\s+TABLE)\b[\s\S]*\b(idempotency_keys|idx_idempotency_expires_at)\b/i.test(
+          String(sql)
+        )
+      );
+      expect(idempotencyDdlCalls).toHaveLength(0);
+
+      // After migration, 10 concurrent calls deduplicate to 1 read-only query and 0 DDL runs
+      raw2.exec(`
+        CREATE TABLE idempotency_keys (idempotency_key TEXT NOT NULL, actor_id INTEGER NOT NULL, action TEXT NOT NULL, payload_hash TEXT NOT NULL, status_code INTEGER NOT NULL, response_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), expires_at TEXT NOT NULL, PRIMARY KEY (idempotency_key, actor_id, action));
+        CREATE INDEX idx_idempotency_expires_at ON idempotency_keys(expires_at);
+      `);
+      runSpy.mockClear();
+      const querySpy = vi.spyOn(db2, "query");
       await Promise.all(
         Array.from({ length: 10 }, () => dbModule.ensureIdempotencyKeysReady(db2))
       );
-      expect(runSpy).toHaveBeenCalledTimes(2); // 1 CREATE TABLE + 1 CREATE INDEX
+      expect(querySpy).toHaveBeenCalledTimes(1);
+      expect(runSpy).toHaveBeenCalledTimes(0);
       raw2.close();
     } finally {
       raw.close();

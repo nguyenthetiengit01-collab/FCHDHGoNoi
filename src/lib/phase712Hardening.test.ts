@@ -122,6 +122,7 @@ function createTestDb() {
       summary TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+    CREATE INDEX IF NOT EXISTS idx_idempotency_expires_at ON idempotency_keys(expires_at);
   `);
   return { raw, db: new LocalSqliteAdapter(raw) };
 }

@@ -254,6 +254,14 @@ describe("Phase 7.1.5 – TursoDbAdapter Overlapping Concurrency Mock Tests", ()
           if (id === 3) return { rows: [{ id: 3 }] };
           return { rows: [] };
         }
+        if (sql.includes("sqlite_master")) {
+          return {
+            rows: [
+              { type: "table", name: "idempotency_keys" },
+              { type: "index", name: "idx_idempotency_expires_at" },
+            ],
+          };
+        }
         if (sql.includes("FROM matches WHERE id = ?")) {
           return { rows: [{ fee_per_player: 100000 }] };
         }
