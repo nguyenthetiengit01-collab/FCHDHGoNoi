@@ -312,6 +312,24 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
         raw.prepare("SELECT COUNT(*) AS c FROM audit_logs").get() as { c: number }
       ).c;
       expect(auditCountAfterExpiredRetry).toBe(auditCountBeforeExpiredRetry);
+      const attAfterSameExpired = raw
+        .prepare("SELECT amount FROM match_attendances WHERE match_id = 1 AND player_id = 3")
+        .get() as { amount: number };
+      expect(attAfterSameExpired.amount).toBe(120000);
+
+      // Expired key with DIFFERENT payload -> 409 conflict, zero financial/audit writes
+      const expiredDiffRes = await postTeamRoute(
+        makeReq(t1, { headerKey: "expired-k1", amount: 150000 })
+      );
+      expect(expiredDiffRes.status).toBe(409);
+      const auditCountAfterDiffExpired = (
+        raw.prepare("SELECT COUNT(*) AS c FROM audit_logs").get() as { c: number }
+      ).c;
+      expect(auditCountAfterDiffExpired).toBe(auditCountBeforeExpiredRetry);
+      const attAfterDiffExpired = raw
+        .prepare("SELECT amount FROM match_attendances WHERE match_id = 1 AND player_id = 3")
+        .get() as { amount: number };
+      expect(attAfterDiffExpired.amount).toBe(120000);
 
       // 6. Actor isolation
       const actor2Res = await postTeamRoute(
@@ -433,7 +451,60 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
       await expect(dbModule.ensureIdempotencyKeysReady(dbBadIdx)).rejects.toThrow(
         /index_cols:idx_idempotency_expires_at/i
       );
+      await expect(
+        runPhase7IdempotencyMigration({
+          execute: async (sql: string) => {
+            rawBadIdx.exec(sql);
+          },
+          query: async (sql: string, params?: unknown[]) => dbBadIdx.query(sql, params),
+        })
+      ).rejects.toThrow(/Idempotency schema contract violation/i);
       rawBadIdx.close();
+
+      // Missing index only -> fails closed
+      const rawMissingIdx = new DatabaseSync(":memory:");
+      rawMissingIdx.exec(`
+        CREATE TABLE idempotency_keys (
+          idempotency_key TEXT NOT NULL,
+          actor_id INTEGER NOT NULL,
+          action TEXT NOT NULL,
+          payload_hash TEXT NOT NULL,
+          status_code INTEGER NOT NULL,
+          response_json TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL,
+          PRIMARY KEY (idempotency_key, actor_id, action)
+        );
+      `);
+      const dbMissingIdx = new dbModule.LocalSqliteAdapter(rawMissingIdx);
+      await expect(dbModule.ensureIdempotencyKeysReady(dbMissingIdx)).rejects.toThrow(
+        /index:idx_idempotency_expires_at/i
+      );
+      rawMissingIdx.close();
+
+      // Same-name malformed table (missing required column) -> fails closed in runtime and migration
+      const rawMissingCol = new DatabaseSync(":memory:");
+      rawMissingCol.exec(`
+        CREATE TABLE idempotency_keys (
+          idempotency_key TEXT NOT NULL,
+          actor_id INTEGER NOT NULL,
+          action TEXT NOT NULL,
+          PRIMARY KEY (idempotency_key, actor_id, action)
+        );
+      `);
+      const dbMissingCol = new dbModule.LocalSqliteAdapter(rawMissingCol);
+      await expect(dbModule.ensureIdempotencyKeysReady(dbMissingCol)).rejects.toThrow(
+        /column:idempotency_keys\.payload_hash/i
+      );
+      await expect(
+        runPhase7IdempotencyMigration({
+          execute: async (sql: string) => {
+            rawMissingCol.exec(sql);
+          },
+          query: async (sql: string, params?: unknown[]) => dbMissingCol.query(sql, params),
+        })
+      ).rejects.toThrow(/Idempotency schema contract violation/i);
+      rawMissingCol.close();
       raw2.close();
     } finally {
       raw.close();
