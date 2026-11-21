@@ -300,6 +300,7 @@ export type MutateActionResult = {
   status?: number;
   code?: string;
   retryable?: boolean;
+  reconcileRequired?: boolean;
 };
 
 export type MutateActionFn = (

@@ -430,9 +430,16 @@ export function isAmbiguousMutateFailure(result: {
   status?: number;
   code?: string;
   retryable?: boolean;
+  reconcileRequired?: boolean;
 }): boolean {
   if (result.ok) return false;
   if (result.code === "DB_WRITE_OUTCOME_UNKNOWN") return true;
+  if (
+    result.code === "IDEMPOTENCY_SCHEMA_NOT_READY" &&
+    result.reconcileRequired === false
+  ) {
+    return false;
+  }
   if (result.status === 0 || result.status === 503) return true;
   if (typeof result.status === "number" && result.status >= 500) return true;
   if (result.retryable === true) return true;
@@ -445,8 +452,15 @@ export function isDefinitiveNoWriteClientFailure(result: {
   status?: number;
   code?: string;
   retryable?: boolean;
+  reconcileRequired?: boolean;
 }): boolean {
   if (result.ok || isAmbiguousMutateFailure(result)) return false;
+  if (
+    result.code === "IDEMPOTENCY_SCHEMA_NOT_READY" &&
+    result.reconcileRequired === false
+  ) {
+    return true;
+  }
   return (
     result.status === 400 ||
     result.status === 401 ||
@@ -555,6 +569,7 @@ export async function runBatchOperationAttempt(params: {
     status?: number;
     code?: string;
     retryable?: boolean;
+    reconcileRequired?: boolean;
   } | void>;
 }): Promise<BatchOperationOutcome> {
   const { mode, matchId, sendMutate } = params;

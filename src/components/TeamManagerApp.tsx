@@ -248,6 +248,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
     status?: number;
     code?: string;
     retryable?: boolean;
+    reconcileRequired?: boolean;
   }> => {
     setIsSaving(true);
     try {
@@ -266,6 +267,10 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
           status: res.status,
           code: typeof json?.code === "string" ? json.code : undefined,
           retryable: typeof json?.retryable === "boolean" ? json.retryable : undefined,
+          reconcileRequired:
+            typeof json?.reconcileRequired === "boolean"
+              ? json.reconcileRequired
+              : undefined,
         };
       }
       setData(json);

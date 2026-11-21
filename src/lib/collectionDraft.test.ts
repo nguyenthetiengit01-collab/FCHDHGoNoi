@@ -1,8 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   getEffectiveAttendance,
   calculateDraftTotals,
   buildBatchPayloadItems,
+  isAmbiguousMutateFailure,
+  isDefinitiveNoWriteClientFailure,
+  runBatchOperationAttempt,
+  saveDraftToStorage,
+  loadDraftFromStorage,
+  loadPendingBatchSubmission,
+  loadPendingBatchSubmissionState,
+  deriveCollectionFooterViewState,
   type DraftItem,
 } from "./collectionDraft";
 import type { MatchAttendance, Player } from "@/types/app";
@@ -182,6 +190,203 @@ describe("collectionDraft helper", () => {
       walk_in: 0,
       remove: true,
     });
+  });
+});
+
+describe("IDEMPOTENCY_SCHEMA_NOT_READY & unknown-write error semantics", () => {
+  const originalWindow = (globalThis as { window?: unknown }).window;
+
+  beforeEach(() => {
+    const store = new Map<string, string>();
+    (globalThis as { window?: unknown }).window = {
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => {
+          store.set(k, String(v));
+        },
+        removeItem: (k: string) => {
+          store.delete(k);
+        },
+        clear: () => {
+          store.clear();
+        },
+      },
+    };
+  });
+
+  afterEach(() => {
+    (globalThis as { window?: unknown }).window = originalWindow;
+  });
+
+  const sampleItems = [
+    {
+      player_id: 2,
+      attended: 1,
+      paid: 1,
+      amount: 100000,
+      walk_in: 0,
+      remove: false,
+    },
+  ];
+
+  const sampleDraft: Record<number, DraftItem> = {
+    2: { paid: 1, amount: 100000, attended: 1, walk_in: 0 },
+  };
+
+  it("1-5. Treats IDEMPOTENCY_SCHEMA_NOT_READY (reconcileRequired=false) as definitive no-write, clears pending key, keeps draft & clean UI, and allows retry when ready", async () => {
+    const schemaErrorResult = {
+      ok: false,
+      status: 503,
+      code: "IDEMPOTENCY_SCHEMA_NOT_READY",
+      retryable: false,
+      reconcileRequired: false,
+      error: "Hệ thống idempotency chưa sẵn sàng, chưa có dữ liệu nào được ghi.",
+    };
+
+    expect(isAmbiguousMutateFailure(schemaErrorResult)).toBe(false);
+    expect(isDefinitiveNoWriteClientFailure(schemaErrorResult)).toBe(true);
+
+    saveDraftToStorage(42, sampleDraft);
+    const seenKeys: string[] = [];
+
+    const firstOutcome = await runBatchOperationAttempt({
+      mode: "save",
+      matchId: 42,
+      collectedBy: "Tieng",
+      items: sampleItems,
+      sendMutate: async (payload) => {
+        seenKeys.push(payload.idempotency_key);
+        return schemaErrorResult;
+      },
+    });
+
+    // 1. Must not become unknown_outcome
+    expect(firstOutcome.ok).toBe(false);
+    expect(firstOutcome.pendingState.status).toBe("none");
+    expect(loadPendingBatchSubmissionState(42)).toEqual({ status: "none" });
+    // 2. Pending key is cleared
+    expect(loadPendingBatchSubmission(42)).toBeNull();
+    // 3. Original collection draft remains available
+    expect(loadDraftFromStorage(42)).toEqual(sampleDraft);
+    // 4. UI does not claim transaction may already have been recorded
+    const footer = deriveCollectionFooterViewState({
+      dirtyCount: 1,
+      pendingLoadState: firstOutcome.pendingState,
+      isSaving: false,
+    });
+    expect(footer.hasUnresolvedPending).toBe(false);
+    expect(footer.showReconcileRetryButton).toBe(false);
+    expect(footer.statusKind).toBe("dirty");
+    expect(footer.saveButtonDisabled).toBe(false);
+    expect(firstOutcome.error).not.toMatch(/chưa xác định|đã ghi|chưa đối chiếu/i);
+
+    // 5. A new submission can proceed after schema becomes ready
+    const secondOutcome = await runBatchOperationAttempt({
+      mode: "save",
+      matchId: 42,
+      collectedBy: "Tieng",
+      items: sampleItems,
+      sendMutate: async (payload) => {
+        seenKeys.push(payload.idempotency_key);
+        return { ok: true };
+      },
+    });
+
+    expect(secondOutcome.ok).toBe(true);
+    expect(seenKeys).toHaveLength(2);
+    expect(seenKeys[1]).not.toBe(seenKeys[0]);
+    expect(loadPendingBatchSubmission(42)).toBeNull();
+    expect(loadDraftFromStorage(42)).toEqual({});
+  });
+
+  it("6. Preserves original idempotency key and payload as unknown_outcome on DB_WRITE_OUTCOME_UNKNOWN", async () => {
+    const unknownOutcomeResult = {
+      ok: false,
+      status: 503,
+      code: "DB_WRITE_OUTCOME_UNKNOWN",
+      retryable: false,
+      reconcileRequired: true,
+      error: "Không xác định được kết quả commit.",
+    };
+
+    expect(isAmbiguousMutateFailure(unknownOutcomeResult)).toBe(true);
+    expect(isDefinitiveNoWriteClientFailure(unknownOutcomeResult)).toBe(false);
+
+    saveDraftToStorage(43, sampleDraft);
+    let sentKey = "";
+    const outcome = await runBatchOperationAttempt({
+      mode: "save",
+      matchId: 43,
+      collectedBy: "Tieng",
+      items: sampleItems,
+      sendMutate: async (payload) => {
+        sentKey = payload.idempotency_key;
+        return unknownOutcomeResult;
+      },
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.pendingState.status).toBe("ok");
+    const persisted = loadPendingBatchSubmission(43);
+    expect(persisted).not.toBeNull();
+    expect(persisted?.state).toBe("unknown_outcome");
+    expect(persisted?.idempotency_key).toBe(sentKey);
+    expect(persisted?.items).toEqual(sampleItems);
+
+    const footer = deriveCollectionFooterViewState({
+      dirtyCount: 1,
+      pendingLoadState: outcome.pendingState,
+      isSaving: false,
+    });
+    expect(footer.hasUnresolvedPending).toBe(true);
+    expect(footer.showReconcileRetryButton).toBe(true);
+  });
+
+  it("7. Handles network failures conservatively as unknown_outcome", async () => {
+    const networkFailureResult = {
+      ok: false,
+      status: 0,
+      retryable: true,
+      error: "Không thể kết nối máy chủ",
+    };
+
+    expect(isAmbiguousMutateFailure(networkFailureResult)).toBe(true);
+    expect(isDefinitiveNoWriteClientFailure(networkFailureResult)).toBe(false);
+
+    const outcome = await runBatchOperationAttempt({
+      mode: "save",
+      matchId: 44,
+      collectedBy: "Tieng",
+      items: sampleItems,
+      sendMutate: async () => networkFailureResult,
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.pendingState.status).toBe("ok");
+    expect(loadPendingBatchSubmission(44)?.state).toBe("unknown_outcome");
+  });
+
+  it("8. Treats HTTP 503 without a known no-write code as ambiguous", async () => {
+    const generic503 = {
+      ok: false,
+      status: 503,
+      error: "Service temporarily unavailable",
+    };
+
+    expect(isAmbiguousMutateFailure(generic503)).toBe(true);
+    expect(isDefinitiveNoWriteClientFailure(generic503)).toBe(false);
+
+    const outcome = await runBatchOperationAttempt({
+      mode: "save",
+      matchId: 45,
+      collectedBy: "Tieng",
+      items: sampleItems,
+      sendMutate: async () => generic503,
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.pendingState.status).toBe("ok");
+    expect(loadPendingBatchSubmission(45)?.state).toBe("unknown_outcome");
   });
 });
 
