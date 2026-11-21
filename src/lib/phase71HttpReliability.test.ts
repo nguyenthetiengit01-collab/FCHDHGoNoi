@@ -118,9 +118,13 @@ describe("Phase 7.1 HTTP Security Headers & Application Reliability", () => {
     const player = appData.players.find((p) => p.access_role === "player");
     expect(player).toBeTruthy();
 
-    // Issue a valid session token, then revoke it by changing pin_code in DB
-    const staleToken = createSessionToken(player!);
+    // Issue a valid session token using DB credential material, then revoke it by changing pin_code in DB
     const db = getAsyncDb();
+    const pinRow = await db.queryOne<{ pin_code: string }>(
+      "SELECT pin_code FROM players WHERE id = ?",
+      [player!.id]
+    );
+    const staleToken = createSessionToken({ ...player!, pin_code: pinRow?.pin_code || "" });
     await db.run("UPDATE players SET pin_code = ? WHERE id = ?", [
       hashPassword("NewStrongPin!99"),
       player!.id,

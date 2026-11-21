@@ -14,7 +14,7 @@ import {
   verifyCsrfOrigin,
 } from "@/lib/auth";
 import { extractTrustedClientIp } from "@/lib/authRateLimit";
-import { getAsyncDb } from "@/lib/db";
+import { getAsyncDb, recordAuditLog } from "@/lib/db";
 import type { Player } from "@/types/app";
 
 const NO_STORE_CACHE_CONTROL = "no-store, no-cache, must-revalidate";
@@ -68,18 +68,16 @@ async function handleGetAuth(req: NextRequest): Promise<NextResponse> {
       return res;
     }
 
-    // Thu hồi phiên tức thì nếu mật khẩu đã bị thay đổi trên thiết bị khác
-    if (session.pwdFingerprint) {
-      const currentFp = getPasswordFingerprint(playerRow.pin_code || "1234");
-      if (session.pwdFingerprint !== currentFp) {
-        const res = NextResponse.json({
-          authenticated: false,
-          player: null,
-          error: "Mật khẩu của bạn đã được thay đổi. Vui lòng đăng nhập lại.",
-        });
-        res.cookies.delete(SESSION_COOKIE_NAME);
-        return res;
-      }
+    // Thu hồi phiên tức thì nếu mật khẩu đã bị thay đổi hoặc thiếu credential
+    const currentFp = getPasswordFingerprint(playerRow.pin_code);
+    if (!currentFp || !session.pwdFingerprint || session.pwdFingerprint !== currentFp) {
+      const res = NextResponse.json({
+        authenticated: false,
+        player: null,
+        error: "Mật khẩu của bạn đã được thay đổi. Vui lòng đăng nhập lại.",
+      });
+      res.cookies.delete(SESSION_COOKIE_NAME);
+      return res;
     }
 
     // Luôn ẩn mã PIN trước khi gửi về client (allow-list projection)
@@ -184,6 +182,15 @@ async function handlePostAuth(req: NextRequest): Promise<NextResponse> {
 
       const token = createSessionToken(playerRow, 24 * 7);
       const safePlayer = projectSafePlayer(playerRow);
+
+      await recordAuditLog({
+        actorId: auth.player?.id ?? auth.session?.playerId ?? 0,
+        actorName: auth.player?.full_name ?? auth.session?.fullName ?? "Manager",
+        actorRole: auth.player?.access_role ?? auth.session?.accessRole ?? "manager",
+        action,
+        summary: `Manager #${auth.player?.id ?? auth.session?.playerId ?? 0} switched session to player #${playerRow.id} (${action})`,
+        tx: db,
+      });
 
       const res = NextResponse.json({
         success: true,

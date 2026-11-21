@@ -492,10 +492,25 @@ export async function POST(req: NextRequest) {
             "SELECT pin_code, gallery_urls_json, profile_image_url, status FROM players WHERE id = ?",
             [Number(id)]
           );
-          const rawPin = String(pin_code || "").trim();
-          let finalPin = existing?.pin_code || hashPassword(crypto.randomBytes(24).toString("base64url"));
+          const rawPin = typeof pin_code === "string" ? pin_code.trim() : "";
+          let finalPin = existing?.pin_code?.trim()
+            ? existing.pin_code
+            : hashPassword(crypto.randomBytes(24).toString("base64url"));
           if (rawPin) {
-            finalPin = rawPin.startsWith("scrypt$") ? rawPin : hashPassword(rawPin);
+            if (rawPin.startsWith("scrypt$")) {
+              return NextResponse.json(
+                { error: "Không được phép gửi trực tiếp chuỗi hash mật khẩu từ client." },
+                { status: 400 }
+              );
+            }
+            const strength = validatePasswordStrength(rawPin);
+            if (!strength.valid) {
+              return NextResponse.json(
+                { error: strength.message || "Mật khẩu chưa đủ an toàn (tối thiểu 6 ký tự)." },
+                { status: 400 }
+              );
+            }
+            finalPin = hashPassword(rawPin);
           }
           const finalGalleryJson =
             gallery_urls !== undefined
@@ -557,6 +572,27 @@ export async function POST(req: NextRequest) {
           });
           auditRecordedInTx = true;
         } else {
+          const rawCreatePin = typeof pin_code === "string" ? pin_code.trim() : "";
+          let createPinHash: string;
+          if (!rawCreatePin) {
+            createPinHash = hashPassword(crypto.randomBytes(24).toString("base64url"));
+          } else {
+            if (rawCreatePin.startsWith("scrypt$")) {
+              return NextResponse.json(
+                { error: "Không được phép gửi trực tiếp chuỗi hash mật khẩu từ client." },
+                { status: 400 }
+              );
+            }
+            const strength = validatePasswordStrength(rawCreatePin);
+            if (!strength.valid) {
+              return NextResponse.json(
+                { error: strength.message || "Mật khẩu chưa đủ an toàn (tối thiểu 6 ký tự)." },
+                { status: 400 }
+              );
+            }
+            createPinHash = hashPassword(rawCreatePin);
+          }
+
           await db.transaction(async (tx) => {
             const maxRow = await tx.queryOne<{ maxOrder: number }>(
               "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
@@ -586,15 +622,7 @@ export async function POST(req: NextRequest) {
                 typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
                 role || "Thành viên",
                 access_role === "manager" ? "manager" : "player",
-                (() => {
-                  const rawCreatePin = String(pin_code || "").trim();
-                  if (!rawCreatePin) {
-                    return hashPassword(crypto.randomBytes(24).toString("base64url"));
-                  }
-                  return rawCreatePin.startsWith("scrypt$")
-                    ? rawCreatePin
-                    : hashPassword(rawCreatePin);
-                })(),
+                createPinHash,
                 status || "Đang sinh hoạt",
                 notes || "",
                 String(hometown || "").trim(),

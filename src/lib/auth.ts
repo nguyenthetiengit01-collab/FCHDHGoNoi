@@ -139,12 +139,15 @@ export function hashPassword(password: string): string {
 }
 
 /**
- * Tạo dấu vân tay ngắn cho mật khẩu để nhúng vào session token
+ * Tạo dấu vân tay ngắn cho mật khẩu để nhúng vào session token.
+ * Fail-closed: trả về null nếu thiếu credential material (không fallback về "1234").
  */
-export function getPasswordFingerprint(pinOrHash: string): string {
+export function getPasswordFingerprint(pinOrHash?: string | null): string | null {
+  const clean = String(pinOrHash || "").trim();
+  if (!clean) return null;
   return crypto
     .createHash("sha256")
-    .update(String(pinOrHash || "1234").trim())
+    .update(clean)
     .digest("hex")
     .slice(0, 12);
 }
@@ -319,6 +322,11 @@ export function createSessionToken(
   player: Player,
   durationHours = 24 * 7
 ): string {
+  const pwdFingerprint = getPasswordFingerprint(player.pin_code);
+  if (!pwdFingerprint) {
+    throw new Error("Cannot create session token for account with missing credential material.");
+  }
+
   const exp = Math.floor(Date.now() / 1000) + durationHours * 3600;
   const payload: SessionPayload = {
     playerId: player.id,
@@ -326,7 +334,7 @@ export function createSessionToken(
     fullName: player.full_name,
     shortName: player.short_name,
     jerseyNumber: player.jersey_number,
-    pwdFingerprint: getPasswordFingerprint(player.pin_code || "1234"),
+    pwdFingerprint,
     exp,
   };
 
@@ -381,7 +389,9 @@ export function verifySessionToken(
       typeof payload.playerId !== "number" ||
       !Number.isInteger(payload.playerId) ||
       typeof payload.exp !== "number" ||
-      (payload.accessRole !== "manager" && payload.accessRole !== "player")
+      (payload.accessRole !== "manager" && payload.accessRole !== "player") ||
+      typeof payload.pwdFingerprint !== "string" ||
+      !payload.pwdFingerprint.trim()
     ) {
       return null;
     }
@@ -392,11 +402,11 @@ export function verifySessionToken(
       return null; // Hết hạn
     }
 
-    // Nếu cung cấp mật khẩu hiện tại trong DB: đối chiếu dấu vân tay
-    if (currentPinOrHash && payload.pwdFingerprint) {
+    // Nếu cung cấp mật khẩu hiện tại trong DB: đối chiếu dấu vân tay (fail-closed nếu DB thiếu credential)
+    if (currentPinOrHash !== undefined) {
       const currentFingerprint = getPasswordFingerprint(currentPinOrHash);
-      if (payload.pwdFingerprint !== currentFingerprint) {
-        return null; // Mật khẩu đã thay đổi, vô hiệu hóa phiên cũ
+      if (!currentFingerprint || payload.pwdFingerprint !== currentFingerprint) {
+        return null; // Mật khẩu đã thay đổi hoặc thiếu credential, vô hiệu hóa phiên cũ
       }
     }
 
@@ -464,7 +474,7 @@ export async function verifyCredentials(
   clientIp = "local"
 ): Promise<{
   success: boolean;
-  status?: 200 | 401 | 429 | 503;
+  status?: 200 | 401 | 403 | 429 | 503;
   errorCode?: string;
   waitSeconds?: number;
   player?: Player;
@@ -552,7 +562,16 @@ export async function verifyCredentials(
     [matched.id]
   );
 
-  const storedPinOrHash = pinRow?.pin_code || "1234";
+  const storedPinOrHash = String(pinRow?.pin_code || "").trim();
+  if (!storedPinOrHash) {
+    runDummyScryptVerification(cleanPin, "missing");
+    return {
+      success: false,
+      status: 401,
+      error: UNIFIED_LOGIN_ERROR_MESSAGE,
+    };
+  }
+
   const isMatch = verifyPassword(cleanPin, storedPinOrHash);
 
   if (!isMatch) {
@@ -564,6 +583,17 @@ export async function verifyCredentials(
       success: false,
       status: 401,
       error: UNIFIED_LOGIN_ERROR_MESSAGE,
+    };
+  }
+
+  // Từ chối đăng nhập và không auto-rehash nếu tài khoản vẫn đang dùng mã PIN mặc định "1234"
+  if (isDefaultPassword(storedPinOrHash)) {
+    return {
+      success: false,
+      status: 403,
+      errorCode: "DEFAULT_PIN_RESET_REQUIRED",
+      error:
+        "Tài khoản đang sử dụng mã PIN mặc định không còn được phép đăng nhập. Vui lòng liên hệ Ban Quản Lý để được cấp lại mã PIN mới.",
     };
   }
 
@@ -697,17 +727,15 @@ export async function requireManagerSession(
     };
   }
 
-  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi
-  if (session.pwdFingerprint) {
-    const currentFingerprint = getPasswordFingerprint(player.pin_code || "1234");
-    if (session.pwdFingerprint !== currentFingerprint) {
-      return {
-        authorized: false,
-        status: 401,
-        error:
-          "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
-      };
-    }
+  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi hoặc thiếu credential
+  const currentFingerprint = getPasswordFingerprint(player.pin_code);
+  if (!currentFingerprint || !session.pwdFingerprint || session.pwdFingerprint !== currentFingerprint) {
+    return {
+      authorized: false,
+      status: 401,
+      error:
+        "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
+    };
   }
 
   return { authorized: true, status: 200, session, player };
@@ -743,17 +771,15 @@ export async function requirePlayerSession(
     };
   }
 
-  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi
-  if (session.pwdFingerprint) {
-    const currentFingerprint = getPasswordFingerprint(player.pin_code || "1234");
-    if (session.pwdFingerprint !== currentFingerprint) {
-      return {
-        authorized: false,
-        status: 401,
-        error:
-          "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
-      };
-    }
+  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi hoặc thiếu credential
+  const currentFingerprint = getPasswordFingerprint(player.pin_code);
+  if (!currentFingerprint || !session.pwdFingerprint || session.pwdFingerprint !== currentFingerprint) {
+    return {
+      authorized: false,
+      status: 401,
+      error:
+        "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
+    };
   }
 
   return { authorized: true, status: 200, session, player };
