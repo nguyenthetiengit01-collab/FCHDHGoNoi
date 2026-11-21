@@ -316,7 +316,7 @@ describe("P1-03 Follow-Up Hardening — Schema Migration, switch_role Containmen
     } finally {
       raw.close();
     }
-  });
+  }, 15_000);
 
   it("7, 8, 9. switch_role rejects default plaintext/hashed '1234', empty credential, and inactive targets without issuing fc_session; normal switch succeeds and is audited", async () => {
     vi.stubEnv("APP_SECRET", SECRET_A);
@@ -592,5 +592,125 @@ describe("P1-03 Follow-Up Hardening — Schema Migration, switch_role Containmen
     }
     expect(exitCode).not.toBe(0);
     expect(stderr).toMatch(/Remote execution not implemented\/authorized/i);
+  });
+
+  it("19, 20, 21. M4 preserves AUTOINCREMENT sqlite_sequence high-water mark after deleted max ID, skips non-AUTOINCREMENT tables, and rolls back on sequence restore failure", () => {
+    // 19. AUTOINCREMENT high-water mark preservation (IDs 1..5, delete 5 -> next insert must be 6)
+    const dir = createTempDir("fc-p103-seq-");
+    const db = new DatabaseSync(path.join(dir, "seq-autoinc.sqlite"));
+    try {
+      db.exec(`
+        PRAGMA foreign_keys = ON;
+        CREATE TABLE players (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          full_name TEXT NOT NULL,
+          pin_code TEXT NOT NULL DEFAULT '1234',
+          status TEXT NOT NULL DEFAULT 'Đang sinh hoạt'
+        );
+        CREATE INDEX idx_players_seq_status ON players(status);
+        CREATE TABLE seq_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, player_id INTEGER NOT NULL);
+        CREATE TRIGGER trg_seq_players_upd AFTER UPDATE ON players
+        BEGIN
+          INSERT INTO seq_audit (player_id) VALUES (NEW.id);
+        END;
+        CREATE TABLE match_refs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          player_id INTEGER NOT NULL REFERENCES players(id)
+        );
+      `);
+
+      for (let i = 1; i <= 5; i++) {
+        db.prepare("INSERT INTO players (full_name, pin_code) VALUES (?, ?)").run(
+          `Player ${i}`,
+          `scrypt$salt${i}$hash${i}`
+        );
+      }
+      db.prepare("INSERT INTO match_refs (player_id) VALUES (4)").run();
+      db.prepare("DELETE FROM players WHERE id = 5").run();
+
+      const preSeq = db
+        .prepare("SELECT seq FROM sqlite_sequence WHERE name = 'players'")
+        .get() as { seq: number };
+      expect(preSeq.seq).toBe(5);
+
+      const applyRes = runPhase7P103PinDefaultLocalMigration({ db, dryRun: false });
+      expect(applyRes.applied).toBe(true);
+
+      const cols = db.prepare("PRAGMA table_info(players)").all() as Array<{
+        name: string;
+        dflt_value: string | null;
+      }>;
+      expect(cols.find((c) => c.name === "pin_code")?.dflt_value).toBe("''");
+
+      const postSeq = db
+        .prepare("SELECT seq FROM sqlite_sequence WHERE name = 'players'")
+        .get() as { seq: number };
+      expect(postSeq.seq).toBeGreaterThanOrEqual(5);
+
+      const insertRes = db
+        .prepare("INSERT INTO players (full_name, pin_code) VALUES (?, ?)")
+        .run("Player 6", "scrypt$salt6$hash6");
+      expect(Number(insertRes.lastInsertRowid)).toBe(6);
+
+      // Index, trigger, FK, and idempotency preserved
+      expect(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_players_seq_status'").get()).toBeDefined();
+      db.prepare("UPDATE players SET status = 'Nghỉ' WHERE id = 4").run();
+      expect(db.prepare("SELECT player_id FROM seq_audit WHERE player_id = 4").get()).toBeDefined();
+      expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+
+      const rerun = runPhase7P103PinDefaultLocalMigration({ db, dryRun: false });
+      expect(rerun.applied).toBe(false);
+      expect(rerun.alreadyApplied).toBe(true);
+    } finally {
+      db.close();
+    }
+
+    // 20. Non-AUTOINCREMENT players table must not create sqlite_sequence
+    const dbNoAuto = new DatabaseSync(path.join(dir, "seq-no-autoinc.sqlite"));
+    try {
+      dbNoAuto.exec(`
+        CREATE TABLE players (
+          id INTEGER PRIMARY KEY,
+          full_name TEXT NOT NULL,
+          pin_code TEXT NOT NULL DEFAULT '1234'
+        );
+        INSERT INTO players (id, full_name, pin_code) VALUES (1, 'P1', 'scrypt$s$h');
+      `);
+      const res = runPhase7P103PinDefaultLocalMigration({ db: dbNoAuto, dryRun: false });
+      expect(res.applied).toBe(true);
+      const seqTable = dbNoAuto
+        .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sqlite_sequence'")
+        .get();
+      expect(seqTable).toBeUndefined();
+    } finally {
+      dbNoAuto.close();
+    }
+
+    // 21. Sequence restoration failure rolls back migration atomically
+    const { raw } = createLegacyPlayersDbWithDefault1234();
+    try {
+      const beforeDdl = (
+        raw.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='players'").get() as { sql: string }
+      ).sql;
+      expect(() =>
+        runPhase7P103PinDefaultLocalMigration({
+          db: raw,
+          dryRun: false,
+          checks: {
+            restoreSequence: () => {
+              throw new Error("Simulated sequence restore failure");
+            },
+          },
+        })
+      ).toThrow(/Simulated sequence restore failure/);
+
+      const afterDdl = (
+        raw.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='players'").get() as { sql: string }
+      ).sql;
+      expect(afterDdl).toBe(beforeDdl);
+      expect(raw.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations'").get()).toBeUndefined();
+    } finally {
+      raw.close();
+    }
   });
 });

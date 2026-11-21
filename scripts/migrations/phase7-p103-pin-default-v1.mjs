@@ -131,6 +131,7 @@ function replacePinDefaultInDdl(tableSql) {
  *   checks?: {
  *     foreignKeyCheck?: (db: import("node:sqlite").DatabaseSync) => unknown[];
  *     integrityCheck?: (db: import("node:sqlite").DatabaseSync) => unknown;
+ *     restoreSequence?: (db: import("node:sqlite").DatabaseSync, targetSeq: number) => void;
  *   };
  * }} params
  */
@@ -232,6 +233,36 @@ export function runPhase7P103PinDefaultLocalMigration({
       const colNames = columns
         .map((c) => `"${String(c.name).replace(/"/g, '""')}"`)
         .join(", ");
+      const usesAutoincrement = /\bAUTOINCREMENT\b/i.test(tableRow.sql);
+      let prevSeq = 0;
+      let hasPrevSeqEntry = false;
+      if (usesAutoincrement) {
+        const hasSeqTable = Boolean(
+          db
+            .prepare(
+              "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sqlite_sequence' LIMIT 1"
+            )
+            .get()
+        );
+        if (hasSeqTable) {
+          const seqRow = db
+            .prepare("SELECT seq FROM sqlite_sequence WHERE name = 'players' LIMIT 1")
+            .get();
+          if (seqRow) {
+            hasPrevSeqEntry = true;
+            prevSeq = Number(seqRow.seq ?? 0);
+          }
+        }
+      }
+      const hasIdCol = columns.some((c) => c.name === "id");
+      const maxId = hasIdCol
+        ? Number(
+            db.prepare("SELECT COALESCE(MAX(id), 0) AS maxId FROM players").get()
+              ?.maxId ?? 0
+          )
+        : 0;
+      const targetSeq = Math.max(prevSeq, maxId);
+
       const createNewSql = replacePinDefaultInDdl(tableRow.sql);
       const beforeCount = Number(
         db.prepare("SELECT COUNT(*) AS c FROM players").get()?.c ?? 0
@@ -253,6 +284,26 @@ export function runPhase7P103PinDefaultLocalMigration({
 
       db.exec("DROP TABLE players;");
       db.exec('ALTER TABLE "players_p103_new" RENAME TO players;');
+
+      if (usesAutoincrement && (hasPrevSeqEntry || targetSeq > 0)) {
+        if (checks?.restoreSequence) {
+          checks.restoreSequence(db, targetSeq);
+        } else {
+          const currentSeqRow = db
+            .prepare("SELECT seq FROM sqlite_sequence WHERE name = 'players' LIMIT 1")
+            .get();
+          if (currentSeqRow) {
+            const finalSeq = Math.max(Number(currentSeqRow.seq ?? 0), targetSeq);
+            db.prepare("UPDATE sqlite_sequence SET seq = ? WHERE name = 'players'").run(
+              finalSeq
+            );
+          } else if (targetSeq > 0) {
+            db.prepare(
+              "INSERT INTO sqlite_sequence (name, seq) VALUES ('players', ?)"
+            ).run(targetSeq);
+          }
+        }
+      }
 
       for (const idx of savedIndexes) {
         db.exec(idx.sql);
