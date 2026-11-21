@@ -183,39 +183,41 @@ Mọi thay đổi schema trên Turso Production bắt buộc tuân theo mô hìn
      - **Authentication material**: Có chứa PIN plaintext (`"1234"`), hash `scrypt$` thực tế của tài khoản đang dùng, hay mật khẩu quản trị thật?
      - **Operational data**: Có chứa URL nội bộ/cấu hình thực tế?
   3. Xóa file tạm ngay sau khi phân loại (`Remove-Item`).
-- **Bảng phân loại 4 nhóm dữ liệu (bắt buộc đánh dấu từng nhóm sau khi kiểm tra offline)**:
+- **Bảng phân loại 4 nhóm dữ liệu (kết quả kiểm tra kỹ thuật offline read-only ngày `2026-11-21`, `SQLite 3.50.4`, `6` bảng — không in dữ liệu nhạy cảm)**:
+  - Thống kê tổng hợp an toàn: `players` (`23` dòng: `non_empty_phone=0`, `vn_phone_pattern=0`, `has_birth_year=23`, `scrypt_pin=0`, `default_1234_pin=23`, `other_plaintext_pin=0`), `matches` (`17`), `match_attendances` (`391`, `paid_pos=162`), `expenses` (`18`, `pos=18`), `other_incomes` (`2`, `pos=0`), `team_settings` (`1`). File tạm đã xóa sạch sau khi kiểm tra.
 
 | Nhóm dữ liệu | Không có dữ liệu thực | Chỉ dữ liệu mẫu | Có dữ liệu thực | Chưa xác định |
 | :--- | :---: | :---: | :---: | :---: |
-| **PII** (họ tên thật, SĐT, năm sinh, ghi chú cá nhân) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
-| **Financial data** (giao dịch thu/chi, quỹ thực tế, tài trợ) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
-| **Authentication material** (PIN, `scrypt$` hash, username/token) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
-| **Operational data** (trận đấu, điểm danh, cài đặt vận hành) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+| **PII** (`non_empty_phone=0`, `vn_phone_pattern=0`, `has_birth_year=23`) | `[ ]` | `[ ]` | `[ ]` | `[x]` *(cần Owner xác nhận tên/năm sinh)* |
+| **Financial data** (`expenses=18` dương, `match_attendances=162` đã thu dương) | `[ ]` | `[ ]` | `[ ]` | `[x]` *(cần Owner xác nhận sổ thật hay mẫu)* |
+| **Authentication material** (`23/23` là `"1234"`, `0` `scrypt$`, `0` PIN riêng) | `[ ]` | `[x]` | `[ ]` | `[ ]` |
+| **Operational data** (`matches=17`, `team_settings=1`, `match_attendances=391`) | `[ ]` | `[ ]` | `[ ]` | `[x]` *(cần Owner xác nhận)* |
 
 - **Mẫu báo cáo ký nhận cho Owner (`Status: OWNER CONFIRMATION PENDING`)**:
 
 ```text
 P1-03 OWNER CLASSIFICATION REPORT
-- Blob SHA: 67f415fac8aaf1e80b22c356d01fa1f782083a03
-- Inspection date: YYYY-MM-DD
-- Inspector: <Name / Role>
-- Inspection mode: Offline / Read-only
-- Categories:
-  - PII: [Không có dữ liệu thực / Chỉ dữ liệu mẫu / Có dữ liệu thực / Chưa xác định]
-  - Financial data: [Không có dữ liệu thực / Chỉ dữ liệu mẫu / Có dữ liệu thực / Chưa xác định]
-  - Authentication material: [Không có dữ liệu thực / Chỉ dữ liệu mẫu / Có dữ liệu thực / Chưa xác định]
-  - Operational data: [Không có dữ liệu thực / Chỉ dữ liệu mẫu / Có dữ liệu thực / Chưa xác định]
-- Sensitive data found: YES / NO / UNKNOWN
-- Required actions:
+- Blob SHA: 67f415fac8aaf1e80b22c356d01fa1f782083a03 (274,432 bytes, verified)
+- Inspection date: 2026-11-21
+- Inspector: Automated Technical Inspection (Offline / Read-Only, no row values printed)
+- Inspection mode: Offline / Read-only (node:sqlite readOnly, temp file deleted)
+- Technical aggregate summary: 6 tables (players=23, matches=17, match_attendances=391, expenses=18, other_incomes=2, team_settings=1); non_empty_phone=0, default_1234_pin=23, scrypt_pin=0, other_plaintext_pin=0
+- Categories (Technical Pre-Fill; Owner Confirmation Pending):
+  - PII: Chưa xác định (0 phone numbers; 23 player rows with birth_year > 1900)
+  - Financial data: Chưa xác định (18 positive expenses, 162 positive paid attendances)
+  - Authentication material: Chỉ dữ liệu mẫu (23/23 default "1234" placeholder; 0 scrypt$/custom PINs)
+  - Operational data: Chưa xác định (17 matches, 1 team_settings)
+- Sensitive data found: UNKNOWN (Awaiting Security Owner domain confirmation)
+- Required actions (Pending Owner Decision):
   - [ ] Rotate affected player/manager PINs
   - [ ] Rotate AUTH_SECRET
   - [ ] Plan separate Owner-approved Git history scrub (BFG / git-filter-repo)
   - [ ] None required (synthetic/sample data only)
-- Temporary file deleted: YES / NO
-- Owner decision: [APPROVED / ACTION REQUIRED]
-- Owner name: <Owner Name>
+- Temporary file deleted: YES
+- Owner decision: [APPROVED / ACTION REQUIRED] (PENDING)
+- Owner name: ________________________
 - Approval date: YYYY-MM-DD
-- Signature: <Signed / Initials>
+- Signature: ________________________
 ```
 
 - **Hành động bắt buộc nếu phát hiện dữ liệu nhạy cảm thực tế (`Sensitive data found: YES`)**: Thực hiện ngay mục `6` (xoay vòng PIN toàn bộ tài khoản bị ảnh hưởng, xoay vòng `AUTH_SECRET` để thu hồi mọi session hiện hữu, đánh giá phạm vi clone/fork công khai, và lập kế hoạch xử lý lịch sử Git riêng được Owner phê duyệt).
@@ -327,3 +329,17 @@ P1-03 OWNER CLASSIFICATION REPORT
 - Khi ghi dữ liệu sang Turso vượt quá `TURSO_REQUEST_TIMEOUT_MS` (mặc định `5000ms`), hệ thống trả HTTP `503` với mã `DB_WRITE_OUTCOME_UNKNOWN` (`retryable: false`, `reconcileRequired: true`) và `correlationId`.
 - **Không tự động gửi lại (retry)** thao tác thu quỹ / chi tiêu / import.
 - Kiểm tra trạng thái thực tế trong bảng giao dịch tương ứng (`GET /api/team`, `GET /api/audit-logs`) trước khi quyết định nhập lại hoặc đối soát.
+
+---
+
+## 11. Bảng Ký Duyệt Governance & Diễn Tập Tabletop (`OWNER CONFIRMATION PENDING`)
+
+| Hạng mục | Kết quả kiểm tra kỹ thuật / Tabletop (`2026-11-21`, dữ liệu giả lập) | Khoảng trống / Điều kiện còn thiếu | Chủ sở hữu phê duyệt | Quyết định / Ngày / Chữ ký |
+| :--- | :--- | :--- | :--- | :--- |
+| **`P0-01`** | Ruleset `27703288` `active`, `protected: true`, `3/3` checks, `1` approval, `current_user_can_bypass: never`, PR #16 `mergeable_state: blocked` | Chưa kiểm chứng hành vi thực thi chặn push/merge thực tế | Repo Owner | `PENDING` / `____` / `____` |
+| **`P1-10`** | Rà soát quy trình xoay vòng khóa, hủy session, bảo toàn `audit_logs` bằng kịch bản giả lập (không xoay khóa thật) | Chưa chỉ định Ops Owner; chưa xác minh tách biệt env Preview/Production | Ops Owner | `PENDING` / `____` / `____` |
+| **`P1-11`** | Đối chiếu Expand-and-Contract với `phase7-idempotency-v1.mjs` (additive `CREATE TABLE/INDEX IF NOT EXISTS`); phân biệt Vercel code rollback vs DB | Chưa ký duyệt chính sách; chưa chạy migration trên Staging | Ops / Backend | `PENDING` / `____` / `____` |
+| **`P1-12`** | Đề xuất RPO/RTO & local synthetic drill (`PASSED` trong `os.tmpdir()`); tách biệt với Remote Turso non-atomic | Chưa duyệt RPO/RTO chính thức; DR Owner = `TBD`; chưa có Staging DR | DR Owner | `PENDING` / `____` / `____` |
+| **`P1-13`** | Diễn tập luồng SEV1–SEV4, mẫu Zalo, mẫu PIR bằng kịch bản giả lập (không gửi tin nhắn thật) | Chưa chỉ định Incident Owners (`TBD`) & danh bạ leo thang | Ops Owner | `PENDING` / `____` / `____` |
+| **`P2-03`** | `npm audit --omit=dev` = `0`; full `npm audit` = `6 moderate` `DEV-ONLY` (`eslint-config-next@15.5.29`) | Chờ Owner ký chấp nhận rủi ro `DEV-ONLY` | Repo Owner | `PENDING` / `____` / `____` |
+| **`P2-14`** | `ci.yml` đã có `needs: quality-gates`; giữ `next dev` cho synthetic SQLite QA do `src/lib/db.ts` chặn `USE_LOCAL_SQLITE` trong `production`; `turso-backup.yml` có `::error::` + `GITHUB_STEP_SUMMARY` | Chờ xác nhận nhận thông báo lỗi backup ngoài GitHub & run `2026-11-22/23` trên `main` | Ops / CI | `PENDING` / `____` / `____` |
