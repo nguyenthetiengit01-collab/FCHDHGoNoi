@@ -8,18 +8,30 @@ import {
   getAuthSession,
   getPasswordFingerprint,
   isDefaultPassword,
+  projectSafePlayer,
   SESSION_COOKIE_NAME,
   requireManagerSession,
   verifyCsrfOrigin,
 } from "@/lib/auth";
 import { extractTrustedClientIp } from "@/lib/authRateLimit";
-import { getAsyncDb } from "@/lib/db";
+import { getAsyncDb, recordAuditLog } from "@/lib/db";
 import type { Player } from "@/types/app";
+
+const NO_STORE_CACHE_CONTROL = "no-store, no-cache, must-revalidate";
+
+function withNoStore(res: NextResponse): NextResponse {
+  res.headers.set("Cache-Control", NO_STORE_CACHE_CONTROL);
+  return res;
+}
 
 /**
  * Lấy thông tin phiên làm việc hiện tại và kiểm tra tính hợp lệ
  */
 export async function GET(req: NextRequest) {
+  return withNoStore(await handleGetAuth(req));
+}
+
+async function handleGetAuth(req: NextRequest): Promise<NextResponse> {
   try {
     try {
       getAuthSecret();
@@ -56,32 +68,27 @@ export async function GET(req: NextRequest) {
       return res;
     }
 
-    // Thu hồi phiên tức thì nếu mật khẩu đã bị thay đổi trên thiết bị khác
-    if (session.pwdFingerprint) {
-      const currentFp = getPasswordFingerprint(playerRow.pin_code || "1234");
-      if (session.pwdFingerprint !== currentFp) {
-        const res = NextResponse.json({
-          authenticated: false,
-          player: null,
-          error: "Mật khẩu của bạn đã được thay đổi. Vui lòng đăng nhập lại.",
-        });
-        res.cookies.delete(SESSION_COOKIE_NAME);
-        return res;
-      }
+    // Thu hồi phiên tức thì nếu mật khẩu đã bị thay đổi hoặc thiếu credential
+    const currentFp = getPasswordFingerprint(playerRow.pin_code);
+    if (!currentFp || !session.pwdFingerprint || session.pwdFingerprint !== currentFp) {
+      const res = NextResponse.json({
+        authenticated: false,
+        player: null,
+        error: "Mật khẩu của bạn đã được thay đổi. Vui lòng đăng nhập lại.",
+      });
+      res.cookies.delete(SESSION_COOKIE_NAME);
+      return res;
     }
 
-    // Luôn ẩn mã PIN trước khi gửi về client
-    const safePlayer: Player = {
-      ...playerRow,
-      pin_code: "",
-    };
+    // Luôn ẩn mã PIN trước khi gửi về client (allow-list projection)
+    const safePlayer = projectSafePlayer(playerRow);
 
     const mustChangePassword = isDefaultPassword(playerRow.pin_code);
 
     return NextResponse.json({
       authenticated: true,
       player: safePlayer,
-      role: session.accessRole,
+      role: playerRow.access_role,
       mustChangePassword,
     });
   } catch (error) {
@@ -97,6 +104,10 @@ export async function GET(req: NextRequest) {
  * Xử lý đăng nhập và đăng xuất an toàn với chuẩn chống Brute-force và Session Timeout
  */
 export async function POST(req: NextRequest) {
+  return withNoStore(await handlePostAuth(req));
+}
+
+async function handlePostAuth(req: NextRequest): Promise<NextResponse> {
   try {
     if (!verifyCsrfOrigin(req)) {
       return NextResponse.json(
@@ -169,11 +180,43 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      if (playerRow.status === "inactive") {
+        return NextResponse.json(
+          { success: false, error: "Không thể chuyển phiên sang tài khoản đã ngừng hoạt động." },
+          { status: 403 }
+        );
+      }
+
+      if (!String(playerRow.pin_code || "").trim()) {
+        return NextResponse.json(
+          { success: false, error: "Tài khoản mục tiêu chưa có thông tin xác thực hợp lệ." },
+          { status: 403 }
+        );
+      }
+
+      if (isDefaultPassword(playerRow.pin_code)) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "DEFAULT_PIN_RESET_REQUIRED",
+            error:
+              "Không thể chuyển phiên sang tài khoản đang sử dụng mã PIN mặc định. Vui lòng đặt lại mã PIN mới trước.",
+          },
+          { status: 403 }
+        );
+      }
+
       const token = createSessionToken(playerRow, 24 * 7);
-      const safePlayer: Player = {
-        ...playerRow,
-        pin_code: "",
-      };
+      const safePlayer = projectSafePlayer(playerRow);
+
+      await recordAuditLog({
+        actorId: auth.player?.id ?? auth.session?.playerId ?? 0,
+        actorName: auth.player?.full_name ?? auth.session?.fullName ?? "Manager",
+        actorRole: auth.player?.access_role ?? auth.session?.accessRole ?? "manager",
+        action,
+        summary: `Manager #${auth.player?.id ?? auth.session?.playerId ?? 0} switched session to player #${playerRow.id} (${action})`,
+        tx: db,
+      });
 
       const res = NextResponse.json({
         success: true,
@@ -221,11 +264,8 @@ export async function POST(req: NextRequest) {
       const durationHours = rememberMe ? 24 * 30 : 24;
       const token = createSessionToken(player, durationHours);
 
-      // Bảo mật: Xóa mã PIN trước khi trả về dữ liệu người dùng
-      const safePlayer: Player = {
-        ...player,
-        pin_code: "",
-      };
+      // Bảo mật: Loại bỏ hoàn toàn mã PIN trước khi trả về dữ liệu người dùng
+      const safePlayer = projectSafePlayer(player);
 
       const res = NextResponse.json({
         success: true,

@@ -561,6 +561,7 @@ describe("Phase 3.5 – Task C: Transaction-Safe Reset (LocalSqliteAdapter & Tur
     const executeMultipleMock = vi.fn().mockResolvedValue(undefined);
 
     const mockClient = {
+      execute: vi.fn().mockResolvedValue({ rows: [], rowsAffected: 0 }),
       transaction: vi.fn().mockResolvedValue({
         execute: executeMock,
         executeMultiple: executeMultipleMock,

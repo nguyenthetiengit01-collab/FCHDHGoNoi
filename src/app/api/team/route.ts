@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
   getAsyncDb,
@@ -5,9 +6,14 @@ import {
   seedAsyncInitialDataIfNeeded,
   ensureClubPostsReady,
   ensureSponsorsReady,
+  ensureAuditLogsReady,
+  ensureIdempotencyKeysReady,
   recordAuditLog,
+  mapDatabaseErrorToHttpResponse,
+  type AsyncDbTx,
 } from "@/lib/db";
 import {
+  AUTH_PLAYER_PROFILE_COLUMNS,
   getAuthSession,
   hashPassword,
   verifyPassword,
@@ -17,8 +23,8 @@ import {
   requireManagerSession,
   requirePlayerSession,
   verifyCsrfOrigin,
-  sanitizeDataForPublic,
-  sanitizeDataForPlayer,
+  sanitizeTeamResponseData,
+  type SessionPayload,
 } from "@/lib/auth";
 import { ensureWebpDataUrlServer, MediaValidationError } from "@/lib/serverWebp";
 import { formatBirthYear } from "@/lib/athleteProfile";
@@ -27,47 +33,11 @@ import {
   recordPlayerLifecycleEvent,
   validateSponsorIdForIncome,
 } from "@/lib/analytics/lifecycle";
-import type { FullAppData } from "@/types/app";
-
-type ValidationResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; error: string };
-
-function parseNonNegativeIntVnd(
-  raw: unknown,
-  fieldName = "Số tiền"
-): ValidationResult<number> {
-  if (raw === undefined || raw === null) {
-    return { ok: false, error: `${fieldName} không được để trống.` };
-  }
-  if (typeof raw === "string") {
-    const trimmed = raw.trim();
-    if (!trimmed) {
-      return { ok: false, error: `${fieldName} không được để trống.` };
-    }
-    const num = Number(trimmed);
-    if (!Number.isFinite(num) || !Number.isInteger(num) || num < 0) {
-      return {
-        ok: false,
-        error: `${fieldName} phải là số nguyên VNĐ không âm (≥ 0).`,
-      };
-    }
-    return { ok: true, value: num === 0 ? 0 : num };
-  }
-  if (typeof raw === "number") {
-    if (!Number.isFinite(raw) || !Number.isInteger(raw) || raw < 0) {
-      return {
-        ok: false,
-        error: `${fieldName} phải là số nguyên VNĐ không âm (≥ 0).`,
-      };
-    }
-    return { ok: true, value: raw === 0 ? 0 : raw };
-  }
-  return {
-    ok: false,
-    error: `${fieldName} phải là số nguyên VNĐ hợp lệ.`,
-  };
-}
+import type { Player } from "@/types/app";
+import {
+  parseNonNegativeIntVnd,
+  type ValidationResult,
+} from "@/lib/financeValidation";
 
 function parsePositiveIntId(
   raw: unknown,
@@ -201,35 +171,26 @@ function parseMatchFeeFlagsAndAmount(params: {
 export async function GET(req: NextRequest) {
   try {
     const data = await getFullAppData();
-    const session = getAuthSession(req);
-    // Tính thống kê từ nguồn canonical trước khi sanitize theo vai trò
-    const statistics = getTeamStatistics(data);
+    const cookieSession = getAuthSession(req);
+    let effectiveSession: Pick<SessionPayload, "playerId" | "accessRole"> | null = null;
 
-    let sanitizedData: FullAppData;
-    if (session && session.accessRole === "manager") {
-      // Ban Quản Lý: Được xem toàn bộ dữ liệu (loại bỏ hoàn toàn pin_code khỏi JSON)
-      sanitizedData = {
-        ...data,
-        players: data.players.map((p) => ({ ...p, pin_code: "" })),
-      };
-    } else if (session) {
-      // Cầu thủ đăng nhập: Xem số liệu chung và hồ sơ của mình, ẩn SĐT/ghi chú riêng tư của người khác
-      sanitizedData = sanitizeDataForPlayer(data, session.playerId);
-    } else {
-      // Khách (Guest): Chỉ nhận thông tin công khai (ẩn liên hệ, ghi chú, sổ hóa đơn chi tiết)
-      sanitizedData = sanitizeDataForPublic(data);
+    if (cookieSession) {
+      const authCheck = await requirePlayerSession(req);
+      if (authCheck.authorized && authCheck.player) {
+        effectiveSession = {
+          playerId: authCheck.player.id,
+          accessRole: authCheck.player.access_role,
+        };
+      }
     }
 
-    const safePlayers = sanitizedData.players.map((player) => {
-      const { pin_code: _omittedPinCode, ...safePlayer } = player;
-      void _omittedPinCode;
-      return safePlayer;
-    });
+    // Tính thống kê từ nguồn canonical trước khi sanitize theo vai trò
+    const statistics = getTeamStatistics(data);
+    const sanitizedData = sanitizeTeamResponseData(data, effectiveSession);
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       {
         ...sanitizedData,
-        players: safePlayers,
         statistics,
       },
       {
@@ -238,6 +199,12 @@ export async function GET(req: NextRequest) {
         },
       }
     );
+
+    if (cookieSession && !effectiveSession) {
+      res.cookies.delete(SESSION_COOKIE_NAME);
+    }
+
+    return res;
   } catch (error) {
     console.error("GET /api/team error:", error);
     return NextResponse.json(
@@ -245,6 +212,91 @@ export async function GET(req: NextRequest) {
       { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
+}
+
+function stableCanonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableCanonicalJson(item)).join(",")}]`;
+  }
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj)
+    .filter((k) => obj[k] !== undefined)
+    .sort();
+  return `{${keys
+    .map((k) => `${JSON.stringify(k)}:${stableCanonicalJson(obj[k])}`)
+    .join(",")}}`;
+}
+
+function computeIdempotencyPayloadHash(
+  action: string,
+  payload: unknown
+): string {
+  return crypto
+    .createHash("sha256")
+    .update(`${action}:${stableCanonicalJson(payload ?? null)}`)
+    .digest("hex");
+}
+
+function extractIdempotencyKey(
+  req: NextRequest,
+  bodyKey: unknown
+): { ok: true; key: string | null } | { ok: false; error: string } {
+  const headerRaw = req.headers.get("idempotency-key");
+  const hasHeader = headerRaw !== null && headerRaw.trim() !== "";
+  const hasBody =
+    typeof bodyKey === "string" ? bodyKey.trim() !== "" : bodyKey !== undefined && bodyKey !== null;
+
+  if (bodyKey !== undefined && bodyKey !== null && typeof bodyKey !== "string") {
+    return { ok: false, error: "Idempotency-Key phải là chuỗi ký tự hợp lệ." };
+  }
+
+  const headerKey = hasHeader ? headerRaw!.trim() : null;
+  const payloadKey =
+    typeof bodyKey === "string" && bodyKey.trim() !== "" ? bodyKey.trim() : null;
+
+  if (headerKey && payloadKey && headerKey !== payloadKey) {
+    return {
+      ok: false,
+      error: "Idempotency-Key giữa header và payload không khớp.",
+    };
+  }
+
+  const key = headerKey ?? payloadKey;
+  if (!key) {
+    if (hasHeader || hasBody) {
+      return { ok: false, error: "Idempotency-Key không được để trống." };
+    }
+    return { ok: true, key: null };
+  }
+
+  if (key.length > 128 || /[\x00-\x1f\x7f]/.test(key)) {
+    return {
+      ok: false,
+      error: "Idempotency-Key không hợp lệ (tối đa 128 ký tự, không chứa ký tự điều khiển).",
+    };
+  }
+
+  return { ok: true, key };
+}
+
+async function recordAuditInTx(
+  tx: AsyncDbTx,
+  session: SessionPayload | null,
+  action: string,
+  summary?: string
+): Promise<void> {
+  if (!session) return;
+  await recordAuditLog({
+    actorId: session.playerId,
+    actorName: session.fullName,
+    actorRole: session.accessRole,
+    action,
+    summary: summary || `Thực hiện thao tác ${action}`,
+    tx,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -261,6 +313,8 @@ export async function POST(req: NextRequest) {
     const { action, payload } = body;
     const db = getAsyncDb();
     const session = getAuthSession(req);
+    let effectiveSession: Pick<SessionPayload, "playerId" | "accessRole"> | null =
+      session;
 
     // Danh sách các hành động nhạy cảm yêu cầu quyền Ban Quản Lý (Manager)
     const MANAGER_ONLY_ACTIONS = new Set([
@@ -298,6 +352,9 @@ export async function POST(req: NextRequest) {
           { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
+      effectiveSession = auth.player
+        ? { playerId: auth.player.id, accessRole: auth.player.access_role }
+        : auth.session ?? effectiveSession;
     }
 
     // Các hành động yêu cầu cầu thủ đã đăng nhập vào hệ thống
@@ -309,6 +366,9 @@ export async function POST(req: NextRequest) {
           { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
+      effectiveSession = auth.player
+        ? { playerId: auth.player.id, accessRole: auth.player.access_role }
+        : auth.session ?? effectiveSession;
       const targetPlayerId = Number(payload?.player_id ?? payload?.id);
       if (
         auth.player?.access_role !== "manager" &&
@@ -332,6 +392,9 @@ export async function POST(req: NextRequest) {
           { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
+      effectiveSession = auth.player
+        ? { playerId: auth.player.id, accessRole: auth.player.access_role }
+        : auth.session ?? effectiveSession;
       if (
         auth.player?.access_role !== "manager" &&
         Number(payload?.player_id) !== auth.player?.id
@@ -345,6 +408,12 @@ export async function POST(req: NextRequest) {
         );
       }
     }
+
+    if (session) {
+      await ensureAuditLogsReady(db);
+    }
+    let auditRecordedInTx = false;
+    let idempotentReplayed = false;
 
     switch (action) {
       case "upsert_player": {
@@ -423,10 +492,25 @@ export async function POST(req: NextRequest) {
             "SELECT pin_code, gallery_urls_json, profile_image_url, status FROM players WHERE id = ?",
             [Number(id)]
           );
-          const rawPin = String(pin_code || "").trim();
-          let finalPin = existing?.pin_code || "1234";
+          const rawPin = typeof pin_code === "string" ? pin_code.trim() : "";
+          let finalPin = existing?.pin_code?.trim()
+            ? existing.pin_code
+            : hashPassword(crypto.randomBytes(24).toString("base64url"));
           if (rawPin) {
-            finalPin = rawPin.startsWith("scrypt$") ? rawPin : hashPassword(rawPin);
+            if (rawPin.startsWith("scrypt$")) {
+              return NextResponse.json(
+                { error: "Không được phép gửi trực tiếp chuỗi hash mật khẩu từ client." },
+                { status: 400 }
+              );
+            }
+            const strength = validatePasswordStrength(rawPin);
+            if (!strength.valid) {
+              return NextResponse.json(
+                { error: strength.message || "Mật khẩu chưa đủ an toàn (tối thiểu 6 ký tự)." },
+                { status: 400 }
+              );
+            }
+            finalPin = hashPassword(rawPin);
           }
           const finalGalleryJson =
             gallery_urls !== undefined
@@ -437,114 +521,141 @@ export async function POST(req: NextRequest) {
               ? (webpProfileImage || "")
               : existing?.profile_image_url || "";
 
-          await db.run(
-            `UPDATE players
-            SET code_order = ?, full_name = ?, short_name = ?, jersey_number = ?,
-                position = ?, phone = ?, birth_year = ?, avatar_url = ?, profile_image_url = ?, bio = ?,
-                role = ?, access_role = ?, pin_code = ?, status = ?, notes = ?,
-                hometown = ?, nickname = ?, playing_style = ?, gallery_urls_json = ?
-            WHERE id = ?`,
-            [
-              Number(code_order) || 1,
-              cleanName,
-              derivedShort,
-              jersey_number !== "" &&
-                jersey_number !== null &&
-                jersey_number !== undefined
-                ? Number(jersey_number)
-                : null,
-              position || "Đa năng",
-              phone || "",
-              formatBirthYear(birth_year),
-              webpAvatar,
-              finalProfileImage,
-              typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
-              role || "Thành viên",
-              access_role === "manager" ? "manager" : "player",
-              finalPin,
-              status || "Đang sinh hoạt",
-              notes || "",
-              String(hometown || "").trim(),
-              String(nickname || "").trim(),
-              String(playing_style || "").trim(),
-              finalGalleryJson,
-              Number(id),
-            ]
-          );
-          const nextStatus = status || "Đang sinh hoạt";
-          if (existing?.status && existing.status !== nextStatus) {
+          await db.transaction(async (tx) => {
+            await tx.run(
+              `UPDATE players
+              SET code_order = ?, full_name = ?, short_name = ?, jersey_number = ?,
+                  position = ?, phone = ?, birth_year = ?, avatar_url = ?, profile_image_url = ?, bio = ?,
+                  role = ?, access_role = ?, pin_code = ?, status = ?, notes = ?,
+                  hometown = ?, nickname = ?, playing_style = ?, gallery_urls_json = ?
+              WHERE id = ?`,
+              [
+                Number(code_order) || 1,
+                cleanName,
+                derivedShort,
+                jersey_number !== "" &&
+                  jersey_number !== null &&
+                  jersey_number !== undefined
+                  ? Number(jersey_number)
+                  : null,
+                position || "Đa năng",
+                phone || "",
+                formatBirthYear(birth_year),
+                webpAvatar,
+                finalProfileImage,
+                typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
+                role || "Thành viên",
+                access_role === "manager" ? "manager" : "player",
+                finalPin,
+                status || "Đang sinh hoạt",
+                notes || "",
+                String(hometown || "").trim(),
+                String(nickname || "").trim(),
+                String(playing_style || "").trim(),
+                finalGalleryJson,
+                Number(id),
+              ]
+            );
+            const nextStatus = status || "Đang sinh hoạt";
+            if (existing?.status && existing.status !== nextStatus) {
+              await recordPlayerLifecycleEvent({
+                db: tx,
+                playerId: Number(id),
+                eventType: "status_changed",
+                fromStatus: existing.status,
+                toStatus: nextStatus,
+                actorId: session?.playerId ?? null,
+                source: "manager_action",
+              });
+            }
+            await recordAuditInTx(tx, session, action);
+          });
+          auditRecordedInTx = true;
+        } else {
+          const rawCreatePin = typeof pin_code === "string" ? pin_code.trim() : "";
+          let createPinHash: string;
+          if (!rawCreatePin) {
+            createPinHash = hashPassword(crypto.randomBytes(24).toString("base64url"));
+          } else {
+            if (rawCreatePin.startsWith("scrypt$")) {
+              return NextResponse.json(
+                { error: "Không được phép gửi trực tiếp chuỗi hash mật khẩu từ client." },
+                { status: 400 }
+              );
+            }
+            const strength = validatePasswordStrength(rawCreatePin);
+            if (!strength.valid) {
+              return NextResponse.json(
+                { error: strength.message || "Mật khẩu chưa đủ an toàn (tối thiểu 6 ký tự)." },
+                { status: 400 }
+              );
+            }
+            createPinHash = hashPassword(rawCreatePin);
+          }
+
+          await db.transaction(async (tx) => {
+            const maxRow = await tx.queryOne<{ maxOrder: number }>(
+              "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
+            );
+            const nextOrder = Number(code_order) || ((maxRow?.maxOrder ?? 0) + 1);
+            const res = await tx.run(
+              `INSERT INTO players (
+                code_order, full_name, short_name, jersey_number,
+                position, phone, birth_year, avatar_url, profile_image_url, bio, role, access_role, pin_code, status, notes,
+                hometown, nickname, playing_style, gallery_urls_json
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                nextOrder,
+                cleanName,
+                derivedShort,
+                jersey_number !== "" &&
+                  jersey_number !== null &&
+                  jersey_number !== undefined
+                  ? Number(jersey_number)
+                  : null,
+                position || "Đa năng",
+                phone || "",
+                formatBirthYear(birth_year),
+                webpAvatar,
+                webpProfileImage || "",
+                typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
+                role || "Thành viên",
+                access_role === "manager" ? "manager" : "player",
+                createPinHash,
+                status || "Đang sinh hoạt",
+                notes || "",
+                String(hometown || "").trim(),
+                String(nickname || "").trim(),
+                String(playing_style || "").trim(),
+                JSON.stringify(webpGallery),
+              ]
+            );
+            const newPlayerId = Number(res.lastInsertRowid);
             await recordPlayerLifecycleEvent({
-              db,
-              playerId: Number(id),
-              eventType: "status_changed",
-              fromStatus: existing.status,
-              toStatus: nextStatus,
+              db: tx,
+              playerId: newPlayerId,
+              eventType: "joined",
+              fromStatus: null,
+              toStatus: status || "Đang sinh hoạt",
               actorId: session?.playerId ?? null,
               source: "manager_action",
             });
-          }
-        } else {
-          const maxRow = await db.queryOne<{ maxOrder: number }>(
-            "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
-          );
-          const nextOrder = Number(code_order) || ((maxRow?.maxOrder ?? 0) + 1);
-          const res = await db.run(
-            `INSERT INTO players (
-              code_order, full_name, short_name, jersey_number,
-              position, phone, birth_year, avatar_url, profile_image_url, bio, role, access_role, pin_code, status, notes,
-              hometown, nickname, playing_style, gallery_urls_json
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              nextOrder,
-              cleanName,
-              derivedShort,
-              jersey_number !== "" &&
-                jersey_number !== null &&
-                jersey_number !== undefined
-                ? Number(jersey_number)
-                : null,
-              position || "Đa năng",
-              phone || "",
-              formatBirthYear(birth_year),
-              webpAvatar,
-              webpProfileImage || "",
-              typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
-              role || "Thành viên",
-              access_role === "manager" ? "manager" : "player",
-              String(pin_code || "1234").trim().startsWith("scrypt$")
-                ? String(pin_code || "1234").trim()
-                : hashPassword(String(pin_code || "1234").trim()),
-              status || "Đang sinh hoạt",
-              notes || "",
-              String(hometown || "").trim(),
-              String(nickname || "").trim(),
-              String(playing_style || "").trim(),
-              JSON.stringify(webpGallery),
-            ]
-          );
-          const newPlayerId = Number(res.lastInsertRowid);
-          await recordPlayerLifecycleEvent({
-            db,
-            playerId: newPlayerId,
-            eventType: "joined",
-            fromStatus: null,
-            toStatus: status || "Đang sinh hoạt",
-            actorId: session?.playerId ?? null,
-            source: "manager_action",
-          });
-          const existingMatches = await db.query<{ id: number }>(
-            "SELECT id FROM matches"
-          );
-          for (const m of existingMatches) {
-            await db.run(
-              `INSERT OR IGNORE INTO match_attendances (
-                match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
-              )
-              VALUES (?, ?, 'none', 0, 0, 0, 0, '', '')`,
-              [m.id, newPlayerId]
+            const existingMatches = await tx.query<{ id: number }>(
+              "SELECT id FROM matches"
             );
-          }
+            for (const m of existingMatches) {
+              await tx.run(
+                `INSERT OR IGNORE INTO match_attendances (
+                  match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
+                )
+                VALUES (?, ?, 'none', 0, 0, 0, 0, '', '')`,
+                [m.id, newPlayerId]
+              );
+            }
+            await recordAuditInTx(tx, session, action);
+          });
+          auditRecordedInTx = true;
         }
         break;
       }
@@ -680,13 +791,14 @@ export async function POST(req: NextRequest) {
             { status: 404 }
           );
         }
-        if (!verifyPassword(providedOldPin, row.pin_code || "1234")) {
+        if (!verifyPassword(providedOldPin, row.pin_code)) {
           return NextResponse.json(
             { error: "Mật khẩu hiện tại không đúng. Vui lòng kiểm tra lại hoặc liên hệ Ban Quản Lý." },
             { status: 400 }
           );
         }
 
+        // Validate ALL fields before any database write
         if (cleanNewUser) {
           if (cleanNewUser.length < 3) {
             return NextResponse.json(
@@ -704,12 +816,9 @@ export async function POST(req: NextRequest) {
               { status: 400 }
             );
           }
-          await db.run(
-            "UPDATE players SET username = ? WHERE id = ?",
-            [cleanNewUser, Number(player_id)]
-          );
         }
 
+        let hashedPinToPersist: string | null = null;
         if (cleanNewPin) {
           const strength = validatePasswordStrength(cleanNewPin, cleanNewUser || row.username);
           if (!strength.valid) {
@@ -718,30 +827,91 @@ export async function POST(req: NextRequest) {
               { status: 400 }
             );
           }
-          const hashedPin = hashPassword(cleanNewPin);
-          await db.run(
-            "UPDATE players SET pin_code = ? WHERE id = ?",
-            [hashedPin, Number(player_id)]
-          );
+          hashedPinToPersist = hashPassword(cleanNewPin);
+        }
+
+        if (cleanNewUser || hashedPinToPersist) {
+          try {
+            await db.transaction(async (tx) => {
+              if (cleanNewUser) {
+                await tx.run(
+                  "UPDATE players SET username = ? WHERE id = ?",
+                  [cleanNewUser, Number(player_id)]
+                );
+              }
+              if (hashedPinToPersist) {
+                await tx.run(
+                  "UPDATE players SET pin_code = ? WHERE id = ?",
+                  [hashedPinToPersist, Number(player_id)]
+                );
+              }
+              await recordAuditInTx(tx, session, action);
+            });
+            auditRecordedInTx = true;
+          } catch (txErr) {
+            const msg = txErr instanceof Error ? txErr.message.toLowerCase() : "";
+            if (msg.includes("unique")) {
+              return NextResponse.json(
+                { error: "Tên đăng nhập này đã có người sử dụng. Vui lòng chọn tên khác." },
+                { status: 400 }
+              );
+            }
+            throw txErr;
+          }
         }
         break;
       }
 
-      // Ban quản lý reset mật khẩu giúp cầu thủ
+      // Ban quản lý reset mật khẩu giúp cầu thủ (bắt buộc nhập PIN mạnh tường minh, không fallback "1234")
       case "reset_player_password": {
         const { player_id, new_pin } = payload;
-        const cleanPin = String(new_pin || "1234").trim() || "1234";
-        const hashedPin = hashPassword(cleanPin);
-        await db.run(
-          "UPDATE players SET pin_code = ? WHERE id = ?",
-          [hashedPin, Number(player_id)]
+        const playerIdCheck = parsePositiveIntId(player_id, "Mã cầu thủ");
+        if (!playerIdCheck.ok) {
+          return NextResponse.json({ error: playerIdCheck.error }, { status: 400 });
+        }
+        const cleanPin = typeof new_pin === "string" ? new_pin.trim() : "";
+        if (!cleanPin) {
+          return NextResponse.json(
+            { error: "Vui lòng nhập mật khẩu mới (PIN) rõ ràng khi đặt lại mật khẩu." },
+            { status: 400 }
+          );
+        }
+        const targetRow = await db.queryOne<{ id: number; username: string }>(
+          "SELECT id, username FROM players WHERE id = ?",
+          [playerIdCheck.value]
         );
+        if (!targetRow) {
+          return NextResponse.json(
+            { error: "Không tìm thấy hồ sơ cầu thủ." },
+            { status: 404 }
+          );
+        }
+        const strength = validatePasswordStrength(cleanPin, targetRow.username);
+        if (!strength.valid) {
+          return NextResponse.json(
+            { error: strength.message || "Mật khẩu đặt lại chưa đủ an toàn." },
+            { status: 400 }
+          );
+        }
+        const hashedPin = hashPassword(cleanPin);
+        await db.transaction(async (tx) => {
+          await tx.run(
+            "UPDATE players SET pin_code = ? WHERE id = ?",
+            [hashedPin, playerIdCheck.value]
+          );
+          await recordAuditInTx(tx, session, action);
+        });
+        auditRecordedInTx = true;
         break;
       }
 
       case "delete_player": {
         const { id } = payload;
-        await db.run("DELETE FROM players WHERE id = ?", [Number(id)]);
+        await db.transaction(async (tx) => {
+          await tx.run("DELETE FROM players WHERE id = ?", [Number(id)]);
+          await recordAuditInTx(tx, session, action);
+        });
+        auditRecordedInTx = true;
         break;
       }
 
@@ -764,151 +934,211 @@ export async function POST(req: NextRequest) {
           sync_pitch_expense,
         } = payload;
 
-        const fee = Number(fee_per_player) || 100000;
-        const pitchCostNum = Number(pitch_cost) || 0;
+        const isMissing = (val: unknown) =>
+          val === undefined ||
+          val === null ||
+          (typeof val === "string" && val.trim() === "");
 
-        if (id) {
-          await db.run(
-            `UPDATE matches
-            SET match_number = ?, label = ?, match_date = ?, kickoff_time = ?,
-                venue = ?, opponent = ?, fee_per_player = ?, pitch_cost = ?,
-                payer_name = ?, team_score = ?, opponent_score = ?, status = ?, notes = ?
-            WHERE id = ?`,
-            [
-              Number(match_number) || 1,
-              label || `Trận ${match_number}`,
-              match_date || "2026-11-03",
-              kickoff_time || "19:00",
-              venue || "Sân Vĩnh Lộc",
-              opponent || "Giao hữu / Nội bộ",
-              fee,
-              pitchCostNum,
-              payer_name || "Tiếng",
-              team_score !== "" &&
-                team_score !== null &&
-                team_score !== undefined
-                ? Number(team_score)
-                : null,
-              opponent_score !== "" &&
-                opponent_score !== null &&
-                opponent_score !== undefined
-                ? Number(opponent_score)
-                : null,
-              status || "Đã kết thúc",
-              notes || "",
-              Number(id),
-            ]
+        let fee = 100000;
+        if (!isMissing(fee_per_player)) {
+          const feeCheck = parseNonNegativeIntVnd(
+            fee_per_player,
+            "Tiền quỹ / người"
           );
-
-          if (sync_pitch_expense && pitchCostNum > 0) {
-            const existingExp = await db.queryOne<{ id: number }>(
-              "SELECT id FROM expenses WHERE match_id = ? AND category = 'Tiền sân'",
-              [Number(id)]
+          if (!feeCheck.ok) {
+            return NextResponse.json(
+              { error: feeCheck.error },
+              { status: 400 }
             );
-            if (existingExp) {
-              await db.run(
-                `UPDATE expenses
-                SET expense_date = ?, description = ?, amount = ?, payer = ?
-                WHERE id = ?`,
-                [
-                  match_date,
-                  `Tiền sân ${label}`,
-                  pitchCostNum,
-                  payer_name || "Tiếng",
-                  existingExp.id,
-                ]
+          }
+          fee = feeCheck.value;
+        }
+
+        let pitchCostNum = 0;
+        if (!isMissing(pitch_cost)) {
+          const pitchCostCheck = parseNonNegativeIntVnd(
+            pitch_cost,
+            "Tiền sân"
+          );
+          if (!pitchCostCheck.ok) {
+            return NextResponse.json(
+              { error: pitchCostCheck.error },
+              { status: 400 }
+            );
+          }
+          pitchCostNum = pitchCostCheck.value;
+        }
+
+        let validMatchId: number | null = null;
+        if (!isMissing(id)) {
+          const idCheck = parsePositiveIntId(id, "Mã trận đấu");
+          if (!idCheck.ok) {
+            return NextResponse.json(
+              { error: idCheck.error },
+              { status: 400 }
+            );
+          }
+          validMatchId = idCheck.value;
+        }
+
+        if (validMatchId !== null) {
+          await db.transaction(async (tx) => {
+            await tx.run(
+              `UPDATE matches
+              SET match_number = ?, label = ?, match_date = ?, kickoff_time = ?,
+                  venue = ?, opponent = ?, fee_per_player = ?, pitch_cost = ?,
+                  payer_name = ?, team_score = ?, opponent_score = ?, status = ?, notes = ?
+              WHERE id = ?`,
+              [
+                Number(match_number) || 1,
+                label || `Trận ${match_number}`,
+                match_date || "2026-11-03",
+                kickoff_time || "19:00",
+                venue || "Sân Vĩnh Lộc",
+                opponent || "Giao hữu / Nội bộ",
+                fee,
+                pitchCostNum,
+                payer_name || "Tiếng",
+                team_score !== "" &&
+                  team_score !== null &&
+                  team_score !== undefined
+                  ? Number(team_score)
+                  : null,
+                opponent_score !== "" &&
+                  opponent_score !== null &&
+                  opponent_score !== undefined
+                  ? Number(opponent_score)
+                  : null,
+                status || "Đã kết thúc",
+                notes || "",
+                Number(id),
+              ]
+            );
+
+            if (sync_pitch_expense && pitchCostNum > 0) {
+              const existingExp = await tx.queryOne<{ id: number }>(
+                "SELECT id FROM expenses WHERE match_id = ? AND category = 'Tiền sân'",
+                [Number(id)]
               );
-            } else {
-              await db.run(
+              if (existingExp) {
+                await tx.run(
+                  `UPDATE expenses
+                  SET expense_date = ?, description = ?, amount = ?, payer = ?
+                  WHERE id = ?`,
+                  [
+                    match_date,
+                    `Tiền sân ${label}`,
+                    pitchCostNum,
+                    payer_name || "Tiếng",
+                    existingExp.id,
+                  ]
+                );
+              } else {
+                await tx.run(
+                  `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+                  VALUES (?, 'Tiền sân', ?, ?, ?, ?)`,
+                  [
+                    match_date,
+                    `Tiền sân ${label}`,
+                    pitchCostNum,
+                    payer_name || "Tiếng",
+                    Number(id),
+                  ]
+                );
+              }
+            }
+            await recordAuditInTx(tx, session, action);
+          });
+          auditRecordedInTx = true;
+        } else {
+          await db.transaction(async (tx) => {
+            const maxMatch = await tx.queryOne<{ maxNum: number }>(
+              "SELECT COALESCE(MAX(match_number), 0) as maxNum FROM matches"
+            );
+            const nextNum = Number(match_number) || ((maxMatch?.maxNum ?? 0) + 1);
+            const dateStr = match_date || new Date().toISOString().slice(0, 10);
+            const [, monthStr, dayStr] = dateStr.split("-");
+            const computedLabel =
+              String(label || "").trim() ||
+              `Trận ${nextNum} - ${dayStr}/${Number(monthStr)}`;
+
+            const res = await tx.run(
+              `INSERT INTO matches (
+                match_number, label, match_date, kickoff_time, venue,
+                opponent, fee_per_player, pitch_cost, payer_name,
+                team_score, opponent_score, status, notes
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                nextNum,
+                computedLabel,
+                dateStr,
+                kickoff_time || "19:00",
+                venue || "Sân Vĩnh Lộc",
+                opponent || "Giao hữu / Nội bộ",
+                fee,
+                pitchCostNum,
+                payer_name || "Tiếng",
+                team_score !== "" &&
+                  team_score !== null &&
+                  team_score !== undefined
+                  ? Number(team_score)
+                  : null,
+                opponent_score !== "" &&
+                  opponent_score !== null &&
+                  opponent_score !== undefined
+                  ? Number(opponent_score)
+                  : null,
+                status || "Sắp diễn ra",
+                notes || "",
+              ]
+            );
+
+            const newMatchId = Number(res.lastInsertRowid);
+            const allPlayers = await tx.query<{ id: number }>(
+              "SELECT id FROM players"
+            );
+            for (const p of allPlayers) {
+              await tx.run(
+                `INSERT OR IGNORE INTO match_attendances (
+                  match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
+                )
+                VALUES (?, ?, 'none', 0, 0, 0, 0, '', '')`,
+                [newMatchId, p.id]
+              );
+            }
+
+            if (sync_pitch_expense && pitchCostNum > 0) {
+              await tx.run(
                 `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
                 VALUES (?, 'Tiền sân', ?, ?, ?, ?)`,
                 [
-                  match_date,
-                  `Tiền sân ${label}`,
+                  dateStr,
+                  `Tiền sân trận tuần ${nextNum} (${computedLabel})`,
                   pitchCostNum,
                   payer_name || "Tiếng",
-                  Number(id),
+                  newMatchId,
                 ]
               );
             }
-          }
-        } else {
-          const maxMatch = await db.queryOne<{ maxNum: number }>(
-            "SELECT COALESCE(MAX(match_number), 0) as maxNum FROM matches"
-          );
-          const nextNum = Number(match_number) || ((maxMatch?.maxNum ?? 0) + 1);
-          const dateStr = match_date || new Date().toISOString().slice(0, 10);
-          const [, monthStr, dayStr] = dateStr.split("-");
-          const computedLabel =
-            String(label || "").trim() ||
-            `Trận ${nextNum} - ${dayStr}/${Number(monthStr)}`;
-
-          const res = await db.run(
-            `INSERT INTO matches (
-              match_number, label, match_date, kickoff_time, venue,
-              opponent, fee_per_player, pitch_cost, payer_name,
-              team_score, opponent_score, status, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              nextNum,
-              computedLabel,
-              dateStr,
-              kickoff_time || "19:00",
-              venue || "Sân Vĩnh Lộc",
-              opponent || "Giao hữu / Nội bộ",
-              fee,
-              pitchCostNum,
-              payer_name || "Tiếng",
-              team_score !== "" &&
-                team_score !== null &&
-                team_score !== undefined
-                ? Number(team_score)
-                : null,
-              opponent_score !== "" &&
-                opponent_score !== null &&
-                opponent_score !== undefined
-                ? Number(opponent_score)
-                : null,
-              status || "Sắp diễn ra",
-              notes || "",
-            ]
-          );
-
-          const newMatchId = Number(res.lastInsertRowid);
-          const allPlayers = await db.query<{ id: number }>(
-            "SELECT id FROM players"
-          );
-          for (const p of allPlayers) {
-            await db.run(
-              `INSERT OR IGNORE INTO match_attendances (
-                match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
-              )
-              VALUES (?, ?, 'none', 0, 0, 0, 0, '', '')`,
-              [newMatchId, p.id]
-            );
-          }
-
-          if (sync_pitch_expense && pitchCostNum > 0) {
-            await db.run(
-              `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
-              VALUES (?, 'Tiền sân', ?, ?, ?, ?)`,
-              [
-                dateStr,
-                `Tiền sân trận tuần ${nextNum} (${computedLabel})`,
-                pitchCostNum,
-                payer_name || "Tiếng",
-                newMatchId,
-              ]
-            );
-          }
+            await recordAuditInTx(tx, session, action);
+          });
+          auditRecordedInTx = true;
         }
         break;
       }
 
       case "delete_match": {
         const { id } = payload;
-        await db.run("DELETE FROM expenses WHERE match_id = ?", [Number(id)]);
-        await db.run("DELETE FROM matches WHERE id = ?", [Number(id)]);
+        const idCheck = parsePositiveIntId(id, "Mã trận đấu");
+        if (!idCheck.ok) {
+          return NextResponse.json({ error: idCheck.error }, { status: 400 });
+        }
+        await db.transaction(async (tx) => {
+          await tx.run("DELETE FROM expenses WHERE match_id = ?", [idCheck.value]);
+          await tx.run("DELETE FROM matches WHERE id = ?", [idCheck.value]);
+          await recordAuditInTx(tx, session, action);
+        });
+        auditRecordedInTx = true;
         break;
       }
 
@@ -1045,22 +1275,28 @@ export async function POST(req: NextRequest) {
                 ]
               );
             }
+            await recordAuditInTx(tx, session, action);
           });
+          auditRecordedInTx = true;
         } else if (costNum > 0) {
           const dStr =
             String(expense_date || "").trim() ||
             new Date().toISOString().slice(0, 10);
           const [, mm, dd] = dStr.split("-");
-          await db.run(
-            `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
-            VALUES (?, 'Tiền sân', ?, ?, ?, NULL)`,
-            [
-              dStr,
-              `Tiền sân ${cleanVenue} ngày ${dd}/${Number(mm)}`,
-              costNum,
-              formattedPayer,
-            ]
-          );
+          await db.transaction(async (tx) => {
+            await tx.run(
+              `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+              VALUES (?, 'Tiền sân', ?, ?, ?, NULL)`,
+              [
+                dStr,
+                `Tiền sân ${cleanVenue} ngày ${dd}/${Number(mm)}`,
+                costNum,
+                formattedPayer,
+              ]
+            );
+            await recordAuditInTx(tx, session, action);
+          });
+          auditRecordedInTx = true;
         }
         break;
       }
@@ -1159,30 +1395,34 @@ export async function POST(req: NextRequest) {
         }
         const { isPaid, isAttended, finalAmount, isWalkIn } = feeCheck.value;
 
-        await db.run(
-          `INSERT INTO match_attendances (
-            match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
-          )
-          VALUES (?, ?, 'none', ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(match_id, player_id)
-          DO UPDATE SET
-            walk_in = CASE WHEN excluded.walk_in = 1 THEN 1 ELSE match_attendances.walk_in END,
-            attended = excluded.attended,
-            paid = excluded.paid,
-            amount = excluded.amount,
-            collected_by = CASE WHEN excluded.collected_by != '' THEN excluded.collected_by ELSE match_attendances.collected_by END,
-            note = CASE WHEN excluded.note != '' THEN excluded.note ELSE match_attendances.note END`,
-          [
-            matchIdCheck.value,
-            playerIdCheck.value,
-            isWalkIn,
-            isAttended,
-            isPaid,
-            finalAmount,
-            String(collected_by || "Tiếng"),
-            String(note || ""),
-          ]
-        );
+        await db.transaction(async (tx) => {
+          await tx.run(
+            `INSERT INTO match_attendances (
+              match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
+            )
+            VALUES (?, ?, 'none', ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(match_id, player_id)
+            DO UPDATE SET
+              walk_in = CASE WHEN excluded.walk_in = 1 THEN 1 ELSE match_attendances.walk_in END,
+              attended = excluded.attended,
+              paid = excluded.paid,
+              amount = excluded.amount,
+              collected_by = CASE WHEN excluded.collected_by != '' THEN excluded.collected_by ELSE match_attendances.collected_by END,
+              note = CASE WHEN excluded.note != '' THEN excluded.note ELSE match_attendances.note END`,
+            [
+              matchIdCheck.value,
+              playerIdCheck.value,
+              isWalkIn,
+              isAttended,
+              isPaid,
+              finalAmount,
+              String(collected_by || "Tiếng"),
+              String(note || ""),
+            ]
+          );
+          await recordAuditInTx(tx, session, action);
+        });
+        auditRecordedInTx = true;
         break;
       }
 
@@ -1300,9 +1540,150 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        if (statements.length > 0) {
-          await db.batch(statements);
+        const idempotencyKeyCheck = extractIdempotencyKey(req, idempotency_key);
+        if (!idempotencyKeyCheck.ok) {
+          return NextResponse.json(
+            { error: idempotencyKeyCheck.error },
+            { status: 400 }
+          );
         }
+        if (!idempotencyKeyCheck.key) {
+          return NextResponse.json(
+            {
+              error:
+                "Thiếu Idempotency-Key cho thao tác thu quỹ hàng loạt. Vui lòng gửi kèm khóa duy nhất.",
+            },
+            { status: 400 }
+          );
+        }
+        const idempotencyKey = idempotencyKeyCheck.key;
+        const actorIdForIdempotency =
+          effectiveSession?.playerId ?? session?.playerId ?? 0;
+        const payloadHash = computeIdempotencyPayloadHash(action, {
+          match_id: matchIdCheck.value,
+          collected_by: collected_by ?? null,
+          items,
+        });
+
+        await ensureIdempotencyKeysReady(db);
+
+        // Idempotency Response Contract (Option B):
+        // Persist deduplication metadata (payload_hash, status_code, summary response_json)
+        // atomically with financial + audit writes, and return an authorized fresh
+        // getFullAppData() snapshot with X-Idempotent-Replay: true on replay.
+        let txResult: { replayed: boolean; conflict: boolean; expired?: boolean };
+        try {
+          txResult = await db.transaction(async (tx) => {
+            const nowIso = new Date().toISOString();
+            const existingIdem = await tx.queryOne<{
+              payload_hash: string;
+              status_code: number;
+              response_json: string;
+              expires_at: string;
+            }>(
+              `SELECT payload_hash, status_code, response_json, expires_at
+               FROM idempotency_keys
+               WHERE idempotency_key = ? AND actor_id = ? AND action = ?
+               LIMIT 1`,
+              [idempotencyKey, actorIdForIdempotency, action]
+            );
+            if (existingIdem) {
+              if (existingIdem.payload_hash !== payloadHash) {
+                return { conflict: true, replayed: false };
+              }
+              if (existingIdem.expires_at <= nowIso) {
+                return { conflict: false, replayed: false, expired: true };
+              }
+              return { replayed: true, conflict: false };
+            }
+
+            for (const stmt of statements) {
+              await tx.run(stmt.sql, stmt.params);
+            }
+            await recordAuditInTx(
+              tx,
+              session,
+              action,
+              `Thu quỹ hàng loạt (${statements.length} cầu thủ, trận #${matchIdCheck.value})`
+            );
+
+            const expiresAt = new Date(
+              Date.now() + 24 * 3600 * 1000
+            ).toISOString();
+            await tx.run(
+              `INSERT INTO idempotency_keys (
+                idempotency_key, actor_id, action, payload_hash, status_code, response_json, expires_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                idempotencyKey,
+                actorIdForIdempotency,
+                action,
+                payloadHash,
+                200,
+                JSON.stringify({
+                  ok: true,
+                  processedCount: statements.length,
+                }),
+                expiresAt,
+              ]
+            );
+
+            return { replayed: false, conflict: false };
+          });
+        } catch (txErr) {
+          const msg = txErr instanceof Error ? txErr.message.toLowerCase() : "";
+          if (msg.includes("unique") || msg.includes("constraint")) {
+            const existingWinner = await db.queryOne<{ payload_hash: string }>(
+              `SELECT payload_hash
+               FROM idempotency_keys
+               WHERE idempotency_key = ? AND actor_id = ? AND action = ?
+               LIMIT 1`,
+              [idempotencyKey, actorIdForIdempotency, action]
+            );
+            if (existingWinner) {
+              txResult =
+                existingWinner.payload_hash === payloadHash
+                  ? { replayed: true, conflict: false }
+                  : { replayed: false, conflict: true };
+            } else {
+              throw txErr;
+            }
+          } else {
+            throw txErr;
+          }
+        }
+
+        if (txResult.expired) {
+          return NextResponse.json(
+            {
+              error:
+                "Khóa giao dịch (Idempotency-Key) đã hết hạn 24 giờ và từng được sử dụng trước đó. Không tự động ghi lại giao dịch để tránh trùng lặp; vui lòng kiểm tra bảng thu quỹ thực tế.",
+              code: "IDEMPOTENCY_KEY_EXPIRED",
+              retryable: false,
+              reconcileRequired: true,
+            },
+            {
+              status: 409,
+              headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+            }
+          );
+        }
+        if (txResult.conflict) {
+          return NextResponse.json(
+            {
+              error:
+                "Idempotency-Key đã được sử dụng cho một nội dung thu quỹ khác (409 Conflict).",
+            },
+            {
+              status: 409,
+              headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+            }
+          );
+        }
+        if (txResult.replayed) {
+          idempotentReplayed = true;
+        }
+        auditRecordedInTx = true;
         break;
       }
 
@@ -1317,69 +1698,129 @@ export async function POST(req: NextRequest) {
           collected_by,
         } = payload;
 
-        const matchRow = await db.queryOne<{ fee_per_player: number }>(
-          "SELECT fee_per_player FROM matches WHERE id = ?",
-          [Number(match_id)]
-        );
-        const defaultFee = matchRow?.fee_per_player ?? 100000;
-        const feeAmount =
-          amount !== undefined && amount !== null && amount !== ""
-            ? Number(amount)
-            : defaultFee;
-        const isPaid = paid === undefined ? 1 : Number(paid) === 1 ? 1 : 0;
-
-        let targetPlayerId = Number(player_id) || 0;
-
-        if (!targetPlayerId && String(new_player_name || "").trim()) {
-          const cleanName = String(new_player_name).trim();
-          const derivedShort =
-            cleanName.split(/\s+/).slice(-1)[0] || cleanName;
-          const maxRow = await db.queryOne<{ maxOrder: number }>(
-            "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
+        const matchIdCheck = parsePositiveIntId(match_id, "Mã trận đấu");
+        if (!matchIdCheck.ok) {
+          return NextResponse.json(
+            { error: matchIdCheck.error },
+            { status: 400 }
           );
-          const res = await db.run(
-            `INSERT INTO players (
-              code_order, full_name, short_name, jersey_number,
-              position, phone, role, access_role, pin_code, status, notes
-            )
-            VALUES (?, ?, ?, NULL, 'Đa năng', '', 'Thành viên', 'player', '1234', 'Đang sinh hoạt', 'Bổ sung trực tiếp tại sân')`,
-            [
-              ((maxRow?.maxOrder ?? 0) + 1),
-              cleanName,
-              derivedShort,
-            ]
-          );
-          targetPlayerId = Number(res.lastInsertRowid);
         }
 
-        if (!targetPlayerId) {
+        const matchRow = await db.queryOne<{ id: number; fee_per_player: number }>(
+          "SELECT id, fee_per_player FROM matches WHERE id = ?",
+          [matchIdCheck.value]
+        );
+        if (!matchRow) {
+          return NextResponse.json(
+            { error: "Không tìm thấy trận đấu." },
+            { status: 404 }
+          );
+        }
+
+        let feeAmount = matchRow.fee_per_player ?? 100000;
+        const hasAmount =
+          amount !== undefined &&
+          amount !== null &&
+          !(typeof amount === "string" && amount.trim() === "");
+        if (hasAmount) {
+          const amountCheck = parseNonNegativeIntVnd(amount, "Số tiền");
+          if (!amountCheck.ok) {
+            return NextResponse.json(
+              { error: amountCheck.error },
+              { status: 400 }
+            );
+          }
+          feeAmount = amountCheck.value;
+        }
+
+        const paidCheck = parseBinaryFlag(
+          paid,
+          "Trạng thái đóng tiền (paid)",
+          { defaultWhenMissing: 1 }
+        );
+        if (!paidCheck.ok) {
+          return NextResponse.json(
+            { error: paidCheck.error },
+            { status: 400 }
+          );
+        }
+        const isPaid = paidCheck.value;
+
+        let targetPlayerId = 0;
+        if (
+          player_id !== undefined &&
+          player_id !== null &&
+          !(typeof player_id === "string" && player_id.trim() === "")
+        ) {
+          const playerIdCheck = parsePositiveIntId(player_id, "Mã cầu thủ");
+          if (!playerIdCheck.ok) {
+            return NextResponse.json(
+              { error: playerIdCheck.error },
+              { status: 400 }
+            );
+          }
+          targetPlayerId = playerIdCheck.value;
+        }
+
+        const cleanWalkinName = String(new_player_name || "").trim();
+        if (!targetPlayerId && !cleanWalkinName) {
           return NextResponse.json(
             { error: "Vui lòng chọn cầu thủ hoặc nhập tên cầu thủ tham gia" },
             { status: 400 }
           );
         }
 
-        await db.run(
-          `INSERT INTO match_attendances (
-            match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
-          )
-          VALUES (?, ?, 'none', 1, 1, ?, ?, ?, 'Tham gia không đăng ký trước')
-          ON CONFLICT(match_id, player_id)
-          DO UPDATE SET
-            walk_in = 1,
-            attended = 1,
-            paid = excluded.paid,
-            amount = excluded.amount,
-            collected_by = excluded.collected_by,
-            note = 'Tham gia không đăng ký trước'`,
-          [
-            Number(match_id),
-            targetPlayerId,
-            isPaid,
-            feeAmount,
-            String(collected_by || "Tiếng"),
-          ]
-        );
+        await db.transaction(async (tx) => {
+          let finalPlayerId = targetPlayerId;
+          if (!finalPlayerId && cleanWalkinName) {
+            const derivedShort =
+              cleanWalkinName.split(/\s+/).slice(-1)[0] || cleanWalkinName;
+            const maxRow = await tx.queryOne<{ maxOrder: number }>(
+              "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
+            );
+            const randomPinHash = hashPassword(
+              crypto.randomBytes(24).toString("base64url")
+            );
+            const res = await tx.run(
+              `INSERT INTO players (
+                code_order, full_name, short_name, jersey_number,
+                position, phone, role, access_role, pin_code, status, notes
+              )
+              VALUES (?, ?, ?, NULL, 'Đa năng', '', 'Thành viên', 'player', ?, 'Đang sinh hoạt', 'Bổ sung trực tiếp tại sân')`,
+              [
+                ((maxRow?.maxOrder ?? 0) + 1),
+                cleanWalkinName,
+                derivedShort,
+                randomPinHash,
+              ]
+            );
+            finalPlayerId = Number(res.lastInsertRowid);
+          }
+
+          await tx.run(
+            `INSERT INTO match_attendances (
+              match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note
+            )
+            VALUES (?, ?, 'none', 1, 1, ?, ?, ?, 'Tham gia không đăng ký trước')
+            ON CONFLICT(match_id, player_id)
+            DO UPDATE SET
+              walk_in = 1,
+              attended = 1,
+              paid = excluded.paid,
+              amount = excluded.amount,
+              collected_by = excluded.collected_by,
+              note = 'Tham gia không đăng ký trước'`,
+            [
+              matchIdCheck.value,
+              finalPlayerId,
+              isPaid,
+              feeAmount,
+              String(collected_by || "Tiếng"),
+            ]
+          );
+          await recordAuditInTx(tx, session, action);
+        });
+        auditRecordedInTx = true;
         break;
       }
 
@@ -1429,40 +1870,52 @@ export async function POST(req: NextRequest) {
           if (!idCheck.ok) {
             return NextResponse.json({ error: idCheck.error }, { status: 400 });
           }
-          await db.run(
-            `UPDATE expenses
-            SET expense_date = ?, category = ?, description = ?, amount = ?, payer = ?, match_id = ?
-            WHERE id = ?`,
-            [
-              expense_date || "2026-11-03",
-              category || "Tiền sân",
-              description || "",
-              amountCheck.value,
-              payer || "",
-              validMatchId,
-              idCheck.value,
-            ]
-          );
+          await db.transaction(async (tx) => {
+            await tx.run(
+              `UPDATE expenses
+              SET expense_date = ?, category = ?, description = ?, amount = ?, payer = ?, match_id = ?
+              WHERE id = ?`,
+              [
+                expense_date || "2026-11-03",
+                category || "Tiền sân",
+                description || "",
+                amountCheck.value,
+                payer || "",
+                validMatchId,
+                idCheck.value,
+              ]
+            );
+            await recordAuditInTx(tx, session, action);
+          });
+          auditRecordedInTx = true;
         } else {
-          await db.run(
-            `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-            [
-              expense_date || new Date().toISOString().slice(0, 10),
-              category || "Tiền sân",
-              description || "",
-              amountCheck.value,
-              payer || "",
-              validMatchId,
-            ]
-          );
+          await db.transaction(async (tx) => {
+            await tx.run(
+              `INSERT INTO expenses (expense_date, category, description, amount, payer, match_id)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+              [
+                expense_date || new Date().toISOString().slice(0, 10),
+                category || "Tiền sân",
+                description || "",
+                amountCheck.value,
+                payer || "",
+                validMatchId,
+              ]
+            );
+            await recordAuditInTx(tx, session, action);
+          });
+          auditRecordedInTx = true;
         }
         break;
       }
 
       case "delete_expense": {
         const { id } = payload;
-        await db.run("DELETE FROM expenses WHERE id = ?", [Number(id)]);
+        await db.transaction(async (tx) => {
+          await tx.run("DELETE FROM expenses WHERE id = ?", [Number(id)]);
+          await recordAuditInTx(tx, session, action);
+        });
+        auditRecordedInTx = true;
         break;
       }
 
@@ -1485,70 +1938,82 @@ export async function POST(req: NextRequest) {
           if (!idCheck.ok) {
             return NextResponse.json({ error: idCheck.error }, { status: 400 });
           }
-          if (sponsorCheck.columnSupported) {
-            await db.run(
-              `UPDATE other_incomes
-              SET income_date = ?, contributor = ?, amount = ?, fund_type = ?, note = ?, sponsor_id = ?
-              WHERE id = ?`,
-              [
-                income_date || "2026-11-03",
-                contributor || "",
-                amountCheck.value,
-                fund_type || "Quỹ sinh hoạt",
-                note || "",
-                sponsorCheck.sponsorId,
-                idCheck.value,
-              ]
-            );
-          } else {
-            await db.run(
-              `UPDATE other_incomes
-              SET income_date = ?, contributor = ?, amount = ?, fund_type = ?, note = ?
-              WHERE id = ?`,
-              [
-                income_date || "2026-11-03",
-                contributor || "",
-                amountCheck.value,
-                fund_type || "Quỹ sinh hoạt",
-                note || "",
-                idCheck.value,
-              ]
-            );
-          }
+          await db.transaction(async (tx) => {
+            if (sponsorCheck.columnSupported) {
+              await tx.run(
+                `UPDATE other_incomes
+                SET income_date = ?, contributor = ?, amount = ?, fund_type = ?, note = ?, sponsor_id = ?
+                WHERE id = ?`,
+                [
+                  income_date || "2026-11-03",
+                  contributor || "",
+                  amountCheck.value,
+                  fund_type || "Quỹ sinh hoạt",
+                  note || "",
+                  sponsorCheck.sponsorId,
+                  idCheck.value,
+                ]
+              );
+            } else {
+              await tx.run(
+                `UPDATE other_incomes
+                SET income_date = ?, contributor = ?, amount = ?, fund_type = ?, note = ?
+                WHERE id = ?`,
+                [
+                  income_date || "2026-11-03",
+                  contributor || "",
+                  amountCheck.value,
+                  fund_type || "Quỹ sinh hoạt",
+                  note || "",
+                  idCheck.value,
+                ]
+              );
+            }
+            await recordAuditInTx(tx, session, action);
+          });
+          auditRecordedInTx = true;
         } else {
-          if (sponsorCheck.columnSupported) {
-            await db.run(
-              `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note, sponsor_id)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-              [
-                income_date || new Date().toISOString().slice(0, 10),
-                contributor || "",
-                amountCheck.value,
-                fund_type || "Quỹ sinh hoạt",
-                note || "",
-                sponsorCheck.sponsorId,
-              ]
-            );
-          } else {
-            await db.run(
-              `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
-              VALUES (?, ?, ?, ?, ?)`,
-              [
-                income_date || new Date().toISOString().slice(0, 10),
-                contributor || "",
-                amountCheck.value,
-                fund_type || "Quỹ sinh hoạt",
-                note || "",
-              ]
-            );
-          }
+          await db.transaction(async (tx) => {
+            if (sponsorCheck.columnSupported) {
+              await tx.run(
+                `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note, sponsor_id)
+                VALUES (?, ?, ?, ?, ?, ?)`,
+                [
+                  income_date || new Date().toISOString().slice(0, 10),
+                  contributor || "",
+                  amountCheck.value,
+                  fund_type || "Quỹ sinh hoạt",
+                  note || "",
+                  sponsorCheck.sponsorId,
+                ]
+              );
+            } else {
+              await tx.run(
+                `INSERT INTO other_incomes (income_date, contributor, amount, fund_type, note)
+                VALUES (?, ?, ?, ?, ?)`,
+                [
+                  income_date || new Date().toISOString().slice(0, 10),
+                  contributor || "",
+                  amountCheck.value,
+                  fund_type || "Quỹ sinh hoạt",
+                  note || "",
+                ]
+              );
+            }
+            await recordAuditInTx(tx, session, action);
+          });
+          auditRecordedInTx = true;
         }
         break;
       }
 
       case "delete_other_income": {
         const { id } = payload;
-        await db.run("DELETE FROM other_incomes WHERE id = ?", [Number(id)]);
+        await db.transaction(async (tx) => {
+          await tx.run("DELETE FROM other_incomes WHERE id = ?", [Number(id)]);
+          await recordAuditInTx(tx, session, action);
+        });
+        auditRecordedInTx = true;
         break;
       }
 
@@ -1560,6 +2025,21 @@ export async function POST(req: NextRequest) {
         const hasOwn = (key: string) =>
           Object.prototype.hasOwnProperty.call(rawPayload, key) &&
           rawPayload[key] !== undefined;
+
+        const vndFields: Array<{ key: string; label: string }> = [
+          { key: "default_match_fee", label: "Tiền quỹ trận mặc định" },
+          { key: "tournament_fund_reserve", label: "Quỹ giải dự phòng" },
+        ];
+        const validatedVndValues = new Map<string, number>();
+        for (const vf of vndFields) {
+          if (hasOwn(vf.key)) {
+            const check = parseNonNegativeIntVnd(rawPayload[vf.key], vf.label);
+            if (!check.ok) {
+              return NextResponse.json({ error: check.error }, { status: 400 });
+            }
+            validatedVndValues.set(vf.key, check.value);
+          }
+        }
 
         const SETTINGS_UPDATERS: ReadonlyArray<{
           key: string;
@@ -1579,7 +2059,7 @@ export async function POST(req: NextRequest) {
           {
             key: "default_match_fee",
             column: "default_match_fee",
-            normalize: (v) => Number(v) || 100000,
+            normalize: () => validatedVndValues.get("default_match_fee")!,
           },
           {
             key: "bank_bin",
@@ -1604,7 +2084,7 @@ export async function POST(req: NextRequest) {
           {
             key: "tournament_fund_reserve",
             column: "tournament_fund_reserve",
-            normalize: (v) => Number(v) || 0,
+            normalize: () => validatedVndValues.get("tournament_fund_reserve")!,
           },
           {
             key: "tournament_fund_note",
@@ -1628,10 +2108,14 @@ export async function POST(req: NextRequest) {
         }
 
         if (setClauses.length > 0) {
-          await db.run(
-            `UPDATE team_settings SET ${setClauses.join(", ")} WHERE id = 1`,
-            params
-          );
+          await db.transaction(async (tx) => {
+            await tx.run(
+              `UPDATE team_settings SET ${setClauses.join(", ")} WHERE id = 1`,
+              params
+            );
+            await recordAuditInTx(tx, session, action);
+          });
+          auditRecordedInTx = true;
         }
         break;
       }
@@ -1934,7 +2418,7 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    if (session) {
+    if (session && !auditRecordedInTx && !idempotentReplayed) {
       await recordAuditLog({
         actorId: session.playerId,
         actorName: session.fullName,
@@ -1945,13 +2429,22 @@ export async function POST(req: NextRequest) {
     }
 
     const updated = await getFullAppData();
-    const res = NextResponse.json(updated);
+    const safeUpdated = sanitizeTeamResponseData(updated, effectiveSession);
+    const res = NextResponse.json(safeUpdated, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        ...(idempotentReplayed ? { "X-Idempotent-Replay": "true" } : {}),
+      },
+    });
 
-    // Nếu vừa đổi mật khẩu của chính mình, cấp lại session token mới với vân tay mật khẩu mới
-    if (action === "change_own_password" && session) {
-      const updatedPlayer = updated.players.find((p) => p.id === session.playerId);
-      if (updatedPlayer) {
-        const token = createSessionToken(updatedPlayer, 24 * 7);
+    // Nếu vừa đổi mật khẩu của chính mình, cấp lại session token mới với vân tay mật khẩu mới từ DB
+    if (action === "change_own_password" && effectiveSession) {
+      const refreshedPlayer = await db.queryOne<Player>(
+        `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+        [effectiveSession.playerId]
+      );
+      if (refreshedPlayer) {
+        const token = createSessionToken(refreshedPlayer, 24 * 7);
         res.cookies.set({
           name: SESSION_COOKIE_NAME,
           value: token,
@@ -1966,16 +2459,35 @@ export async function POST(req: NextRequest) {
 
     return res;
   } catch (error) {
+    const dbMapped = mapDatabaseErrorToHttpResponse(error);
+    if (dbMapped) {
+      return NextResponse.json(dbMapped.body, {
+        status: dbMapped.status,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      });
+    }
     if (error instanceof MediaValidationError) {
       return NextResponse.json(
         { error: error.message },
-        { status: error.status }
+        {
+          status: error.status,
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+          },
+        }
       );
     }
     console.error("POST /api/team error:", error);
     return NextResponse.json(
       { error: "Đã xảy ra lỗi khi lưu dữ liệu" },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
     );
   }
 }

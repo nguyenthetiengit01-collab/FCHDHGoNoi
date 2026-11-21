@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import os from "os";
+import crypto from "crypto";
 import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
 import { createClient, type Client, type InArgs } from "@libsql/client";
 import { EXPENSE_CATEGORIES, FANPAGE_URL } from "@/types/app";
@@ -185,19 +186,321 @@ export interface AsyncDb extends AsyncDbTx {
   transaction<T>(fn: (tx: AsyncDbTx) => Promise<T>): Promise<T>;
 }
 
+export interface TursoAdapterOptions {
+  requestTimeoutMs?: number;
+  maxReadRetries?: number;
+  baseRetryDelayMs?: number;
+  maxRetryDelayMs?: number;
+}
+
+export class TursoWriteOutcomeUnknownError extends Error {
+  readonly code = "DB_WRITE_OUTCOME_UNKNOWN" as const;
+  readonly outcome = "unknown" as const;
+  readonly retryable = false as const;
+  readonly reconcileRequired = true as const;
+  readonly operationType: string;
+  readonly correlationId: string;
+  readonly timeoutMs: number;
+
+  constructor(params: {
+    operationType: string;
+    timeoutMs: number;
+    correlationId?: string;
+  }) {
+    const correlationId = params.correlationId || crypto.randomUUID();
+    super(
+      `Turso write outcome unknown after ${params.timeoutMs}ms timeout (${params.operationType}, correlationId=${correlationId})`
+    );
+    this.name = "TursoWriteOutcomeUnknownError";
+    this.operationType = params.operationType;
+    this.correlationId = correlationId;
+    this.timeoutMs = params.timeoutMs;
+  }
+}
+
+export class IdempotencySchemaMissingError extends Error {
+  readonly code = "IDEMPOTENCY_SCHEMA_NOT_READY" as const;
+
+  constructor(missingObjects: string[]) {
+    super(
+      `Idempotency schema is not ready (missing: ${missingObjects.join(", ")}). Apply the authorized migration before enabling batch fee collection.`
+    );
+    this.name = "IdempotencySchemaMissingError";
+  }
+}
+
+export function mapDatabaseErrorToHttpResponse(err: unknown): {
+  status: number;
+  body: {
+    error: string;
+    code: "DB_WRITE_OUTCOME_UNKNOWN" | "IDEMPOTENCY_SCHEMA_NOT_READY";
+    retryable: false;
+    reconcileRequired: boolean;
+    correlationId: string;
+  };
+} | null {
+  if (
+    err instanceof IdempotencySchemaMissingError ||
+    (err &&
+      typeof err === "object" &&
+      (err as { code?: unknown }).code === "IDEMPOTENCY_SCHEMA_NOT_READY")
+  ) {
+    return {
+      status: 503,
+      body: {
+        error:
+          "Chức năng thu quỹ hàng loạt tạm thời chưa sẵn sàng do cấu trúc bảng idempotency_keys chưa được khởi tạo. Vui lòng liên hệ Quản trị viên.",
+        code: "IDEMPOTENCY_SCHEMA_NOT_READY",
+        retryable: false,
+        reconcileRequired: false,
+        correlationId: crypto.randomUUID(),
+      },
+    };
+  }
+  if (
+    err instanceof TursoWriteOutcomeUnknownError ||
+    (err &&
+      typeof err === "object" &&
+      (err as { code?: unknown }).code === "DB_WRITE_OUTCOME_UNKNOWN")
+  ) {
+    const correlationId =
+      typeof (err as { correlationId?: unknown }).correlationId === "string"
+        ? (err as { correlationId: string }).correlationId
+        : crypto.randomUUID();
+    return {
+      status: 503,
+      body: {
+        error:
+          "Thao tác có thể đã được ghi nhận trên hệ thống. Vui lòng không gửi lại cho đến khi kiểm tra kết quả.",
+        code: "DB_WRITE_OUTCOME_UNKNOWN",
+        retryable: false,
+        reconcileRequired: true,
+        correlationId,
+      },
+    };
+  }
+  return null;
+}
+
+const DEFAULT_TURSO_REQUEST_TIMEOUT_MS = 5000;
+const DEFAULT_TURSO_MAX_READ_RETRIES = 2;
+const DEFAULT_TURSO_BASE_RETRY_DELAY_MS = 100;
+const DEFAULT_TURSO_MAX_RETRY_DELAY_MS = 1500;
+
+export function resolveTursoRequestTimeoutMs(
+  env: NodeJS.ProcessEnv = process.env
+): number {
+  const raw = env.TURSO_REQUEST_TIMEOUT_MS?.trim();
+  if (!raw) return DEFAULT_TURSO_REQUEST_TIMEOUT_MS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.floor(parsed)
+    : DEFAULT_TURSO_REQUEST_TIMEOUT_MS;
+}
+
+function isTransientTursoReadError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const record = err as { code?: unknown; message?: unknown; name?: unknown; cause?: unknown };
+  const code = typeof record.code === "string" ? record.code.toUpperCase() : "";
+  const message =
+    typeof record.message === "string" ? record.message.toLowerCase() : "";
+  const name = typeof record.name === "string" ? record.name.toLowerCase() : "";
+
+  // Non-transient SQL/auth errors must fail immediately without retry
+  if (
+    code.includes("SQLITE_CONSTRAINT") ||
+    code === "SQLITE_ERROR" ||
+    message.includes("syntax error") ||
+    message.includes("no such table") ||
+    message.includes("no such column") ||
+    message.includes("unauthorized") ||
+    message.includes("forbidden") ||
+    message.includes("401") ||
+    message.includes("403")
+  ) {
+    return false;
+  }
+
+  if (
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET" ||
+    code === "ECONNREFUSED" ||
+    code === "EPIPE" ||
+    code === "ENOTFOUND" ||
+    code === "EAI_AGAIN" ||
+    code === "UND_ERR_CONNECT_TIMEOUT" ||
+    code === "UND_ERR_SOCKET" ||
+    code === "SQLITE_BUSY" ||
+    code === "SERVER_ERROR" ||
+    code === "HRANA_WEBSOCKET_ERROR" ||
+    code === "HTTP_STATUS_429" ||
+    code === "HTTP_STATUS_502" ||
+    code === "HTTP_STATUS_503" ||
+    code === "HTTP_STATUS_504"
+  ) {
+    return true;
+  }
+
+  if (
+    name.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("timeout") ||
+    message.includes("econnreset") ||
+    message.includes("econnrefused") ||
+    message.includes("socket hang up") ||
+    message.includes("fetch failed") ||
+    message.includes("network") ||
+    message.includes("sqlite_busy") ||
+    message.includes("502") ||
+    message.includes("503") ||
+    message.includes("504") ||
+    message.includes("429")
+  ) {
+    return true;
+  }
+
+  if (record.cause && record.cause !== err) {
+    return isTransientTursoReadError(record.cause);
+  }
+
+  return false;
+}
+
+function normalizeRows<T>(rows: unknown[]): T[] {
+  return rows.map((row) => ({ ...(row as Record<string, unknown>) })) as T[];
+}
+
 export class TursoDbAdapter implements AsyncDb {
   private client: Client;
+  private readonly requestTimeoutMs: number;
+  private readonly maxReadRetries: number;
+  private readonly baseRetryDelayMs: number;
+  private readonly maxRetryDelayMs: number;
+  private initState: "uninitialized" | "initializing" | "ready" = "uninitialized";
+  private initPromise: Promise<void> | null = null;
 
-  constructor(client: Client) {
+  constructor(client: Client, options: TursoAdapterOptions = {}) {
     this.client = client;
+    this.requestTimeoutMs =
+      options.requestTimeoutMs && options.requestTimeoutMs > 0
+        ? Math.floor(options.requestTimeoutMs)
+        : resolveTursoRequestTimeoutMs(process.env);
+    this.maxReadRetries =
+      options.maxReadRetries !== undefined && options.maxReadRetries >= 0
+        ? Math.floor(options.maxReadRetries)
+        : DEFAULT_TURSO_MAX_READ_RETRIES;
+    this.baseRetryDelayMs =
+      options.baseRetryDelayMs !== undefined && options.baseRetryDelayMs >= 0
+        ? options.baseRetryDelayMs
+        : DEFAULT_TURSO_BASE_RETRY_DELAY_MS;
+    this.maxRetryDelayMs =
+      options.maxRetryDelayMs !== undefined && options.maxRetryDelayMs > 0
+        ? options.maxRetryDelayMs
+        : DEFAULT_TURSO_MAX_RETRY_DELAY_MS;
+  }
+
+  private async withTimeout<T>(
+    operation: () => Promise<T>,
+    label: string,
+    options: { isWrite?: boolean } = {}
+  ): Promise<T> {
+    const timeoutMs = this.requestTimeoutMs;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const opPromise = operation();
+    // Prevent unhandled rejection if the operation settles after timeout wins the race
+    opPromise.catch(() => {});
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        if (options.isWrite) {
+          reject(
+            new TursoWriteOutcomeUnknownError({
+              operationType: label,
+              timeoutMs,
+            })
+          );
+          return;
+        }
+        const err = new Error(
+          `Turso request timed out after ${timeoutMs}ms (${label})`
+        ) as Error & { code?: string };
+        err.code = "ETIMEDOUT";
+        reject(err);
+      }, timeoutMs);
+    });
+
+    try {
+      return await Promise.race([opPromise, timeoutPromise]);
+    } finally {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  private async executeReadWithRetry<T>(
+    operation: () => Promise<T>,
+    label: string
+  ): Promise<T> {
+    let attempt = 0;
+    while (true) {
+      try {
+        return await this.withTimeout(operation, label);
+      } catch (err) {
+        if (
+          attempt >= this.maxReadRetries ||
+          !isTransientTursoReadError(err)
+        ) {
+          throw err;
+        }
+        const expDelay = Math.min(
+          this.maxRetryDelayMs,
+          this.baseRetryDelayMs * 2 ** attempt
+        );
+        const jitter = Math.floor(Math.random() * Math.max(1, expDelay * 0.5));
+        const waitMs = Math.min(this.maxRetryDelayMs, expDelay + jitter);
+        attempt += 1;
+        if (waitMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
+        }
+      }
+    }
+  }
+
+  async ensureReady(): Promise<void> {
+    if (this.initState === "ready") return;
+    if (this.initPromise) return this.initPromise;
+
+    this.initState = "initializing";
+    this.initPromise = (async () => {
+      await this.withTimeout(
+        () => this.client.execute("PRAGMA foreign_keys = ON;"),
+        "pragma.foreign_keys"
+      );
+      this.initState = "ready";
+    })().catch((err) => {
+      this.initState = "uninitialized";
+      this.initPromise = null;
+      throw err;
+    });
+
+    return this.initPromise;
+  }
+
+  async enableForeignKeys(): Promise<void> {
+    await this.ensureReady();
   }
 
   async query<T = Record<string, unknown>>(
     sql: string,
     params: unknown[] = []
   ): Promise<T[]> {
-    const res = await this.client.execute({ sql, args: params as InArgs });
-    return res.rows as unknown as T[];
+    await this.ensureReady();
+    const res = await this.executeReadWithRetry(
+      () => this.client.execute({ sql, args: params as InArgs }),
+      "query"
+    );
+    return normalizeRows<T>(res.rows);
   }
 
   async queryOne<T = Record<string, unknown>>(
@@ -212,7 +515,12 @@ export class TursoDbAdapter implements AsyncDb {
     sql: string,
     params: unknown[] = []
   ): Promise<{ lastInsertRowid: number; changes: number }> {
-    const res = await this.client.execute({ sql, args: params as InArgs });
+    await this.ensureReady();
+    const res = await this.withTimeout(
+      () => this.client.execute({ sql, args: params as InArgs }),
+      "run",
+      { isWrite: true }
+    );
     return {
       lastInsertRowid: Number(res.lastInsertRowid || 0),
       changes: Number(res.rowsAffected || 0),
@@ -222,61 +530,98 @@ export class TursoDbAdapter implements AsyncDb {
   async batch(
     statements: Array<{ sql: string; params?: unknown[] }>
   ): Promise<void> {
+    await this.ensureReady();
     if (statements.length === 0) return;
-    await this.client.batch(
-      statements.map((s) => ({
-        sql: s.sql,
-        args: (s.params || []) as InArgs,
-      })),
-      "write"
+    await this.withTimeout(
+      () =>
+        this.client.batch(
+          statements.map((s) => ({
+            sql: s.sql,
+            args: (s.params || []) as InArgs,
+          })),
+          "write"
+        ),
+      "batch",
+      { isWrite: true }
     );
   }
 
   async exec(sql: string): Promise<void> {
-    await this.client.executeMultiple(sql);
+    await this.ensureReady();
+    await this.withTimeout(
+      () => this.client.executeMultiple(sql),
+      "exec",
+      { isWrite: true }
+    );
   }
 
   async transaction<T>(fn: (tx: AsyncDbTx) => Promise<T>): Promise<T> {
-    const tx = await this.client.transaction("write");
+    await this.ensureReady();
+    const tx = await this.withTimeout(
+      () => this.client.transaction("write"),
+      "transaction.begin"
+    );
     const txAdapter: AsyncDbTx = {
       query: async <R = Record<string, unknown>>(
         sql: string,
         params: unknown[] = []
       ): Promise<R[]> => {
-        const res = await tx.execute({ sql, args: params as InArgs });
-        return res.rows as unknown as R[];
+        const res = await this.withTimeout(
+          () => tx.execute({ sql, args: params as InArgs }),
+          "transaction.query"
+        );
+        return normalizeRows<R>(res.rows);
       },
       queryOne: async <R = Record<string, unknown>>(
         sql: string,
         params: unknown[] = []
       ): Promise<R | null> => {
-        const res = await tx.execute({ sql, args: params as InArgs });
-        return (res.rows[0] as unknown as R) || null;
+        const res = await this.withTimeout(
+          () => tx.execute({ sql, args: params as InArgs }),
+          "transaction.queryOne"
+        );
+        const rows = normalizeRows<R>(res.rows);
+        return rows[0] || null;
       },
       run: async (
         sql: string,
         params: unknown[] = []
       ): Promise<{ lastInsertRowid: number; changes: number }> => {
-        const res = await tx.execute({ sql, args: params as InArgs });
+        const res = await this.withTimeout(
+          () => tx.execute({ sql, args: params as InArgs }),
+          "transaction.run",
+          { isWrite: true }
+        );
         return {
           lastInsertRowid: Number(res.lastInsertRowid || 0),
           changes: Number(res.rowsAffected || 0),
         };
       },
       exec: async (sql: string): Promise<void> => {
-        await tx.executeMultiple(sql);
+        await this.withTimeout(
+          () => tx.executeMultiple(sql),
+          "transaction.exec",
+          { isWrite: true }
+        );
       },
     };
 
     try {
       const result = await fn(txAdapter);
-      await tx.commit();
+      await this.withTimeout(() => tx.commit(), "transaction.commit", {
+        isWrite: true,
+      });
       return result;
     } catch (err) {
-      try {
-        await tx.rollback();
-      } catch {
-        // rollback fail-safe
+      const commitTimedOut =
+        err instanceof TursoWriteOutcomeUnknownError &&
+        err.operationType === "transaction.commit";
+      if (!commitTimedOut) {
+        try {
+          await this.withTimeout(() => tx.rollback(), "transaction.rollback");
+        } catch {
+          // rollback fail-safe
+        }
       }
       throw err;
     } finally {
@@ -440,7 +785,8 @@ export function getAsyncDb(): AsyncDb {
         authToken: mode.authToken,
       });
     }
-    asyncDbInstance = new TursoDbAdapter(tursoClientInstance);
+    const adapter = new TursoDbAdapter(tursoClientInstance);
+    asyncDbInstance = adapter;
     return asyncDbInstance;
   }
 
@@ -449,11 +795,8 @@ export function getAsyncDb(): AsyncDb {
   return asyncDbInstance;
 }
 
-const BUNDLED_DATA_DIR = path.join(process.cwd(), "data");
-const BUNDLED_DB_PATH = path.join(BUNDLED_DATA_DIR, "gonoifc.sqlite");
-const IS_VERCEL = Boolean(process.env.VERCEL);
-const DATA_DIR = IS_VERCEL ? os.tmpdir() : BUNDLED_DATA_DIR;
-const DB_PATH = path.join(DATA_DIR, "gonoifc.sqlite");
+const DEFAULT_DATA_DIR = path.join(process.cwd(), "data");
+const DEFAULT_DB_PATH = path.join(DEFAULT_DATA_DIR, "gonoifc.sqlite");
 
 let dbInstance: DatabaseSyncType | null = null;
 
@@ -471,27 +814,11 @@ export function getDb(customDbPath?: string): DatabaseSyncType {
   if (dbInstance) return dbInstance;
 
   const qaPath = customDbPath ? null : resolveLocalSqliteQaPath(process.env);
-  const resolvedPath = customDbPath ?? qaPath ?? DB_PATH;
+  const resolvedPath = customDbPath ?? qaPath ?? DEFAULT_DB_PATH;
   const targetDir = path.dirname(resolvedPath);
 
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
-  }
-
-  // Trên môi trường Serverless (Vercel), thư mục gốc là chỉ-đọc nên ta sao chép DB mẫu sang /tmp để đọc/ghi
-  // LƯU Ý QUAN TRỌNG: Chỉ copy một lần khi DB chưa tồn tại ở /tmp. Tuyệt đối không kiểm tra kích thước file
-  // vì khi người dùng cập nhật dữ liệu (ghi thêm trận, điểm danh, thu tiền), kích thước file sẽ thay đổi!
-  if (
-    IS_VERCEL &&
-    resolvedPath === DB_PATH &&
-    !fs.existsSync(DB_PATH) &&
-    fs.existsSync(BUNDLED_DB_PATH)
-  ) {
-    try {
-      fs.copyFileSync(BUNDLED_DB_PATH, DB_PATH);
-    } catch (err) {
-      console.warn("Không thể sao chép DB từ bundled data:", err);
-    }
   }
 
   const sqlite = process.getBuiltinModule(
@@ -555,7 +882,7 @@ function initSchema(db: DatabaseSyncType) {
       role TEXT NOT NULL DEFAULT 'Thành viên',
       access_role TEXT NOT NULL DEFAULT 'player',
       username TEXT NOT NULL DEFAULT '',
-      pin_code TEXT NOT NULL DEFAULT '1234',
+      pin_code TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
       notes TEXT NOT NULL DEFAULT ''
     );
@@ -654,6 +981,21 @@ function initSchema(db: DatabaseSyncType) {
       summary TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS idempotency_keys (
+      idempotency_key TEXT NOT NULL,
+      actor_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      payload_hash TEXT NOT NULL,
+      status_code INTEGER NOT NULL,
+      response_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL,
+      PRIMARY KEY (idempotency_key, actor_id, action)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_idempotency_expires_at
+      ON idempotency_keys(expires_at);
   `);
 }
 
@@ -686,7 +1028,7 @@ function runMigrations(db: DatabaseSyncType) {
   }
   if (!hasColumn(db, "players", "pin_code")) {
     db.exec(
-      `ALTER TABLE players ADD COLUMN pin_code TEXT NOT NULL DEFAULT '1234';`
+      `ALTER TABLE players ADD COLUMN pin_code TEXT NOT NULL DEFAULT '';`
     );
   }
   if (!hasColumn(db, "players", "birth_year")) {
@@ -1158,6 +1500,13 @@ const ATTENDANCE_MATRIX: Record<string, number[]> = {
   "Nguyễn Tấn Tuấn":     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
 };
 
+function hashRandomUnclaimedPin(): string {
+  const randomSecret = crypto.randomBytes(24).toString("base64url");
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derived = crypto.scryptSync(randomSecret, salt, 64).toString("hex");
+  return `scrypt$${salt}$${derived}`;
+}
+
 export async function seedAsyncInitialDataIfNeeded(
   db: AsyncDb,
   forceReset = false
@@ -1207,7 +1556,7 @@ export async function seedAsyncInitialDataIfNeeded(
       const picIdx = (idx % 14) + 1;
       const res = await tx.run(
         `INSERT INTO players (code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes)
-         VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', '')`,
+         VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, 'Đang sinh hoạt', '')`,
         [
           p.code_order,
           p.full_name,
@@ -1219,6 +1568,7 @@ export async function seedAsyncInitialDataIfNeeded(
           p.bio,
           p.role,
           p.access_role,
+          hashRandomUnclaimedPin(),
         ]
       );
       playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
@@ -1363,7 +1713,7 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
 
     const insertPlayer = db.prepare(`
       INSERT INTO players (code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes)
-      VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', '')
+      VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, 'Đang sinh hoạt', '')
     `);
 
     const playerIdByName = new Map<string, number>();
@@ -1380,7 +1730,8 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
         `/uploads/avatars/member-${picIdx}.jpg`,
         p.bio,
         p.role,
-        p.access_role
+        p.access_role,
+        hashRandomUnclaimedPin()
       );
       playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
     }
@@ -1678,7 +2029,7 @@ interface RawClubPostRow {
   tagged_players_json?: string;
 }
 
-interface RawPlayerRow extends Player {
+interface RawPlayerRow extends Omit<Player, "pin_code"> {
   gallery_urls_json?: string;
 }
 
@@ -1708,6 +2059,87 @@ interface RawSponsorRow {
   created_at?: string;
 }
 
+const TEAM_SETTINGS_PROJECTION =
+  "id, team_name, short_name, default_match_fee, bank_bin, bank_name, bank_account_no, bank_account_name, tournament_fund_reserve, tournament_fund_note, fanpage_url";
+
+const PLAYER_PUBLIC_PROJECTION =
+  "id, code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, profile_image_url, bio, role, access_role, username, status, notes, hometown, nickname, playing_style, gallery_urls_json";
+
+const MATCH_PROJECTION =
+  "id, match_number, label, match_date, kickoff_time, venue, opponent, fee_per_player, pitch_cost, payer_name, team_score, opponent_score, status, notes";
+
+const MATCH_ATTENDANCE_PROJECTION =
+  "id, match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note";
+
+const OTHER_INCOME_PROJECTION =
+  "id, income_date, contributor, amount, fund_type, note";
+
+const EXPENSE_PROJECTION =
+  "id, expense_date, category, description, amount, payer, match_id";
+
+const CLUB_POST_PROJECTION =
+  "id, category, category_label, category_badge_class, title, slug, summary, published_date, event_year, author, featured_image, gallery_images_json, reading_time, paragraphs_json, quote, highlights_json, tagged_players_json";
+
+const SPONSOR_PROJECTION =
+  "id, name, tier, logo_url, banner_url, website_url, description, start_date, end_date, display_positions_json, is_active, sort_order, note, created_at";
+
+const DEFAULT_TEAM_SETTINGS: TeamSettings = {
+  id: 1,
+  team_name: "Đội Bóng HĐH Gò Nổi",
+  short_name: "FC HĐH GÒ NỔI",
+  default_match_fee: 100000,
+  bank_bin: "970422",
+  bank_name: "MB Bank",
+  bank_account_no: "",
+  bank_account_name: "NGUYEN THE TIENG",
+  tournament_fund_reserve: 2301700,
+  tournament_fund_note: "",
+  fanpage_url: FANPAGE_URL,
+};
+
+export type PublicFinancialReportSourceData = Pick<
+  FullAppData,
+  "settings" | "matches" | "attendances" | "otherIncomes" | "expenses"
+>;
+
+export async function getPublicFinancialReportData(): Promise<PublicFinancialReportSourceData> {
+  const db = getAsyncDb();
+  const [settingsRow, matches, attendances, otherIncomes, expenses] =
+    await Promise.all([
+      db.queryOne<Pick<TeamSettings, "team_name" | "tournament_fund_reserve">>(
+        "SELECT team_name, tournament_fund_reserve FROM team_settings WHERE id = 1"
+      ),
+      db.query<MatchRecord>(
+        `SELECT ${MATCH_PROJECTION} FROM matches ORDER BY match_number ASC, match_date ASC`
+      ),
+      db.query<MatchAttendance>(
+        `SELECT ${MATCH_ATTENDANCE_PROJECTION} FROM match_attendances`
+      ),
+      db.query<OtherIncome>(
+        `SELECT ${OTHER_INCOME_PROJECTION} FROM other_incomes ORDER BY income_date DESC, id DESC`
+      ),
+      db.query<ExpenseRecord>(
+        `SELECT ${EXPENSE_PROJECTION} FROM expenses ORDER BY expense_date ASC, id ASC`
+      ),
+    ]);
+
+  const settings: TeamSettings = {
+    ...DEFAULT_TEAM_SETTINGS,
+    team_name: settingsRow?.team_name ?? DEFAULT_TEAM_SETTINGS.team_name,
+    tournament_fund_reserve:
+      settingsRow?.tournament_fund_reserve ??
+      DEFAULT_TEAM_SETTINGS.tournament_fund_reserve,
+  };
+
+  return {
+    settings,
+    matches,
+    attendances,
+    otherIncomes,
+    expenses,
+  };
+}
+
 export async function getFullAppData(): Promise<FullAppData> {
   const db = getAsyncDb();
   await Promise.all([ensureClubPostsReady(db), ensureSponsorsReady(db)]);
@@ -1722,44 +2154,48 @@ export async function getFullAppData(): Promise<FullAppData> {
     rawPosts,
     rawSponsors,
   ] = await Promise.all([
-    db.queryOne<TeamSettings>("SELECT * FROM team_settings WHERE id = 1"),
-    db.query<RawPlayerRow>("SELECT * FROM players ORDER BY code_order ASC, id ASC"),
-    db.query<MatchRecord>("SELECT * FROM matches ORDER BY match_number ASC, match_date ASC"),
-    db.query<MatchAttendance>("SELECT * FROM match_attendances"),
-    db.query<OtherIncome>("SELECT * FROM other_incomes ORDER BY income_date DESC, id DESC"),
-    db.query<ExpenseRecord>("SELECT * FROM expenses ORDER BY expense_date ASC, id ASC"),
+    db.queryOne<TeamSettings>(
+      `SELECT ${TEAM_SETTINGS_PROJECTION} FROM team_settings WHERE id = 1`
+    ),
+    db.query<RawPlayerRow>(
+      `SELECT ${PLAYER_PUBLIC_PROJECTION} FROM players ORDER BY code_order ASC, id ASC`
+    ),
+    db.query<MatchRecord>(
+      `SELECT ${MATCH_PROJECTION} FROM matches ORDER BY match_number ASC, match_date ASC`
+    ),
+    db.query<MatchAttendance>(
+      `SELECT ${MATCH_ATTENDANCE_PROJECTION} FROM match_attendances`
+    ),
+    db.query<OtherIncome>(
+      `SELECT ${OTHER_INCOME_PROJECTION} FROM other_incomes ORDER BY income_date DESC, id DESC`
+    ),
+    db.query<ExpenseRecord>(
+      `SELECT ${EXPENSE_PROJECTION} FROM expenses ORDER BY expense_date ASC, id ASC`
+    ),
     db
-      .query<RawClubPostRow>("SELECT * FROM club_posts ORDER BY published_date DESC, rowid DESC")
+      .query<RawClubPostRow>(
+        `SELECT ${CLUB_POST_PROJECTION} FROM club_posts ORDER BY published_date DESC, rowid DESC`
+      )
       .catch(() => null),
     db
-      .query<RawSponsorRow>("SELECT * FROM sponsors ORDER BY sort_order ASC, id ASC")
+      .query<RawSponsorRow>(
+        `SELECT ${SPONSOR_PROJECTION} FROM sponsors ORDER BY sort_order ASC, id ASC`
+      )
       .catch((err) => {
         console.error("Failed to query sponsors:", err);
         return null;
       }),
   ]);
 
-  const settings = settingsRow || {
-    id: 1,
-    team_name: "Đội Bóng HĐH Gò Nổi",
-    short_name: "FC HĐH GÒ NỔI",
-    default_match_fee: 100000,
-    bank_bin: "970422",
-    bank_name: "MB Bank",
-    bank_account_no: "",
-    bank_account_name: "NGUYEN THE TIENG",
-    tournament_fund_reserve: 2301700,
-    tournament_fund_note: "",
-    fanpage_url: FANPAGE_URL,
-  };
+  const settings = settingsRow || DEFAULT_TEAM_SETTINGS;
 
-  // Bảo mật: Xóa mã PIN cá nhân trong dữ liệu trả về cho client/khách truy cập, chuẩn hóa năm sinh số nguyên
-  const players = rawPlayers.map((p) => ({
+  // Bảo mật: Không truy vấn/trả mã PIN cá nhân cho client/khách truy cập, chuẩn hóa năm sinh số nguyên
+  const players: Player[] = rawPlayers.map(({ gallery_urls_json, ...p }) => ({
     ...p,
     birth_year: formatBirthYear(p.birth_year),
     pin_code: "",
     profile_image_url: p.profile_image_url || "",
-    gallery_urls: safeJsonParseArray(p.gallery_urls_json || "[]"),
+    gallery_urls: safeJsonParseArray(gallery_urls_json || "[]"),
   }));
 
   const posts: ClubActivityPost[] =
@@ -1779,7 +2215,7 @@ export async function getFullAppData(): Promise<FullAppData> {
           galleryImages: safeJsonParseArray(r.gallery_images_json),
           readingTime: r.reading_time || "3 phút đọc",
           paragraphs: safeJsonParseArray(r.paragraphs_json),
-          quote: r.quote || undefined,
+          ...(r.quote ? { quote: r.quote } : {}),
           highlights: safeJsonParseArray(r.highlights_json),
           taggedPlayerNames: safeJsonParseArray(r.tagged_players_json || "[]"),
         }))
@@ -1810,19 +2246,17 @@ export async function getFullAppData(): Promise<FullAppData> {
     expenses,
   });
 
-  return JSON.parse(
-    JSON.stringify({
-      settings,
-      players,
-      matches,
-      attendances,
-      otherIncomes,
-      expenses,
-      summary,
-      posts,
-      sponsors,
-    })
-  );
+  return {
+    settings,
+    players,
+    matches,
+    attendances,
+    otherIncomes,
+    expenses,
+    summary,
+    posts,
+    sponsors,
+  };
 }
 
 export interface AuditLogEntry {
@@ -1835,12 +2269,13 @@ export interface AuditLogEntry {
   created_at: string;
 }
 
-let auditTableInitPromise: Promise<void> | null = null;
+const auditTableInitByDb = new WeakMap<AsyncDb, Promise<void>>();
 
-export async function ensureAuditLogsReady(): Promise<void> {
-  if (!auditTableInitPromise) {
-    auditTableInitPromise = (async () => {
-      const db = getAsyncDb();
+export async function ensureAuditLogsReady(targetDb?: AsyncDb): Promise<void> {
+  const db = targetDb ?? getAsyncDb();
+  let pending = auditTableInitByDb.get(db);
+  if (!pending) {
+    pending = (async () => {
       await db.run(`
         CREATE TABLE IF NOT EXISTS audit_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1853,11 +2288,12 @@ export async function ensureAuditLogsReady(): Promise<void> {
         )
       `);
     })().catch((err) => {
-      auditTableInitPromise = null;
+      auditTableInitByDb.delete(db);
       throw err;
     });
+    auditTableInitByDb.set(db, pending);
   }
-  return auditTableInitPromise;
+  return pending;
 }
 
 export async function recordAuditLog(params: {
@@ -1871,7 +2307,7 @@ export async function recordAuditLog(params: {
   try {
     if (!params.tx) {
       await ensureAuditLogsReady();
-    } else if (!auditTableInitPromise) {
+    } else if (!auditTableInitByDb.has(getAsyncDb())) {
       await params.tx.run(`
         CREATE TABLE IF NOT EXISTS audit_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1886,14 +2322,15 @@ export async function recordAuditLog(params: {
     }
     const targetDb: AsyncDbTx = params.tx ?? getAsyncDb();
     await targetDb.run(
-      `INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, summary)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO audit_logs (actor_id, actor_name, actor_role, action, summary, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         params.actorId,
         String(params.actorName || "").slice(0, 120),
         String(params.actorRole || "player").slice(0, 32),
         String(params.action || "").slice(0, 80),
         String(params.summary || "").slice(0, 300),
+        new Date().toISOString(),
       ]
     );
   } catch (err) {
@@ -1902,6 +2339,109 @@ export async function recordAuditLog(params: {
     }
     console.error("recordAuditLog warning:", err);
   }
+}
+
+const idempotencyTableInitByDb = new WeakMap<AsyncDb, Promise<void>>();
+
+const REQUIRED_IDEMPOTENCY_COLUMNS = [
+  "idempotency_key",
+  "actor_id",
+  "action",
+  "payload_hash",
+  "status_code",
+  "response_json",
+  "created_at",
+  "expires_at",
+] as const;
+
+const REQUIRED_IDEMPOTENCY_PK = ["idempotency_key", "actor_id", "action"] as const;
+
+/**
+ * Read-only runtime readiness check for `idempotency_keys` and `idx_idempotency_expires_at`.
+ * Verifies object presence, required columns, composite primary key, and index definition.
+ * Schema creation is performed exclusively via an explicitly authorized migration procedure
+ * (`scripts/migrations/phase7-idempotency-v1.mjs` for `--sqlite` / `--env staging`, or an
+ * Owner-authorized Production DDL procedure). Runtime request handling never executes DDL.
+ * Fails closed with `IdempotencySchemaMissingError` (HTTP 503) if contract validation fails.
+ */
+export async function ensureIdempotencyKeysReady(targetDb?: AsyncDb): Promise<void> {
+  const db = targetDb ?? getAsyncDb();
+  let pending = idempotencyTableInitByDb.get(db);
+  if (!pending) {
+    pending = (async () => {
+      const rows = await db.query<{ type: string; name: string }>(
+        `SELECT type, name FROM sqlite_master
+         WHERE (type = 'table' AND name = 'idempotency_keys')
+            OR (type = 'index' AND name = 'idx_idempotency_expires_at')`
+      );
+      const hasTable = rows.some(
+        (r) => String(r.type) === "table" && String(r.name) === "idempotency_keys"
+      );
+      const hasIndex = rows.some(
+        (r) => String(r.type) === "index" && String(r.name) === "idx_idempotency_expires_at"
+      );
+      const missing: string[] = [];
+      if (!hasTable) missing.push("table:idempotency_keys");
+      if (!hasIndex) missing.push("index:idx_idempotency_expires_at");
+
+      if (hasTable) {
+        const tableCols = await db.query<{ name: string; pk: number }>(
+          `PRAGMA table_info(idempotency_keys)`
+        );
+        const colNames = new Set(tableCols.map((c) => String(c.name)));
+        for (const reqCol of REQUIRED_IDEMPOTENCY_COLUMNS) {
+          if (!colNames.has(reqCol)) {
+            missing.push(`column:idempotency_keys.${reqCol}`);
+          }
+        }
+        const pkCols = tableCols
+          .filter((c) => Number(c.pk) > 0)
+          .sort((a, b) => Number(a.pk) - Number(b.pk))
+          .map((c) => String(c.name));
+        const pkMatches =
+          pkCols.length === REQUIRED_IDEMPOTENCY_PK.length &&
+          REQUIRED_IDEMPOTENCY_PK.every((col, idx) => pkCols[idx] === col);
+        if (!pkMatches) {
+          missing.push(
+            `pk:idempotency_keys(${pkCols.join(",") || "none"}!=${REQUIRED_IDEMPOTENCY_PK.join(",")})`
+          );
+        }
+      }
+
+      if (hasTable && hasIndex) {
+        const indexList = await db.query<{ name: string }>(
+          `PRAGMA index_list(idempotency_keys)`
+        );
+        const indexAttached = indexList.some(
+          (idx) => String(idx.name) === "idx_idempotency_expires_at"
+        );
+        if (!indexAttached) {
+          missing.push("index_table:idx_idempotency_expires_at!=idempotency_keys");
+        } else {
+          const indexCols = await db.query<{ seqno: number; name: string }>(
+            `PRAGMA index_info('idx_idempotency_expires_at')`
+          );
+          const orderedIndexCols = [...indexCols]
+            .sort((a, b) => Number(a.seqno) - Number(b.seqno))
+            .map((c) => String(c.name));
+          if (orderedIndexCols.length !== 1 || orderedIndexCols[0] !== "expires_at") {
+            missing.push(
+              `index_cols:idx_idempotency_expires_at(${orderedIndexCols.join(",") || "none"}!=expires_at)`
+            );
+          }
+        }
+      }
+
+      if (missing.length > 0) {
+        throw new IdempotencySchemaMissingError(missing);
+      }
+    })().catch((err) => {
+      idempotencyTableInitByDb.delete(db);
+      throw err;
+    });
+    idempotencyTableInitByDb.set(db, pending);
+  }
+  return pending;
 }
 
 export async function getAuditLogs(limit = 50): Promise<AuditLogEntry[]> {

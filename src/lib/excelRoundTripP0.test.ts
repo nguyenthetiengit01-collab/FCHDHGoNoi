@@ -613,6 +613,7 @@ describe("Phase 5.2 P0: Import Transaction Atomicity & Excel Round-Trip Integrit
     const close = vi.fn();
 
     const mockClient = {
+      execute: vi.fn().mockResolvedValue({ rows: [], rowsAffected: 0 }),
       transaction: vi.fn().mockResolvedValue({
         execute,
         executeMultiple: vi.fn().mockResolvedValue(undefined),

@@ -1,11 +1,18 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 import { getAsyncDb } from "./db";
+import { validatePasswordStrength, type PasswordStrengthResult } from "./passwordStrength";
+export { validatePasswordStrength, type PasswordStrengthResult };
 import {
   clearAuthRateLimitOnSuccess,
   evaluateAuthRateLimit,
 } from "./authRateLimit";
-import type { Player, FullAppData, PublicPlayerDTO } from "@/types/app";
+import type {
+  Player,
+  FullAppData,
+  PublicPlayerDTO,
+  SafePlayerPayload,
+} from "@/types/app";
 
 const DEV_TEST_FALLBACK_SECRET =
   "fc-hdh-go-noi-sapphire-secret-key-2026-secure-32chars";
@@ -132,12 +139,15 @@ export function hashPassword(password: string): string {
 }
 
 /**
- * Tạo dấu vân tay ngắn cho mật khẩu để nhúng vào session token
+ * Tạo dấu vân tay ngắn cho mật khẩu để nhúng vào session token.
+ * Fail-closed: trả về null nếu thiếu credential material (không fallback về "1234").
  */
-export function getPasswordFingerprint(pinOrHash: string): string {
+export function getPasswordFingerprint(pinOrHash?: string | null): string | null {
+  const clean = String(pinOrHash || "").trim();
+  if (!clean) return null;
   return crypto
     .createHash("sha256")
-    .update(String(pinOrHash || "1234").trim())
+    .update(clean)
     .digest("hex")
     .slice(0, 12);
 }
@@ -191,89 +201,7 @@ export function isDefaultPassword(pinOrHash?: string | null): boolean {
   return verifyPassword("1234", pinOrHash);
 }
 
-/**
- * Kiểm tra độ mạnh và tính hợp lệ của mật khẩu mới
- */
-export function validatePasswordStrength(
-  password: string,
-  username = ""
-): { valid: boolean; score: number; message?: string; error?: string } {
-  const p = String(password || "").trim();
-
-  if (p.length < 6) {
-    const msg = "Mật khẩu phải có độ dài tối thiểu từ 6 ký tự trở lên.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  if (p.length > 128) {
-    const msg = "Mật khẩu không được vượt quá 128 ký tự.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  if (/^(.)\1{5,}$/.test(p)) {
-    const msg = "Mật khẩu quá đơn giản và dễ đoán. Vui lòng chọn mật khẩu an toàn hơn.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  const commonWeak = [
-    "123456",
-    "12345678",
-    "123456789",
-    "000000",
-    "111111",
-    "666666",
-    "888888",
-    "password",
-    "matkhau",
-    "qwerty",
-    "admin123",
-    "fchdhgonoi",
-    "gonoi123",
-  ];
-
-  if (commonWeak.includes(p.toLowerCase())) {
-    const msg = "Mật khẩu quá đơn giản và dễ đoán. Vui lòng chọn mật khẩu an toàn hơn.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  if (username && p.toLowerCase() === username.trim().toLowerCase()) {
-    const msg = "Mật khẩu không được trùng với tên đăng nhập.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  // Đánh giá điểm sức mạnh từ 1 đến 4
-  let score = 1;
-  if (p.length >= 8) score++;
-  if (/[a-zA-Z]/.test(p) && /[0-9]/.test(p)) score++;
-  if (/[^a-zA-Z0-9]/.test(p) || p.length >= 10) score++;
-
-  return { valid: true, score };
-}
+// validatePasswordStrength re-exported from ./passwordStrength
 
 // =========================================================================
 // 2. CHỐNG BRUTE-FORCE VÀ TẠM KHÓA ĐĂNG NHẬP (RATE LIMITING)
@@ -394,6 +322,11 @@ export function createSessionToken(
   player: Player,
   durationHours = 24 * 7
 ): string {
+  const pwdFingerprint = getPasswordFingerprint(player.pin_code);
+  if (!pwdFingerprint) {
+    throw new Error("Cannot create session token for account with missing credential material.");
+  }
+
   const exp = Math.floor(Date.now() / 1000) + durationHours * 3600;
   const payload: SessionPayload = {
     playerId: player.id,
@@ -401,7 +334,7 @@ export function createSessionToken(
     fullName: player.full_name,
     shortName: player.short_name,
     jerseyNumber: player.jersey_number,
-    pwdFingerprint: getPasswordFingerprint(player.pin_code || "1234"),
+    pwdFingerprint,
     exp,
   };
 
@@ -456,7 +389,9 @@ export function verifySessionToken(
       typeof payload.playerId !== "number" ||
       !Number.isInteger(payload.playerId) ||
       typeof payload.exp !== "number" ||
-      (payload.accessRole !== "manager" && payload.accessRole !== "player")
+      (payload.accessRole !== "manager" && payload.accessRole !== "player") ||
+      typeof payload.pwdFingerprint !== "string" ||
+      !payload.pwdFingerprint.trim()
     ) {
       return null;
     }
@@ -467,11 +402,11 @@ export function verifySessionToken(
       return null; // Hết hạn
     }
 
-    // Nếu cung cấp mật khẩu hiện tại trong DB: đối chiếu dấu vân tay
-    if (currentPinOrHash && payload.pwdFingerprint) {
+    // Nếu cung cấp mật khẩu hiện tại trong DB: đối chiếu dấu vân tay (fail-closed nếu DB thiếu credential)
+    if (currentPinOrHash !== undefined) {
       const currentFingerprint = getPasswordFingerprint(currentPinOrHash);
-      if (payload.pwdFingerprint !== currentFingerprint) {
-        return null; // Mật khẩu đã thay đổi, vô hiệu hóa phiên cũ
+      if (!currentFingerprint || payload.pwdFingerprint !== currentFingerprint) {
+        return null; // Mật khẩu đã thay đổi hoặc thiếu credential, vô hiệu hóa phiên cũ
       }
     }
 
@@ -539,7 +474,7 @@ export async function verifyCredentials(
   clientIp = "local"
 ): Promise<{
   success: boolean;
-  status?: 200 | 401 | 429 | 503;
+  status?: 200 | 401 | 403 | 429 | 503;
   errorCode?: string;
   waitSeconds?: number;
   player?: Player;
@@ -627,7 +562,16 @@ export async function verifyCredentials(
     [matched.id]
   );
 
-  const storedPinOrHash = pinRow?.pin_code || "1234";
+  const storedPinOrHash = String(pinRow?.pin_code || "").trim();
+  if (!storedPinOrHash) {
+    runDummyScryptVerification(cleanPin, "missing");
+    return {
+      success: false,
+      status: 401,
+      error: UNIFIED_LOGIN_ERROR_MESSAGE,
+    };
+  }
+
   const isMatch = verifyPassword(cleanPin, storedPinOrHash);
 
   if (!isMatch) {
@@ -639,6 +583,17 @@ export async function verifyCredentials(
       success: false,
       status: 401,
       error: UNIFIED_LOGIN_ERROR_MESSAGE,
+    };
+  }
+
+  // Từ chối đăng nhập và không auto-rehash nếu tài khoản vẫn đang dùng mã PIN mặc định "1234"
+  if (isDefaultPassword(storedPinOrHash)) {
+    return {
+      success: false,
+      status: 403,
+      errorCode: "DEFAULT_PIN_RESET_REQUIRED",
+      error:
+        "Tài khoản đang sử dụng mã PIN mặc định không còn được phép đăng nhập. Vui lòng liên hệ Ban Quản Lý để được cấp lại mã PIN mới.",
     };
   }
 
@@ -772,17 +727,15 @@ export async function requireManagerSession(
     };
   }
 
-  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi
-  if (session.pwdFingerprint) {
-    const currentFingerprint = getPasswordFingerprint(player.pin_code || "1234");
-    if (session.pwdFingerprint !== currentFingerprint) {
-      return {
-        authorized: false,
-        status: 401,
-        error:
-          "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
-      };
-    }
+  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi hoặc thiếu credential
+  const currentFingerprint = getPasswordFingerprint(player.pin_code);
+  if (!currentFingerprint || !session.pwdFingerprint || session.pwdFingerprint !== currentFingerprint) {
+    return {
+      authorized: false,
+      status: 401,
+      error:
+        "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
+    };
   }
 
   return { authorized: true, status: 200, session, player };
@@ -818,17 +771,15 @@ export async function requirePlayerSession(
     };
   }
 
-  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi
-  if (session.pwdFingerprint) {
-    const currentFingerprint = getPasswordFingerprint(player.pin_code || "1234");
-    if (session.pwdFingerprint !== currentFingerprint) {
-      return {
-        authorized: false,
-        status: 401,
-        error:
-          "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
-      };
-    }
+  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi hoặc thiếu credential
+  const currentFingerprint = getPasswordFingerprint(player.pin_code);
+  if (!currentFingerprint || !session.pwdFingerprint || session.pwdFingerprint !== currentFingerprint) {
+    return {
+      authorized: false,
+      status: 401,
+      error:
+        "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
+    };
   }
 
   return { authorized: true, status: 200, session, player };
@@ -928,5 +879,61 @@ export function sanitizeDataForPlayer(
     summary: data.summary,
     posts: data.posts,
     sponsors: data.sponsors,
+  };
+}
+
+/**
+ * Chiếu đối tượng cầu thủ theo danh sách trường cho phép (allow-list),
+ * loại bỏ hoàn toàn pin_code và mọi thông tin băm/dấu vân tay mật khẩu khỏi API DTO.
+ */
+export function projectSafePlayer(player: Player): SafePlayerPayload {
+  return {
+    id: player.id,
+    code_order: player.code_order,
+    full_name: player.full_name,
+    short_name: player.short_name,
+    jersey_number: player.jersey_number,
+    position: player.position,
+    phone: player.phone,
+    birth_year: player.birth_year,
+    avatar_url: player.avatar_url,
+    profile_image_url: player.profile_image_url || "",
+    role: player.role,
+    access_role: player.access_role,
+    ...(player.username !== undefined ? { username: player.username } : {}),
+    status: player.status,
+    notes: player.notes,
+    ...(player.bio !== undefined ? { bio: player.bio } : {}),
+    ...(player.hometown !== undefined ? { hometown: player.hometown } : {}),
+    ...(player.nickname !== undefined ? { nickname: player.nickname } : {}),
+    ...(player.playing_style !== undefined ? { playing_style: player.playing_style } : {}),
+    ...(player.gallery_urls !== undefined ? { gallery_urls: player.gallery_urls } : {}),
+  };
+}
+
+export type SafeTeamResponseData = Omit<FullAppData, "players"> & {
+  players: SafePlayerPayload[];
+};
+
+/**
+ * Chuẩn hóa và lọc dữ liệu trả về cho API (/api/team, /api/import) theo vai trò hiện hành:
+ * - Manager: xem toàn bộ dữ liệu nhưng vẫn loại bỏ hoàn toàn thuộc tính pin_code.
+ * - Player: giữ hồ sơ của chính mình, ẩn SĐT/username/notes/access_role của người khác và tournament_fund_note.
+ * - Guest (null): chỉ giữ dữ liệu công khai.
+ */
+export function sanitizeTeamResponseData(
+  data: FullAppData,
+  session: Pick<SessionPayload, "playerId" | "accessRole"> | null
+): SafeTeamResponseData {
+  const scoped: FullAppData =
+    session && session.accessRole === "manager"
+      ? data
+      : session
+        ? sanitizeDataForPlayer(data, session.playerId)
+        : sanitizeDataForPublic(data);
+
+  return {
+    ...scoped,
+    players: scoped.players.map(projectSafePlayer),
   };
 }

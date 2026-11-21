@@ -1,8 +1,8 @@
 # Phase 7 — Release Go / No-Go Checklist
 
 - **Project**: FC HĐH Gò Nổi tại TP.HCM
-- **Target Baseline**: `main` @ `fd1b150c94c54f16b0f0888aa57de3c3cb4c1ea7`
-- **Current Decision**: **NO-GO** (Requires Phase 7.1 Remediation & Staging Rehearsal)
+- **Target Baseline**: `main` @ `c37dfd3200547210e8c6308b34c44db4fe18c04e` (+ Phase 7.1 `fix/phase-7.1-pre-release-remediation`)
+- **Current Decision**: **NO-GO** (`P0-01` configuration verified / enforcement behavior verification pending; P1 owner/Preview sign-off pending; Remote Staging **BLOCKED**; Preview smoke/rollback **NOT VERIFIED**; Real-device QA **NOT VERIFIED** — see [phase-7.2-staging-rehearsal-results.md](./phase-7.2-staging-rehearsal-results.md))
 
 ---
 
@@ -10,50 +10,61 @@
 
 | Gate | Status | Evidence / Notes |
 | :--- | :---: | :--- |
-| **No unresolved P0 findings** | **FAIL** | `P0-01`: `main` branch protection is disabled (`protected: False` on GitHub). |
-| **No unresolved P1 findings (or accepted mitigation)** | **FAIL** | 13 P1 findings open (`P1-01` through `P1-13`). |
-| **Post-merge CI green on `main`** | **PASS** | Run `44658813350` on `fd1b150c`: `Quality Gates`, Playwright Linux & Windows all `success`. |
-| **Synthetic Backup & Restore drill verified** | **PASS** | Local synthetic v3 backup + X25519 encrypt/decrypt + restore + `integrity_check` (`ok`) + `foreign_key_check` (`[]`) passed. |
-| **Financial unit tests (`financialCalculations.test.ts`)** | **PASS** | `6/6` tests passed; API/Excel tests passed in CI `Quality Gates`. |
-| **Production backup scheduled run verified** | **NOT VERIFIED** | Manual `workflow_dispatch` succeeded (`43839671777`); `0` `schedule` runs yet (first Sunday `2026-11-22`). |
-| **Production Vercel env & Preview separation verified** | **NOT VERIFIED** | External to repo; requires Owner Dashboard verification. |
-| **Real-device iOS/Android/PWA checklist signed off** | **NOT VERIFIED** | All items in `docs/pwa-real-device-checklist.md` are `[ ]`. |
+| **Main branch protection configuration (`P0-01`)** | **OWNER / OPERATIONAL VERIFICATION PENDING** | Ruleset `27703288` (`main`) is `active`; `branches/main` `protected: true`; 3/3 required checks (`Quality Gates (Node 22.23.5)`, `Playwright Visual & Accessibility QA (Linux)`, `Playwright Visual & Accessibility QA (Windows)`). Config verified; PR/merge enforcement behavior verification pending. |
+| **No unresolved P1 findings (or accepted mitigation)** | **FAIL** | `P1-01`–`P1-09` are `CODE REMEDIATED / CI VERIFIED` in PR #16 (`c7e95719467207441722a9fbc065fc73fa1f676c`); `P1-03` (history classification) & `P1-10`–`P1-13` (DR/ops sign-off) remain `OWNER / OPERATIONAL VERIFICATION PENDING`. |
+| **CI green on `main` & PR #16** | **PASS** | `main` baseline Run `44664470156` on `c37dfd32` (`success`). PR #16 CI evidence snapshot: Run `44718546627` on `cb345495134d965f5e6f661705a1ae287909af80` (`completed / success`: `Quality Gates (Node 22.23.5)`, `Playwright Visual & Accessibility QA (Linux)`, `Playwright Visual & Accessibility QA (Windows)`). For dynamic verification of the latest HEAD after this documentation commit, see [PR #16 Checks](https://github.com/nguyenthetiengit01-collab/FCHDHGoNoi/pull/16/checks). |
+| **Synthetic Backup & Restore drill verified** | **PASS** | Local synthetic v3 backup + X25519 encrypt/decrypt + atomic local SQLite restore + failure injection (`phase72RestoreHardening.test.ts`) + `integrity_check` (`ok`) + `foreign_key_check` (`[]`) passed. Remote Staging remains `BLOCKED`. |
+| **Financial & Full Test Suite (Local)** | **PASS** | Local Coding Agent run on `c7e95719467207441722a9fbc065fc73fa1f676c`: Vitest `51/51` files (`390/390` tests passed, incl. `6/6` `financialCalculations.test.ts`); Playwright `11/11` passed (`LCP: 2692ms`, `CLS: 0`); `npm audit --omit=dev` = `0` vulnerabilities (`6` dev-only moderate via `eslint-config-next@15.5.29`). |
+| **Production backup scheduled run verified** | **NOT VERIFIED** | Manual `workflow_dispatch` succeeded (`43839671777`); `0` `schedule` runs yet. Cron `0 20 * * 0` UTC chạy kế tiếp vào `2026-11-22 20:00 UTC` (`2026-11-23 03:00 UTC+7`, có thể trễ theo tải GitHub Actions) trên default branch `main` (chưa gồm `Report backup failure alert` của PR #16); lần chạy này chỉ chứng minh backup theo lịch trên `main`, không gộp làm bằng chứng workflow PR #16. |
+| **Production Vercel env & Preview separation verified** | **NOT VERIFIED** | External to repo; `OWNER / OPERATIONAL VERIFICATION PENDING`. |
+| **Real-device iOS/Android/PWA checklist signed off** | **NOT VERIFIED** | All items in `docs/pwa-real-device-checklist.md` remain `[ ]`; `OWNER / OPERATIONAL VERIFICATION PENDING`. |
 
 ---
 
 ## 2. Pre-Release Sign-Off Checklist (Required Before Phase 7.1 -> GO)
 
+> **Standardized Classification**:
+> - `CODE REMEDIATED / CI VERIFIED`: Source fix + automated tests/build verified locally and in GitHub Actions CI.
+> - `OWNER / OPERATIONAL VERIFICATION PENDING`: Requires Owner, Reviewer, or Operator execution/sign-off outside automated CI.
+> - `OPEN / NOT REMEDIATED`: Known deferred/open issue tracked for future remediation or cleanup.
+
 ### A. Governance & GitHub (`P0-01`, `P2-15`, `P3-07`)
-- [ ] Enable GitHub Branch Protection on `main` (require PR + 1 approval, dismiss stale reviews, require `Quality Gates (Node 22.23.5)`, `Playwright Visual & Accessibility QA (Linux)`, `Playwright Visual & Accessibility QA (Windows)`, `Vercel`; block force-push/deletion).
-- [ ] Enable `delete_branch_on_merge` and prune merged phase branches.
-- [ ] Align `package.json` version, Git tag, GitHub Release, and release notes.
+- [x] Configure GitHub `main` Ruleset (`ID: 27703288`) and independently verify all three required checks (`Quality Gates (Node 22.23.5)`, `Playwright Visual & Accessibility QA (Linux)`, `Playwright Visual & Accessibility QA (Windows)`) through GitHub API (`protected: true`, `enforcement: active`). *(Config verified; enforcement behavior pending below)*
+- [ ] **(`OWNER / OPERATIONAL VERIFICATION PENDING` — `P0-01`)** Verify effective PR/merge enforcement without performing a direct push to `main`.
+- [ ] **(`OPEN / NOT REMEDIATED` — `P3-07`)** Enable `delete_branch_on_merge` and prune merged phase branches.
+- [ ] **(`OWNER / OPERATIONAL VERIFICATION PENDING` — `P2-15`)** Align `package.json` version, Git tag, GitHub Release, and release notes at release time.
 
 ### B. Security & Privacy (`P1-01`, `P1-02`, `P1-03`, `P1-04`, `P2-01`–`P2-05`)
-- [ ] Fix `POST /api/team` response sanitization for `player` role and strip `pin_code` in `POST /api/team` & `POST /api/import`.
-- [ ] Fix `change_own_password` cookie re-issuance to compute `pwdFingerprint` from the new `scrypt$` hash.
-- [ ] Remove `outputFileTracingIncludes` (`next.config.ts`) and dead `/tmp` copy (`src/lib/db.ts`), and untrack `data/gonoifc.sqlite` from Git (verify whether Git history scrub / PIN rotation is needed).
-- [ ] Add `headers()` in `next.config.ts` (`CSP`, `HSTS`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`).
-- [ ] Add `Cache-Control: no-store` to `/api/auth`, `/api/webp`, and `POST /api/team`.
-- [ ] Migrate 5 routes from `getAuthSession` to DB-backed `requirePlayerSession` and add `verifyCsrfOrigin` to `POST /api/webp`.
-- [ ] Triage/upgrade `@vercel/blob` / `zod >=4.6.6` (`npm audit --omit=dev`).
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P1-01`)** Fix `POST /api/team` response sanitization for `player` role and strip `pin_code` in `POST /api/team` & `POST /api/import`.
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P1-02`)** Fix `change_own_password` cookie re-issuance to compute `pwdFingerprint` from the new `scrypt$` hash.
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P1-03` runtime/working-tree)** Remove `outputFileTracingIncludes` (`next.config.ts`) and dead `/tmp` copy (`src/lib/db.ts`), and untrack `data/gonoifc.sqlite` from PR #16 (`NFT_SQLITE_COUNT=0`). *(Historical Git blob classification remains `OWNER / OPERATIONAL VERIFICATION PENDING` in Section 2E)*
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P1-04`)** Add `headers()` in `next.config.ts` (`CSP`, `HSTS`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`). *(Preview smoke check pending)*
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P2-04`)** Add `Cache-Control: no-store` to `/api/auth`, `/api/webp`, and `POST /api/team`.
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P2-01`, `P2-02`)** Migrate 5 routes from `getAuthSession` to DB-backed `requirePlayerSession` and add `verifyCsrfOrigin` to `POST /api/webp`.
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P2-03` prod deps)** Production audit (`npm audit --omit=dev`) = `0` vulnerabilities (`zod` override `4.6.7`). Full audit = `6 moderate` (`DEV-ONLY`, zero runtime exposure).
+- [ ] **(`OWNER / OPERATIONAL VERIFICATION PENDING` — `P2-03` dev deps)** Owner acceptance: `PENDING` for the `6 moderate` `DEV-ONLY` advisories (`minimatch` `GHSA-g3hv-75wg-m249` + 5 `@typescript-eslint/*` via `eslint-config-next@15.5.29`, `0` runtime exposure) until explicit Owner approval evidence exists.
 
-### C. Financial & Data Integrity (`P1-05`, `P1-06`, `P2-08`–`P2-10`)
-- [ ] Enforce `parseNonNegativeIntVnd` in `add_walkin_player`, `upsert_match`, `update_settings` and validate `match_id` existence.
-- [ ] Sanitize Excel formula prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`) in `GET /api/export`.
-- [ ] Wrap `upsert_match`, `delete_match`, `add_walkin_player` in `db.transaction(...)`.
-- [ ] Reconcile `categoryBreakdown`, `calculateMatchStats` vs `buildEnrichedMatches`, `YYYY-MM-DD` date validation, and `sponsor_id` Excel round-trip.
+### C. Financial & Data Integrity (`P1-05`, `P1-06`, `P2-08`–`P2-10`, `P3-04`)
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P1-05`)** Enforce `parseNonNegativeIntVnd` in `add_walkin_player`, `upsert_match`, `update_settings` and validate `match_id` existence.
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P1-06`)** Sanitize Excel formula prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`) in `GET /api/export`.
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P2-08`)** Wrap `upsert_match`, `delete_match`, `add_walkin_player` in `db.transaction(...)` and enforce atomic audit logging.
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P2-09`, `P2-10`)** Reconcile `categoryBreakdown`, `calculateMatchStats` vs `buildEnrichedMatches`, `YYYY-MM-DD` date validation, and `sponsor_id` Excel round-trip.
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P3-04` / `F7.1-15` client, API & local/E2E tests)** Live Chromium browser recovery test (`tests/e2e/collection-recovery.spec.ts`) verifies `CollectionTab` UI state, persistence/recovery behavior, exact outgoing idempotency payload/key, reconciliation warning, and fail-closed behavior under corrupted/quota `localStorage`. The `POST` request is intercepted by Playwright; therefore, this test does not prove Remote Turso execution or real database concurrency. Remote Turso replay/concurrency remains `NOT VERIFIED` pending authorized Staging rehearsal (`phase7-idempotency-v1.mjs` must be applied to Staging/Production target before release).
 
-### D. Reliability, Performance & UX (`P1-07`–`P1-09`, `P2-11`–`P2-13`)
-- [ ] Add `src/app/error.tsx`, `src/app/global-error.tsx`, `src/app/not-found.tsx`.
-- [ ] Add bounded timeout/retry to `TursoDbAdapter` and fix `/api/health` non-200 status when `!dbStatus.ok`.
-- [ ] Split `getFullAppData()` for `/api/public/financial-report` and batch `save_match`/`save_player` writes.
-- [ ] Complete real-device testing (`docs/pwa-real-device-checklist.md`) on iOS Safari & Android Chrome.
+### D. Reliability, Performance & UX (`P1-07`–`P1-09`, `P2-11`–`P2-13`, `P3-02`, `P3-05`)
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P1-07`)** Add `src/app/error.tsx`, `src/app/global-error.tsx`, `src/app/not-found.tsx`.
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P1-08`, `P3-05`)** Add bounded timeout/retry to `TursoDbAdapter` and fix `/api/health` `503` status when `!dbStatus.ok`.
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P1-09`, `F7.1-14`, `F7.1-16`, `P3-02`)** Split `getFullAppData()` for `/api/public/financial-report`, add deterministic `ensureReady()`, and replace `"1234"` defaults with `scrypt$` hashing & strong PIN UI (`New PIN` + `Confirm new PIN`).
+- [ ] **(`OWNER / OPERATIONAL VERIFICATION PENDING` — `P2-12`)** Complete real-device testing (`docs/pwa-real-device-checklist.md`) on iOS Safari & Android Chrome.
 
-### E. Operations, DR & Staging (`P1-10`–`P1-13`, `P2-14`)
-- [ ] Document RPO, RTO, restore drill cadence, DR owners, SEV1–SEV4 tiers, communication template, PIR process, credential-exposure playbook, and core schema rollback policy in `docs/operations-runbook.md`.
-- [ ] Add failure notification to `.github/workflows/turso-backup.yml` and confirm first scheduled run (`2026-11-22`).
-- [ ] Execute Staging Rehearsal Plan (`docs/phase-7/disaster-recovery-and-staging-rehearsal.md`) and record evidence.
-- [ ] Owner confirms Vercel Production env vars (`TURSO_*`, `AUTH_SECRET`, `UPSTASH_REDIS_*`, `CRON_SECRET`, `MEDIA_STORAGE_ENABLED=false`, `ANALYTICS_ENABLED=false`) are distinct from Preview and offline backup private key custody is verified.
+### E. Operations, DR, Staging & Open Tracking (`P1-10`–`P1-13`, `P2-14`, `P3-03`, `P3-08`, `P3-09`)
+- [x] **(`CODE REMEDIATED / CI VERIFIED` — `P1-10`–`P1-13` docs, `P3-06`)** Document RPO/RTO targets, DR workflows, SEV1–SEV4 tiers, PIR process, credential-exposure playbook, and schema rollback policy in `docs/operations-runbook.md`; pin Node `22.23.5` and `upload-artifact` SHA in `turso-backup.yml`.
+- [ ] **(`OWNER / OPERATIONAL VERIFICATION PENDING` — `P1-10`–`P1-13`)** Owner signs off on RPO/RTO targets, Primary/Backup DR Owners, and escalation contacts.
+- [ ] **(`OWNER / OPERATIONAL VERIFICATION PENDING` — `P2-14`)** `ci.yml` `e2e-visual-qa` now enforces `needs: quality-gates`; `playwright.config.ts` intentionally retains `next dev` (`NODE_ENV=development`) for synthetic SQLite QA because `src/lib/db.ts` forbids `USE_LOCAL_SQLITE=true` in `NODE_ENV=production` (verified locally via `next start` test). `turso-backup.yml` on PR #16 adds `Report backup failure alert` (`::error::` + `$GITHUB_STEP_SUMMARY`); because PR #16 is unmerged, the `2026-11-22 20:00 UTC` (`2026-11-23 03:00 UTC+7`) `schedule` run uses `main` (without this alert step). Owner/Ops confirmation of external notification receipt remains pending.
+- [ ] **(`OWNER / OPERATIONAL VERIFICATION PENDING` — `P1-03`, RELEASE BLOCKING)** Offline read-only technical inspection (`2026-11-21`, `6` tables, `0` phone values, `23/23` same default plaintext PIN, `0` `scrypt` hashes, `0` alternate plaintext PINs, `18` positive expenses, `391` attendances) recorded in `docs/operations-runbook.md` Section 6.1. Authentication material is **UNKNOWN — DEFAULT PLAINTEXT AUTHENTICATION MATERIAL PRESENT; OWNER DOMAIN CONFIRMATION PENDING** (23 default PINs could be seeded data or real accounts still using a shared default). `Sensitive data found = UNKNOWN` until Security Owner signs the 4-group `P1-03 OWNER CLASSIFICATION REPORT`.
+- [ ] **(`BLOCKED` — Staging / Preview / Real-Device QA)** Remote Staging rehearsal (`phase7-idempotency-v1.mjs`, Turso concurrency, DR) is `BLOCKED` (`TURSO_STAGING_*=ABSENT`); Vercel Preview smoke/rollback is `BLOCKED` (Preview URL returns `302` Vercel Authentication and Preview/Production DB separation is unverified); Real-device QA (`docs/pwa-real-device-checklist.md`) is `NOT VERIFIED` (no physical iOS/Android devices).
+- [ ] **(`OWNER / OPERATIONAL VERIFICATION PENDING`)** Owner confirms Vercel Production env vars (`TURSO_*`, `AUTH_SECRET`, `UPSTASH_REDIS_*`, `CRON_SECRET`, `MEDIA_STORAGE_ENABLED=false`, `ANALYTICS_ENABLED=false`) are distinct from Preview and offline backup private key custody (2 copies) is verified.
+- [ ] **(`OPEN / NOT REMEDIATED` — `P3-03`, `P3-08`, `P3-09`)** Tracked open items for post-gate/follow-up cleanup: `P3-03` (consolidate DDL & gate `birth_year` backfill), `P3-08` (`POST /api/team` explicit body size cap & null/non-object `payload` guard), `P3-09` (`paid === 1 && amount === 0` draft display, legacy 5-sheet year inference, float jersey check).
 
 ---
 

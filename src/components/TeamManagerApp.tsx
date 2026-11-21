@@ -242,7 +242,14 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const handleMutate = async (
     action: string,
     payload?: unknown
-  ) => {
+  ): Promise<{
+    ok: boolean;
+    error?: string;
+    status?: number;
+    code?: string;
+    retryable?: boolean;
+    reconcileRequired?: boolean;
+  }> => {
     setIsSaving(true);
     try {
       const res = await fetch("/api/team", {
@@ -252,15 +259,26 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       });
       const json = await res.json();
       if (!res.ok) {
-        showToast(json.error || "Có lỗi xảy ra", "error");
-        return;
+        const message = json.error || "Có lỗi xảy ra";
+        showToast(message, "error");
+        return {
+          ok: false,
+          error: message,
+          status: res.status,
+          code: typeof json?.code === "string" ? json.code : undefined,
+          retryable: typeof json?.retryable === "boolean" ? json.retryable : undefined,
+          reconcileRequired:
+            typeof json?.reconcileRequired === "boolean"
+              ? json.reconcileRequired
+              : undefined,
+        };
       }
       setData(json);
       if (action === "change_own_password") {
         setSession((prev) => ({ ...prev, mustChangePassword: false }));
         showToast("Đã cập nhật mật khẩu mới thành công!");
       } else if (action === "reset_player_password") {
-        showToast("Đã reset mật khẩu cầu thủ về mặc định (1234)!");
+        showToast("Đã đặt lại mật khẩu (PIN) mới cho cầu thủ thành công!");
       } else if (action === "upsert_club_post") {
         showToast("Đã đăng / cập nhật bài viết CLB (Ảnh chuẩn WebP)!");
       } else if (action === "delete_club_post") {
@@ -277,9 +295,16 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       ) {
         showToast("Đã lưu thay đổi vào Cơ sở dữ liệu Cloud!");
       }
+      return { ok: true };
     } catch (err) {
       console.error(err);
       showToast("Không thể kết nối máy chủ", "error");
+      return {
+        ok: false,
+        error: "Không thể kết nối máy chủ",
+        status: 0,
+        retryable: true,
+      };
     } finally {
       setIsSaving(false);
     }
@@ -915,7 +940,9 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
           <ClubPostsTab
             data={data}
             session={session}
-            onMutate={handleMutate}
+            onMutate={async (action, payload) => {
+              await handleMutate(action, payload);
+            }}
             isSaving={isSaving}
           />
         )}

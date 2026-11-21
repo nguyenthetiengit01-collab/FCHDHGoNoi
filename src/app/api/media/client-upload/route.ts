@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
-import { getAuthSession, verifyCsrfOrigin } from "@/lib/auth";
+import { requirePlayerSession, verifyCsrfOrigin } from "@/lib/auth";
 import {
   ALLOWED_IMAGE_MIME_TYPES,
   MAX_MEDIA_UPLOAD_BYTES,
@@ -51,13 +51,16 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const session = getAuthSession(req);
-      if (!session) {
+      const auth = await requirePlayerSession(req);
+      if (!auth.authorized || !auth.player) {
         return NextResponse.json(
-          { error: "Vui lòng đăng nhập để tải ảnh lên." },
-          { status: 401, headers: NO_STORE_HEADERS }
+          { error: auth.error || "Vui lòng đăng nhập để tải ảnh lên." },
+          { status: auth.status, headers: NO_STORE_HEADERS }
         );
       }
+
+      const accessRole = auth.player.access_role;
+      const playerId = auth.player.id;
 
       const jsonResponse = await handleUpload({
         body,
@@ -82,14 +85,14 @@ export async function POST(req: NextRequest) {
           }
 
           if (entity === "post" || entity === "sponsor") {
-            if (session.accessRole !== "manager") {
+            if (accessRole !== "manager") {
               throw new Error("Chỉ Ban Quản Lý mới có quyền tải ảnh bài viết hoặc nhà tài trợ.");
             }
           } else {
-            const targetPlayerId = payload.playerId ?? session.playerId;
+            const targetPlayerId = payload.playerId ?? playerId;
             if (
-              session.accessRole !== "manager" &&
-              (!Number.isInteger(targetPlayerId) || targetPlayerId !== session.playerId)
+              accessRole !== "manager" &&
+              (!Number.isInteger(targetPlayerId) || targetPlayerId !== playerId)
             ) {
               throw new Error("Bạn không có quyền tải ảnh cho hồ sơ cầu thủ khác.");
             }
@@ -118,7 +121,7 @@ export async function POST(req: NextRequest) {
             allowOverwrite: false,
             tokenPayload: JSON.stringify({
               entity,
-              uploadedByPlayerId: session.playerId,
+              uploadedByPlayerId: playerId,
             }),
           };
         },

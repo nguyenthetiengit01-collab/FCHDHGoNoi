@@ -33,9 +33,13 @@ describe("Phase 5 Hardening, Audit Logs & Security Matrix", () => {
     expect(guestRes.status).toBe(401);
 
     // 2. Authenticated user uploading > 10MB -> 413
+    const { getAsyncDb } = await import("./db");
     const appData = await getFullAppData();
-    const realPlayer = appData.players.find((p) => p.access_role === "player");
+    const realPlayer = await getAsyncDb().queryOne<import("@/types/app").Player>(
+      "SELECT * FROM players WHERE access_role = 'player' ORDER BY id ASC LIMIT 1"
+    );
     expect(realPlayer).toBeTruthy();
+    expect(appData.players.length).toBeGreaterThan(0);
 
     const playerToken = createSessionToken(realPlayer!);
     const oversizedBytes = new Uint8Array(10 * 1024 * 1024 + 1024);
@@ -62,16 +66,21 @@ describe("Phase 5 Hardening, Audit Logs & Security Matrix", () => {
   });
 
   it("enforces RBAC (401 Guest, 403 Player, 200 Manager) on /api/audit-logs, /api/export, /api/import, and /api/team mutations", async () => {
-    const { getAuditLogs, getFullAppData, recordAuditLog } = await import("./db");
+    const { getAuditLogs, getFullAppData, getAsyncDb, recordAuditLog } = await import("./db");
     const { createSessionToken, SESSION_COOKIE_NAME } = await import("./auth");
     const { GET: getAuditLogsRoute } = await import("../app/api/audit-logs/route");
     const { GET: getExportRoute } = await import("../app/api/export/route");
     const { POST: postImportRoute } = await import("../app/api/import/route");
     const { POST: postTeamRoute, GET: getTeamRoute } = await import("../app/api/team/route");
 
-    const appData = await getFullAppData();
-    const realManager = appData.players.find((p) => p.access_role === "manager");
-    const realPlayer = appData.players.find((p) => p.access_role === "player");
+    await getFullAppData();
+    const db = getAsyncDb();
+    const realManager = await db.queryOne<import("@/types/app").Player>(
+      "SELECT * FROM players WHERE access_role = 'manager' ORDER BY id ASC LIMIT 1"
+    );
+    const realPlayer = await db.queryOne<import("@/types/app").Player>(
+      "SELECT * FROM players WHERE access_role = 'player' ORDER BY id ASC LIMIT 1"
+    );
     expect(realManager).toBeTruthy();
     expect(realPlayer).toBeTruthy();
 
