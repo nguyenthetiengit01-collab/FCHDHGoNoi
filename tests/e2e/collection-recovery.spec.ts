@@ -131,7 +131,7 @@ test.describe("CollectionTab – Live Browser Pending Operation Recovery", () =>
       collected_by: originalCollectedBy,
       items: originalItems,
       state: "unknown_outcome",
-      created_at: "2026-11-20T08:00:00.000Z",
+      created_at: new Date().toISOString(),
     };
 
     await loginAndOpenCollectionTab(page);
