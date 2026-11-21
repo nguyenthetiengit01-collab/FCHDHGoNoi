@@ -180,6 +180,32 @@ async function handlePostAuth(req: NextRequest): Promise<NextResponse> {
         );
       }
 
+      if (playerRow.status === "inactive") {
+        return NextResponse.json(
+          { success: false, error: "Không thể chuyển phiên sang tài khoản đã ngừng hoạt động." },
+          { status: 403 }
+        );
+      }
+
+      if (!String(playerRow.pin_code || "").trim()) {
+        return NextResponse.json(
+          { success: false, error: "Tài khoản mục tiêu chưa có thông tin xác thực hợp lệ." },
+          { status: 403 }
+        );
+      }
+
+      if (isDefaultPassword(playerRow.pin_code)) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "DEFAULT_PIN_RESET_REQUIRED",
+            error:
+              "Không thể chuyển phiên sang tài khoản đang sử dụng mã PIN mặc định. Vui lòng đặt lại mã PIN mới trước.",
+          },
+          { status: 403 }
+        );
+      }
+
       const token = createSessionToken(playerRow, 24 * 7);
       const safePlayer = projectSafePlayer(playerRow);
 
