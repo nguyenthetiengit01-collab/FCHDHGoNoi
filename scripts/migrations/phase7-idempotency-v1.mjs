@@ -95,16 +95,17 @@ export async function verifyIdempotencySchemaContract(
   { requireTable = true, requireIndex = true } = {}
 ) {
   const existingObjects = await query(
-    `SELECT type, name FROM sqlite_master
+    `SELECT type, name, tbl_name FROM sqlite_master
      WHERE (type = 'table' AND name = 'idempotency_keys')
         OR (type = 'index' AND name = 'idx_idempotency_expires_at')`
   );
   const hasTable = existingObjects.some(
     (r) => String(r.type) === "table" && String(r.name) === "idempotency_keys"
   );
-  const hasIndex = existingObjects.some(
+  const indexRow = existingObjects.find(
     (r) => String(r.type) === "index" && String(r.name) === "idx_idempotency_expires_at"
   );
+  const hasIndex = Boolean(indexRow);
 
   const violations = [];
   if (requireTable && !hasTable) {
@@ -136,24 +137,38 @@ export async function verifyIdempotencySchemaContract(
     }
   }
 
-  if (hasTable && hasIndex) {
-    const idxList = await query(`PRAGMA index_list(idempotency_keys)`);
-    const attached = idxList.some(
-      (idx) => String(idx.name) === "idx_idempotency_expires_at"
-    );
-    if (!attached) {
+  if (indexRow) {
+    const ownerTable =
+      indexRow.tbl_name !== undefined && indexRow.tbl_name !== null
+        ? String(indexRow.tbl_name)
+        : null;
+    if (!hasTable) {
       violations.push(
-        "invalid index: idx_idempotency_expires_at is not attached to idempotency_keys"
+        `invalid index ownership: idx_idempotency_expires_at exists on '${ownerTable || "unknown"}' while idempotency_keys table is absent`
+      );
+    } else if (ownerTable !== null && ownerTable !== "idempotency_keys") {
+      violations.push(
+        `invalid index ownership: idx_idempotency_expires_at belongs to '${ownerTable}' instead of idempotency_keys`
       );
     } else {
-      const idxInfo = await query(`PRAGMA index_info('idx_idempotency_expires_at')`);
-      const orderedCols = [...idxInfo]
-        .sort((a, b) => Number(a.seqno) - Number(b.seqno))
-        .map((c) => String(c.name));
-      if (orderedCols.length !== 1 || orderedCols[0] !== "expires_at") {
+      const idxList = await query(`PRAGMA index_list(idempotency_keys)`);
+      const attached = idxList.some(
+        (idx) => String(idx.name) === "idx_idempotency_expires_at"
+      );
+      if (!attached) {
         violations.push(
-          `invalid index columns on idx_idempotency_expires_at: expected (expires_at), got (${orderedCols.join(", ") || "none"})`
+          "invalid index: idx_idempotency_expires_at is not attached to idempotency_keys"
         );
+      } else {
+        const idxInfo = await query(`PRAGMA index_info('idx_idempotency_expires_at')`);
+        const orderedCols = [...idxInfo]
+          .sort((a, b) => Number(a.seqno) - Number(b.seqno))
+          .map((c) => String(c.name));
+        if (orderedCols.length !== 1 || orderedCols[0] !== "expires_at") {
+          violations.push(
+            `invalid index columns on idx_idempotency_expires_at: expected (expires_at), got (${orderedCols.join(", ") || "none"})`
+          );
+        }
       }
     }
   }
@@ -176,7 +191,7 @@ export async function runPhase7IdempotencyMigration({
   const actions = [];
 
   const existingObjects = await query(
-    `SELECT type, name FROM sqlite_master
+    `SELECT type, name, tbl_name FROM sqlite_master
      WHERE (type = 'table' AND name IN ('schema_migrations', 'idempotency_keys'))
         OR (type = 'index' AND name = 'idx_idempotency_expires_at')`
   );
@@ -186,12 +201,18 @@ export async function runPhase7IdempotencyMigration({
   const hasIdempotencyTable = existingObjects.some(
     (r) => r.type === "table" && r.name === "idempotency_keys"
   );
-  const hasExpiresIndex = existingObjects.some(
+  const anyExpiresIndex = existingObjects.some(
     (r) => r.type === "index" && r.name === "idx_idempotency_expires_at"
+  );
+  const hasExpiresIndex = existingObjects.some(
+    (r) =>
+      r.type === "index" &&
+      r.name === "idx_idempotency_expires_at" &&
+      (!r.tbl_name || r.tbl_name === "idempotency_keys")
   );
 
   // Preflight: validate existing idempotency table/index contract when already present
-  if (hasIdempotencyTable || hasExpiresIndex) {
+  if (hasIdempotencyTable || anyExpiresIndex) {
     await verifyIdempotencySchemaContract(query, {
       requireTable: false,
       requireIndex: false,

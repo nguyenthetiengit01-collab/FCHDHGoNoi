@@ -505,6 +505,70 @@ describe("Phase 7.1.4 – Server Required Idempotency Key & Concurrency", () => 
         })
       ).rejects.toThrow(/Idempotency schema contract violation/i);
       rawMissingCol.close();
+
+      // A. Missing idempotency_keys + same-name index attached to unrelated_table -> preflight fails closed, zero writes/DDL
+      const rawOrphanIdx = new DatabaseSync(":memory:");
+      rawOrphanIdx.exec(`
+        CREATE TABLE unrelated_table (id INTEGER PRIMARY KEY, expires_at TEXT);
+        CREATE INDEX idx_idempotency_expires_at ON unrelated_table(expires_at);
+      `);
+      const dbOrphanIdx = new dbModule.LocalSqliteAdapter(rawOrphanIdx);
+      const orphanExecCalls: string[] = [];
+      await expect(
+        runPhase7IdempotencyMigration({
+          execute: async (sql: string) => {
+            orphanExecCalls.push(sql);
+            rawOrphanIdx.exec(sql);
+          },
+          query: async (sql: string, params?: unknown[]) => dbOrphanIdx.query(sql, params),
+        })
+      ).rejects.toThrow(/invalid index ownership/i);
+      expect(orphanExecCalls).toHaveLength(0);
+      const orphanTables = rawOrphanIdx
+        .prepare(
+          `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('idempotency_keys', 'schema_migrations')`
+        )
+        .all();
+      expect(orphanTables).toHaveLength(0);
+      rawOrphanIdx.close();
+
+      // B. Existing idempotency_keys + index attached to wrong table -> preflight fails closed, zero writes
+      const rawWrongOwner = new DatabaseSync(":memory:");
+      rawWrongOwner.exec(`
+        CREATE TABLE idempotency_keys (
+          idempotency_key TEXT NOT NULL,
+          actor_id INTEGER NOT NULL,
+          action TEXT NOT NULL,
+          payload_hash TEXT NOT NULL,
+          status_code INTEGER NOT NULL,
+          response_json TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL,
+          PRIMARY KEY (idempotency_key, actor_id, action)
+        );
+        CREATE TABLE unrelated_table (id INTEGER PRIMARY KEY, expires_at TEXT);
+        CREATE INDEX idx_idempotency_expires_at ON unrelated_table(expires_at);
+      `);
+      const dbWrongOwner = new dbModule.LocalSqliteAdapter(rawWrongOwner);
+      const wrongOwnerExecCalls: string[] = [];
+      await expect(
+        runPhase7IdempotencyMigration({
+          execute: async (sql: string) => {
+            wrongOwnerExecCalls.push(sql);
+            rawWrongOwner.exec(sql);
+          },
+          query: async (sql: string, params?: unknown[]) => dbWrongOwner.query(sql, params),
+        })
+      ).rejects.toThrow(/invalid index ownership/i);
+      expect(wrongOwnerExecCalls).toHaveLength(0);
+      const wrongOwnerMigrations = rawWrongOwner
+        .prepare(
+          `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'`
+        )
+        .all();
+      expect(wrongOwnerMigrations).toHaveLength(0);
+      rawWrongOwner.close();
+
       raw2.close();
     } finally {
       raw.close();
