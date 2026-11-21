@@ -342,4 +342,57 @@ describe("Backup/Restore v3 – Full Schema Completeness & Backward Compatibilit
     expect(res.stderr).toContain("Foreign key integrity check failed");
     expect(res.stdout).not.toContain('"status": "ok"');
   });
+
+  it("P2 completeness: rejects v3 backups missing row data or rowCounts for declared tables, or orphan sequences", async () => {
+    const { validateBackupPayload } = await import("../../scripts/lib/backup-format.mjs");
+    const baseV3 = {
+      version: 3,
+      objects: {
+        tables: [
+          { name: "players", sql: "CREATE TABLE players (id INTEGER PRIMARY KEY)" },
+          { name: "expenses", sql: "CREATE TABLE expenses (id INTEGER PRIMARY KEY)" },
+        ],
+        indexes: [],
+        triggers: [],
+        views: [],
+      },
+      schema: {
+        players: "CREATE TABLE players (id INTEGER PRIMARY KEY)",
+        expenses: "CREATE TABLE expenses (id INTEGER PRIMARY KEY)",
+      },
+      sequences: [],
+      rowCounts: { players: 1, expenses: 0 },
+      tables: {
+        players: [{ id: 1 }],
+        expenses: [],
+      },
+    };
+
+    expect(() => validateBackupPayload(baseV3)).not.toThrow();
+
+    // Missing tables["expenses"] for declared table "expenses"
+    const missingTableRows = structuredClone(baseV3);
+    delete (missingTableRows.tables as Record<string, unknown>).expenses;
+    delete (missingTableRows.rowCounts as Record<string, unknown>).expenses;
+    expect(() => validateBackupPayload(missingTableRows)).toThrow(
+      /missing row data in 'tables' for declared table "expenses"/i
+    );
+
+    // Missing rowCounts["expenses"] even when tables["expenses"] exists
+    const missingRowCount = structuredClone(baseV3);
+    delete (missingRowCount.rowCounts as Record<string, unknown>).expenses;
+    expect(() => validateBackupPayload(missingRowCount)).toThrow(
+      /missing rowCounts for declared table "expenses"/i
+    );
+
+    // Orphan sqlite_sequence entry referencing undeclared table
+    const orphanSeq = structuredClone(baseV3);
+    (orphanSeq.sequences as Array<{ name: string; seq: number }>).push({
+      name: "ghost_table",
+      seq: 5,
+    });
+    expect(() => validateBackupPayload(orphanSeq)).toThrow(
+      /sqlite_sequence entry "ghost_table" has no matching declared table/i
+    );
+  });
 });

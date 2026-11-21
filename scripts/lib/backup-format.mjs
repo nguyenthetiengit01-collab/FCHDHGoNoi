@@ -287,8 +287,26 @@ export function validateBackupPayload(backup) {
       }
     }
 
+    for (const declaredTable of declaredTables) {
+      if (
+        !Object.prototype.hasOwnProperty.call(backup.tables, declaredTable) ||
+        !Array.isArray(backup.tables[declaredTable])
+      ) {
+        throw new Error(
+          `Invalid v3 backup file: missing row data in 'tables' for declared table "${declaredTable}".`
+        );
+      }
+    }
+
     if (!backup.rowCounts || typeof backup.rowCounts !== "object" || Array.isArray(backup.rowCounts)) {
       throw new Error("Invalid v3 backup file: missing 'rowCounts' object.");
+    }
+    for (const declaredTable of declaredTables) {
+      if (!Object.prototype.hasOwnProperty.call(backup.rowCounts, declaredTable)) {
+        throw new Error(
+          `Invalid v3 backup file: missing rowCounts for declared table "${declaredTable}".`
+        );
+      }
     }
     for (const [tableName, count] of Object.entries(backup.rowCounts)) {
       if (!isValidIdentifier(tableName)) {
@@ -329,6 +347,11 @@ export function validateBackupPayload(backup) {
       }
       if (seenSeqNames.has(s.name)) {
         throw new Error(`Invalid v3 backup file: duplicate sqlite_sequence entry "${s.name}".`);
+      }
+      if (!declaredTables.has(s.name)) {
+        throw new Error(
+          `Invalid v3 backup file: sqlite_sequence entry "${s.name}" has no matching declared table.`
+        );
       }
       seenSeqNames.add(s.name);
     }
