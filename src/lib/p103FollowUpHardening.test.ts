@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -20,6 +21,7 @@ import * as dbModule from "./db";
 import type { AsyncDb } from "./db";
 import type { Player } from "@/types/app";
 import {
+  classifyPinCodeDefault,
   MIGRATION_VERSION,
   runPhase7P103PinDefaultLocalMigration,
 } from "../../scripts/migrations/phase7-p103-pin-default-v1.mjs";
@@ -478,5 +480,117 @@ describe("P1-03 Follow-Up Hardening — Schema Migration, switch_role Containmen
     } finally {
       raw.close();
     }
+  });
+
+  it("13, 14, 15. M2 default expression classification: handles DEFAULT ('1234'), empty default, no default, and fails closed on unknown non-empty default", () => {
+    expect(classifyPinCodeDefault("'1234'")).toEqual({ kind: "legacy_1234", hasLegacyDefault: true });
+    expect(classifyPinCodeDefault("('1234')")).toEqual({ kind: "legacy_1234", hasLegacyDefault: true });
+    expect(classifyPinCodeDefault("''")).toEqual({ kind: "empty", hasLegacyDefault: false });
+    expect(classifyPinCodeDefault(null)).toEqual({ kind: "none", hasLegacyDefault: false });
+    expect(() => classifyPinCodeDefault("'0000'")).toThrow(/unsupported or unknown/i);
+    expect(() => classifyPinCodeDefault("(lower('1234'))")).toThrow(/unsupported or unknown/i);
+
+    // Parenthesized DEFAULT ('1234') variant is rebuilt to DEFAULT ''
+    const dir = createTempDir("fc-p103-paren-");
+    const db = new DatabaseSync(path.join(dir, "paren.sqlite"));
+    try {
+      db.exec(`
+        CREATE TABLE players (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          full_name TEXT NOT NULL,
+          pin_code TEXT NOT NULL DEFAULT ('1234')
+        );
+        INSERT INTO players (full_name, pin_code) VALUES ('Paren User', 'scrypt$abc$def');
+      `);
+      const res = runPhase7P103PinDefaultLocalMigration({ db, dryRun: false });
+      expect(res.applied).toBe(true);
+      expect(res.defaultKind).toBe("legacy_1234");
+      const cols = db.prepare("PRAGMA table_info(players)").all() as Array<{ name: string; dflt_value: string | null }>;
+      expect(cols.find((c) => c.name === "pin_code")?.dflt_value).toBe("''");
+    } finally {
+      db.close();
+    }
+
+    // Empty default and no-default tables do not rebuild players
+    const dbEmpty = new DatabaseSync(path.join(dir, "empty.sqlite"));
+    try {
+      dbEmpty.exec(`CREATE TABLE players (id INTEGER PRIMARY KEY, pin_code TEXT NOT NULL DEFAULT '');`);
+      const res = runPhase7P103PinDefaultLocalMigration({ db: dbEmpty, dryRun: false });
+      expect(res.defaultKind).toBe("empty");
+      expect(res.actions).not.toContain("REBUILD players TABLE (pin_code DEFAULT '1234' -> DEFAULT '')");
+    } finally {
+      dbEmpty.close();
+    }
+
+    const dbNone = new DatabaseSync(path.join(dir, "none.sqlite"));
+    try {
+      dbNone.exec(`CREATE TABLE players (id INTEGER PRIMARY KEY, pin_code TEXT NOT NULL);`);
+      const res = runPhase7P103PinDefaultLocalMigration({ db: dbNone, dryRun: false });
+      expect(res.defaultKind).toBe("none");
+      expect(res.actions).not.toContain("REBUILD players TABLE (pin_code DEFAULT '1234' -> DEFAULT '')");
+    } finally {
+      dbNone.close();
+    }
+
+    // Unknown non-empty default aborts fail-closed without creating schema_migrations
+    const dbUnknown = new DatabaseSync(path.join(dir, "unknown.sqlite"));
+    try {
+      dbUnknown.exec(`CREATE TABLE players (id INTEGER PRIMARY KEY, pin_code TEXT NOT NULL DEFAULT '0000');`);
+      expect(() => runPhase7P103PinDefaultLocalMigration({ db: dbUnknown, dryRun: false })).toThrow(/unsupported or unknown/i);
+      const migTable = dbUnknown.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations'").get();
+      expect(migTable).toBeUndefined();
+    } finally {
+      dbUnknown.close();
+    }
+  });
+
+  it("16, 17. M1 pre-commit integrity_check & foreign_key_check failures roll back atomically and do not record migration version", () => {
+    for (const mode of ["integrity", "fk"] as const) {
+      const { raw } = createLegacyPlayersDbWithDefault1234();
+      try {
+        const beforeDdl = (raw.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='players'").get() as { sql: string }).sql;
+        const beforeCount = (raw.prepare("SELECT COUNT(*) AS c FROM players").get() as { c: number }).c;
+
+        expect(() =>
+          runPhase7P103PinDefaultLocalMigration({
+            db: raw,
+            dryRun: false,
+            checks:
+              mode === "integrity"
+                ? { integrityCheck: () => "simulated-corruption" }
+                : { foreignKeyCheck: () => [{ table: "match_attendances", rowid: 1, parent: "players", fkid: 0 }] },
+          })
+        ).toThrow(mode === "integrity" ? /integrity_check failed/i : /foreign_key_check failed/i);
+
+        // Original DDL, row count, index, trigger preserved; schema_migrations absent/unrecorded
+        const afterDdl = (raw.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='players'").get() as { sql: string }).sql;
+        const afterCount = (raw.prepare("SELECT COUNT(*) AS c FROM players").get() as { c: number }).c;
+        expect(afterDdl).toBe(beforeDdl);
+        expect(afterCount).toBe(beforeCount);
+        expect(raw.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_players_status'").get()).toBeDefined();
+        expect(raw.prepare("SELECT name FROM sqlite_master WHERE type='trigger' AND name='trg_players_after_update'").get()).toBeDefined();
+        expect(raw.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations'").get()).toBeUndefined();
+      } finally {
+        raw.close();
+      }
+    }
+  });
+
+  it("18. M3 --env staging path fails closed immediately without network or Turso client", () => {
+    let stderr = "";
+    let exitCode = 0;
+    try {
+      execFileSync(
+        process.execPath,
+        [path.resolve("scripts/migrations/phase7-p103-pin-default-v1.mjs"), "--env", "staging", "--dry-run"],
+        { encoding: "utf8", stdio: "pipe" }
+      );
+    } catch (err: unknown) {
+      const e = err as { status?: number; stderr?: string };
+      exitCode = e.status ?? 1;
+      stderr = String(e.stderr ?? "");
+    }
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toMatch(/Remote execution not implemented\/authorized/i);
   });
 });

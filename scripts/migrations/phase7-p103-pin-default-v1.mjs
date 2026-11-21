@@ -1,18 +1,15 @@
 #!/usr/bin/env node
 /**
  * Explicit, versioned, idempotent migration (v1) to remove legacy
- * `pin_code DEFAULT '1234'` from `players` on SQLite databases.
+ * `pin_code DEFAULT '1234'` / `DEFAULT ('1234')` from `players` on local SQLite.
  *
  * Usage:
  *   node scripts/migrations/phase7-p103-pin-default-v1.mjs --sqlite <isolated-temp-path.sqlite> [--dry-run]
- *   node scripts/migrations/phase7-p103-pin-default-v1.mjs --env staging --dry-run
  */
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
-import { createClient } from "@libsql/client";
-import { validateStagingTarget } from "../lib/turso-preflight.mjs";
 
 export const MIGRATION_VERSION = "phase7-p103-pin-default-v1";
 
@@ -74,14 +71,46 @@ export function validateLocalSqlitePath(
   return realResolved;
 }
 
+/**
+ * Normalizes SQLite PRAGMA table_info().dflt_value for players.pin_code and
+ * classifies it fail-closed:
+ * - null / undefined / '' -> safe (no default or empty default)
+ * - '1234' / ('1234') / (('1234')) -> legacy default "1234" (requires rebuild)
+ * - any other non-empty expression -> unsafe/unknown (abort preflight)
+ */
+export function classifyPinCodeDefault(dfltValue) {
+  if (dfltValue === null || dfltValue === undefined) {
+    return { kind: "none", hasLegacyDefault: false };
+  }
+
+  let normalized = String(dfltValue).trim();
+  while (normalized.startsWith("(") && normalized.endsWith(")")) {
+    const inner = normalized.slice(1, -1).trim();
+    if (!inner) break;
+    normalized = inner;
+  }
+
+  if (normalized === "''" || normalized === '""' || normalized === "") {
+    return { kind: "empty", hasLegacyDefault: false };
+  }
+
+  if (normalized === "'1234'" || normalized === '"1234"') {
+    return { kind: "legacy_1234", hasLegacyDefault: true };
+  }
+
+  throw new Error(
+    `Preflight error: unsupported or unknown non-empty players.pin_code default expression (${String(dfltValue)}). Aborting fail-closed.`
+  );
+}
+
 function replacePinDefaultInDdl(tableSql) {
   const updated = tableSql.replace(
-    /(\bpin_code\b[^,)]*?\bDEFAULT\s+)'1234'/i,
+    /(\bpin_code\b[^,]*?\bDEFAULT\s+)(?:\(\s*['"]1234['"]\s*\)|['"]1234['"])/i,
     "$1''"
   );
   if (updated === tableSql) {
     throw new Error(
-      "Preflight error: could not safely rewrite pin_code DEFAULT '1234' in players DDL."
+      "Preflight error: could not safely rewrite pin_code default '1234' in players DDL."
     );
   }
   return updated.replace(
@@ -93,11 +122,23 @@ function replacePinDefaultInDdl(tableSql) {
 /**
  * Runs the P1-03 players.pin_code default removal migration on a local SQLite
  * DatabaseSync instance, preserving all columns, rows, indexes, triggers, and FKs.
+ * Runs PRAGMA foreign_key_check and PRAGMA integrity_check BEFORE COMMIT.
+ *
+ * @param {{
+ *   db: import("node:sqlite").DatabaseSync;
+ *   now?: Date;
+ *   dryRun?: boolean;
+ *   checks?: {
+ *     foreignKeyCheck?: (db: import("node:sqlite").DatabaseSync) => unknown[];
+ *     integrityCheck?: (db: import("node:sqlite").DatabaseSync) => unknown;
+ *   };
+ * }} params
  */
 export function runPhase7P103PinDefaultLocalMigration({
   db,
   now = new Date(),
   dryRun = false,
+  checks = undefined,
 }) {
   const tableRow = db
     .prepare(
@@ -114,8 +155,8 @@ export function runPhase7P103PinDefaultLocalMigration({
     throw new Error("Preflight error: players.pin_code column does not exist.");
   }
 
-  const hasLegacyDefault =
-    String(pinCol.dflt_value ?? "").trim() === "'1234'";
+  const defaultInfo = classifyPinCodeDefault(pinCol.dflt_value);
+  const hasLegacyDefault = defaultInfo.hasLegacyDefault;
 
   const hasMigrationsTable = Boolean(
     db
@@ -151,6 +192,7 @@ export function runPhase7P103PinDefaultLocalMigration({
       dryRun,
       applied: false,
       alreadyApplied: true,
+      defaultKind: defaultInfo.kind,
       actions: [],
     };
   }
@@ -161,6 +203,7 @@ export function runPhase7P103PinDefaultLocalMigration({
       dryRun: true,
       applied: false,
       alreadyApplied: false,
+      defaultKind: defaultInfo.kind,
       actions,
     };
   }
@@ -186,7 +229,9 @@ export function runPhase7P103PinDefaultLocalMigration({
     inTx = true;
 
     if (hasLegacyDefault) {
-      const colNames = columns.map((c) => `"${String(c.name).replace(/"/g, '""')}"`).join(", ");
+      const colNames = columns
+        .map((c) => `"${String(c.name).replace(/"/g, '""')}"`)
+        .join(", ");
       const createNewSql = replacePinDefaultInDdl(tableRow.sql);
       const beforeCount = Number(
         db.prepare("SELECT COUNT(*) AS c FROM players").get()?.c ?? 0
@@ -237,22 +282,27 @@ export function runPhase7P103PinDefaultLocalMigration({
       );
     }
 
+    // M1: Run foreign_key_check and integrity_check BEFORE COMMIT
+    const fkViolations = checks?.foreignKeyCheck
+      ? checks.foreignKeyCheck(db)
+      : db.prepare("PRAGMA foreign_key_check").all();
+    if (!Array.isArray(fkViolations) || fkViolations.length > 0) {
+      throw new Error(
+        `Pre-commit PRAGMA foreign_key_check failed with ${Array.isArray(fkViolations) ? fkViolations.length : "invalid"} violation(s).`
+      );
+    }
+
+    const integrityStatus = checks?.integrityCheck
+      ? checks.integrityCheck(db)
+      : db.prepare("PRAGMA integrity_check").get()?.integrity_check;
+    if (integrityStatus !== "ok") {
+      throw new Error(
+        `Pre-commit PRAGMA integrity_check failed: ${String(integrityStatus)}`
+      );
+    }
+
     db.exec("COMMIT;");
     inTx = false;
-
-    const fkViolations = db.prepare("PRAGMA foreign_key_check").all();
-    if (fkViolations.length > 0) {
-      throw new Error(
-        `Post-migration PRAGMA foreign_key_check failed with ${fkViolations.length} violation(s).`
-      );
-    }
-
-    const integrity = db.prepare("PRAGMA integrity_check").get();
-    if (integrity?.integrity_check !== "ok") {
-      throw new Error(
-        `Post-migration PRAGMA integrity_check failed: ${JSON.stringify(integrity)}`
-      );
-    }
   } catch (err) {
     if (inTx) {
       try {
@@ -271,6 +321,7 @@ export function runPhase7P103PinDefaultLocalMigration({
     dryRun: false,
     applied: true,
     alreadyApplied: false,
+    defaultKind: defaultInfo.kind,
     actions,
     preservedIndexes: savedIndexes.length,
     preservedTriggers: savedTriggers.length,
@@ -278,55 +329,29 @@ export function runPhase7P103PinDefaultLocalMigration({
 }
 
 async function main() {
-  const sqlitePath = getArg("--sqlite");
   const envName = getArg("--env");
+  if (envName !== null || process.argv.includes("--env")) {
+    throw new Error(
+      "Remote execution not implemented/authorized: phase7-p103-pin-default-v1.mjs supports local SQLite (--sqlite) only."
+    );
+  }
+
+  const sqlitePath = getArg("--sqlite");
   const dryRun = process.argv.includes("--dry-run");
 
-  if (!sqlitePath && envName !== "staging") {
+  if (!sqlitePath) {
     throw new Error(
-      "Missing target. Specify --sqlite <isolated-temp-path.sqlite> or --env staging [--dry-run]."
+      "Missing target. Specify --sqlite <isolated-temp-path.sqlite> [--dry-run]."
     );
   }
 
-  if (sqlitePath) {
-    const safePath = validateLocalSqlitePath(sqlitePath);
-    const db = new DatabaseSync(safePath);
-    try {
-      const result = runPhase7P103PinDefaultLocalMigration({ db, dryRun });
-      console.log(JSON.stringify({ status: "ok", mode: "sqlite", ...result }, null, 2));
-    } finally {
-      db.close();
-    }
-    return;
-  }
-
-  const { url, authToken } = validateStagingTarget(process.env);
-  const client = createClient({ url, authToken });
+  const safePath = validateLocalSqlitePath(sqlitePath);
+  const db = new DatabaseSync(safePath);
   try {
-    const colsRes = await client.execute("PRAGMA table_info(players)");
-    const pinCol = colsRes.rows.find((r) => String(r.name) === "pin_code");
-    const hasLegacyDefault = String(pinCol?.dflt_value ?? "").trim() === "'1234'";
-    if (dryRun || !hasLegacyDefault) {
-      console.log(
-        JSON.stringify(
-          {
-            status: "ok",
-            mode: "staging-preflight",
-            version: MIGRATION_VERSION,
-            dryRun,
-            hasLegacyDefault,
-          },
-          null,
-          2
-        )
-      );
-      return;
-    }
-    throw new Error(
-      "Remote Turso/libSQL table rebuild cannot toggle PRAGMA foreign_keys = OFF atomically over HTTP; run verified offline SQLite rebuild and restore to a fresh disposable Turso target per docs/operations-runbook.md Section 3."
-    );
+    const result = runPhase7P103PinDefaultLocalMigration({ db, dryRun });
+    console.log(JSON.stringify({ status: "ok", mode: "sqlite", ...result }, null, 2));
   } finally {
-    client.close();
+    db.close();
   }
 }
 
