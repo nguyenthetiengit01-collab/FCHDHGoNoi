@@ -585,6 +585,7 @@ export async function runBatchOperationAttempt(params: {
   }
 
   let activeSubmission: PendingBatchSubmission;
+  let wasPreexistingUnresolved = false;
   if (mode === "reconcile_retry") {
     if (loaded.status !== "ok") {
       return {
@@ -595,6 +596,7 @@ export async function runBatchOperationAttempt(params: {
     }
     // Always replay exact persisted original payload & key, never rebuild from server data
     activeSubmission = loaded.submission;
+    wasPreexistingUnresolved = activeSubmission.state !== "confirmed";
   } else {
     const rawItems = params.items ?? [];
     const rawCollector = String(params.collectedBy ?? "").trim();
@@ -613,6 +615,8 @@ export async function runBatchOperationAttempt(params: {
       };
     }
     activeSubmission = resolution.submission;
+    wasPreexistingUnresolved =
+      resolution.reused && activeSubmission.state !== "confirmed";
   }
 
   const persisted = savePendingBatchSubmission(matchId, activeSubmission);
@@ -649,7 +653,16 @@ export async function runBatchOperationAttempt(params: {
       }
 
       if (isDefinitiveNoWriteClientFailure(result)) {
-        clearPendingBatchSubmission(matchId);
+        if (!wasPreexistingUnresolved) {
+          clearPendingBatchSubmission(matchId);
+        } else if (result.code === "IDEMPOTENCY_SCHEMA_NOT_READY") {
+          return {
+            ok: false,
+            error:
+              "Hệ thống đối chiếu giao dịch (idempotency schema) hiện chưa sẵn sàng để đối chiếu thao tác trước. Khóa đối chiếu và dữ liệu gốc vẫn được giữ nguyên; vui lòng thử lại sau khi schema sẵn sàng.",
+            pendingState: loadPendingBatchSubmissionState(matchId),
+          };
+        }
       }
 
       return {

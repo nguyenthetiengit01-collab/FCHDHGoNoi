@@ -3,11 +3,13 @@ import {
   getEffectiveAttendance,
   calculateDraftTotals,
   buildBatchPayloadItems,
+  computeBatchPayloadFingerprint,
   isAmbiguousMutateFailure,
   isDefinitiveNoWriteClientFailure,
   runBatchOperationAttempt,
   saveDraftToStorage,
   loadDraftFromStorage,
+  savePendingBatchSubmission,
   loadPendingBatchSubmission,
   loadPendingBatchSubmissionState,
   deriveCollectionFooterViewState,
@@ -387,6 +389,169 @@ describe("IDEMPOTENCY_SCHEMA_NOT_READY & unknown-write error semantics", () => {
     expect(outcome.ok).toBe(false);
     expect(outcome.pendingState.status).toBe("ok");
     expect(loadPendingBatchSubmission(45)?.state).toBe("unknown_outcome");
+  });
+
+  it("Test 2 — Existing pending operation: preserves original key, payload, and draft on IDEMPOTENCY_SCHEMA_NOT_READY", async () => {
+    const originalKey = "11111111-1111-4111-8111-111111111111";
+    const fingerprint = computeBatchPayloadFingerprint(46, "Tieng", sampleItems);
+    saveDraftToStorage(46, sampleDraft);
+    savePendingBatchSubmission(46, {
+      match_id: 46,
+      idempotency_key: originalKey,
+      payload_fingerprint: fingerprint,
+      collected_by: "Tieng",
+      items: sampleItems,
+      state: "pending",
+      created_at: "2026-11-21T08:00:00.000Z",
+    });
+
+    const sentKeys: string[] = [];
+    const outcome = await runBatchOperationAttempt({
+      mode: "save",
+      matchId: 46,
+      collectedBy: "Tieng",
+      items: sampleItems,
+      sendMutate: async (payload) => {
+        sentKeys.push(payload.idempotency_key);
+        return {
+          ok: false,
+          status: 503,
+          code: "IDEMPOTENCY_SCHEMA_NOT_READY",
+          retryable: false,
+          reconcileRequired: false,
+          error: "Schema not ready",
+        };
+      },
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(sentKeys).toEqual([originalKey]);
+    const persisted = loadPendingBatchSubmission(46);
+    expect(persisted).not.toBeNull();
+    expect(persisted?.idempotency_key).toBe(originalKey);
+    expect(persisted?.items).toEqual(sampleItems);
+    expect(persisted?.state).toBe("pending");
+    expect(loadDraftFromStorage(46)).toEqual(sampleDraft);
+  });
+
+  it("Test 3 — Existing unknown_outcome: reconcile_retry on IDEMPOTENCY_SCHEMA_NOT_READY preserves key, payload, state, and reconciliation UI", async () => {
+    const originalKey = "22222222-2222-4222-8222-222222222222";
+    const fingerprint = computeBatchPayloadFingerprint(47, "Tieng", sampleItems);
+    saveDraftToStorage(47, sampleDraft);
+    savePendingBatchSubmission(47, {
+      match_id: 47,
+      idempotency_key: originalKey,
+      payload_fingerprint: fingerprint,
+      collected_by: "Tieng",
+      items: sampleItems,
+      state: "unknown_outcome",
+      created_at: "2026-11-21T08:00:00.000Z",
+    });
+
+    const sentKeys: string[] = [];
+    const outcome = await runBatchOperationAttempt({
+      mode: "reconcile_retry",
+      matchId: 47,
+      sendMutate: async (payload) => {
+        sentKeys.push(payload.idempotency_key);
+        return {
+          ok: false,
+          status: 503,
+          code: "IDEMPOTENCY_SCHEMA_NOT_READY",
+          retryable: false,
+          reconcileRequired: false,
+          error: "Schema not ready",
+        };
+      },
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(sentKeys).toEqual([originalKey]);
+    expect(outcome.error).toMatch(/idempotency schema|đối chiếu/i);
+    expect(outcome.error).not.toMatch(/chắc chắn thất bại/i);
+    const persisted = loadPendingBatchSubmission(47);
+    expect(persisted?.idempotency_key).toBe(originalKey);
+    expect(persisted?.items).toEqual(sampleItems);
+    expect(persisted?.state).toBe("unknown_outcome");
+
+    const footer = deriveCollectionFooterViewState({
+      dirtyCount: 1,
+      pendingLoadState: outcome.pendingState,
+      isSaving: false,
+    });
+    expect(footer.hasUnresolvedPending).toBe(true);
+    expect(footer.showReconcileRetryButton).toBe(true);
+    expect(footer.saveButtonDisabled).toBe(true);
+  });
+
+  it("Test 4 — Recovery after schema is ready: retries with exact original key and completes idempotently", async () => {
+    const originalKey = "33333333-3333-4333-8333-333333333333";
+    const fingerprint = computeBatchPayloadFingerprint(48, "Tieng", sampleItems);
+    saveDraftToStorage(48, sampleDraft);
+    savePendingBatchSubmission(48, {
+      match_id: 48,
+      idempotency_key: originalKey,
+      payload_fingerprint: fingerprint,
+      collected_by: "Tieng",
+      items: sampleItems,
+      state: "unknown_outcome",
+      created_at: "2026-11-21T08:00:00.000Z",
+    });
+
+    const sentKeys: string[] = [];
+    const firstRetry = await runBatchOperationAttempt({
+      mode: "reconcile_retry",
+      matchId: 48,
+      sendMutate: async (payload) => {
+        sentKeys.push(payload.idempotency_key);
+        return {
+          ok: false,
+          status: 503,
+          code: "IDEMPOTENCY_SCHEMA_NOT_READY",
+          retryable: false,
+          reconcileRequired: false,
+          error: "Schema not ready",
+        };
+      },
+    });
+    expect(firstRetry.ok).toBe(false);
+    expect(loadPendingBatchSubmission(48)?.idempotency_key).toBe(originalKey);
+
+    // Schema becomes ready; retry with same original payload reuses exact originalKey
+    const recoveryRetry = await runBatchOperationAttempt({
+      mode: "save",
+      matchId: 48,
+      collectedBy: "Tieng",
+      items: sampleItems,
+      sendMutate: async (payload) => {
+        sentKeys.push(payload.idempotency_key);
+        return { ok: true };
+      },
+    });
+
+    expect(recoveryRetry.ok).toBe(true);
+    expect(sentKeys).toEqual([originalKey, originalKey]);
+    expect(loadPendingBatchSubmission(48)).toBeNull();
+    expect(loadDraftFromStorage(48)).toEqual({});
+  });
+
+  it("Test 8 — Fresh definitive 422/400 failure clears only newly created pending key and never clears user draft", async () => {
+    saveDraftToStorage(49, sampleDraft);
+    const outcome = await runBatchOperationAttempt({
+      mode: "save",
+      matchId: 49,
+      collectedBy: "Tieng",
+      items: sampleItems,
+      sendMutate: async () => ({
+        ok: false,
+        status: 422,
+        error: "Dữ liệu không hợp lệ",
+      }),
+    });
+
+    expect(outcome.ok).toBe(false);
+    expect(loadPendingBatchSubmission(49)).toBeNull();
+    expect(loadDraftFromStorage(49)).toEqual(sampleDraft);
   });
 });
 
