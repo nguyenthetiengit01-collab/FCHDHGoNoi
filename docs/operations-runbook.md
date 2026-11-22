@@ -165,7 +165,10 @@ Mọi thay đổi schema trên Turso Production bắt buộc tuân theo mô hìn
 3. **Bảo toàn bằng chứng `audit_logs`**:
    - Xuất ngay bản sao read-only (`scripts/db-backup.mjs`) hoặc truy vấn `GET /api/audit-logs` để kiểm tra mọi thao tác `POST /api/team`, `POST /api/import` bất thường.
 4. **Thu hồi & Xoay vòng đồng bộ (Revocation & Rotation)**:
-   - **`AUTH_SECRET`**: Tạo secret mới >= 32 ký tự trên **Vercel Dashboard → Project Settings → Environment Variables** (tách riêng `Preview` và `Production`; xóa các alias cũ như `PREVIEW_AUTH_SECRET`, `APP_SECRET`, `NEXTAUTH_SECRET`, `SESSION_SECRET` nếu có). Thao tác này **hủy hiệu lực toàn bộ phiên đăng nhập hiện tại** và buộc mọi người dùng đăng nhập lại.
+   - **Effective Authentication Secret (`getAuthSecret()` trong `src/lib/auth.ts`)**:
+     - Thứ tự ưu tiên trên **Production**: `APP_SECRET` > `AUTH_SECRET` > `NEXTAUTH_SECRET` > `SESSION_SECRET`. Lưu ý: **`APP_SECRET` ghi đè `AUTH_SECRET` trên Production** — nếu `APP_SECRET` còn tồn tại, chỉ xoay `AUTH_SECRET` sẽ **không** hủy hiệu lực các session cũ.
+     - Thứ tự ưu tiên trên **Vercel Preview**: `PREVIEW_AUTH_SECRET` > `APP_SECRET` > `AUTH_SECRET` > `NEXTAUTH_SECRET` > `SESSION_SECRET`.
+     - Khi xoay vòng trên **Vercel Dashboard → Project Settings → Environment Variables**: cập nhật secret >= 32 ký tự cho biến hiệu lực cao nhất (và xóa/xoay đồng bộ các biến ưu tiên cao hơn nếu muốn chuẩn hóa về `AUTH_SECRET`), tách riêng `Preview` và `Production`, thực hiện **coordinated redeployment** (để runtime nạp secret mới), kiểm chứng cookie cũ bị từ chối `HTTP 401` trên các endpoint được bảo vệ (`POST /api/team`, `GET /api/audit-logs`), và xác minh Ban Quản Lý đăng nhập lại thành công.
    - **Turso Tokens**: Thu hồi token cũ (`turso db tokens revoke`) và cấp mới `TURSO_AUTH_TOKEN` (Vercel Production/Preview tách biệt) và `TURSO_PROD_AUTH_TOKEN_RO` (GitHub Actions secret).
    - **Vercel Env Vars khác**: Xoay vòng `UPSTASH_REDIS_REST_TOKEN`, `BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, `ANALYTICS_ACTOR_SECRET` trên Vercel Dashboard, sau đó **Redeploy Production** để nạp biến mới.
    - **GitHub Secrets & Backup Keypair**: Cập nhật `TURSO_PROD_AUTH_TOKEN_RO` trên GitHub. Nếu lộ `privateKey` backup (`gonoi-priv-v1:...`), sinh cặp khóa mới ngay (`node scripts/backup-crypto.mjs keygen`), cập nhật `TURSO_BACKUP_PUBLIC_KEY` trên GitHub và chạy `turso-backup.yml` thủ công để tạo bản mã hóa mới.
@@ -183,18 +186,19 @@ Mọi thay đổi schema trên Turso Production bắt buộc tuân theo mô hìn
      - **Authentication material**: Có chứa PIN plaintext (`"1234"`), hash `scrypt$` thực tế của tài khoản đang dùng, hay mật khẩu quản trị thật?
      - **Operational data**: Có chứa URL nội bộ/cấu hình thực tế?
   3. Xóa file tạm ngay sau khi phân loại (`Remove-Item`).
-- **Bảng phân loại 4 nhóm dữ liệu cho Owner (kết quả kiểm tra kỹ thuật offline read-only ngày `2026-11-21`, `SQLite 3.50.4`, `6` bảng — không in dữ liệu cá nhân hay nội dung dòng)**:
-  - Thống kê tổng hợp kỹ thuật: `players` (`23` dòng: `non_empty_phone=0`, `vn_phone_pattern=0`, `has_birth_year=23`, `scrypt_pin=0`, `default_1234_pin=23`, `other_plaintext_pin=0`), `matches` (`17`), `match_attendances` (`391`, `paid_pos=162`), `expenses` (`18`, `pos=18`), `other_incomes` (`2`, `pos=0`), `team_settings` (`1`). File tạm đã xóa sạch sau khi kiểm tra.
-  - **Lưu ý kỹ thuật quan trọng**: `23/23` bản ghi mang cùng mã PIN plaintext mặc định (`"1234"`) có thể là dữ liệu seed/mẫu **hoặc** là tài khoản thật vẫn đang dùng chung mã PIN mặc định; bản thân quét kỹ thuật không thể tự kết luận. Do đó trạng thái **Authentication material** là `UNKNOWN — DEFAULT PLAINTEXT AUTHENTICATION MATERIAL PRESENT; OWNER DOMAIN CONFIRMATION PENDING`, và `Sensitive data found = UNKNOWN` cho đến khi Security Owner xác nhận.
+- **Trạng thái hiện tại (Tách biệt Classification vs. Containment)**:
+  - **Owner-Reported Classification (`COMPLETE`)**: Security Owner đã xác nhận blob `67f415fac8aaf1e80b22c356d01fa1f782083a03` (`274,432` bytes) chứa **dữ liệu thật (`real data detected`)** ở cả 4 nhóm (**PII**, **Financial data**, **Authentication material**, **Operational data**), xác nhận **tài khoản thật từng dùng PIN mặc định `"1234"` (`YES`)**, và **`Sensitive data found = YES`**. Việc truy cập trái phép / khai thác / chiếm quyền tài khoản **chưa được xác lập**.
+  - **Containment (`OPEN / ACTION REQUIRED / RELEASE BLOCKING`)**: Chưa thực thi trên Production; yêu cầu phê duyệt riêng của Owner/Operator trước khi phát hành.
+- **[HISTORICAL TECHNICAL SCAN — `2026-11-21`, SUPERSEDED BY OWNER CLASSIFICATION]** Bảng phân loại kỹ thuật offline read-only (`SQLite 3.50.4`, `6` bảng, xóa file tạm sau kiểm tra) trước khi có xác nhận của Owner: `players` (`23` dòng: `non_empty_phone=0`, `vn_phone_pattern=0`, `has_birth_year=23`, `scrypt_pin=0`, `default_1234_pin=23`, `other_plaintext_pin=0`), `matches` (`17`), `match_attendances` (`391`, `paid_pos=162`), `expenses` (`18`, `pos=18`), `other_incomes` (`2`, `pos=0`), `team_settings` (`1`).
 
-| Nhóm dữ liệu (Technical Finding) | Không có dữ liệu thực (`no real data`) | Chỉ dữ liệu mẫu (`synthetic/sample only`) | Có dữ liệu thực (`real data detected`) | Chưa xác định (`inconclusive`) |
-| :--- | :---: | :---: | :---: | :---: |
-| **PII** (`0` SĐT; `23` dòng có `birth_year > 1900` — chưa rõ thật/mẫu) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
-| **Financial data** (`18` khoản chi dương, `162` điểm danh đã thu dương — chưa rõ thật/mẫu) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
-| **Authentication material** (`UNKNOWN — DEFAULT PLAINTEXT AUTHENTICATION MATERIAL PRESENT; OWNER DOMAIN CONFIRMATION PENDING`: `23/23` cùng PIN plaintext mặc định, `0` `scrypt$`, `0` PIN khác) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
-| **Operational data** (`17` trận, `1` `team_settings`, `391` điểm danh — chưa rõ thật/mẫu) | `[ ]` | `[ ]` | `[ ]` | `[ ]` |
+| Nhóm dữ liệu (Technical Scan — Historical) | Không có dữ liệu thực (`no real data`) | Chỉ dữ liệu mẫu (`synthetic/sample only`) | Có dữ liệu thực (`real data detected`) | Trạng thái Owner Classification hiện tại |
+| :--- | :---: | :---: | :---: | :--- |
+| **PII** (`0` SĐT; `23` dòng có `birth_year > 1900`) | `[ ]` | `[ ]` | `[x]` | **Owner-reported: `real data detected`** |
+| **Financial data** (`18` khoản chi dương, `162` điểm danh đã thu dương) | `[ ]` | `[ ]` | `[x]` | **Owner-reported: `real data detected`** |
+| **Authentication material** (`23/23` cùng PIN mặc định, `0` `scrypt$`, `0` PIN khác) | `[ ]` | `[ ]` | `[x]` | **Owner-reported: `real data detected` (Default PIN `"1234"` used by real account: `YES`)** |
+| **Operational data** (`17` trận, `1` `team_settings`, `391` điểm danh) | `[ ]` | `[ ]` | `[x]` | **Owner-reported: `real data detected`** |
 
-- **Mẫu báo cáo ký nhận cho Owner (`Status: OWNER CONFIRMATION PENDING`)**:
+- **Biểu mẫu ghi nhận kết quả phân loại (`[HISTORICAL TEMPLATE — SUPERSEDED BY OWNER CLASSIFICATION]` — giữ nguyên để lưu vết quy trình)**:
 
 ```text
 P1-03 OWNER CLASSIFICATION REPORT
@@ -221,9 +225,9 @@ P1-03 OWNER CLASSIFICATION REPORT
 - Signature: _________________________
 ```
 
-- **Kế hoạch hành động bảo mật có điều kiện (chỉ kích hoạt nếu Owner xác nhận tài khoản thật đã dùng mã PIN mặc định bị lộ)**:
-  1. **Kế hoạch reset / vô hiệu hóa PIN có phạm vi (Scoped PIN Reset)**: Bắt buộc đổi PIN sang mã cá nhân mạnh (`scrypt$`) cho toàn bộ tài khoản thật từng dùng PIN mặc định trong giai đoạn lịch sử bị lộ.
-  2. **Kế hoạch thu hồi phiên đăng nhập (Session Invalidation)**: Xoay vòng `AUTH_SECRET` trên Vercel Production (theo mục `6`) khi cần thu hồi đồng loạt toàn bộ cookie/phiên hiện hữu.
+- **Kế hoạch containment bắt buộc (`OPEN / ACTION REQUIRED / RELEASE BLOCKING` — kích hoạt theo phê duyệt riêng của Owner/Operator sau khi đã xác nhận tài khoản thật dùng PIN mặc định bị lộ)**:
+  1. **Kế hoạch reset / vô hiệu hóa PIN có phạm vi (Scoped PIN Reset)**: Xác định phạm vi tài khoản thật bị ảnh hưởng và đổi PIN sang mã cá nhân mạnh (`scrypt$`) cho toàn bộ tài khoản liên quan.
+  2. **Kế hoạch thu hồi phiên đăng nhập (Session Invalidation)**: Xoay vòng effective Production auth secret theo đúng thứ tự ưu tiên `getAuthSecret()` (`APP_SECRET` > `AUTH_SECRET` > `NEXTAUTH_SECRET` > `SESSION_SECRET`) trên Vercel Production và thực hiện **coordinated redeployment** (mục `6`), sau đó kiểm chứng cookie cũ trả `401` trên protected endpoints và Manager xác thực lại qua kênh ngoài hệ thống.
   3. **Đánh giá phạm vi lộ lọt công khai**: Kiểm tra lịch sử truy cập, fork/clone công khai của repository `nguyenthetiengit01-collab/FCHDHGoNoi`.
   4. **Quyết định xử lý lịch sử Git tách biệt**: Trình phương án rewrite lịch sử (`BFG` / `git-filter-repo`) như một **quyết định phê duyệt riêng của Owner** (tuyệt đối không tự động thực thi khi chưa có phê duyệt).
 
@@ -341,7 +345,7 @@ P1-03 OWNER CLASSIFICATION REPORT
 
 | Hạng mục | Kết quả kiểm tra kỹ thuật / Tabletop (`2026-11-21`, dữ liệu giả lập) | Khoảng trống / Điều kiện còn thiếu | Chủ sở hữu phê duyệt | Quyết định / Ngày / Chữ ký |
 | :--- | :--- | :--- | :--- | :--- |
-| **`P0-01`** | Ruleset `27703288` `active`, `protected: true`, `3/3` checks, `1` approval, `current_user_can_bypass: never`, PR #16 `mergeable_state: blocked` | Chưa kiểm chứng hành vi thực thi chặn push/merge thực tế | Repo Owner | `PENDING` / `____` / `____` |
+| **`P0-01`** | (1) Public Branch API (`branches/main` `protected=true`) đã xác minh độc lập; (2) Rulesets API (`Ruleset 27703288`) đã đọc lại độc lập qua GitHub API integration (`/protection` endpoint trả `403`); (3) Behavioral enforcement chưa kiểm chứng | Chưa kiểm chứng hành vi thực thi chặn direct push và merge thực tế qua phép thử có ủy quyền | Repo Owner | `PENDING` / `____` / `____` |
 | **`P1-10`** | Rà soát quy trình xoay vòng khóa, hủy session, bảo toàn `audit_logs` bằng kịch bản giả lập (không xoay khóa thật) | Chưa chỉ định Ops Owner; chưa xác minh tách biệt env Preview/Production | Ops Owner | `PENDING` / `____` / `____` |
 | **`P1-11`** | Đối chiếu Expand-and-Contract với `phase7-idempotency-v1.mjs` (additive `CREATE TABLE/INDEX IF NOT EXISTS`); phân biệt Vercel code rollback vs DB | Chưa ký duyệt chính sách; chưa chạy migration trên Staging | Ops / Backend | `PENDING` / `____` / `____` |
 | **`P1-12`** | Đề xuất RPO/RTO & local synthetic drill (`PASSED` trong `os.tmpdir()`); tách biệt với Remote Turso non-atomic | Chưa duyệt RPO/RTO chính thức; DR Owner = `TBD`; chưa có Staging DR | DR Owner | `PENDING` / `____` / `____` |

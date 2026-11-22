@@ -11,9 +11,10 @@
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | `TURSO_DATABASE_URL` | Optional | Not used (`USE_LOCAL_SQLITE`) | **Required** (Staging URL) | **Required** (Prod URL) | Not used | Preflight conflict check | Vercel Env; mandatory when `NODE_ENV=production` or `VERCEL` set (`src/lib/db.ts:111-126`). |
 | `TURSO_AUTH_TOKEN` | Optional | Not used | **Required** (Staging RW) | **Required** (Prod RW) | Not used | Not used | Vercel Env; must be separate between Preview & Prod (`src/lib/db.ts:128-132`). |
-| `AUTH_SECRET` | Optional (dev fallback) | Optional / Test secret | **Required** (>=32 chars) | **Required** (>=32 chars) | Not used | Not used | Vercel Env; fail-closed `503` in Prod/Preview (`src/lib/auth.ts:58-92`). |
-| `PREVIEW_AUTH_SECRET` | Not used | Not used | Optional (overrides `AUTH_SECRET`) | Do not set | Not used | Not used | Vercel Preview Env (**Undocumented** in `docs/`). |
-| `APP_SECRET` / `NEXTAUTH_SECRET` / `SESSION_SECRET` | Fallback alias | Fallback alias | Fallback alias | Fallback alias | Not used | Not used | Legacy fallback aliases in `src/lib/auth.ts:65-71` (**Undocumented**). |
+| `APP_SECRET` | Optional (dev fallback) | Optional / Test secret | Priority #2 (after `PREVIEW_AUTH_SECRET`) | **Priority #1 (overrides `AUTH_SECRET`)** | Not used | Not used | Primary Production secret precedence in `getAuthSecret()` (`src/lib/auth.ts:65-83`); rotating `AUTH_SECRET` alone does not invalidate sessions if `APP_SECRET` is set. |
+| `AUTH_SECRET` | Optional (dev fallback) | Optional / Test secret | Priority #3 (after `PREVIEW_AUTH_SECRET`, `APP_SECRET`) | **Priority #2 (when `APP_SECRET` unset)** (>=32 chars) | Not used | Not used | Vercel Env; fail-closed `503` in Prod/Preview when no >=32-char secret is resolved (`src/lib/auth.ts:65-99`). |
+| `PREVIEW_AUTH_SECRET` | Not used | Not used | **Priority #1** (overrides `APP_SECRET`/`AUTH_SECRET`) | Do not set | Not used | Not used | Vercel Preview Env (`src/lib/auth.ts:72-78`). |
+| `NEXTAUTH_SECRET` / `SESSION_SECRET` | Fallback alias | Fallback alias | Priority #4 / #5 | Priority #3 / #4 | Not used | Not used | Lower-priority fallback aliases in `getAuthSecret()` (`src/lib/auth.ts:76-82`). |
 | `UPSTASH_REDIS_REST_URL` | Optional | Optional | **Required** | **Required** | Not used | Not used | Vercel Env; auth rate-limit fails closed `503` if missing in Prod/Preview (`src/lib/authRateLimit.ts:79-93`). |
 | `UPSTASH_REDIS_REST_TOKEN` | Optional | Optional | **Required** | **Required** | Not used | Not used | Vercel Env; paired with `UPSTASH_REDIS_REST_URL`. |
 | `MEDIA_STORAGE_ENABLED` | `"false"` (default) | `"false"` | `"false"` (default) | **`"false"`** (preserved) | Not used | Not used | Feature flag (`src/lib/media/validation.ts:16-20`). |

@@ -1,9 +1,12 @@
 # Phase 7.1 — Pre-Release Remediation & Governance Hardening Record
 
+> **[HISTORICAL PHASE 7.1 BASELINE RECORD — `2026-11-20`]**
+> This document preserves the initial Phase 7.1 workstream closure snapshot (`2026-11-20`). For current PR #16 status (`P0-01` 3-layer evidence, `P1-03` Owner-reported classification vs. containment, latest CI evidence, and P2/P3 closures), see [risk-register.md](./risk-register.md) and [release-go-no-go-checklist.md](./release-go-no-go-checklist.md).
+
 - **Feature Branch**: `fix/phase-7.1-pre-release-remediation`
 - **Base `main` SHA**: `c37dfd3200547210e8c6308b34c44db4fe18c04e` (PR #15 merge commit)
-- **Date**: 2026-11-20
-- **Release Decision**: **NO-GO** (`P0-01` Branch Protection on `main` is **CONFIGURATION VERIFIED / ENFORCEMENT BEHAVIOR VERIFICATION PENDING**; Owner/Preview/Staging/Real-Device sign-off pending; PR #16 remains **OPEN / DRAFT / NOT MERGED**)
+- **Date**: 2026-11-20 *(Historical snapshot; superseded for current gates by `risk-register.md`)*
+- **Release Decision**: **NO-GO** (`P0-01` behavioral enforcement pending; `P1-03` Owner containment `RELEASE BLOCKING`; Owner/Preview/Staging/Real-Device sign-off pending; PR #16 remains **OPEN / DRAFT / NOT MERGED**)
 
 ---
 
@@ -24,10 +27,10 @@
 
 | ID | Severity | Commit | File Paths | Verification & Tests | Status | Residual Risk |
 | :--- | :---: | :--- | :--- | :--- | :---: | :--- |
-| **P0-01** | **P0** | `1e0b38a` + Ruleset `27703288` | `docs/phase-7/branch-protection-owner-setup.md` | GitHub API `/branches/main` `protected: true`, Ruleset `27703288` `enforcement: active`, 3/3 required checks | **CONFIGURATION VERIFIED / ENFORCEMENT BEHAVIOR VERIFICATION PENDING** | Direct push rejection & merge blocking via test PR have not yet been behaviorally verified. |
+| **P0-01** | **P0** | `1e0b38a` + Ruleset `27703288` | `docs/phase-7/branch-protection-owner-setup.md` | GitHub API `/branches/main` `protected: true`, Ruleset `27703288` `enforcement: active`, 3/3 required checks | **HISTORICAL (`2026-11-20` — SUPERSEDED BY `risk-register.md` 3-LAYER EVIDENCE)** | Direct push rejection & merge blocking have not yet been behaviorally verified; `/protection` API returns `403`. |
 | **P1-01** | **P1** | `1539d5b` | `src/lib/auth.ts`, `src/app/api/team/route.ts`, `src/app/api/import/route.ts`, `src/app/api/auth/route.ts` | `phase71AuthPrivacy.test.ts` (5/5) + `teamStatistics.test.ts` | **CODE & TEST VERIFIED** | Pending Preview smoke test. |
 | **P1-02** | **P1** | `1539d5b` | `src/app/api/team/route.ts` (`change_own_password`) | `phase71AuthPrivacy.test.ts` (full login -> change -> next request) | **CODE & TEST VERIFIED** | None after test pass. |
-| **P1-03** | **P1** | `fd38939` | `next.config.ts`, `src/lib/db.ts`, `.gitignore` (`git rm --cached data/gonoifc.sqlite`) | `next build` `.nft.json` trace count = `0`; `phase71DatabaseTurso.test.ts`; offline read-only blob `67f415fa` check (`23` players, `23/23` same default plaintext PIN, `0` `scrypt` hashes, `0` phone values) | **WORKING TREE & BUILD REMEDIATED / OWNER CLASSIFICATION PENDING** | Authentication material: `UNKNOWN — DEFAULT PLAINTEXT AUTHENTICATION MATERIAL PRESENT; OWNER DOMAIN CONFIRMATION PENDING` (23 default PINs could be seeded data or real accounts on a shared default). PII/Financial/Operational real-vs-seeded status & conditional PIN/session/history actions remain `OWNER CONFIRMATION PENDING`. |
+| **P1-03** | **P1** | `fd38939` | `next.config.ts`, `src/lib/db.ts`, `.gitignore` (`git rm --cached data/gonoifc.sqlite`) | `next build` `.nft.json` trace count = `0`; `phase71DatabaseTurso.test.ts`; offline read-only blob `67f415fa` check (`23` players, `23/23` same default plaintext PIN, `0` `scrypt` hashes, `0` phone values) | **HISTORICAL (`2026-11-20` — SUPERSEDED BY OWNER CLASSIFICATION IN `risk-register.md`)** | Owner subsequently confirmed real data across all 4 groups and real account default PIN `"1234"` (`Sensitive data found = YES`); Production containment remains `OPEN / ACTION REQUIRED / RELEASE BLOCKING`. |
 | **P1-04** | **P1** | `85eeecb` | `next.config.ts` (`headers()`) | `phase71HttpReliability.test.ts` (6/6) + `next build` | **CODE & TEST VERIFIED** | Enforced CSP should be smoke-tested on Vercel Preview. |
 | **P1-05** | **P1** | `071f6e8` | `src/lib/financeValidation.ts`, `src/app/api/team/route.ts` | `phase71FinanceExcel.test.ts` (6/6) + `financialCalculations.test.ts` (6/6) | **CODE & TEST VERIFIED** | Explicit `0` preserved; negative/float/`NaN` rejected `400`. |
 | **P1-06** | **P1** | `071f6e8` | `src/lib/excelSanitize.ts`, `src/app/api/export/route.ts` | `phase71FinanceExcel.test.ts` + `excelSecurityHardening.test.ts` | **CODE & TEST VERIFIED** | None in exported text cells. |
