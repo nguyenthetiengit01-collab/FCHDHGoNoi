@@ -465,6 +465,36 @@ export const AUTH_PLAYER_PROFILE_COLUMNS = `
   bio, role, access_role, pin_code, status, notes
 `;
 
+export async function hasMustChangePinColumn(
+  db: { query: <T = Record<string, unknown>>(sql: string, args?: unknown[]) => Promise<T[]> }
+): Promise<boolean> {
+  try {
+    const cols = await db.query<{ name?: string }>("PRAGMA table_info(players)");
+    return cols.some((c) => c.name === "must_change_pin");
+  } catch {
+    return false;
+  }
+}
+
+export async function readMustChangePinFlag(
+  db: { queryOne: <T = Record<string, unknown>>(sql: string, args?: unknown[]) => Promise<T | null> },
+  playerId: number
+): Promise<boolean> {
+  try {
+    const row = await db.queryOne<{ must_change_pin?: number }>(
+      "SELECT must_change_pin FROM players WHERE id = ? LIMIT 1",
+      [playerId]
+    );
+    return Number(row?.must_change_pin || 0) === 1;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message.toLowerCase() : "";
+    if (msg.includes("no such column") && msg.includes("must_change_pin")) {
+      return false;
+    }
+    throw err;
+  }
+}
+
 /**
  * Xác thực thông tin đăng nhập từ Server Database với chuẩn chống Brute-force, Anti-Enumeration & Auto Re-hash
  */
@@ -632,12 +662,16 @@ export async function verifyCredentials(
 
   hydratedPlayer.pin_code = finalPinCode;
   const isDefault = isDefaultPassword(finalPinCode);
+  const mustChangePin = await readMustChangePinFlag(db, matched.id);
+  if (mustChangePin) {
+    hydratedPlayer.must_change_pin = 1;
+  }
 
   return {
     success: true,
     status: 200,
     player: hydratedPlayer,
-    mustChangePassword: isDefault,
+    mustChangePassword: isDefault || mustChangePin,
   };
 }
 
@@ -829,6 +863,7 @@ export function sanitizeDataForPublic(data: FullAppData): FullAppData {
       phone: "",
       username: "",
       pin_code: "",
+      must_change_pin: undefined,
       notes: "",
       gallery_urls: [],
       access_role: "player" as const,
@@ -868,6 +903,7 @@ export function sanitizeDataForPlayer(
         phone: "",
         username: "",
         pin_code: "",
+        must_change_pin: undefined,
         notes: "",
         access_role: "player" as const,
       };
@@ -908,6 +944,9 @@ export function projectSafePlayer(player: Player): SafePlayerPayload {
     ...(player.nickname !== undefined ? { nickname: player.nickname } : {}),
     ...(player.playing_style !== undefined ? { playing_style: player.playing_style } : {}),
     ...(player.gallery_urls !== undefined ? { gallery_urls: player.gallery_urls } : {}),
+    ...(player.must_change_pin !== undefined
+      ? { mustChangePin: Number(player.must_change_pin) === 1 }
+      : {}),
   };
 }
 

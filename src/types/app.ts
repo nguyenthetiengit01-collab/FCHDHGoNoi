@@ -64,6 +64,7 @@ export interface Player {
   nickname?: string;
   playing_style?: string;
   gallery_urls?: string[];
+  must_change_pin?: number;
 }
 
 export interface MatchRecord {
@@ -235,7 +236,9 @@ export interface FullAppData {
 }
 
 /** Cầu thủ đã loại bỏ hoàn toàn thuộc tính pin_code trước khi trả về client */
-export type SafePlayerPayload = Omit<Player, "pin_code">;
+export type SafePlayerPayload = Omit<Player, "pin_code"> & {
+  mustChangePin?: boolean;
+};
 
 /** Hợp đồng dữ liệu trả về từ GET /api/team theo 3 cấp quyền */
 export type PublicTeamPayload = Omit<FullAppData, "players"> & {

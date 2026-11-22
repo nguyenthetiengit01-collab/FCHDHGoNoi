@@ -883,6 +883,7 @@ function initSchema(db: DatabaseSyncType) {
       access_role TEXT NOT NULL DEFAULT 'player',
       username TEXT NOT NULL DEFAULT '',
       pin_code TEXT NOT NULL DEFAULT '',
+      must_change_pin INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
       notes TEXT NOT NULL DEFAULT ''
     );
@@ -1088,6 +1089,11 @@ function runMigrations(db: DatabaseSyncType) {
   if (!hasColumn(db, "match_attendances", "collected_by")) {
     db.exec(
       `ALTER TABLE match_attendances ADD COLUMN collected_by TEXT NOT NULL DEFAULT 'Tiếng';`
+    );
+  }
+  if (!hasColumn(db, "players", "must_change_pin")) {
+    db.exec(
+      `ALTER TABLE players ADD COLUMN must_change_pin INTEGER NOT NULL DEFAULT 0;`
     );
   }
   if (!hasColumn(db, "players", "username")) {
@@ -1893,6 +1899,11 @@ export async function ensureClubPostsReady(db: AsyncDb): Promise<void> {
     }
     try {
       await db.exec("ALTER TABLE players ADD COLUMN gallery_urls_json TEXT NOT NULL DEFAULT '[]';");
+    } catch {
+      // đã tồn tại
+    }
+    try {
+      await db.exec("ALTER TABLE players ADD COLUMN must_change_pin INTEGER NOT NULL DEFAULT 0;");
     } catch {
       // đã tồn tại
     }

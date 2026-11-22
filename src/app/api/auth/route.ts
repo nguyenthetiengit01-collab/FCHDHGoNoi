@@ -9,6 +9,7 @@ import {
   getPasswordFingerprint,
   isDefaultPassword,
   projectSafePlayer,
+  readMustChangePinFlag,
   SESSION_COOKIE_NAME,
   requireManagerSession,
   verifyCsrfOrigin,
@@ -80,10 +81,16 @@ async function handleGetAuth(req: NextRequest): Promise<NextResponse> {
       return res;
     }
 
+    const mustChangePin = await readMustChangePinFlag(db, playerRow.id);
+    if (mustChangePin) {
+      playerRow.must_change_pin = 1;
+    }
+
     // Luôn ẩn mã PIN trước khi gửi về client (allow-list projection)
     const safePlayer = projectSafePlayer(playerRow);
 
-    const mustChangePassword = isDefaultPassword(playerRow.pin_code);
+    const mustChangePassword =
+      isDefaultPassword(playerRow.pin_code) || mustChangePin;
 
     return NextResponse.json({
       authenticated: true,
