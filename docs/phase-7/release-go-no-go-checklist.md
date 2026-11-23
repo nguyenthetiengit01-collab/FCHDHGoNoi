@@ -75,3 +75,44 @@
 | **Repository / Club Owner** | Branch protection, Vercel Production env separation, RPO/RTO acceptance, DR key custody | **PENDING** |
 | **Tech Lead / Security** | Phase 7.1 P0/P1 fixes verified via CI + regression tests | **PENDING** |
 | **QA / Operations** | Staging rehearsal passed + `docs/pwa-real-device-checklist.md` completed | **PENDING** |
+
+## 4. Current Evidence Addendum - 2026-11-23 (PR #16)
+
+> This addendum supersedes older status snapshots where they conflict. Historical records above are preserved.
+
+### A. Current PR and CI Evidence
+- PR #16 HEAD: `4e9a0621389828c524524a352ab142ab42463ffe`; state: OPEN / DRAFT / NOT MERGED.
+- GitHub Actions Run #68 (`45171723803`): completed / success. Quality Gates, Playwright Linux, Playwright Windows: all SUCCESS.
+- Vercel commit status: SUCCESS. This does not prove authenticated Preview smoke tests or Preview/Production database separation.
+- Latest local full verification recorded before the documentation-only commit: Vitest 53/53 files, 420/420 tests; ESLint, TypeScript and Next.js build PASS.
+
+### B. P0-01 Branch Protection Evidence
+- Public Branch API: `main.protected=true`.
+- Ruleset `27703288`: `enforcement=active`, target `refs/heads/main`, strict required status checks enabled.
+- Required checks: `Quality Gates (Node 22.23.5)`, `Playwright Visual & Accessibility QA (Linux)`, `Playwright Visual & Accessibility QA (Windows)`.
+- Pull request rule requires 1 approving review, dismisses stale reviews, and requires review-thread resolution.
+- Ruleset API reports `current_user_can_bypass=never` for the connected identity.
+- PR #16 currently reports `mergeable_state=blocked`; its review list is empty and it remains Draft. This is an observed blocked merge state, but Draft status prevents attributing the block solely to the required-approval rule.
+- Branch protection detail endpoint returned HTTP 403 to the connected integration. Direct-push rejection has not been behaviorally tested. Do not perform an unapproved direct push to `main`.
+- P0-01: CONFIGURATION VERIFIED / MERGE-BLOCK STATE OBSERVED; DIRECT-PUSH AND APPROVAL-ENFORCEMENT BEHAVIOR NOT INDEPENDENTLY VERIFIED; OWNER / OPERATIONAL ACCEPTANCE PENDING.
+
+### C. Staging Read-only Diagnostics - 2026-11-23
+- Exact Staging hostname: `fchdhgonoi-staging-nguyenthetiengit01-collab.aws-ap-northeast-1.turso.io`.
+- Read-only account assessment: 2 active accounts (1 manager, 1 player); 2 non-default scrypt credentials; 0 missing; 0 default `1234`; `resetRequiredCount=0`; `mustChangePinPending=2`.
+- Both active accounts remain `must_change_pin=1`. The result does not establish credential handoff availability.
+- Audit reconciliation: manager recovery 1 record; first Bulk Reset reference 2 records; second Bulk Reset reference 2 records; unknown and missing approval references both 0.
+- Token was supplied by the operator as read-only, but actual Turso token permissions were not independently introspected. URL/token were entered interactively and cleared after execution.
+- Credential handoff for the second Bulk Apply remains unconfirmed. No temporary credentials may be reused. No further reset was performed.
+- Manager/Player authenticated Login E2E: BLOCKED / NOT STARTED. These checks are not formal Phase 7.2 Staging/DR rehearsal acceptance.
+- The historical `TURSO_STAGING_*=ABSENT` note concerns persistent unattended environment configuration; it does not negate the operator-assisted read-only diagnostic above. Formal remote rehearsal remains blocked.
+
+### D. Remaining Release Gates
+- P1-03 Production containment: OPEN / ACTION REQUIRED / RELEASE BLOCKING. Owner classification is complete and owner-reported; no evidence of unauthorized access or compromise has been established.
+- P1-03 actions still required: approved scoped account PIN resets; rotate the effective Production auth secret with coordinated redeployment; verify old `fc_session` returns HTTP 401 on protected endpoints; complete Manager out-of-band reauthentication; decide Git history and clone/fork remediation.
+- P1-10 to P1-13: RPO/RTO Owner approval, named Primary/Backup DR Owners, escalation roster and live DR drill remain PENDING.
+- P2-03 development-only advisory acceptance and P2-14 external backup notification receipt remain PENDING.
+- Preview/Production separation, authenticated Preview smoke/rollback, remote Turso restore/replay/concurrency, and real-device iOS/Android QA remain NOT VERIFIED.
+- Formal Phase 7.2 Staging/DR rehearsal must follow Phase 7.1 merge, as required by the runbook.
+
+### E. Current Release Decision
+**PRODUCTION NO-GO.** CI success does not waive P1-03 containment or Owner/Operations release gates. PR #16 remains Draft and must not be merged solely because CI is green.
