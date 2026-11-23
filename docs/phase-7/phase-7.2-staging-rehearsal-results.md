@@ -109,3 +109,42 @@ Executed on 2026-11-20 using synthetic data in `os.tmpdir()` (zero `data/gonoifc
   - `Quality Gates (Node 22.23.5)`: **`success`**
   - `Playwright Visual & Accessibility QA (Linux)`: **`success`**
   - `Playwright Visual & Accessibility QA (Windows)`: **`success`**
+
+## 7. Current Evidence Addendum — 2026-11-23
+
+### 7.1 Read-only Account Assessment
+- Exact target hostname: `fchdhgonoi-staging-nguyenthetiengit01-collab.aws-ap-northeast-1.turso.io`.
+- Code context: `feat/p103-pin-enforcement` at `7e3c5d7e59e8bf3fa8f58398cdd3661ac525be1b`.
+- Result: `status=ok`, `readOnly=true`; exact Staging hostname validated.
+- URL and token were entered interactively and cleared after execution. Only read transaction, schema inspection and SELECT queries were performed. Token was supplied as read-only by the operator; actual Turso token permissions were not independently inspected.
+- Accounts: 2 total, 2 active; 1 manager and 1 player.
+- Credentials: 2 `scryptNonDefault`; 0 missing, 0 plaintext default `1234`, 0 scrypt default `1234`, 0 undetermined.
+- `resetRequiredCount=0`; `mustChangePinPending=2`; `schemaPinCodeDefault=empty`.
+- Both accounts remain gated by `must_change_pin=1`. The assessment did not mark either account as reset-required; it does not establish credential handoff availability.
+
+### 7.2 Audit Log Reconciliation
+- `audit_logs` table and required schema: PASS.
+- Manager recovery `CHG-P103C48-20261123-01`: 1 record.
+- Bulk reset `CHG-P103C-RESETALL-20261123-01`: 2 records.
+- Bulk reset `CHG-P103C-RESETALL-20261123-02`: 2 records.
+- Unknown approval references: 0. Missing approval references: 0.
+- Both active QA accounts have `must_change_pin=1`.
+- The second Bulk Apply is confirmed by its two audit records. No PIN, player identifier, phone, hash or raw audit summary was exported.
+
+### 7.3 Credential Handoff & E2E
+- Operator could not confirm retention or delivery of the credential handoff from the second Bulk Apply. Treat all previously displayed temporary credentials as unavailable and do not reuse them.
+- No additional reset was executed. A future reset requires fresh Owner approval, one controlled Apply, and secure out-of-band handoff.
+- Manager/Player Login E2E: BLOCKED / NOT STARTED.
+- Staging authenticated security regression: NOT VERIFIED; passing CI tests do not establish authenticated behavior against Staging.
+- Formal Staging/DR rehearsal remains blocked until Phase 7.1 is merged to `main`, as required by the runbook. These read-only checks do not constitute formal rehearsal acceptance.
+
+### 7.4 Latest PR #16 CI Evidence
+- Head: `e1610490f2c8ae1ab09ccd936a28a402191bb30b`.
+- GitHub Actions Run #67: https://github.com/nguyenthetiengit01-collab/FCHDHGoNoi/actions/runs/45168499285 — completed / success.
+- Quality Gates, Playwright Windows, Playwright Linux: all SUCCESS.
+- Vercel commit status: SUCCESS; deployment status does not prove authenticated Preview smoke tests or Preview/Production DB separation.
+- Local verification: 53/53 Vitest files, 420/420 tests; ESLint PASS; TypeScript PASS; Next.js build PASS.
+- Three warning annotations were non-failing runtime/deprecation notices. Track them as maintenance; do not suppress warnings just to remove annotations.
+
+### 7.5 Current Release Decision
+**NO-GO remains in force.** P0-01 behavioral enforcement, P1-03 Production containment, P1-10–P1-13 Owner/Operations sign-offs, Preview separation and authenticated smoke/rollback, remote DR restore, and real-device QA remain open or unverified.
