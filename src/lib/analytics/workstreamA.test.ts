@@ -453,4 +453,37 @@ describe("Workstream A — Protected Cron Cleanup, Target Safety & Batch Retenti
       raw.close();
     }
   });
+
+  it("validates Production cleanup target safely with both optional Staging URLs unset", () => {
+    const validProd = validateProductionCleanupTarget({
+      TURSO_DATABASE_URL:
+        "libsql://fchdhgonoi-nguyenthetiengit01-collab.aws-ap-northeast-1.turso.io",
+      TURSO_AUTH_TOKEN: "mock-token",
+    });
+    expect(validProd.dbName).toBe("fchdhgonoi-nguyenthetiengit01-collab");
+
+    expect(() =>
+      validateProductionCleanupTarget({
+        TURSO_DATABASE_URL:
+          "libsql://fchdhgonoi-staging-nguyenthetiengit01-collab.aws-ap-northeast-1.turso.io",
+        TURSO_AUTH_TOKEN: "mock-token",
+      })
+    ).toThrow(/not an allowed Production database/);
+
+    expect(() =>
+      validateProductionCleanupTarget({
+        TURSO_DATABASE_URL:
+          "libsql://fchdhgonoi-staging-restore-nguyenthetiengit01-collab.aws-ap-northeast-1.turso.io",
+        TURSO_AUTH_TOKEN: "mock-token",
+      })
+    ).toThrow(/not an allowed Production database/);
+
+    expect(() =>
+      validateProductionCleanupTarget({
+        TURSO_DATABASE_URL:
+          "libsql://other-unlisted-db.aws-ap-northeast-1.turso.io",
+        TURSO_AUTH_TOKEN: "mock-token",
+      })
+    ).toThrow(/outside Production allowlist/);
+  });
 });
