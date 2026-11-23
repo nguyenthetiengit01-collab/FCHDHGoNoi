@@ -411,6 +411,7 @@ describe("IDEMPOTENCY_SCHEMA_NOT_READY & unknown-write error semantics", () => {
       matchId: 46,
       collectedBy: "Tieng",
       items: sampleItems,
+      now: new Date("2026-11-21T08:30:00.000Z"),
       sendMutate: async (payload) => {
         sentKeys.push(payload.idempotency_key);
         return {
@@ -452,6 +453,7 @@ describe("IDEMPOTENCY_SCHEMA_NOT_READY & unknown-write error semantics", () => {
     const outcome = await runBatchOperationAttempt({
       mode: "reconcile_retry",
       matchId: 47,
+      now: new Date("2026-11-21T08:30:00.000Z"),
       sendMutate: async (payload) => {
         sentKeys.push(payload.idempotency_key);
         return {
@@ -502,6 +504,7 @@ describe("IDEMPOTENCY_SCHEMA_NOT_READY & unknown-write error semantics", () => {
     const firstRetry = await runBatchOperationAttempt({
       mode: "reconcile_retry",
       matchId: 48,
+      now: new Date("2026-11-21T08:30:00.000Z"),
       sendMutate: async (payload) => {
         sentKeys.push(payload.idempotency_key);
         return {
@@ -523,6 +526,7 @@ describe("IDEMPOTENCY_SCHEMA_NOT_READY & unknown-write error semantics", () => {
       matchId: 48,
       collectedBy: "Tieng",
       items: sampleItems,
+      now: new Date("2026-11-21T08:30:00.000Z"),
       sendMutate: async (payload) => {
         sentKeys.push(payload.idempotency_key);
         return { ok: true };
