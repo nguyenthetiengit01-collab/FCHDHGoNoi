@@ -38,8 +38,8 @@ function createInMemoryRateLimiter(): AuthRateLimitDriver {
     limitAccount: allow,
     limitIp: allow,
     limitPair: allow,
-    async resetAccount() {},
-    async resetPair() {},
+    async resetAccount() { },
+    async resetPair() { },
   };
 }
 
@@ -85,6 +85,7 @@ function createPhase71TestDb() {
       access_role TEXT NOT NULL DEFAULT 'player',
       username TEXT NOT NULL DEFAULT '',
       pin_code TEXT NOT NULL DEFAULT '1234',
+      must_change_pin INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
       notes TEXT NOT NULL DEFAULT ''
     );
@@ -835,12 +836,14 @@ describe("Phase 7.1 – Authentication, RBAC & Privacy Remediation", () => {
             action: "reset_player_password",
             payload: {
               player_id: stored.id,
-              new_pin: "WalkinInit@2026",
+              mode: "random_temporary",
             },
           }),
         })
       );
       expect(resetRes.status).toBe(200);
+      const resetBody = (await resetRes.json()) as { temporaryPin?: string };
+      expect(typeof resetBody.temporaryPin).toBe("string");
 
       // Walk-in player can now change own PIN using the manager-assigned credential
       const walkinPlayerRow = raw
@@ -860,7 +863,7 @@ describe("Phase 7.1 – Authentication, RBAC & Privacy Remediation", () => {
             action: "change_own_password",
             payload: {
               player_id: stored.id,
-              old_pin: "WalkinInit@2026",
+              old_pin: resetBody.temporaryPin,
               new_pin: "WalkinNew@2026",
             },
           }),

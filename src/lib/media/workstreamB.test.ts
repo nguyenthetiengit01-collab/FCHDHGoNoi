@@ -55,6 +55,7 @@ function createTempAppDb() {
       status TEXT,
       access_role TEXT DEFAULT 'player',
       pin_code TEXT,
+      must_change_pin INTEGER NOT NULL DEFAULT 0,
       notes TEXT,
       hometown TEXT,
       nickname TEXT,

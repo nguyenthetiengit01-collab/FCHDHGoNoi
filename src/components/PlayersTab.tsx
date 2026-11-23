@@ -29,7 +29,6 @@ import type {
   AuthSession,
 } from "@/types/app";
 import { OFFICIAL_LOGO_URL } from "@/types/app";
-import { validatePasswordStrength } from "@/lib/passwordStrength";
 import {
   calculatePlayerAttendanceStats,
   calculateTeamAvgAttendanceRate,
@@ -101,9 +100,8 @@ export function PlayersTab({
     player: Player;
   } | null>(null);
   const [resetPinTarget, setResetPinTarget] = useState<Player | null>(null);
-  const [resetNewPin, setResetNewPin] = useState("");
-  const [resetConfirmPin, setResetConfirmPin] = useState("");
   const [resetPinError, setResetPinError] = useState("");
+  const [issuedTempPin, setIssuedTempPin] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [detailPlayer, setDetailPlayer] = useState<Player | null>(null);
@@ -328,45 +326,25 @@ export function PlayersTab({
   function handleResetPassword(p: Player) {
     if (!isManager) return;
     setResetPinTarget(p);
-    setResetNewPin("");
-    setResetConfirmPin("");
     setResetPinError("");
+    setIssuedTempPin(null);
   }
 
-  async function handleConfirmResetPin(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleGenerateRandomTempPin(e?: React.FormEvent) {
+    if (e) e.preventDefault();
     if (!resetPinTarget || isSaving) return;
-
-    if (resetNewPin !== resetConfirmPin) {
-      setResetPinError("Mã PIN mới và xác nhận mã PIN không khớp.");
-      return;
-    }
-
-    const strength = validatePasswordStrength(
-      resetNewPin,
-      resetPinTarget.username || resetPinTarget.phone || resetPinTarget.full_name
-    );
-    if (!strength.valid) {
-      setResetPinError(
-        strength.error || "Mã PIN mới không đạt yêu cầu bảo mật."
-      );
-      return;
-    }
-
     setResetPinError("");
     const result = await onMutate("reset_player_password", {
       player_id: resetPinTarget.id,
-      new_pin: resetNewPin,
+      mode: "random_temporary",
     });
     if (result && !result.ok) {
       setResetPinError(result.error || "Không thể đặt lại mã PIN.");
       return;
     }
-
-    setResetPinTarget(null);
-    setResetNewPin("");
-    setResetConfirmPin("");
-    setResetPinError("");
+    if (result && result.temporaryPin) {
+      setIssuedTempPin(result.temporaryPin);
+    }
   }
 
   async function handleChangeOwnPassword(e: React.FormEvent) {
@@ -1535,18 +1513,47 @@ export function PlayersTab({
         onClose={() => {
           if (isSaving) return;
           setResetPinTarget(null);
-          setResetNewPin("");
-          setResetConfirmPin("");
           setResetPinError("");
+          setIssuedTempPin(null);
         }}
         title="Đặt lại mật khẩu (PIN) cầu thủ"
         subtitle={
           resetPinTarget
-            ? `Nhập mã PIN mới cho ${resetPinTarget.full_name} (tối thiểu 6 ký tự, không dùng mã yếu)`
+            ? `Máy chủ sẽ tạo mã PIN tạm thời ngẫu nhiên cho ${resetPinTarget.full_name}`
             : undefined
         }
       >
-        <form onSubmit={handleConfirmResetPin} className="space-y-4">
+        {issuedTempPin ? (
+          <div className="space-y-4">
+            <div
+              role="status"
+              className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900 space-y-2"
+            >
+              <p className="font-bold">
+                Mã PIN tạm thời (chỉ hiển thị một lần — gửi riêng cho cầu thủ):
+              </p>
+              <p className="font-mono text-lg font-bold tracking-wider select-all bg-white px-3 py-2 rounded border border-emerald-200">
+                {issuedTempPin}
+              </p>
+              <p className="text-xs text-emerald-800">
+                Cầu thủ bắt buộc đổi sang mã PIN cá nhân mới ngay sau khi đăng nhập.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                onClick={() => {
+                  setResetPinTarget(null);
+                  setIssuedTempPin(null);
+                  setResetPinError("");
+                }}
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
+        ) : (
+        <form onSubmit={handleGenerateRandomTempPin} className="space-y-4">
           {resetPinError ? (
             <div
               role="alert"
@@ -1556,58 +1563,12 @@ export function PlayersTab({
             </div>
           ) : null}
 
-          <div>
-            <label
-              htmlFor="reset-new-pin"
-              className="block text-sm font-semibold text-slate-700 mb-1"
-            >
-              Mã PIN mới (New PIN)
-            </label>
-            <input
-              id="reset-new-pin"
-              name="new_pin"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              maxLength={64}
-              value={resetNewPin}
-              onChange={(e) => {
-                setResetNewPin(e.target.value);
-                if (resetPinError) setResetPinError("");
-              }}
-              placeholder="Nhập mã PIN mới (tối thiểu 6 ký tự)"
-              className="form-input"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="reset-confirm-pin"
-              className="block text-sm font-semibold text-slate-700 mb-1"
-            >
-              Xác nhận mã PIN mới (Confirm new PIN)
-            </label>
-            <input
-              id="reset-confirm-pin"
-              name="confirm_new_pin"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              maxLength={64}
-              value={resetConfirmPin}
-              onChange={(e) => {
-                setResetConfirmPin(e.target.value);
-                if (resetPinError) setResetPinError("");
-              }}
-              placeholder="Nhập lại mã PIN mới"
-              className="form-input"
-            />
-          </div>
+          <p className="text-sm text-slate-700">
+            Hệ thống sẽ tự sinh một mã PIN tạm thời ngẫu nhiên, duy nhất cho tài khoản này và vô hiệu hóa mọi phiên đăng nhập cũ.
+          </p>
 
           <p className="text-xs text-slate-500">
-            Cầu thủ sẽ được yêu cầu đổi lại mã PIN ở lần đăng nhập tiếp theo.
+            Mã PIN tạm chỉ hiển thị một lần duy nhất và cầu thủ bắt buộc đổi sang mã PIN cá nhân mới khi đăng nhập.
           </p>
 
           <div className="flex items-center justify-end gap-2 pt-2">
@@ -1617,18 +1578,18 @@ export function PlayersTab({
               disabled={isSaving}
               onClick={() => {
                 setResetPinTarget(null);
-                setResetNewPin("");
-                setResetConfirmPin("");
                 setResetPinError("");
+                setIssuedTempPin(null);
               }}
             >
               Huỷ
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? "Đang lưu..." : "Xác nhận đặt lại PIN"}
+              {isSaving ? "Đang tạo..." : "Tạo PIN tạm ngẫu nhiên"}
             </Button>
           </div>
         </form>
+        )}
       </ModalDialog>
 
       <ConfirmDialog

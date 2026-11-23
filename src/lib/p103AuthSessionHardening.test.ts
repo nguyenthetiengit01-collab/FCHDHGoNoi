@@ -86,6 +86,7 @@ function createIsolatedDb() {
       access_role TEXT NOT NULL DEFAULT 'player',
       username TEXT NOT NULL DEFAULT '',
       pin_code TEXT NOT NULL DEFAULT '',
+      must_change_pin INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
       notes TEXT NOT NULL DEFAULT '',
       hometown TEXT NOT NULL DEFAULT '',
@@ -358,7 +359,7 @@ describe("P1-03 Security Incident — Authentication & Session Hardening", () =>
           },
           body: JSON.stringify({
             action: "reset_player_password",
-            payload: { player_id: 2, new_pin: "NewSafePin@2026" },
+            payload: { player_id: 2, mode: "random_temporary" },
           }),
         })
       );
