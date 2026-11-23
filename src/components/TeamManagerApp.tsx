@@ -249,6 +249,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
     code?: string;
     retryable?: boolean;
     reconcileRequired?: boolean;
+    temporaryPin?: string;
   }> => {
     setIsSaving(true);
     try {
@@ -295,7 +296,12 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       ) {
         showToast("Đã lưu thay đổi vào Cơ sở dữ liệu Cloud!");
       }
-      return { ok: true };
+      return {
+        ok: true,
+        ...(typeof json?.temporaryPin === "string"
+          ? { temporaryPin: json.temporaryPin }
+          : {}),
+      };
     } catch (err) {
       console.error(err);
       showToast("Không thể kết nối máy chủ", "error");

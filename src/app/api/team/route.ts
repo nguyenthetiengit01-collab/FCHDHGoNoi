@@ -17,7 +17,7 @@ import {
   getAuthSession,
   hashPassword,
   hasMustChangePinColumn,
-  readMustChangePinFlag,
+  readMustChangePinState,
   verifyPassword,
   validatePasswordStrength,
   createSessionToken,
@@ -40,6 +40,28 @@ import {
   parseNonNegativeIntVnd,
   type ValidationResult,
 } from "@/lib/financeValidation";
+
+function generateTemporaryPin(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "@#$%&*!";
+  const all = upper + lower + digits + symbols;
+  const chars = [
+    upper[crypto.randomInt(upper.length)],
+    lower[crypto.randomInt(lower.length)],
+    digits[crypto.randomInt(digits.length)],
+    symbols[crypto.randomInt(symbols.length)],
+  ];
+  for (let i = 0; i < 8; i++) {
+    chars.push(all[crypto.randomInt(all.length)]);
+  }
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
+}
 
 function parsePositiveIntId(
   raw: unknown,
@@ -350,21 +372,9 @@ export async function POST(req: NextRequest) {
             error:
               auth.error ||
               "Thao tác yêu cầu quyền Ban Quản Lý (Manager). Vui lòng đăng nhập với tài khoản Ban Quản Lý.",
+            ...(auth.errorCode ? { code: auth.errorCode } : {}),
           },
           { status: auth.status, headers: { "Cache-Control": "no-store" } }
-        );
-      }
-      if (
-        auth.player &&
-        (await readMustChangePinFlag(db, auth.player.id))
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Tài khoản đang sử dụng mã PIN tạm. Vui lòng đổi sang mã PIN cá nhân mới trước khi thực hiện thao tác khác.",
-            code: "PIN_CHANGE_REQUIRED",
-          },
-          { status: 403, headers: { "Cache-Control": "no-store" } }
         );
       }
       effectiveSession = auth.player
@@ -374,42 +384,35 @@ export async function POST(req: NextRequest) {
 
     // Các hành động yêu cầu cầu thủ đã đăng nhập vào hệ thống
     if (action === "update_own_profile" || action === "change_own_password") {
-      const auth = await requirePlayerSession(req);
+      const auth = await requirePlayerSession(req, {
+        allowTemporaryPinChange: action === "change_own_password",
+      });
       if (!auth.authorized) {
         return NextResponse.json(
-          { error: auth.error || "Vui lòng đăng nhập để cập nhật hồ sơ cá nhân" },
-          { status: auth.status, headers: { "Cache-Control": "no-store" } }
-        );
-      }
-      if (
-        action !== "change_own_password" &&
-        auth.player &&
-        (await readMustChangePinFlag(db, auth.player.id))
-      ) {
-        return NextResponse.json(
           {
-            error:
-              "Tài khoản đang sử dụng mã PIN tạm. Vui lòng đổi sang mã PIN cá nhân mới trước khi cập nhật hồ sơ.",
-            code: "PIN_CHANGE_REQUIRED",
+            error: auth.error || "Vui lòng đăng nhập để cập nhật hồ sơ cá nhân",
+            ...(auth.errorCode ? { code: auth.errorCode } : {}),
           },
-          { status: 403, headers: { "Cache-Control": "no-store" } }
+          { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
       effectiveSession = auth.player
         ? { playerId: auth.player.id, accessRole: auth.player.access_role }
         : auth.session ?? effectiveSession;
-      const targetPlayerId = Number(payload?.player_id ?? payload?.id);
-      if (
-        auth.player?.access_role !== "manager" &&
-        targetPlayerId !== auth.player?.id
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Bảo mật: Bạn chỉ có thể cập nhật tài khoản cá nhân của chính mình",
-          },
-          { status: 403, headers: { "Cache-Control": "no-store" } }
-        );
+      if (action === "update_own_profile") {
+        const targetPlayerId = Number(payload?.player_id ?? payload?.id);
+        if (
+          auth.player?.access_role !== "manager" &&
+          targetPlayerId !== auth.player?.id
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Bảo mật: Bạn chỉ có thể cập nhật tài khoản cá nhân của chính mình",
+            },
+            { status: 403, headers: { "Cache-Control": "no-store" } }
+          );
+        }
       }
     }
 
@@ -417,21 +420,11 @@ export async function POST(req: NextRequest) {
       const auth = await requirePlayerSession(req);
       if (!auth.authorized) {
         return NextResponse.json(
-          { error: auth.error || "Vui lòng đăng nhập để điểm danh" },
-          { status: auth.status, headers: { "Cache-Control": "no-store" } }
-        );
-      }
-      if (
-        auth.player &&
-        (await readMustChangePinFlag(db, auth.player.id))
-      ) {
-        return NextResponse.json(
           {
-            error:
-              "Tài khoản đang sử dụng mã PIN tạm. Vui lòng đổi sang mã PIN cá nhân mới trước khi thực hiện điểm danh.",
-            code: "PIN_CHANGE_REQUIRED",
+            error: auth.error || "Vui lòng đăng nhập để điểm danh",
+            ...(auth.errorCode ? { code: auth.errorCode } : {}),
           },
-          { status: 403, headers: { "Cache-Control": "no-store" } }
+          { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
       effectiveSession = auth.player
@@ -456,6 +449,7 @@ export async function POST(req: NextRequest) {
     }
     let auditRecordedInTx = false;
     let idempotentReplayed = false;
+    let oneTimeTemporaryPin: string | null = null;
 
     switch (action) {
       case "upsert_player": {
@@ -809,9 +803,26 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // Cầu thủ tự đổi tên đăng nhập (username) và mật khẩu (PIN) của chính mình
+      // Cầu thủ (hoặc Manager) tự đổi tên đăng nhập và mật khẩu (PIN) của chính session hiện tại
       case "change_own_password": {
+        if (!effectiveSession?.playerId) {
+          return NextResponse.json(
+            { error: "Yêu cầu đăng nhập tài khoản." },
+            { status: 401, headers: { "Cache-Control": "no-store" } }
+          );
+        }
         const { player_id, current_pin, old_pin, new_pin, new_username } = payload;
+        if (
+          player_id !== undefined &&
+          player_id !== null &&
+          Number(player_id) !== effectiveSession.playerId
+        ) {
+          return NextResponse.json(
+            { error: "Bảo mật: Chỉ được phép đổi PIN cho tài khoản của phiên đăng nhập hiện tại." },
+            { status: 403, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+        const targetOwnPlayerId = effectiveSession.playerId;
         const providedOldPin = String(old_pin ?? current_pin ?? "").trim();
         const cleanNewPin = String(new_pin || "").trim();
         const cleanNewUser = String(new_username || "").trim();
@@ -823,12 +834,22 @@ export async function POST(req: NextRequest) {
           );
         }
 
+        if (!(await hasMustChangePinColumn(db))) {
+          return NextResponse.json(
+            {
+              error: "Hệ thống chưa sẵn sàng xác minh trạng thái bảo mật PIN.",
+              code: "PIN_ENFORCEMENT_UNAVAILABLE",
+            },
+            { status: 503, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+
         const row = await db.queryOne<{
           pin_code: string;
           username: string;
         }>(
           "SELECT pin_code, username FROM players WHERE id = ?",
-          [Number(player_id)]
+          [targetOwnPlayerId]
         );
         if (!row) {
           return NextResponse.json(
@@ -842,8 +863,14 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
         }
-        const mustChangePin = await readMustChangePinFlag(db, Number(player_id));
-        if (mustChangePin && !cleanNewPin) {
+        const pinState = await readMustChangePinState(db, targetOwnPlayerId);
+        if (!pinState.ok) {
+          return NextResponse.json(
+            { error: pinState.error, code: pinState.errorCode },
+            { status: pinState.status, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+        if (pinState.mustChangePin && !cleanNewPin) {
           return NextResponse.json(
             {
               error: "Tài khoản đang dùng mã PIN tạm. Vui lòng nhập mã PIN cá nhân mới.",
@@ -853,7 +880,7 @@ export async function POST(req: NextRequest) {
           );
         }
         if (
-          mustChangePin &&
+          pinState.mustChangePin &&
           cleanNewPin &&
           verifyPassword(cleanNewPin, row.pin_code)
         ) {
@@ -873,7 +900,7 @@ export async function POST(req: NextRequest) {
           }
           const existOther = await db.queryOne(
             "SELECT id FROM players WHERE LOWER(username) = ? AND id != ?",
-            [cleanNewUser.toLowerCase(), Number(player_id)]
+            [cleanNewUser.toLowerCase(), targetOwnPlayerId]
           );
           if (existOther) {
             return NextResponse.json(
@@ -901,22 +928,17 @@ export async function POST(req: NextRequest) {
               if (cleanNewUser) {
                 await tx.run(
                   "UPDATE players SET username = ? WHERE id = ?",
-                  [cleanNewUser, Number(player_id)]
+                  [cleanNewUser, targetOwnPlayerId]
                 );
               }
               if (hashedPinToPersist) {
-                const supportsMustChangePin = await hasMustChangePinColumn(tx);
-                if (supportsMustChangePin) {
-                  await tx.run(
-                    "UPDATE players SET pin_code = ?, must_change_pin = 0 WHERE id = ?",
-                    [hashedPinToPersist, Number(player_id)]
-                  );
-                } else {
-                  await tx.run(
-                    "UPDATE players SET pin_code = ? WHERE id = ?",
-                    [hashedPinToPersist, Number(player_id)]
-                  );
+                if (!(await hasMustChangePinColumn(tx))) {
+                  throw new Error("PIN_ENFORCEMENT_UNAVAILABLE");
                 }
+                await tx.run(
+                  "UPDATE players SET pin_code = ?, must_change_pin = 0 WHERE id = ?",
+                  [hashedPinToPersist, targetOwnPlayerId]
+                );
               }
               await recordAuditInTx(tx, session, action);
             });
@@ -929,26 +951,66 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
               );
             }
+            if (msg.includes("pin_enforcement_unavailable")) {
+              return NextResponse.json(
+                {
+                  error: "Hệ thống chưa sẵn sàng xác minh trạng thái bảo mật PIN.",
+                  code: "PIN_ENFORCEMENT_UNAVAILABLE",
+                },
+                { status: 503, headers: { "Cache-Control": "no-store" } }
+              );
+            }
             throw txErr;
           }
         }
         break;
       }
 
-      // Ban quản lý reset mật khẩu giúp cầu thủ (bắt buộc nhập PIN mạnh tường minh, không fallback "1234")
+      // Ban quản lý reset mật khẩu giúp cầu thủ khác (chỉ chấp nhận mode === "random_temporary", PIN tạm ngẫu nhiên từ server)
       case "reset_player_password": {
-        const { player_id, new_pin } = payload;
+        const { player_id, new_pin, mode } = payload;
         const playerIdCheck = parsePositiveIntId(player_id, "Mã cầu thủ");
         if (!playerIdCheck.ok) {
           return NextResponse.json({ error: playerIdCheck.error }, { status: 400 });
         }
-        const cleanPin = typeof new_pin === "string" ? new_pin.trim() : "";
-        if (!cleanPin) {
+        if (effectiveSession?.playerId && playerIdCheck.value === effectiveSession.playerId) {
           return NextResponse.json(
-            { error: "Vui lòng nhập mật khẩu mới (PIN) rõ ràng khi đặt lại mật khẩu." },
-            { status: 400 }
+            {
+              error:
+                "Không thể dùng chức năng đặt lại PIN cho chính tài khoản của bạn. Vui lòng dùng chức năng đổi PIN cá nhân.",
+            },
+            { status: 400, headers: { "Cache-Control": "no-store" } }
           );
         }
+        if (mode !== "random_temporary") {
+          return NextResponse.json(
+            {
+              error:
+                "Yêu cầu mode='random_temporary'. Không hỗ trợ đặt lại PIN thủ công.",
+            },
+            { status: 400, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+        if (new_pin !== undefined && new_pin !== null) {
+          return NextResponse.json(
+            {
+              error:
+                "Không chấp nhận mã PIN do client gửi lên. Máy chủ tự sinh mã PIN tạm ngẫu nhiên.",
+            },
+            { status: 400, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+        if (!(await hasMustChangePinColumn(db))) {
+          return NextResponse.json(
+            {
+              error: "Hệ thống chưa sẵn sàng xác minh trạng thái bảo mật PIN.",
+              code: "PIN_ENFORCEMENT_UNAVAILABLE",
+            },
+            { status: 503, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+
+        const cleanPin = generateTemporaryPin();
         const targetRow = await db.queryOne<{ id: number; username: string }>(
           "SELECT id, username FROM players WHERE id = ?",
           [playerIdCheck.value]
@@ -968,21 +1030,17 @@ export async function POST(req: NextRequest) {
         }
         const hashedPin = hashPassword(cleanPin);
         await db.transaction(async (tx) => {
-          const supportsMustChangePin = await hasMustChangePinColumn(tx);
-          if (supportsMustChangePin) {
-            await tx.run(
-              "UPDATE players SET pin_code = ?, must_change_pin = 1 WHERE id = ?",
-              [hashedPin, playerIdCheck.value]
-            );
-          } else {
-            await tx.run(
-              "UPDATE players SET pin_code = ? WHERE id = ?",
-              [hashedPin, playerIdCheck.value]
-            );
+          if (!(await hasMustChangePinColumn(tx))) {
+            throw new Error("PIN_ENFORCEMENT_UNAVAILABLE");
           }
+          await tx.run(
+            "UPDATE players SET pin_code = ?, must_change_pin = 1 WHERE id = ?",
+            [hashedPin, playerIdCheck.value]
+          );
           await recordAuditInTx(tx, session, action);
         });
         auditRecordedInTx = true;
+        oneTimeTemporaryPin = cleanPin;
         break;
       }
 
@@ -2511,12 +2569,18 @@ export async function POST(req: NextRequest) {
 
     const updated = await getFullAppData();
     const safeUpdated = sanitizeTeamResponseData(updated, effectiveSession);
-    const res = NextResponse.json(safeUpdated, {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        ...(idempotentReplayed ? { "X-Idempotent-Replay": "true" } : {}),
+    const res = NextResponse.json(
+      {
+        ...safeUpdated,
+        ...(oneTimeTemporaryPin ? { temporaryPin: oneTimeTemporaryPin } : {}),
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          ...(idempotentReplayed ? { "X-Idempotent-Replay": "true" } : {}),
+        },
+      }
+    );
 
     // Nếu vừa đổi mật khẩu của chính mình, cấp lại session token mới với vân tay mật khẩu mới từ DB
     if (action === "change_own_password" && effectiveSession) {

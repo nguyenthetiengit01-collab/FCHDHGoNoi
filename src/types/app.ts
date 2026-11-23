@@ -304,6 +304,7 @@ export type MutateActionResult = {
   code?: string;
   retryable?: boolean;
   reconcileRequired?: boolean;
+  temporaryPin?: string;
 };
 
 export type MutateActionFn = (

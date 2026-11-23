@@ -59,6 +59,7 @@ function createInMemorySqlite() {
       access_role TEXT NOT NULL DEFAULT 'player',
       username TEXT,
       pin_code TEXT NOT NULL DEFAULT '1234',
+      must_change_pin INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
       notes TEXT NOT NULL DEFAULT '',
       bio TEXT NOT NULL DEFAULT '',

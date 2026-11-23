@@ -77,6 +77,7 @@ function createLegacyPlayersDbWithDefault1234() {
       access_role TEXT NOT NULL DEFAULT 'player',
       username TEXT NOT NULL DEFAULT '',
       pin_code TEXT NOT NULL DEFAULT '1234',
+      must_change_pin INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
       notes TEXT NOT NULL DEFAULT '',
       hometown TEXT NOT NULL DEFAULT '',
@@ -605,6 +606,7 @@ describe("P1-03 Follow-Up Hardening — Schema Migration, switch_role Containmen
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           full_name TEXT NOT NULL,
           pin_code TEXT NOT NULL DEFAULT '1234',
+      must_change_pin INTEGER NOT NULL DEFAULT 0,
           status TEXT NOT NULL DEFAULT 'Đang sinh hoạt'
         );
         CREATE INDEX idx_players_seq_status ON players(status);

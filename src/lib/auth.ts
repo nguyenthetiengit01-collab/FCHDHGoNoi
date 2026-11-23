@@ -476,23 +476,48 @@ export async function hasMustChangePinColumn(
   }
 }
 
-export async function readMustChangePinFlag(
-  db: { queryOne: <T = Record<string, unknown>>(sql: string, args?: unknown[]) => Promise<T | null> },
+export type MustChangePinStateResult =
+  | { ok: true; mustChangePin: boolean }
+  | { ok: false; status: 401 | 503; errorCode: string; error: string };
+
+export async function readMustChangePinState(
+  db: { query: <T = Record<string, unknown>>(sql: string, args?: unknown[]) => Promise<T[]> },
   playerId: number
-): Promise<boolean> {
+): Promise<MustChangePinStateResult> {
   try {
-    const row = await db.queryOne<{ must_change_pin?: number }>(
+    const rows = await db.query<{ must_change_pin?: number }>(
       "SELECT must_change_pin FROM players WHERE id = ? LIMIT 1",
       [playerId]
     );
-    return Number(row?.must_change_pin || 0) === 1;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message.toLowerCase() : "";
-    if (msg.includes("no such column") && msg.includes("must_change_pin")) {
-      return false;
+    const row = rows[0];
+    if (!row) {
+      return {
+        ok: false,
+        status: 401,
+        errorCode: "PLAYER_NOT_FOUND",
+        error: "Tài khoản không tồn tại.",
+      };
     }
-    throw err;
+    return {
+      ok: true,
+      mustChangePin: Number(row.must_change_pin || 0) === 1,
+    };
+  } catch {
+    return {
+      ok: false,
+      status: 503,
+      errorCode: "PIN_ENFORCEMENT_UNAVAILABLE",
+      error: "Hệ thống chưa sẵn sàng xác minh trạng thái bảo mật PIN. Vui lòng thử lại sau.",
+    };
   }
+}
+
+export async function readMustChangePinFlag(
+  db: { query: <T = Record<string, unknown>>(sql: string, args?: unknown[]) => Promise<T[]> },
+  playerId: number
+): Promise<boolean> {
+  const state = await readMustChangePinState(db, playerId);
+  return state.ok ? state.mustChangePin : false;
 }
 
 /**
@@ -662,16 +687,22 @@ export async function verifyCredentials(
 
   hydratedPlayer.pin_code = finalPinCode;
   const isDefault = isDefaultPassword(finalPinCode);
-  const mustChangePin = await readMustChangePinFlag(db, matched.id);
-  if (mustChangePin) {
-    hydratedPlayer.must_change_pin = 1;
+  const pinState = await readMustChangePinState(db, matched.id);
+  if (!pinState.ok) {
+    return {
+      success: false,
+      status: pinState.status,
+      errorCode: pinState.errorCode,
+      error: pinState.error,
+    };
   }
+  hydratedPlayer.must_change_pin = pinState.mustChangePin ? 1 : 0;
 
   return {
     success: true,
     status: 200,
     player: hydratedPlayer,
-    mustChangePassword: isDefault || mustChangePin,
+    mustChangePassword: isDefault || pinState.mustChangePin,
   };
 }
 
@@ -681,7 +712,8 @@ export async function verifyCredentials(
 
 export interface AuthCheckResult {
   authorized: boolean;
-  status: 200 | 401 | 403;
+  status: 200 | 401 | 403 | 503;
+  errorCode?: string;
   error?: string;
   session?: SessionPayload;
   player?: Player;
@@ -726,6 +758,37 @@ export function verifyCsrfOrigin(req: NextRequest): boolean {
  * Kiểm tra trực tiếp trạng thái và vai trò hiện hành trong Cơ Sở Dữ Liệu,
  * không chỉ tin tưởng vào claim trong session token cũ.
  */
+async function enforceMustChangePinGate(
+  db: ReturnType<typeof getAsyncDb>,
+  player: Player,
+  session: SessionPayload,
+  options?: { allowTemporaryPinChange?: boolean }
+): Promise<AuthCheckResult> {
+  const pinState = await readMustChangePinState(db, player.id);
+  if (!pinState.ok) {
+    return {
+      authorized: false,
+      status: pinState.status,
+      errorCode: pinState.errorCode,
+      error: pinState.error,
+    };
+  }
+  player.must_change_pin = pinState.mustChangePin ? 1 : 0;
+  if (
+    !options?.allowTemporaryPinChange &&
+    (pinState.mustChangePin || isDefaultPassword(player.pin_code))
+  ) {
+    return {
+      authorized: false,
+      status: 403,
+      errorCode: "PIN_CHANGE_REQUIRED",
+      error:
+        "Tài khoản đang sử dụng mã PIN tạm. Vui lòng đổi sang mã PIN cá nhân mới trước khi thực hiện thao tác khác.",
+    };
+  }
+  return { authorized: true, status: 200, session, player };
+}
+
 export async function requireManagerSession(
   req: NextRequest
 ): Promise<AuthCheckResult> {
@@ -772,14 +835,15 @@ export async function requireManagerSession(
     };
   }
 
-  return { authorized: true, status: 200, session, player };
+  return enforceMustChangePinGate(db, player, session);
 }
 
 /**
  * Xác thực bắt buộc thành viên / cầu thủ đã đăng nhập vào hệ thống
  */
 export async function requirePlayerSession(
-  req: NextRequest
+  req: NextRequest,
+  options?: { allowTemporaryPinChange?: boolean }
 ): Promise<AuthCheckResult> {
   const session = getAuthSession(req);
   if (!session) {
@@ -816,7 +880,7 @@ export async function requirePlayerSession(
     };
   }
 
-  return { authorized: true, status: 200, session, player };
+  return enforceMustChangePinGate(db, player, session, options);
 }
 
 // =========================================================================

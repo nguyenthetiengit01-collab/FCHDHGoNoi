@@ -402,7 +402,7 @@ describe("IDEMPOTENCY_SCHEMA_NOT_READY & unknown-write error semantics", () => {
       collected_by: "Tieng",
       items: sampleItems,
       state: "pending",
-      created_at: "2026-11-21T08:00:00.000Z",
+      created_at: new Date(Date.now() - 60000).toISOString(),
     });
 
     const sentKeys: string[] = [];
@@ -445,7 +445,7 @@ describe("IDEMPOTENCY_SCHEMA_NOT_READY & unknown-write error semantics", () => {
       collected_by: "Tieng",
       items: sampleItems,
       state: "unknown_outcome",
-      created_at: "2026-11-21T08:00:00.000Z",
+      created_at: new Date(Date.now() - 60000).toISOString(),
     });
 
     const sentKeys: string[] = [];
@@ -495,7 +495,7 @@ describe("IDEMPOTENCY_SCHEMA_NOT_READY & unknown-write error semantics", () => {
       collected_by: "Tieng",
       items: sampleItems,
       state: "unknown_outcome",
-      created_at: "2026-11-21T08:00:00.000Z",
+      created_at: new Date(Date.now() - 60000).toISOString(),
     });
 
     const sentKeys: string[] = [];

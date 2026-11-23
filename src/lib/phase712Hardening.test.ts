@@ -57,6 +57,7 @@ function createTestDb() {
       access_role TEXT NOT NULL DEFAULT 'player',
       username TEXT UNIQUE,
       pin_code TEXT NOT NULL DEFAULT '',
+      must_change_pin INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
       notes TEXT NOT NULL DEFAULT '',
       hometown TEXT NOT NULL DEFAULT '',

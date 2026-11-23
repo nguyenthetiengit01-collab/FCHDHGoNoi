@@ -62,8 +62,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("Phase 7.1.3 P3-02 Reset PIN UI & API validation", () => {
-  it("removes hardcoded '1234' defaults from PlayersTab.tsx and TeamManagerApp.tsx and enforces explicit New PIN + Confirm PIN modal", () => {
+describe("Phase 7.1.3 P3-02 Reset PIN UI & P1-03B.1 Random Temporary PIN Enforcement", () => {
+  it("removes hardcoded '1234' defaults and client-selected reset PIN inputs from PlayersTab.tsx, always using mode='random_temporary'", () => {
     const playersTabSrc = fs.readFileSync(
       path.join(process.cwd(), "src/components/PlayersTab.tsx"),
       "utf8"
@@ -76,11 +76,12 @@ describe("Phase 7.1.3 P3-02 Reset PIN UI & API validation", () => {
     expect(playersTabSrc).not.toContain('"1234"');
     expect(playersTabSrc).not.toContain("về 1234");
     expect(managerAppSrc).not.toContain("về mặc định (1234)");
-    expect(playersTabSrc).toContain("validatePasswordStrength");
-    expect(playersTabSrc).toContain('id="reset-new-pin"');
-    expect(playersTabSrc).toContain('id="reset-confirm-pin"');
+    expect(playersTabSrc).toContain('mode: "random_temporary"');
+    expect(playersTabSrc).toContain("issuedTempPin");
+    expect(playersTabSrc).not.toContain('id="reset-new-pin"');
+    expect(playersTabSrc).not.toContain('id="reset-confirm-pin"');
+    expect(playersTabSrc).not.toContain("localStorage");
     expect(playersTabSrc).toContain('role="alert"');
-    // Preserves form values & displays API error when onMutate returns { ok: false, error }
     expect(playersTabSrc).toContain("if (result && !result.ok)");
     expect(playersTabSrc).toContain("setResetPinError(");
   });
@@ -95,7 +96,7 @@ describe("Phase 7.1.3 P3-02 Reset PIN UI & API validation", () => {
     expect(validatePasswordStrength("StrongPin@2026", "player1").valid).toBe(true);
   });
 
-  it("rejects missing or weak PINs on POST /api/team reset_player_password and accepts strong explicit PINs", async () => {
+  it("rejects missing/invalid mode and any client-supplied new_pin on POST /api/team reset_player_password, and issues random temporaryPin once", async () => {
     const { raw, db } = createTestDb();
     vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(db);
     spyFullAppData(raw);
@@ -111,7 +112,7 @@ describe("Phase 7.1.3 P3-02 Reset PIN UI & API validation", () => {
       const mgr = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
       const mgrToken = createSessionToken(mgr, 24);
 
-      const postReset = (new_pin?: unknown) =>
+      const postReset = (extraPayload: Record<string, unknown>) =>
         postTeamRoute(
           new NextRequest("http://localhost:3000/api/team", {
             method: "POST",
@@ -122,23 +123,30 @@ describe("Phase 7.1.3 P3-02 Reset PIN UI & API validation", () => {
             },
             body: JSON.stringify({
               action: "reset_player_password",
-              payload: { player_id: 2, ...(new_pin !== undefined ? { new_pin } : {}) },
+              payload: { player_id: 2, ...extraPayload },
             }),
           })
         );
 
-      expect((await postReset(undefined)).status).toBe(400);
-      expect((await postReset("1234")).status).toBe(400);
-      expect((await postReset("123456")).status).toBe(400);
+      expect((await postReset({})).status).toBe(400);
+      expect((await postReset({ new_pin: "1234" })).status).toBe(400);
+      expect((await postReset({ new_pin: "GoNoiNew@2026" })).status).toBe(400);
+      expect((await postReset({ mode: "random_temporary", new_pin: "GoNoiNew@2026" })).status).toBe(400);
 
-      const okRes = await postReset("GoNoiNew@2026");
+      const okRes = await postReset({ mode: "random_temporary" });
       expect(okRes.status).toBe(200);
+      expect(okRes.headers.get("cache-control")).toContain("no-store");
+      const okBody = (await okRes.json()) as { temporaryPin?: string };
+      expect(typeof okBody.temporaryPin).toBe("string");
+      expect((okBody.temporaryPin || "").length).toBeGreaterThanOrEqual(12);
 
-      const updated = raw.prepare("SELECT pin_code FROM players WHERE id = 2").get() as {
+      const updated = raw.prepare("SELECT pin_code, must_change_pin FROM players WHERE id = 2").get() as {
         pin_code: string;
+        must_change_pin: number;
       };
+      expect(updated.must_change_pin).toBe(1);
       expect(verifyPassword("OldStrong@2026", updated.pin_code)).toBe(false);
-      expect(verifyPassword("GoNoiNew@2026", updated.pin_code)).toBe(true);
+      expect(verifyPassword(okBody.temporaryPin || "", updated.pin_code)).toBe(true);
     } finally {
       raw.close();
     }

@@ -1513,6 +1513,26 @@ function hashRandomUnclaimedPin(): string {
   return `scrypt$${salt}$${derived}`;
 }
 
+export async function ensureMustChangePinColumn(
+  db: Pick<AsyncDb, "query" | "exec">
+): Promise<void> {
+  const cols = await db.query<{ name?: string }>("PRAGMA table_info(players)");
+  if (cols.some((c) => c.name === "must_change_pin")) {
+    return;
+  }
+  try {
+    await db.exec(
+      "ALTER TABLE players ADD COLUMN must_change_pin INTEGER NOT NULL DEFAULT 0;"
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase();
+    if (msg.includes("duplicate column") || msg.includes("already exists")) {
+      return;
+    }
+    throw err;
+  }
+}
+
 export async function seedAsyncInitialDataIfNeeded(
   db: AsyncDb,
   forceReset = false
@@ -1902,11 +1922,7 @@ export async function ensureClubPostsReady(db: AsyncDb): Promise<void> {
     } catch {
       // đã tồn tại
     }
-    try {
-      await db.exec("ALTER TABLE players ADD COLUMN must_change_pin INTEGER NOT NULL DEFAULT 0;");
-    } catch {
-      // đã tồn tại
-    }
+    await ensureMustChangePinColumn(db);
 
     // Chuẩn hoá năm sinh trong database: loại bỏ triệt để hậu tố .0
     try {
