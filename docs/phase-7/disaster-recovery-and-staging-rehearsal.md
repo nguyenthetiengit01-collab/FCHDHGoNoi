@@ -1,7 +1,7 @@
 # Phase 7 — Disaster Recovery Assessment & Staging Rehearsal Plan
 
-- **Baseline**: `main` @ `fd1b150c94c54f16b0f0888aa57de3c3cb4c1ea7`
-- **Last Local Synthetic Drill**: 2026-11-20 (**PASSED** in isolated temp directory)
+- **Baseline**: `main` @ `c37dfd3200547210e8c6308b34c44db4fe18c04e` (Phase 7.1 DR/Governance documented in `docs/operations-runbook.md`)
+- **Last Local Synthetic Drill**: 2026-11-20 (**PASSED** in isolated `os.tmpdir()/phase72-local-dr-1795146863458-6473a9`; Remote Staging **BLOCKED** pending `P0-01` & PR #16 merge — see [phase-7.2-staging-rehearsal-results.md](./phase-7.2-staging-rehearsal-results.md))
 
 ---
 
@@ -11,7 +11,7 @@
 | :--- | :--- | :--- | :--- |
 | **RPO (Recovery Point Objective)** | `NOT DOCUMENTED` (effective RPO from weekly workflow = **up to 7 days**; Turso PITR not documented) | `P1-12` — Up to 7 days of match/finance data at risk | **7 days** (if weekly CI remains) or **<= 24 hours** (enable daily backup schedule or verify Turso PITR) |
 | **RTO (Recovery Time Objective)** | `NOT DOCUMENTED` | `P1-12` — No SLA for manual Turso provisioning + restore + Vercel redeploy | **<= 2 hours** for full manual recovery per `docs/operations-runbook.md` Section 3 |
-| **Backup Interval** | Weekly (`0 20 * * 0` UTC) + `workflow_dispatch` | `0` `schedule` runs yet (1st due `2026-11-22`); no failure alert (`P2-14`) | Verify `2026-11-22` run; add failure alert; consider daily cron |
+| **Backup Interval** | Weekly (`0 20 * * 0` UTC = `20:00 UTC` Chủ Nhật / `03:00 UTC+7` Thứ Hai) + `workflow_dispatch` | `0` `schedule` runs yet. Lần chạy kế tiếp dự kiến `2026-11-22 20:00 UTC` (`2026-11-23 03:00 UTC+7`, có thể trễ theo tải GitHub Actions). **Phạm vi nhánh**: GitHub chỉ chạy `schedule` trên default branch (`main`); do PR #16 chưa merge, lần chạy này dùng workflow trên `main` (chưa có `Report backup failure alert` của PR #16) và **không** chứng minh bước cảnh báo mới trong PR #16. | Giữ cron `0 20 * * 0` (03:00 Thứ Hai UTC+7); xác minh run `2026-11-22/23` trên `main` tách biệt với bằng chứng workflow PR #16 sau khi merge; cân nhắc daily cron. |
 | **Artifact Retention** | `30 days` on GitHub Actions | Single-vendor (GitHub) unless manually downloaded | Retain `30 days` in GH + automated or monthly verified off-GitHub copy |
 | **Private Key Custody** | Policy in Runbook (`lines 35, 55-56`): 2 offline copies, never in GH | Actual custody `NOT VERIFIED` | Owner confirms 2-copy custody before launch |
 | **Key Rotation** | `keyId` tracked in `.enc` envelope; keep old key >= 30 days | Sound design | Rotate annually or immediately on suspected exposure |
@@ -101,3 +101,14 @@ Executed by Agent C in disposable `D:\Test1\_phase7-audit-evidence\drill-tmp\` (
 1. Identify the previous healthy Vercel Preview deployment via `npx vercel ls`.
 2. Execute Vercel Instant Rollback on Preview and re-run `GET /api/health` + guest/auth smoke checks.
 3. Record timestamps to validate actual **RTO <= 2 hours**.
+
+### 3.5. Staging Readiness & Migration Concurrency Checklist (`phase7-idempotency-v1.mjs`)
+- **Code & Synthetic Pre-Checks (`VERIFIED` locally)**:
+  - `scripts/migrations/phase7-idempotency-v1.mjs` accepts **only** `TURSO_STAGING_DATABASE_URL` + `TURSO_STAGING_AUTH_TOKEN` (`role: "source"`), disallows `TURSO_DATABASE_URL` fallback, runs `validateStagingTarget()` before `createClient()`, executes zero writes on `--dry-run`, wraps apply in a transaction, and enforces `realpathSync` symlink safety on `--sqlite`.
+- **Authorized Remote Staging Execution Checklist (`BLOCKED` / `NOT VERIFIED` until Owner authorization)**:
+  - [ ] Confirm separate `TURSO_STAGING_DATABASE_URL` & `TURSO_STAGING_AUTH_TOKEN` (never Production) and provision a **disposable** `fchdhgonoi-staging-restore` target for restore drills.
+  - [ ] Run `node scripts/migrations/phase7-idempotency-v1.mjs --env staging --dry-run` and confirm `applied: false` with expected action plan.
+  - [ ] Obtain explicit approval, then run `node scripts/migrations/phase7-idempotency-v1.mjs --env staging` and verify idempotent re-apply (`actions: []`).
+  - [ ] Execute real Remote Turso concurrency tests against Staging Preview: 2 concurrent identical `collect_match_fees_batch` requests (single financial + audit write, `X-Idempotent-Replay: true`), 2 concurrent conflicting payloads (`200` + `409`), `SQLITE_BUSY` behavior, and timeout `503 DB_WRITE_OUTCOME_UNKNOWN`.
+  - [ ] Complete Preview smoke/rollback (Steps 3–4) and Real-Device QA (`iPhone / Safari`, `Android / Chrome`, including offline/disconnect recovery during fee collection).
+  - [ ] Operator & Owner sign-off recorded in `phase-7.2-staging-rehearsal-results.md`.

@@ -6,10 +6,27 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const dbStatus = await pingDatabase();
+    if (!dbStatus.ok) {
+      return NextResponse.json(
+        {
+          status: "degraded",
+          db: "error",
+          latencyMs: dbStatus.latencyMs,
+          timestamp: new Date().toISOString(),
+        },
+        {
+          status: 503,
+          headers: {
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+          },
+        }
+      );
+    }
+
     return NextResponse.json(
       {
         status: "ok",
-        db: dbStatus.ok ? "connected" : "error",
+        db: "connected",
         latencyMs: dbStatus.latencyMs,
         timestamp: new Date().toISOString(),
       },

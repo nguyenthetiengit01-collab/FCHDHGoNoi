@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - fix/phase-7.1-pre-release-remediation
   push:
     branches:
       - main
@@ -69,6 +70,7 @@ jobs:
   e2e-visual-qa:
     name: >-
       Playwright Visual & Accessibility QA (${{ matrix.os == 'ubuntu-latest' && 'Linux' || 'Windows' }})
+    needs: quality-gates
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     strategy:

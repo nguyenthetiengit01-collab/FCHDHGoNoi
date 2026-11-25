@@ -398,8 +398,10 @@ describe("Phase 4 — Migration, Rollup, Retention & API Security", () => {
   it("enforces strict RBAC, CSRF, PII rejection, and no-store on /api/analytics routes", async () => {
     const { sqlitePath, db, raw } = createTempSqliteAsyncDb();
     try {
-      raw.prepare("INSERT INTO players (code_order, full_name, short_name, access_role, status) VALUES (?, ?, ?, ?, ?)").run(1, "Player One", "One", "player", "Đang sinh hoạt");
-      raw.prepare("INSERT INTO players (code_order, full_name, short_name, access_role, status) VALUES (?, ?, ?, ?, ?)").run(2, "Manager One", "Mgr", "manager", "Đang sinh hoạt");
+      const playerPinHash = "PlayerTestHash@2026";
+      const managerPinHash = "ManagerTestHash@2026";
+      raw.prepare("INSERT INTO players (code_order, full_name, short_name, access_role, pin_code, status) VALUES (?, ?, ?, ?, ?, ?)").run(1, "Player One", "One", "player", playerPinHash, "Đang sinh hoạt");
+      raw.prepare("INSERT INTO players (code_order, full_name, short_name, access_role, pin_code, status) VALUES (?, ?, ?, ?, ?, ?)").run(2, "Manager One", "Mgr", "manager", managerPinHash, "Đang sinh hoạt");
       await runPhase4Migration({
         execute: (sql: string, args: unknown[] = []) => db.run(sql, args),
         query: (sql: string, args: unknown[] = []) => db.query(sql, args),
@@ -423,7 +425,7 @@ describe("Phase 4 — Migration, Rollup, Retention & API Security", () => {
         status: "Đang sinh hoạt",
         avatar_url: "",
         access_role: "player",
-        pin_code: "1234",
+        pin_code: playerPinHash,
         notes: "",
       });
       const managerCookie = createSessionToken({
@@ -439,7 +441,7 @@ describe("Phase 4 — Migration, Rollup, Retention & API Security", () => {
         status: "Đang sinh hoạt",
         avatar_url: "",
         access_role: "manager",
-        pin_code: "1234",
+        pin_code: managerPinHash,
         notes: "",
       });
 

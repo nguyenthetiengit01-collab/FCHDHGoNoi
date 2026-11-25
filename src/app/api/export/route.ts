@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { getFullAppData } from "@/lib/db";
 import { requireManagerSession } from "@/lib/auth";
+import { sanitizeExcelTextCell } from "@/lib/excelSanitize";
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
       ["", "Hạng Mục Chi", "Số Tiền (VND)", "Tỷ trọng (%)"],
       ...(data.summary.categoryBreakdown || []).map((c) => [
         "",
-        c.category,
+        sanitizeExcelTextCell(c.category),
         c.amount,
         `${c.percentage}%`,
       ]),
@@ -68,11 +69,11 @@ export async function GET(req: NextRequest) {
       ...data.players.map((p, idx) => [
         "",
         idx + 1,
-        p.full_name,
-        p.position,
+        sanitizeExcelTextCell(p.full_name),
+        sanitizeExcelTextCell(p.position),
         p.jersey_number ?? "",
-        p.phone,
-        p.notes,
+        sanitizeExcelTextCell(p.phone),
+        sanitizeExcelTextCell(p.notes),
       ]),
     ];
     const wsPlayers = XLSX.utils.aoa_to_sheet(playerRows);
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest) {
     const lastColLetter = XLSX.utils.encode_col(lastColIndex);
     const lastPlayerExcelRow = 8 + data.players.length;
 
-    const matchHeaders = data.matches.map((m) => m.label);
+    const matchHeaders = data.matches.map((m) => sanitizeExcelTextCell(m.label));
     const matchFees = data.matches.map((m) => m.fee_per_player);
     const matchTotals = data.matches.map((m) =>
       data.attendances
@@ -140,8 +141,8 @@ export async function GET(req: NextRequest) {
       thuTranRows.push([
         "",
         idx + 1,
-        p.full_name,
-        p.short_name,
+        sanitizeExcelTextCell(p.full_name),
+        sanitizeExcelTextCell(p.short_name),
         { t: "n", v: playerPaidTotal, f: dynamicSumFormula },
         ...flags,
       ]);
@@ -173,11 +174,11 @@ export async function GET(req: NextRequest) {
       ...data.otherIncomes.map((o, idx) => [
         "",
         idx + 1,
-        o.income_date,
-        o.contributor,
+        sanitizeExcelTextCell(o.income_date),
+        sanitizeExcelTextCell(o.contributor),
         o.amount,
-        o.note,
-        o.fund_type || "Quỹ sinh hoạt",
+        sanitizeExcelTextCell(o.note),
+        sanitizeExcelTextCell(o.fund_type || "Quỹ sinh hoạt"),
       ]),
     ];
     const wsThuKhac = XLSX.utils.aoa_to_sheet(thuKhacRows);
@@ -207,11 +208,11 @@ export async function GET(req: NextRequest) {
       ...data.expenses.map((e, idx) => [
         "",
         idx + 1,
-        e.expense_date,
-        e.category,
-        e.description,
+        sanitizeExcelTextCell(e.expense_date),
+        sanitizeExcelTextCell(e.category),
+        sanitizeExcelTextCell(e.description),
         e.amount,
-        e.payer,
+        sanitizeExcelTextCell(e.payer),
         e.match_id ?? "",
       ]),
     ];
@@ -245,18 +246,18 @@ export async function GET(req: NextRequest) {
       ...data.matches.map((m) => [
         m.id,
         m.match_number,
-        m.label,
-        m.match_date,
-        m.kickoff_time,
-        m.venue,
-        m.opponent,
+        sanitizeExcelTextCell(m.label),
+        sanitizeExcelTextCell(m.match_date),
+        sanitizeExcelTextCell(m.kickoff_time),
+        sanitizeExcelTextCell(m.venue),
+        sanitizeExcelTextCell(m.opponent),
         m.fee_per_player,
         m.pitch_cost,
-        m.payer_name,
+        sanitizeExcelTextCell(m.payer_name),
         m.team_score ?? "",
         m.opponent_score ?? "",
-        m.status,
-        m.notes,
+        sanitizeExcelTextCell(m.status),
+        sanitizeExcelTextCell(m.notes),
       ]),
       [],
       ["[ATTENDANCES]"],
@@ -273,14 +274,14 @@ export async function GET(req: NextRequest) {
       ],
       ...data.attendances.map((a) => [
         a.match_id,
-        playerNameById.get(a.player_id) || "",
-        a.rsvp_status,
+        sanitizeExcelTextCell(playerNameById.get(a.player_id) || ""),
+        sanitizeExcelTextCell(a.rsvp_status),
         a.walk_in,
         a.attended,
         a.paid,
         a.amount,
-        a.collected_by,
-        a.note,
+        sanitizeExcelTextCell(a.collected_by),
+        sanitizeExcelTextCell(a.note),
       ]),
     ];
     const wsDetail = XLSX.utils.aoa_to_sheet(detailRows);

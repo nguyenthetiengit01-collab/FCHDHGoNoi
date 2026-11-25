@@ -186,8 +186,9 @@ test.describe("Phase 6.5 – Live Browser Visual, Contrast & Layout QA", () => {
   for (const route of ROUTES.slice(1)) {
     test(`public route ${route} passes overflow and axe-core WCAG 2.2 AA`, async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
-      await page.goto(route, { waitUntil: "load" });
+      await page.goto(route, { waitUntil: "domcontentloaded" });
       await expect(page.locator("main#main-content")).toBeVisible();
+
       const overflowMobile = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
         innerWidth: window.innerWidth,
@@ -195,8 +196,55 @@ test.describe("Phase 6.5 – Live Browser Visual, Contrast & Layout QA", () => {
       expect(overflowMobile.scrollWidth).toBeLessThanOrEqual(overflowMobile.innerWidth);
 
       await page.setViewportSize({ width: 1440, height: 900 });
-      await page.goto(route, { waitUntil: "load" });
+      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
       await expect(page.locator("main#main-content")).toBeVisible();
+
+      const overflowDesktop = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+      }));
+      expect(overflowDesktop.scrollWidth).toBeLessThanOrEqual(overflowDesktop.innerWidth);
+
+      if (route === "/hoat-dong/post-gd-1") {
+        const heroImg = page.locator("main#main-content").getByRole("img", {
+          name: "Bài viết kiểm thử QA tổng hợp",
+          exact: true,
+        });
+        await expect(heroImg).toHaveCount(1);
+        await expect(heroImg).toBeVisible();
+        await expect
+          .poll(
+            () =>
+              heroImg.evaluate((el) => {
+                const img = el as HTMLImageElement;
+                return img.complete && img.naturalWidth > 0;
+              }),
+            { timeout: 20_000 }
+          )
+          .toBe(true);
+
+        await page.screenshot({
+          path: path.join(SCREENSHOT_DIR, "hoat-dong-post-gd-1-desktop.png"),
+          fullPage: false,
+        });
+      } else {
+        // Verify the critical featured image loads cleanly without blocking on every lazy image.
+        const featuredImg = page.locator("main#main-content img").first();
+        if ((await featuredImg.count()) > 0) {
+          await expect(featuredImg).toBeVisible();
+          await expect
+            .poll(
+              () =>
+                featuredImg.evaluate((el) => {
+                  const img = el as HTMLImageElement;
+                  return img.complete && img.naturalWidth > 0;
+                }),
+              { timeout: 20_000 }
+            )
+            .toBe(true);
+        }
+      }
+
       const axeResults = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag22aa"])
         .analyze();

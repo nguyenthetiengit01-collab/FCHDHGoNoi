@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFullAppData } from "@/lib/db";
+import { getPublicFinancialReportData } from "@/lib/db";
 import { buildPublicFinancialReport } from "@/lib/publicFinancialReport";
 
 export async function GET(req: NextRequest) {
@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     const year = req.nextUrl.searchParams.get("year");
     const month = req.nextUrl.searchParams.get("month");
 
-    const data = await getFullAppData();
+    const data = await getPublicFinancialReportData();
     const report = buildPublicFinancialReport(data, { year, month });
 
     return NextResponse.json(report, {

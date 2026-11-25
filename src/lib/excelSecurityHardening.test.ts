@@ -128,7 +128,7 @@ describe("Dependency Hardening – SheetJS XLSX 0.20.3 & Excel Security", () => 
       },
       body: bigForm,
     });
-    expect((await importPost(bigReq)).status).toBe(400);
+    expect((await importPost(bigReq)).status).toBe(413);
 
     const corruptWb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(corruptWb, XLSX.utils.aoa_to_sheet([["OnlyOneSheet"]]), "WrongSheet");

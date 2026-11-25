@@ -6,6 +6,11 @@ import {
 } from "./dashboardIntelligence";
 import type { FullAppData } from "@/types/app";
 
+export type PublicFinancialReportInput = Pick<
+  FullAppData,
+  "settings" | "matches" | "attendances" | "otherIncomes" | "expenses"
+>;
+
 export interface PublicIncomeSourceItem {
   key: "match" | "other";
   label: string;
@@ -72,7 +77,7 @@ function extractYearMonth(dateStr: string | null | undefined): string | null {
  * đồng nhất tuyệt đối với Dashboard Ban Quản Lý và không làm lộ dữ liệu cá nhân/hóa đơn chi tiết.
  */
 export function buildPublicFinancialReport(
-  data: FullAppData,
+  data: PublicFinancialReportInput,
   options?: {
     year?: string | null;
     month?: string | null;

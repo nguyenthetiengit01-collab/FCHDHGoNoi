@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import path from "path";
 import fs from "fs";
 import * as XLSX from "xlsx";
@@ -7,16 +8,18 @@ import {
   getAsyncDb,
   getFullAppData,
   recordAuditLog,
+  mapDatabaseErrorToHttpResponse,
 } from "@/lib/db";
 import {
   requireManagerSession,
+  sanitizeTeamResponseData,
   verifyCsrfOrigin,
   hashPassword,
 } from "@/lib/auth";
 import { recordPlayerLifecycleEvent } from "@/lib/analytics/lifecycle";
 import type { Player } from "@/types/app";
 
-const MAX_IMPORT_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn 5MB chống cạn kiệt bộ nhớ
+const MAX_IMPORT_SIZE_BYTES = 4 * 1024 * 1024; // Giới hạn 4MB an toàn dưới ngưỡng 4.5MB của Vercel Serverless
 
 class ImportValidationError extends Error {
   constructor(message: string) {
@@ -591,7 +594,25 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get("content-type") || "";
 
     if (contentType.includes("multipart/form-data")) {
-      const formData = await req.formData();
+      const contentLengthHeader = req.headers.get("content-length");
+      if (contentLengthHeader !== null) {
+        const parsedLength = Number(contentLengthHeader);
+        if (Number.isFinite(parsedLength) && parsedLength > MAX_IMPORT_SIZE_BYTES) {
+          return NextResponse.json(
+            { error: "File Excel vượt quá giới hạn tối đa 4MB của máy chủ." },
+            { status: 413, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+      }
+      let formData: FormData;
+      try {
+        formData = await req.formData();
+      } catch {
+        return NextResponse.json(
+          { error: "Dữ liệu tải lên không đúng định dạng multipart/form-data." },
+          { status: 400, headers: { "Cache-Control": "no-store" } }
+        );
+      }
       const file = formData.get("file") as File | null;
       if (!file) {
         return NextResponse.json(
@@ -610,12 +631,21 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Kích thước file vượt quá giới hạn cho phép (tối đa 5MB).",
+              "Kích thước file vượt quá giới hạn cho phép của máy chủ (tối đa 4MB).",
           },
-          { status: 400, headers: { "Cache-Control": "no-store" } }
+          { status: 413, headers: { "Cache-Control": "no-store" } }
         );
       }
       const arrayBuffer = await file.arrayBuffer();
+      if (arrayBuffer.byteLength > MAX_IMPORT_SIZE_BYTES) {
+        return NextResponse.json(
+          {
+            error:
+              "Kích thước file vượt quá giới hạn cho phép của máy chủ (tối đa 4MB).",
+          },
+          { status: 413, headers: { "Cache-Control": "no-store" } }
+        );
+      }
       buffer = Buffer.from(arrayBuffer);
     } else {
       const localPath = path.join(
@@ -791,7 +821,7 @@ export async function POST(req: NextRequest) {
         bio: existing?.bio || "",
         role: existing?.role || defaultRole,
         accessRole: existing?.access_role || (isManager ? "manager" : "player"),
-        pinCode: existing?.pin_code || hashPassword("1234"),
+        pinCode: existing?.pin_code || hashPassword(crypto.randomBytes(24).toString("base64url")),
         status: existing?.status || "Đang sinh hoạt",
         notes: existing?.notes || notes,
         hometown: existing?.hometown || "",
@@ -1394,13 +1424,28 @@ export async function POST(req: NextRequest) {
     });
 
     const updated = await getFullAppData();
+    const safeUpdated = sanitizeTeamResponseData(
+      updated,
+      auth.player
+        ? { playerId: auth.player.id, accessRole: auth.player.access_role }
+        : auth.session ?? null
+    );
 
-    return NextResponse.json(updated, {
+    return NextResponse.json(safeUpdated, {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
   } catch (err) {
+    const dbMapped = mapDatabaseErrorToHttpResponse(err);
+    if (dbMapped) {
+      return NextResponse.json(dbMapped.body, {
+        status: dbMapped.status,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      });
+    }
     if (err instanceof ImportValidationError) {
       return NextResponse.json(
         { error: err.message },

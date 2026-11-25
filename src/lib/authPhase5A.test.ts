@@ -404,7 +404,8 @@ describe("Phase 5.1 – B & D. Session Revocation, Password Policy & Login Anti-
         `INSERT INTO players (code_order, full_name, short_name, jersey_number, access_role, username, pin_code, status)
          VALUES (1, 'Active User', 'Active', 10, 'player', 'active10', ?, 'Đang sinh hoạt'),
                 (2, 'Inactive User', 'Inactive', 11, 'player', 'inactive11', ?, 'inactive'),
-                (3, 'Legacy User', 'Legacy', 14, 'player', 'legacy14', '1234', 'Đang sinh hoạt')`
+                (3, 'Legacy User', 'Legacy', 14, 'player', 'legacy14', '1234', 'Đang sinh hoạt'),
+                (4, 'Legacy Custom User', 'LegacyCustom', 15, 'player', 'legacy15', 'LegacyPin@7788', 'Đang sinh hoạt')`
       ).run(strongHash, strongHash);
 
       const emptyUser = await verifyCredentials("", "WrongPass@1", "10.0.0.1");
@@ -437,17 +438,28 @@ describe("Phase 5.1 – B & D. Session Revocation, Password Policy & Login Anti-
       expect(lookupSelect?.toUpperCase()).not.toContain("SELECT *");
       expect(lookupSelect?.toLowerCase()).not.toContain("pin_code");
 
-      // Legacy user still logs in seamlessly and auto-rehashes plaintext PIN to scrypt$
-      const legacyLogin = await verifyCredentials("#14", "1234", "10.0.0.1");
+      // Default PIN "1234" is rejected and NOT auto-rehashed
+      const defaultPinLogin = await verifyCredentials("#14", "1234", "10.0.0.1");
+      expect(defaultPinLogin.success).toBe(false);
+      expect(defaultPinLogin.status).toBe(403);
+      expect(defaultPinLogin.errorCode).toBe("DEFAULT_PIN_RESET_REQUIRED");
+
+      const defaultRow = raw.prepare("SELECT pin_code FROM players WHERE id = 3").get() as {
+        pin_code: string;
+      };
+      expect(defaultRow.pin_code).toBe("1234");
+
+      // Non-default legacy plaintext user logs in and deterministically upgrades to scrypt$
+      const legacyLogin = await verifyCredentials("#15", "LegacyPin@7788", "10.0.0.1");
       expect(legacyLogin.success).toBe(true);
       expect(legacyLogin.status).toBe(200);
-      expect(legacyLogin.mustChangePassword).toBe(true);
+      expect(legacyLogin.mustChangePassword).toBe(false);
 
-      const updatedRow = raw.prepare("SELECT pin_code FROM players WHERE id = 3").get() as {
+      const updatedRow = raw.prepare("SELECT pin_code FROM players WHERE id = 4").get() as {
         pin_code: string;
       };
       expect(updatedRow.pin_code.startsWith("scrypt$")).toBe(true);
-      expect(verifyPassword("1234", updatedRow.pin_code)).toBe(true);
+      expect(verifyPassword("LegacyPin@7788", updatedRow.pin_code)).toBe(true);
 
       // New password policy checks
       expect(validatePasswordStrength("a".repeat(129)).valid).toBe(false);
