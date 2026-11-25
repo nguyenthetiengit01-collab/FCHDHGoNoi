@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 import { getAsyncDb } from "./db";
+import { classifyPlayerStatus } from "./teamStatistics";
 import { validatePasswordStrength, type PasswordStrengthResult } from "./passwordStrength";
 export { validatePasswordStrength, type PasswordStrengthResult };
 import {
@@ -459,6 +460,15 @@ function runDummyScryptVerification(
   verifyPassword(cleanPin, DUMMY_SCRYPT_HASH);
 }
 
+export function isPlayerStatusAllowedForAuth(status?: string | null): boolean {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (!normalized || normalized === "inactive") {
+    return false;
+  }
+  const category = classifyPlayerStatus(status);
+  return category === "active" || category === "paused";
+}
+
 export const AUTH_PLAYER_PROFILE_COLUMNS = `
   id, code_order, full_name, short_name, username, jersey_number,
   position, phone, birth_year, avatar_url, profile_image_url,
@@ -546,8 +556,8 @@ export async function verifyCredentials(
     return false;
   });
 
-  // Chống rò rỉ tài khoản & Timing Attack: luôn chạy Scrypt ngay cả khi tài khoản không tồn tại / bị khóa
-  if (!matched || matched.status === "inactive") {
+  // Chống rò rỉ tài khoản & Timing Attack: luôn chạy Scrypt ngay cả khi tài khoản không tồn tại / không đủ điều kiện trạng thái
+  if (!matched || !isPlayerStatusAllowedForAuth(matched.status)) {
     runDummyScryptVerification(cleanPin, !matched ? "missing" : "inactive");
     return {
       success: false,
@@ -703,7 +713,7 @@ export async function getCurrentAuthContextFromToken(
     );
     const player = players[0];
 
-    if (!player || (player as unknown as { status?: string }).status === "inactive") {
+    if (!player || !isPlayerStatusAllowedForAuth(player.status)) {
       return {
         authorized: false,
         status: 401,

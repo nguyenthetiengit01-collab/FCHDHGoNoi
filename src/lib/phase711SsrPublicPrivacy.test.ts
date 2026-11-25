@@ -4,6 +4,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { GET as getAuthRoute } from "@/app/api/auth/route";
 import {
   createSessionToken,
   getCurrentAuthContextFromToken,
@@ -11,7 +12,13 @@ import {
   requireManagerSession,
   requirePlayerSession,
   SESSION_COOKIE_NAME,
+  verifyCredentials,
 } from "./auth";
+import {
+  __resetAuthRateLimitForTest,
+  __setAuthRateLimitDriverForTest,
+  type AuthRateLimitDriver,
+} from "./authRateLimit";
 import * as dbModule from "./db";
 import type { AsyncDb } from "./db";
 import { getHomePageInitialData } from "./publicHome";
@@ -181,6 +188,7 @@ function createSsrTestDb() {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  __resetAuthRateLimitForTest();
   delete process.env.AUTH_SECRET;
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
@@ -189,6 +197,21 @@ afterEach(() => {
     }
   }
 });
+
+function createAllowAllRateLimiter(): AuthRateLimitDriver {
+  const allow = async () => ({
+    success: true,
+    remaining: 99,
+    reset: Date.now() + 60_000,
+  });
+  return {
+    limitAccount: allow,
+    limitIp: allow,
+    limitPair: allow,
+    async resetAccount() {},
+    async resetPair() {},
+  };
+}
 
 describe("Phase 7.1.1 — SSR HomePage DB-first Authorization", () => {
   it("uses DB role instead of stale token accessRole and falls back to public data when inactive, PIN changed, or token invalid", async () => {
@@ -345,6 +368,176 @@ describe("Phase 7.1.1 — SSR HomePage DB-first Authorization", () => {
       const plrRes = await requirePlayerSession(req);
       expect(plrRes.authorized).toBe(false);
       expect(plrRes.status).toBe(503);
+
+      const getAuthRes = await getAuthRoute(
+        new NextRequest("http://localhost:3000/api/auth", {
+          headers: { cookie: `${SESSION_COOKIE_NAME}=${token}` },
+        })
+      );
+      expect(getAuthRes.status).toBe(503);
+    } finally {
+      raw.close();
+    }
+  });
+
+  it("enforces canonical player lifecycle policy across verifyCredentials, getCurrentAuthContextFromToken, GET /api/auth, requireManagerSession, requirePlayerSession, and SSR", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    __setAuthRateLimitDriverForTest(createAllowAllRateLimiter());
+    const { raw, adapter } = createSsrTestDb();
+    try {
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(adapter);
+      vi.spyOn(dbModule, "getFullAppData").mockImplementation(async () => {
+        const settings = raw
+          .prepare("SELECT * FROM team_settings WHERE id = 1")
+          .get() as unknown as FullAppData["settings"];
+        const players = (
+          raw.prepare("SELECT * FROM players ORDER BY code_order ASC, id ASC").all() as unknown as Player[]
+        ).map((p) => ({
+          ...p,
+          pin_code: "",
+          profile_image_url: p.profile_image_url || "",
+          gallery_urls: [],
+        }));
+        const matches = raw
+          .prepare("SELECT * FROM matches ORDER BY match_number ASC")
+          .all() as unknown as FullAppData["matches"];
+        const attendances = raw
+          .prepare("SELECT * FROM match_attendances")
+          .all() as unknown as FullAppData["attendances"];
+        return {
+          settings,
+          players,
+          matches,
+          attendances,
+          otherIncomes: [],
+          expenses: [],
+          summary: {
+            totalIncome: 0,
+            totalMatchIncome: 0,
+            totalOtherIncome: 0,
+            totalExpense: 0,
+            currentBalance: 0,
+            totalUnpaidAmount: 0,
+            categoryBreakdown: [],
+          },
+          posts: [],
+          sponsors: [],
+        };
+      });
+
+      const mgrPin = "MgrLife@2026";
+      const plrPin = "PlrLife@2026";
+      raw
+        .prepare(
+          "INSERT INTO players (code_order, full_name, short_name, phone, access_role, username, pin_code, status, notes) VALUES (1, 'Mgr Lifecycle', 'MgrL', '0901111111', 'manager', 'mgrlife', ?, 'Đang sinh hoạt', 'MGR_PRIVATE')"
+        )
+        .run(hashPassword(mgrPin));
+      raw
+        .prepare(
+          "INSERT INTO players (code_order, full_name, short_name, phone, access_role, username, pin_code, status, notes) VALUES (2, 'Plr Lifecycle', 'PlrL', '0902222222', 'player', 'plrlife', ?, 'Đang sinh hoạt', 'PLR_PRIVATE')"
+        )
+        .run(hashPassword(plrPin));
+
+      const mgrRow = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+      const plrRow = raw.prepare("SELECT * FROM players WHERE id = 2").get() as unknown as Player;
+      const mgrToken = createSessionToken(mgrRow, 24);
+      const plrToken = createSessionToken(plrRow, 24);
+
+      // 1 & 2. Allowed statuses: "Đang sinh hoạt" (active) and "Tạm nghỉ" (paused)
+      for (const allowedStatus of ["Đang sinh hoạt", "Tạm nghỉ"]) {
+        raw.prepare("UPDATE players SET status = ? WHERE id IN (1, 2)").run(allowedStatus);
+
+        const loginRes = await verifyCredentials("mgrlife", mgrPin, "127.0.0.1");
+        expect(loginRes.success).toBe(true);
+
+        const ctx = await getCurrentAuthContextFromToken(mgrToken);
+        expect(ctx.authorized).toBe(true);
+        if (ctx.authorized) {
+          expect(ctx.role).toBe("manager");
+        }
+
+        const req = new NextRequest("http://localhost:3000/api/auth", {
+          headers: { cookie: `${SESSION_COOKIE_NAME}=${mgrToken}` },
+        });
+        const authRes = await getAuthRoute(req);
+        expect(authRes.status).toBe(200);
+        const authJson = await authRes.json();
+        expect(authJson.authenticated).toBe(true);
+        expect(authJson.role).toBe("manager");
+
+        expect((await requireManagerSession(req)).authorized).toBe(true);
+        expect((await requirePlayerSession(req)).authorized).toBe(true);
+
+        const ssrData = await getHomePageInitialData(mgrToken);
+        expect(ssrData.players.find((p) => p.id === 2)?.phone).toBe("0902222222");
+      }
+
+      // 3-8. Denied statuses: stopped ("Ngừng tham gia", "Đã nghỉ", "Ngưng", "Rời đội"), "inactive", and empty/unknown ("", "Khác", "unknown_xyz")
+      for (const deniedStatus of [
+        "Ngừng tham gia",
+        "Đã nghỉ",
+        "Ngưng",
+        "Rời đội",
+        "inactive",
+        "",
+        "Khác",
+        "unknown_xyz",
+      ]) {
+        raw.prepare("UPDATE players SET status = ? WHERE id IN (1, 2)").run(deniedStatus);
+
+        const mgrLogin = await verifyCredentials("mgrlife", mgrPin, "127.0.0.1");
+        expect(mgrLogin.success).toBe(false);
+        expect(mgrLogin.status).toBe(401);
+
+        const plrLogin = await verifyCredentials("plrlife", plrPin, "127.0.0.1");
+        expect(plrLogin.success).toBe(false);
+        expect(plrLogin.status).toBe(401);
+
+        // 9. Manager cookie rejected
+        const mgrCtx = await getCurrentAuthContextFromToken(mgrToken);
+        expect(mgrCtx.authorized).toBe(false);
+        expect(mgrCtx.status).toBe(401);
+
+        // 10. Player cookie rejected
+        const plrCtx = await getCurrentAuthContextFromToken(plrToken);
+        expect(plrCtx.authorized).toBe(false);
+        expect(plrCtx.status).toBe(401);
+
+        const mgrReq = new NextRequest("http://localhost:3000/api/auth", {
+          headers: { cookie: `${SESSION_COOKIE_NAME}=${mgrToken}` },
+        });
+        const authGetRes = await getAuthRoute(mgrReq);
+        const authGetJson = await authGetRes.json();
+        expect(authGetJson.authenticated).toBe(false);
+
+        expect((await requireManagerSession(mgrReq)).status).toBe(401);
+        expect((await requirePlayerSession(mgrReq)).status).toBe(401);
+
+        // 13. Guest/public fallback for SSR when stopped/inactive/unknown
+        const ssrMgrFallback = await getHomePageInitialData(mgrToken);
+        expect(JSON.stringify(ssrMgrFallback)).not.toContain("0901111111");
+        expect(JSON.stringify(ssrMgrFallback)).not.toContain("0902222222");
+        expect(JSON.stringify(ssrMgrFallback)).not.toContain("MGR_PRIVATE");
+        expect(JSON.stringify(ssrMgrFallback)).not.toContain("SECRET_SSR_PAYER");
+        expect(JSON.stringify(ssrMgrFallback)).not.toContain("SECRET_FUND_NOTE_SSR");
+
+        const ssrPlrFallback = await getHomePageInitialData(plrToken);
+        expect(JSON.stringify(ssrPlrFallback)).not.toContain("0902222222");
+        expect(JSON.stringify(ssrPlrFallback)).not.toContain("PLR_PRIVATE");
+      }
+
+      // 11. Role change in DB (manager -> player): old manager token loses manager privileges across SSR, GET /api/auth, and requireManagerSession
+      raw.prepare("UPDATE players SET status = 'Đang sinh hoạt', access_role = 'player' WHERE id = 1").run();
+      const demotedReq = new NextRequest("http://localhost:3000/api/auth", {
+        headers: { cookie: `${SESSION_COOKIE_NAME}=${mgrToken}` },
+      });
+      const demotedGetJson = await (await getAuthRoute(demotedReq)).json();
+      expect(demotedGetJson.authenticated).toBe(true);
+      expect(demotedGetJson.role).toBe("player");
+      expect((await requireManagerSession(demotedReq)).status).toBe(403);
+      const demotedSsr = await getHomePageInitialData(mgrToken);
+      expect(demotedSsr.players.find((p) => p.id === 2)?.phone).toBe("");
+      expect(demotedSsr.settings.tournament_fund_note).toBe("");
     } finally {
       raw.close();
     }
