@@ -17,8 +17,37 @@ export interface SyntheticFixtureCounts {
   sponsors: number;
 }
 
+const QA_FIXTURE_ASSETS = {
+  playerOneAvatar: "/images/logo.jpg",
+  playerOneProfile: "/images/logo.jpg",
+  playerTwoAvatar: "/images/logo.jpg",
+  playerTwoProfile: "/images/logo.jpg",
+  clubPostFeatured: "/images/hinhanh-webp/anhbia/DSC06734.webp",
+  sponsorLogo: "/images/logo.jpg",
+  sponsorBanner: "/images/cover-team.jpg",
+} as const;
+
+function resolveVerifiedPublicImageAsset(repoRoot: string, publicAssetPath: string): string {
+  const normalized = publicAssetPath.replace(/^\/+/, "");
+  const diskPath = path.join(repoRoot, "public", ...normalized.split("/"));
+  if (!fs.existsSync(diskPath)) {
+    throw new Error(`Synthetic QA image asset missing on disk: ${publicAssetPath} (${diskPath})`);
+  }
+  return publicAssetPath;
+}
+
 export function initSyntheticQaDatabase(): SyntheticFixtureCounts {
-  const { qaRoot, qaDbPath } = validateQaPaths();
+  const { repoRoot, qaRoot, qaDbPath } = validateQaPaths();
+
+  const verifiedAssets = {
+    playerOneAvatar: resolveVerifiedPublicImageAsset(repoRoot, QA_FIXTURE_ASSETS.playerOneAvatar),
+    playerOneProfile: resolveVerifiedPublicImageAsset(repoRoot, QA_FIXTURE_ASSETS.playerOneProfile),
+    playerTwoAvatar: resolveVerifiedPublicImageAsset(repoRoot, QA_FIXTURE_ASSETS.playerTwoAvatar),
+    playerTwoProfile: resolveVerifiedPublicImageAsset(repoRoot, QA_FIXTURE_ASSETS.playerTwoProfile),
+    clubPostFeatured: resolveVerifiedPublicImageAsset(repoRoot, QA_FIXTURE_ASSETS.clubPostFeatured),
+    sponsorLogo: resolveVerifiedPublicImageAsset(repoRoot, QA_FIXTURE_ASSETS.sponsorLogo),
+    sponsorBanner: resolveVerifiedPublicImageAsset(repoRoot, QA_FIXTURE_ASSETS.sponsorBanner),
+  };
 
   fs.mkdirSync(qaRoot, { recursive: true });
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
@@ -91,8 +120,8 @@ export function initSyntheticQaDatabase(): SyntheticFixtureCounts {
         "Tiền đạo",
         "0900000001",
         "1998",
-        "/images/hinhanh-webp/01.webp",
-        "/images/hinhanh-webp/01.webp",
+        verifiedAssets.playerOneAvatar,
+        verifiedAssets.playerOneProfile,
         "Hồ sơ cầu thủ tổng hợp phục vụ kiểm thử tự động Phase 6.5.1.",
         "Thành viên",
         "player",
@@ -115,8 +144,8 @@ export function initSyntheticQaDatabase(): SyntheticFixtureCounts {
         "Hậu vệ",
         "0900000002",
         "1997",
-        "/images/hinhanh-webp/02.webp",
-        "/images/hinhanh-webp/02.webp",
+        verifiedAssets.playerTwoAvatar,
+        verifiedAssets.playerTwoProfile,
         "Hồ sơ hậu vệ tổng hợp phục vụ kiểm thử tương phản huy hiệu.",
         "Thành viên",
         "player",
@@ -187,7 +216,7 @@ export function initSyntheticQaDatabase(): SyntheticFixtureCounts {
         "Tóm tắt nội dung tổng hợp phục vụ kiểm thử hiển thị và trợ năng.",
         "2026-10-25",
         "Ban Quản Lý QA",
-        "/images/hinhanh-webp/01.webp",
+        verifiedAssets.clubPostFeatured,
         "[]",
         "2 phút đọc",
         JSON.stringify(["Nội dung bài viết tổng hợp không chứa dữ liệu thật."]),
@@ -204,8 +233,8 @@ export function initSyntheticQaDatabase(): SyntheticFixtureCounts {
         1,
         "Đơn Vị Đồng Hành QA",
         "title",
-        "/images/hinhanh-webp/01.webp",
-        "/images/hinhanh-webp/02.webp",
+        verifiedAssets.sponsorLogo,
+        verifiedAssets.sponsorBanner,
         "https://example.invalid/sponsor-qa",
         "Nhà tài trợ tổng hợp phục vụ kiểm thử banner và footer.",
         '["home_banner","home_partners"]',

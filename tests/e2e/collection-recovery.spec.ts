@@ -31,7 +31,7 @@ const QA_MANAGER_PLAYER: Player = {
   position: "GK",
   phone: "0900000099",
   birth_year: "1990",
-  avatar_url: "/images/hinhanh-webp/01.webp",
+  avatar_url: "/images/logo.jpg",
   role: "Quản lý",
   access_role: "manager",
   username: "qamgr99",
