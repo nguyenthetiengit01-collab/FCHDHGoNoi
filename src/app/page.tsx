@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { getFullAppData } from "@/lib/db";
-import { getPublicHomePageData } from "@/lib/publicHome";
-import {
-  SESSION_COOKIE_NAME,
-  verifySessionToken,
-  sanitizeDataForPublic,
-  sanitizeDataForPlayer,
-} from "@/lib/auth";
+import { getHomePageInitialData } from "@/lib/publicHome";
+import { SESSION_COOKIE_NAME } from "@/lib/auth";
 import { buildPageMetadata } from "@/lib/seo";
 import { TeamManagerApp } from "@/components/TeamManagerApp";
 
@@ -23,25 +17,7 @@ export const metadata: Metadata = buildPageMetadata({
 export default async function HomePage() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  const session = sessionCookie ? verifySessionToken(sessionCookie) : null;
-
-  if (!session) {
-    const initialData = await getPublicHomePageData();
-    return <TeamManagerApp initialData={initialData} />;
-  }
-
-  const data = await getFullAppData();
-  let initialData = sanitizeDataForPublic(data);
-
-  if (session.accessRole === "manager") {
-    initialData = {
-      ...data,
-      players: data.players.map((p) => ({ ...p, pin_code: "" })),
-    };
-  } else {
-    initialData = sanitizeDataForPlayer(data, session.playerId);
-  }
-
+  const initialData = await getHomePageInitialData(sessionCookie);
   return <TeamManagerApp initialData={initialData} />;
 }
 

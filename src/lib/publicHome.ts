@@ -1,5 +1,10 @@
 import { cache } from "react";
-import { getAsyncDb } from "@/lib/db";
+import { getAsyncDb, getFullAppData } from "@/lib/db";
+import {
+  getCurrentAuthContextFromToken,
+  sanitizeDataForPlayer,
+  sanitizeDataForPublic,
+} from "@/lib/auth";
 import { formatBirthYear } from "@/lib/athleteProfile";
 import { getTeamStatistics } from "@/lib/teamStatistics";
 import { CLUB_ACTIVITIES_POSTS, type ClubActivityPost } from "@/data/clubActivities";
@@ -80,6 +85,44 @@ export function toPublicGalleryArray(
   return result;
 }
 
+const PUBLIC_MATCH_COLUMNS = `
+  id, match_number, label, match_date, kickoff_time, venue, opponent,
+  fee_per_player, team_score, opponent_score, status
+`;
+
+interface PublicMatchRow {
+  id: number;
+  match_number: number;
+  label: string;
+  match_date: string;
+  kickoff_time: string;
+  venue: string;
+  opponent: string;
+  fee_per_player: number;
+  team_score: number | null;
+  opponent_score: number | null;
+  status: string;
+}
+
+function mapPublicMatchRow(m: PublicMatchRow): MatchRecord {
+  return {
+    id: Number(m.id),
+    match_number: Number(m.match_number),
+    label: m.label || "",
+    match_date: m.match_date || "",
+    kickoff_time: m.kickoff_time || "",
+    venue: m.venue || "",
+    opponent: m.opponent || "",
+    fee_per_player: Number(m.fee_per_player || 0),
+    pitch_cost: 0,
+    payer_name: "",
+    team_score: m.team_score ?? null,
+    opponent_score: m.opponent_score ?? null,
+    status: m.status || "",
+    notes: "",
+  };
+}
+
 /**
  * Returns minimal public homepage data with explicit SQL projections:
  * - Zero Base64 data:image URIs (mapped to /api/media/legacy)
@@ -99,10 +142,10 @@ export async function getPublicHomePageData(): Promise<FullAppData> {
     rawSponsors,
   ] = await Promise.all([
     db
-      .queryOne<TeamSettings>(
+      .queryOne<Omit<TeamSettings, "tournament_fund_note">>(
         `SELECT id, team_name, short_name, default_match_fee, bank_bin, bank_name,
                 bank_account_no, bank_account_name, tournament_fund_reserve,
-                tournament_fund_note, fanpage_url
+                fanpage_url
          FROM team_settings WHERE id = 1`
       )
       .catch(() => null),
@@ -129,10 +172,8 @@ export async function getPublicHomePageData(): Promise<FullAppData> {
        FROM players
        ORDER BY code_order ASC, id ASC`
     ),
-    db.query<MatchRecord>(
-      `SELECT id, match_number, label, match_date, kickoff_time, venue, opponent,
-              fee_per_player, pitch_cost, payer_name, team_score, opponent_score,
-              status, notes
+    db.query<PublicMatchRow>(
+      `SELECT ${PUBLIC_MATCH_COLUMNS}
        FROM matches
        ORDER BY match_number ASC, match_date ASC`
     ),
@@ -193,19 +234,26 @@ export async function getPublicHomePageData(): Promise<FullAppData> {
       .catch(() => null),
   ]);
 
-  const settings: TeamSettings = settingsRow || {
-    id: 1,
-    team_name: "Đội Bóng HĐH Gò Nổi",
-    short_name: "FC HĐH GÒ NỔI",
-    default_match_fee: 100000,
-    bank_bin: "970422",
-    bank_name: "MB Bank",
-    bank_account_no: "",
-    bank_account_name: "NGUYEN THE TIENG",
-    tournament_fund_reserve: 2301700,
-    tournament_fund_note: "",
-    fanpage_url: FANPAGE_URL,
-  };
+  const settings: TeamSettings = settingsRow
+    ? {
+        ...settingsRow,
+        tournament_fund_note: "",
+      }
+    : {
+        id: 1,
+        team_name: "Đội Bóng HĐH Gò Nổi",
+        short_name: "FC HĐH GÒ NỔI",
+        default_match_fee: 100000,
+        bank_bin: "970422",
+        bank_name: "MB Bank",
+        bank_account_no: "",
+        bank_account_name: "NGUYEN THE TIENG",
+        tournament_fund_reserve: 2301700,
+        tournament_fund_note: "",
+        fanpage_url: FANPAGE_URL,
+      };
+
+  const matches: MatchRecord[] = rawMatches.map(mapPublicMatchRow);
 
   const players: Player[] = rawPlayers.map((p) => ({
     id: Number(p.id),
@@ -309,7 +357,7 @@ export async function getPublicHomePageData(): Promise<FullAppData> {
   const baseData: FullAppData = {
     settings,
     players,
-    matches: rawMatches,
+    matches: matches,
     attendances,
     otherIncomes: [],
     expenses: [],
@@ -380,11 +428,9 @@ export const getPublicPlayerProfileByIdOrJersey = cache(
     }
 
     const playerId = Number(row.id);
-    const [matches, attendances] = await Promise.all([
-      db.query<MatchRecord>(
-        `SELECT id, match_number, label, match_date, kickoff_time, venue, opponent,
-                fee_per_player, pitch_cost, payer_name, team_score, opponent_score,
-                status, notes
+    const [rawMatches, attendances] = await Promise.all([
+      db.query<PublicMatchRow>(
+        `SELECT ${PUBLIC_MATCH_COLUMNS}
          FROM matches
          ORDER BY match_number ASC, match_date ASC`
       ),
@@ -438,7 +484,7 @@ export const getPublicPlayerProfileByIdOrJersey = cache(
 
     return {
       player,
-      matches,
+      matches: rawMatches.map(mapPublicMatchRow),
       attendances: attendances.map((a) => ({
         id: Number(a.id),
         match_id: Number(a.match_id),
@@ -454,3 +500,30 @@ export const getPublicPlayerProfileByIdOrJersey = cache(
     };
   }
 );
+
+/**
+ * DB-first SSR data loader for HomePage (`/`).
+ * Derives role and player identity strictly from DB via `getCurrentAuthContextFromToken()`.
+ */
+export async function getHomePageInitialData(
+  sessionCookie?: string | null
+): Promise<FullAppData> {
+  const auth = await getCurrentAuthContextFromToken(sessionCookie);
+  if (!auth.authorized) {
+    return getPublicHomePageData();
+  }
+
+  const data = await getFullAppData();
+  if (auth.role === "manager") {
+    return {
+      ...data,
+      players: data.players.map((p) => ({ ...p, pin_code: "" })),
+    };
+  }
+
+  if (auth.role === "player") {
+    return sanitizeDataForPlayer(data, auth.player.id);
+  }
+
+  return sanitizeDataForPublic(data);
+}
