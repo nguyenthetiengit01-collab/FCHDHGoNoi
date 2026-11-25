@@ -4,7 +4,7 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GET as getAuthRoute } from "@/app/api/auth/route";
+import { GET as getAuthRoute, POST as postAuthRoute } from "@/app/api/auth/route";
 import {
   createSessionToken,
   getCurrentAuthContextFromToken,
@@ -538,6 +538,286 @@ describe("Phase 7.1.1 — SSR HomePage DB-first Authorization", () => {
       const demotedSsr = await getHomePageInitialData(mgrToken);
       expect(demotedSsr.players.find((p) => p.id === 2)?.phone).toBe("");
       expect(demotedSsr.settings.tournament_fund_note).toBe("");
+    } finally {
+      raw.close();
+    }
+  });
+
+  it("returns HTTP 503 on POST /api/auth for DB failures (candidate lookup, PIN lookup, hydration, rate-limit) while preserving 401/403/429 and 500 on programming errors", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    __setAuthRateLimitDriverForTest(createAllowAllRateLimiter());
+    const { raw, adapter } = createSsrTestDb();
+    try {
+      const mgrPin = "MgrDbErr@2026";
+      raw
+        .prepare(
+          "INSERT INTO players (code_order, full_name, short_name, phone, access_role, username, pin_code, status) VALUES (1, 'Mgr Err', 'MgrE', '0901111111', 'manager', 'mgre', ?, 'Đang sinh hoạt')"
+        )
+        .run(hashPassword(mgrPin));
+      raw
+        .prepare(
+          "INSERT INTO players (code_order, full_name, short_name, phone, access_role, username, pin_code, status) VALUES (2, 'Default Pin', 'DefP', '0902222222', 'player', 'defp', '1234', 'Đang sinh hoạt')"
+        )
+        .run();
+
+      raw.exec(`
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          actor_id INTEGER NOT NULL,
+          actor_name TEXT NOT NULL,
+          actor_role TEXT NOT NULL,
+          action TEXT NOT NULL,
+          summary TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+      raw
+        .prepare(
+          "INSERT INTO players (code_order, full_name, short_name, phone, access_role, username, pin_code, status) VALUES (3, 'Switch Target', 'SwT', '0903333333', 'player', 'swt', ?, 'Đang sinh hoạt')"
+        )
+        .run(hashPassword("SwitchTarget@2026"));
+
+      const mgrRow = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+      const mgrToken = createSessionToken(mgrRow, 24);
+
+      const makeLoginReq = (username: string, pin: string) =>
+        new NextRequest("http://localhost:3000/api/auth", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+          },
+          body: JSON.stringify({ action: "login", username, pin }),
+        });
+
+      const makeSwitchReq = (playerId: number, action: "switch_role" | "quick_login" = "switch_role", cookieToken = mgrToken) =>
+        new NextRequest("http://localhost:3000/api/auth", {
+          method: "POST",
+          headers: {
+            host: "localhost:3000",
+            origin: "http://localhost:3000",
+            cookie: `${SESSION_COOKIE_NAME}=${cookieToken}`,
+          },
+          body: JSON.stringify({ action, playerId }),
+        });
+
+      const assertNoSessionCookie = (res: Response) => {
+        const setCookie = res.headers.get("set-cookie") || "";
+        expect(setCookie).not.toContain(`${SESSION_COOKIE_NAME}=`);
+      };
+
+      // 1. Turso timeout / ECONNRESET / ECONNREFUSED / LibsqlError allowlist / TypeError("fetch failed") on candidate lookup -> 503
+      const outageErrors: unknown[] = [
+        Object.assign(new Error("Turso candidate lookup timeout"), { code: "ETIMEDOUT" }),
+        Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }),
+        Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }),
+        Object.assign(new Error("Hrana server error"), { name: "LibsqlError", code: "SERVER_ERROR" }),
+        Object.assign(new Error("Hrana websocket error"), { name: "LibsqlError", code: "HRANA_WEBSOCKET_ERROR" }),
+        Object.assign(new Error("Gateway unavailable"), { name: "LibsqlError", code: "HTTP_STATUS_503" }),
+        Object.assign(new Error("SQLite busy"), { name: "LibsqlError", code: "SQLITE_BUSY" }),
+        new TypeError("fetch failed"),
+        new TypeError("fetch failed", { cause: Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }) }),
+      ];
+
+      for (const err of outageErrors) {
+        vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+          ...adapter,
+          async query() {
+            throw err;
+          },
+        });
+        const res = await postAuthRoute(makeLoginReq("mgre", mgrPin));
+        expect(res.status).toBe(503);
+        assertNoSessionCookie(res);
+      }
+
+      // 1b. P1-01: getAsyncDb() throwing DB configuration/init error -> 503; throwing programming/arbitrary error -> 500
+      vi.spyOn(dbModule, "getAsyncDb").mockImplementation(() => {
+        throw new Error("Database configuration error: TURSO_DATABASE_URL is required when Turso is enabled.");
+      });
+      const dbInitErrRes = await postAuthRoute(makeLoginReq("mgre", mgrPin));
+      expect(dbInitErrRes.status).toBe(503);
+      assertNoSessionCookie(dbInitErrRes);
+
+      const ctxInitErr = await getCurrentAuthContextFromToken(mgrToken);
+      expect(ctxInitErr.authorized).toBe(false);
+      expect(ctxInitErr.status).toBe(503);
+
+      vi.spyOn(dbModule, "getAsyncDb").mockImplementation(() => {
+        throw new TypeError("Unexpected getAsyncDb programming bug");
+      });
+      const dbInitProgErrRes = await postAuthRoute(makeLoginReq("mgre", mgrPin));
+      expect(dbInitProgErrRes.status).toBe(500);
+      assertNoSessionCookie(dbInitProgErrRes);
+      await expect(getCurrentAuthContextFromToken(mgrToken)).rejects.toThrow(TypeError);
+
+      // 1c. P1-02 & P2-02: Non-transient SQL errors and HTTP 400/401/403 LibsqlErrors must NOT return 503
+      for (const nonOutageErr of [
+        Object.assign(new Error("Bad request"), { name: "LibsqlError", code: "HTTP_STATUS_400" }),
+        Object.assign(new Error("Unauthorized token"), { name: "LibsqlError", code: "HTTP_STATUS_401" }),
+        Object.assign(new Error("Forbidden"), { name: "LibsqlError", code: "HTTP_STATUS_403" }),
+        Object.assign(new Error("SQLite syntax error"), { name: "LibsqlError", code: "SQLITE_ERROR" }),
+        Object.assign(new Error("Constraint failed"), { name: "LibsqlError", code: "SQLITE_CONSTRAINT" }),
+      ]) {
+        vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+          ...adapter,
+          async query() {
+            throw nonOutageErr;
+          },
+        });
+        const res = await postAuthRoute(makeLoginReq("mgre", mgrPin));
+        expect(res.status).toBe(500);
+        assertNoSessionCookie(res);
+      }
+
+      // 2. PIN lookup DB outage -> 503
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+        ...adapter,
+        async queryOne(sql: string) {
+          if (sql.includes("SELECT pin_code FROM players")) {
+            throw Object.assign(new Error("Connection reset"), { code: "ECONNRESET" });
+          }
+          return null;
+        },
+      });
+      const pinLookupRes = await postAuthRoute(makeLoginReq("mgre", mgrPin));
+      expect(pinLookupRes.status).toBe(503);
+      assertNoSessionCookie(pinLookupRes);
+
+      // 3. Hydrate player profile DB outage -> 503
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+        ...adapter,
+        async queryOne<T>(sql: string, params?: unknown[]) {
+          if (sql.includes("FROM players WHERE id = ? LIMIT 1") && !sql.includes("SELECT pin_code")) {
+            throw Object.assign(new Error("Turso hydration timeout"), { code: "ETIMEDOUT" });
+          }
+          return adapter.queryOne<T>(sql, params);
+        },
+      });
+      const hydrateRes = await postAuthRoute(makeLoginReq("mgre", mgrPin));
+      expect(hydrateRes.status).toBe(503);
+      assertNoSessionCookie(hydrateRes);
+
+      // 4. Rate-limit driver outage -> 503
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(adapter);
+      __setAuthRateLimitDriverForTest({
+        async limitIp() {
+          throw Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+        },
+        async limitAccount() {
+          throw Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+        },
+        async limitPair() {
+          throw Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+        },
+        async resetAccount() {},
+        async resetPair() {},
+      });
+      const rlOutageRes = await postAuthRoute(makeLoginReq("mgre", mgrPin));
+      expect(rlOutageRes.status).toBe(503);
+      assertNoSessionCookie(rlOutageRes);
+
+      // 5. switch_role & quick_login target lookup DB outage -> 503 (no cookie issued); non-manager quick_login -> 403
+      __setAuthRateLimitDriverForTest(createAllowAllRateLimiter());
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+        ...adapter,
+        async query<T>(sql: string, params?: unknown[]) {
+          return adapter.query<T>(sql, params);
+        },
+        async queryOne<T>(sql: string, params?: unknown[]) {
+          if (sql.includes("FROM players WHERE id = ? LIMIT 1")) {
+            throw new TypeError("fetch failed");
+          }
+          return adapter.queryOne<T>(sql, params);
+        },
+      });
+      const switchLookupErrRes = await postAuthRoute(makeSwitchReq(3, "switch_role"));
+      expect(switchLookupErrRes.status).toBe(503);
+      assertNoSessionCookie(switchLookupErrRes);
+
+      const quickLoginLookupErrRes = await postAuthRoute(makeSwitchReq(3, "quick_login"));
+      expect(quickLoginLookupErrRes.status).toBe(503);
+      assertNoSessionCookie(quickLoginLookupErrRes);
+
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(adapter);
+      const targetRow = raw.prepare("SELECT * FROM players WHERE id = 3").get() as unknown as Player;
+      const targetToken = createSessionToken(targetRow, 24);
+      const playerQuickLoginForbidden = await postAuthRoute(
+        makeSwitchReq(1, "quick_login", targetToken)
+      );
+      expect(playerQuickLoginForbidden.status).toBe(403);
+      assertNoSessionCookie(playerQuickLoginForbidden);
+
+      // 6. switch_role audit_logs DB outage -> 503 (no cookie issued); generic bug -> 500 (no cookie issued)
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+        ...adapter,
+        async run(sql: string, params?: unknown[]) {
+          if (sql.includes("INSERT INTO audit_logs")) {
+            throw Object.assign(new Error("Turso write timeout"), { code: "ETIMEDOUT" });
+          }
+          return adapter.run(sql, params);
+        },
+      });
+      const auditOutageRes = await postAuthRoute(makeSwitchReq(3));
+      expect(auditOutageRes.status).toBe(503);
+      assertNoSessionCookie(auditOutageRes);
+
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+        ...adapter,
+        async run(sql: string, params?: unknown[]) {
+          if (sql.includes("INSERT INTO audit_logs")) {
+            throw new Error("Unexpected application bug in audit serializer");
+          }
+          return adapter.run(sql, params);
+        },
+      });
+      const auditAppBugRes = await postAuthRoute(makeSwitchReq(3));
+      expect(auditAppBugRes.status).toBe(500);
+      assertNoSessionCookie(auditAppBugRes);
+
+      // 7. Preserve 429 rate-limit, 401 invalid credentials, 403 default PIN
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(adapter);
+      __setAuthRateLimitDriverForTest({
+        async limitIp() {
+          return { success: false, remaining: 0, reset: Date.now() + 30_000 };
+        },
+        async limitAccount() {
+          return { success: true, remaining: 5, reset: Date.now() + 30_000 };
+        },
+        async limitPair() {
+          return { success: true, remaining: 5, reset: Date.now() + 30_000 };
+        },
+        async resetAccount() {},
+        async resetPair() {},
+      });
+      const rateLimitRes = await postAuthRoute(makeLoginReq("mgre", mgrPin));
+      expect(rateLimitRes.status).toBe(429);
+      assertNoSessionCookie(rateLimitRes);
+
+      __setAuthRateLimitDriverForTest(createAllowAllRateLimiter());
+      const invalidRes = await postAuthRoute(makeLoginReq("mgre", "Wrong@999"));
+      expect(invalidRes.status).toBe(401);
+      assertNoSessionCookie(invalidRes);
+
+      const defaultPinRes = await postAuthRoute(makeLoginReq("defp", "1234"));
+      expect(defaultPinRes.status).toBe(403);
+      assertNoSessionCookie(defaultPinRes);
+
+      // 8. Programming error (TypeError) and generic application Error must still return 500, NOT 503
+      for (const appBug of [
+        new TypeError("Cannot read properties of undefined (reading 'id')"),
+        new Error("Unexpected application invariant violation"),
+      ]) {
+        vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+          ...adapter,
+          async query() {
+            throw appBug;
+          },
+        });
+        const bugRes = await postAuthRoute(makeLoginReq("mgre", mgrPin));
+        expect(bugRes.status).toBe(500);
+        assertNoSessionCookie(bugRes);
+      }
     } finally {
       raw.close();
     }

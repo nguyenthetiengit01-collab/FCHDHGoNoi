@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   AUTH_PLAYER_PROFILE_COLUMNS,
+  AuthDatabaseError,
   AuthSecretError,
   verifyCredentials,
   createSessionToken,
@@ -9,6 +10,7 @@ import {
   isDefaultPassword,
   isPlayerStatusAllowedForAuth,
   projectSafePlayer,
+  runAuthDbQuery,
   SESSION_COOKIE_NAME,
   requireManagerSession,
   verifyCsrfOrigin,
@@ -161,11 +163,13 @@ async function handlePostAuth(req: NextRequest): Promise<NextResponse> {
         );
       }
 
-      const db = getAsyncDb();
+      const db = await runAuthDbQuery(async () => getAsyncDb());
       const playerRow =
-        (await db.queryOne<Player>(
-          `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-          [playerId]
+        (await runAuthDbQuery(() =>
+          db.queryOne<Player>(
+            `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+            [playerId]
+          )
         )) || undefined;
 
       if (!playerRow) {
@@ -204,14 +208,16 @@ async function handlePostAuth(req: NextRequest): Promise<NextResponse> {
       const token = createSessionToken(playerRow, 24 * 7);
       const safePlayer = projectSafePlayer(playerRow);
 
-      await recordAuditLog({
-        actorId: auth.player?.id ?? auth.session?.playerId ?? 0,
-        actorName: auth.player?.full_name ?? auth.session?.fullName ?? "Manager",
-        actorRole: auth.player?.access_role ?? auth.session?.accessRole ?? "manager",
-        action,
-        summary: `Manager #${auth.player?.id ?? auth.session?.playerId ?? 0} switched session to player #${playerRow.id} (${action})`,
-        tx: db,
-      });
+      await runAuthDbQuery(() =>
+        recordAuditLog({
+          actorId: auth.player?.id ?? auth.session?.playerId ?? 0,
+          actorName: auth.player?.full_name ?? auth.session?.fullName ?? "Manager",
+          actorRole: auth.player?.access_role ?? auth.session?.accessRole ?? "manager",
+          action,
+          summary: `Manager #${auth.player?.id ?? auth.session?.playerId ?? 0} switched session to player #${playerRow.id} (${action})`,
+          tx: db,
+        })
+      );
 
       const res = NextResponse.json({
         success: true,
@@ -289,10 +295,10 @@ async function handlePostAuth(req: NextRequest): Promise<NextResponse> {
     );
   } catch (error) {
     console.error("POST /api/auth error:", error instanceof Error ? error.name : "UNKNOWN");
-    if (error instanceof AuthSecretError) {
+    if (error instanceof AuthSecretError || error instanceof AuthDatabaseError) {
       return NextResponse.json(
         {
-          error: "Hệ thống xác thực tạm thời không khả dụng do thiếu cấu hình bảo mật máy chủ.",
+          error: error.message,
           code: error.code,
         },
         { status: 503 }

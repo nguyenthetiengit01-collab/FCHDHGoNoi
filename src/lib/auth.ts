@@ -35,6 +35,135 @@ export class AuthSecretError extends Error {
   }
 }
 
+export class AuthDatabaseError extends Error {
+  readonly code = "AUTH_DB_UNAVAILABLE";
+  readonly status = 503;
+
+  constructor(message = "Hệ thống xác thực tạm thời không khả dụng do lỗi kết nối cơ sở dữ liệu.") {
+    super(message);
+    this.name = "AuthDatabaseError";
+  }
+}
+
+const DB_OUTAGE_CODES = new Set([
+  "ETIMEDOUT",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "EPIPE",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_SOCKET",
+  "SQLITE_BUSY",
+  "SQLITE_LOCKED",
+  "SQLITE_CANTOPEN",
+  "SQLITE_IOERR",
+  "SERVER_ERROR",
+  "HRANA_WEBSOCKET_ERROR",
+  "HRANA_CLOSED_ERROR",
+  "HTTP_STATUS_429",
+  "HTTP_STATUS_502",
+  "HTTP_STATUS_503",
+  "HTTP_STATUS_504",
+  "DB_WRITE_OUTCOME_UNKNOWN",
+]);
+
+/**
+ * Nhận diện lỗi hạ tầng / kết nối / timeout của Turso, LibSQL, SQLite và mạng (bao gồm TypeError("fetch failed") và cause đệ quy).
+ * Các lỗi lập trình hoặc lỗi logic ứng dụng trả về false để giữ HTTP 500.
+ */
+export function isDatabaseOutageError(
+  err: unknown,
+  seen: Set<unknown> = new Set()
+): boolean {
+  if (!err || typeof err !== "object" || seen.has(err)) {
+    return false;
+  }
+  seen.add(err);
+
+  if (err instanceof AuthSecretError) {
+    return false;
+  }
+  if (err instanceof AuthDatabaseError) {
+    return true;
+  }
+
+  const record = err as {
+    code?: unknown;
+    message?: unknown;
+    name?: unknown;
+    cause?: unknown;
+  };
+  const code = typeof record.code === "string" ? record.code.toUpperCase() : "";
+  const message =
+    typeof record.message === "string" ? record.message.toLowerCase() : "";
+  const name = typeof record.name === "string" ? record.name.toLowerCase() : "";
+
+  // Lỗi SQL cú pháp/ràng buộc/HTTP client không phải lỗi mất kết nối hạ tầng
+  if (
+    code.includes("SQLITE_CONSTRAINT") ||
+    code === "SQLITE_ERROR" ||
+    code === "HTTP_STATUS_400" ||
+    code === "HTTP_STATUS_401" ||
+    code === "HTTP_STATUS_403" ||
+    code === "HTTP_STATUS_404" ||
+    message.includes("syntax error") ||
+    message.includes("no such table") ||
+    message.includes("no such column") ||
+    message.includes("unauthorized") ||
+    message.includes("forbidden")
+  ) {
+    return false;
+  }
+
+  if (DB_OUTAGE_CODES.has(code)) {
+    return true;
+  }
+
+  if (
+    name.includes("timeout") ||
+    name === "tursowriteoutcomeunknownerror" ||
+    message.includes("timed out") ||
+    message.includes("timeout") ||
+    message.includes("econnreset") ||
+    message.includes("econnrefused") ||
+    message.includes("socket hang up") ||
+    message.includes("fetch failed") ||
+    message.includes("network error") ||
+    message.includes("network request failed") ||
+    message.includes("connection reset") ||
+    message.includes("connection refused") ||
+    message.includes("connection closed") ||
+    message.includes("sqlite_busy") ||
+    message.includes("database is locked") ||
+    message.includes("unable to open database") ||
+    message.includes("database configuration error:") ||
+    message.includes("local sqlite qa mode configuration error:")
+  ) {
+    return true;
+  }
+
+  if (record.cause && record.cause !== err) {
+    return isDatabaseOutageError(record.cause, seen);
+  }
+
+  return false;
+}
+
+export async function runAuthDbQuery<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof AuthDatabaseError || err instanceof AuthSecretError) {
+      throw err;
+    }
+    if (isDatabaseOutageError(err)) {
+      throw new AuthDatabaseError();
+    }
+    throw err;
+  }
+}
+
 export function isProductionAuthEnv(
   env: Record<string, string | undefined> = process.env
 ): boolean {
@@ -513,7 +642,18 @@ export async function verifyCredentials(
   }
 
   // 1. Distributed Rate Limiting (IP + Account+IP pair) — fail-closed trên Production
-  const rl = await evaluateAuthRateLimit({ username: cleanUsername, clientIp });
+  let rl: Awaited<ReturnType<typeof evaluateAuthRateLimit>>;
+  try {
+    rl = await evaluateAuthRateLimit({ username: cleanUsername, clientIp });
+  } catch (err) {
+    if (!isDatabaseOutageError(err)) throw err;
+    return {
+      success: false,
+      status: 503,
+      errorCode: "AUTH_RATE_LIMIT_UNAVAILABLE",
+      error: "Hệ thống xác thực tạm thời không khả dụng do lỗi giới hạn truy cập.",
+    };
+  }
   if (!rl.allowed) {
     return {
       success: false,
@@ -525,8 +665,8 @@ export async function verifyCredentials(
   }
 
   // 2. Chỉ truy vấn các cột định danh tối thiểu phục vụ tìm kiếm ứng viên (không pin_code, không SELECT *)
-  const db = getAsyncDb();
-  const lookupCandidates = await db.query<{
+  let db: ReturnType<typeof getAsyncDb>;
+  let lookupCandidates: Array<{
     id: number;
     full_name: string;
     short_name: string;
@@ -534,11 +674,35 @@ export async function verifyCredentials(
     jersey_number: number | null;
     phone: string;
     status: string;
-  }>(
-    `SELECT id, full_name, short_name, username, jersey_number, phone, status
-     FROM players
-     ORDER BY id ASC`
-  );
+  }>;
+  try {
+    db = await runAuthDbQuery(async () => getAsyncDb());
+    lookupCandidates = await runAuthDbQuery(() =>
+      db.query<{
+        id: number;
+        full_name: string;
+        short_name: string;
+        username: string | null;
+        jersey_number: number | null;
+        phone: string;
+        status: string;
+      }>(
+        `SELECT id, full_name, short_name, username, jersey_number, phone, status
+         FROM players
+         ORDER BY id ASC`
+      )
+    );
+  } catch (err) {
+    if (err instanceof AuthDatabaseError) {
+      return {
+        success: false,
+        status: 503,
+        errorCode: err.code,
+        error: err.message,
+      };
+    }
+    throw err;
+  }
 
   const uNorm = normalizeLoginString(cleanUsername);
   const cleanDigits = cleanUsername.replace(/\D/g, "");
@@ -567,10 +731,25 @@ export async function verifyCredentials(
   }
 
   // Chỉ truy vấn pin_code cho đúng 1 ứng viên đã khớp và đang hoạt động
-  const pinRow = await db.queryOne<{ pin_code: string | null }>(
-    "SELECT pin_code FROM players WHERE id = ? LIMIT 1",
-    [matched.id]
-  );
+  let pinRow: { pin_code: string | null } | null;
+  try {
+    pinRow = await runAuthDbQuery(() =>
+      db.queryOne<{ pin_code: string | null }>(
+        "SELECT pin_code FROM players WHERE id = ? LIMIT 1",
+        [matched.id]
+      )
+    );
+  } catch (err) {
+    if (err instanceof AuthDatabaseError) {
+      return {
+        success: false,
+        status: 503,
+        errorCode: err.code,
+        error: err.message,
+      };
+    }
+    throw err;
+  }
 
   const storedPinOrHash = String(pinRow?.pin_code || "").trim();
   if (!storedPinOrHash) {
@@ -626,11 +805,26 @@ export async function verifyCredentials(
   }
 
   // Chỉ tải hồ sơ chi tiết cho đúng 1 người dùng đã xác thực thành công
-  const hydratedPlayer =
-    (await db.queryOne<Player>(
-      `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-      [matched.id]
-    )) || undefined;
+  let hydratedPlayer: Player | undefined;
+  try {
+    hydratedPlayer =
+      (await runAuthDbQuery(() =>
+        db.queryOne<Player>(
+          `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+          [matched.id]
+        )
+      )) || undefined;
+  } catch (err) {
+    if (err instanceof AuthDatabaseError) {
+      return {
+        success: false,
+        status: 503,
+        errorCode: err.code,
+        error: err.message,
+      };
+    }
+    throw err;
+  }
 
   if (!hydratedPlayer) {
     return {
@@ -705,53 +899,60 @@ export async function getCurrentAuthContextFromToken(
     };
   }
 
+  let players: Player[];
   try {
-    const db = getAsyncDb();
-    const players = await db.query<Player>(
-      `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-      [session.playerId]
-    );
-    const player = players[0];
-
-    if (!player || !isPlayerStatusAllowedForAuth(player.status)) {
+    players = await runAuthDbQuery(() => {
+      const db = getAsyncDb();
+      return db.query<Player>(
+        `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+        [session.playerId]
+      );
+    });
+  } catch (err) {
+    if (err instanceof AuthDatabaseError) {
       return {
         authorized: false,
-        status: 401,
-        error: "Tài khoản không tồn tại hoặc đã bị ngừng hoạt động.",
+        status: 503,
+        error: err.message,
       };
     }
+    throw err;
+  }
 
-    // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi hoặc thiếu credential
-    const currentFingerprint = getPasswordFingerprint(player.pin_code);
-    if (!currentFingerprint || !session.pwdFingerprint || session.pwdFingerprint !== currentFingerprint) {
-      return {
-        authorized: false,
-        status: 401,
-        error:
-          "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
-      };
-    }
+  const player = players[0];
 
-    const dbRole: "manager" | "player" =
-      player.access_role === "manager" ? "manager" : "player";
-
-    return {
-      authorized: true,
-      status: 200,
-      role: dbRole,
-      session: {
-        ...session,
-        accessRole: dbRole,
-      },
-      player,
-    };
-  } catch {
+  if (!player || !isPlayerStatusAllowedForAuth(player.status)) {
     return {
       authorized: false,
-      status: 503,
-      error: "Hệ thống xác thực tạm thời không khả dụng do lỗi kết nối cơ sở dữ liệu.",
+      status: 401,
+      error: "Tài khoản không tồn tại hoặc đã bị ngừng hoạt động.",
     };
   }
+
+  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi hoặc thiếu credential
+  const currentFingerprint = getPasswordFingerprint(player.pin_code);
+  if (!currentFingerprint || !session.pwdFingerprint || session.pwdFingerprint !== currentFingerprint) {
+    return {
+      authorized: false,
+      status: 401,
+      error:
+        "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
+    };
+  }
+
+  const dbRole: "manager" | "player" =
+    player.access_role === "manager" ? "manager" : "player";
+
+  return {
+    authorized: true,
+    status: 200,
+    role: dbRole,
+    session: {
+      ...session,
+      accessRole: dbRole,
+    },
+    player,
+  };
 }
 
 /**
