@@ -10,12 +10,17 @@ import { GET as getTeamRoute, POST as postTeamRoute } from "@/app/api/team/route
 import { POST as postImportRoute } from "@/app/api/import/route";
 import {
   createSessionToken,
+  getCurrentAuthContextFromToken,
   hashPassword,
   verifyPassword,
   projectSafePlayer,
   sanitizeTeamResponseData,
   SESSION_COOKIE_NAME,
 } from "./auth";
+import {
+  getPublicHomePageData,
+  getPublicPlayerProfileByIdOrJersey,
+} from "./publicHome";
 import {
   __resetAuthRateLimitForTest,
   __setAuthRateLimitDriverForTest,
@@ -873,6 +878,158 @@ describe("Phase 7.1 – Authentication, RBAC & Privacy Remediation", () => {
         .get(stored.id) as { pin_code: string };
       expect(verifyPassword("WalkinNew@2026", updatedStored.pin_code)).toBe(true);
       expect(verifyPassword("WalkinInit@2026", updatedStored.pin_code)).toBe(false);
+    } finally {
+      raw.close();
+    }
+  });
+
+  it("Phase 7.1.1: getCurrentAuthContextFromToken enforces DB-first role, active status, pwdFingerprint, and rejects tampered/expired tokens", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    const { raw, db } = createPhase71TestDb();
+    try {
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(db);
+
+      const mgrPin = hashPassword("MgrPass@2026");
+      raw
+        .prepare(
+          "INSERT INTO players (code_order, full_name, short_name, jersey_number, phone, access_role, username, pin_code, status) VALUES (1, 'Mgr DB', 'Mgr', 1, '0901111111', 'manager', 'mgrdb', ?, 'Đang sinh hoạt')"
+        )
+        .run(mgrPin);
+
+      const mgrRow = raw
+        .prepare("SELECT * FROM players WHERE username = 'mgrdb'")
+        .get() as unknown as Player;
+      const mgrToken = createSessionToken(mgrRow, 24);
+
+      // 1. Valid manager session uses DB role
+      const validCtx = await getCurrentAuthContextFromToken(mgrToken);
+      expect(validCtx.authorized).toBe(true);
+      if (validCtx.authorized) {
+        expect(validCtx.role).toBe("manager");
+        expect(validCtx.player.id).toBe(mgrRow.id);
+      }
+
+      // 2. Demoted in DB: old manager cookie downgrades to player
+      raw
+        .prepare("UPDATE players SET access_role = 'player' WHERE id = ?")
+        .run(mgrRow.id);
+      const demotedCtx = await getCurrentAuthContextFromToken(mgrToken);
+      expect(demotedCtx.authorized).toBe(true);
+      if (demotedCtx.authorized) {
+        expect(demotedCtx.role).toBe("player");
+        expect(demotedCtx.session.accessRole).toBe("player");
+      }
+
+      // 3. Inactive account: old cookie rejected
+      raw
+        .prepare("UPDATE players SET status = 'inactive' WHERE id = ?")
+        .run(mgrRow.id);
+      const inactiveCtx = await getCurrentAuthContextFromToken(mgrToken);
+      expect(inactiveCtx.authorized).toBe(false);
+      expect(inactiveCtx.status).toBe(401);
+
+      // 4. PIN hash changed: old cookie rejected even when active again
+      raw
+        .prepare("UPDATE players SET status = 'Đang sinh hoạt', pin_code = ? WHERE id = ?")
+        .run(hashPassword("NewMgrPass@2026"), mgrRow.id);
+      const changedPinCtx = await getCurrentAuthContextFromToken(mgrToken);
+      expect(changedPinCtx.authorized).toBe(false);
+      expect(changedPinCtx.status).toBe(401);
+
+      // 5. Tampered / expired / missing token rejected
+      const tampered = `${mgrToken.slice(0, -4)}zzzz`;
+      expect((await getCurrentAuthContextFromToken(tampered)).authorized).toBe(false);
+      const expiredToken = createSessionToken(mgrRow, -1);
+      expect((await getCurrentAuthContextFromToken(expiredToken)).authorized).toBe(false);
+      expect((await getCurrentAuthContextFromToken(null)).authorized).toBe(false);
+    } finally {
+      raw.close();
+    }
+  });
+
+  it("Phase 7.1.1: getPublicHomePageData & getPublicPlayerProfileByIdOrJersey strip tournament_fund_note, pitch_cost, payer_name, matches.notes, PII & internal ledger", async () => {
+    const { raw, db } = createPhase71TestDb();
+    try {
+      vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(db);
+
+      raw
+        .prepare(
+          "UPDATE team_settings SET bank_bin = '970422', bank_name = 'MB Bank', bank_account_no = '88889999', bank_account_name = 'CLB GO NOI', tournament_fund_reserve = 2500000, tournament_fund_note = 'SECRET_TOURNAMENT_NOTE_MARKER' WHERE id = 1"
+        )
+        .run();
+
+      raw
+        .prepare(
+          "UPDATE matches SET venue = 'Sân Gò Nổi', opponent = 'FC Bạn', team_score = 3, opponent_score = 1, status = 'Đã kết thúc', fee_per_player = 100000, pitch_cost = 987654, payer_name = 'SECRET_PAYER_MARKER', notes = 'SECRET_MATCH_NOTE_MARKER' WHERE id = 1"
+        )
+        .run();
+
+      raw
+        .prepare(
+          "INSERT INTO players (code_order, full_name, short_name, jersey_number, phone, access_role, username, pin_code, status, notes, avatar_url, profile_image_url, gallery_urls_json) VALUES (1, 'Nguyễn Công Khai', 'Khai', 10, '0909123456', 'player', 'khai10', ?, 'Đang sinh hoạt', 'SECRET_PLAYER_NOTE', 'https://cdn.example.com/a.webp', 'https://cdn.example.com/p.webp', ?)"
+        )
+        .run(hashPassword("Strong@2026"), JSON.stringify(["https://cdn.example.com/g1.webp"]));
+
+      const playerRow = raw
+        .prepare("SELECT id FROM players WHERE username = 'khai10'")
+        .get() as { id: number };
+
+      raw
+        .prepare(
+          "INSERT INTO match_attendances (match_id, player_id, rsvp_status, walk_in, attended, paid, amount, collected_by, note) VALUES (1, ?, 'going', 0, 1, 1, 100000, 'SECRET_COLLECTOR_MARKER', 'SECRET_ATTENDANCE_NOTE')"
+        )
+        .run(playerRow.id);
+
+      const homeData = await getPublicHomePageData();
+      const homeJson = JSON.stringify(homeData);
+
+      expect(homeJson).not.toContain("SECRET_TOURNAMENT_NOTE_MARKER");
+      expect(homeJson).not.toContain("SECRET_PAYER_MARKER");
+      expect(homeJson).not.toContain("SECRET_MATCH_NOTE_MARKER");
+      expect(homeJson).not.toContain("SECRET_PLAYER_NOTE");
+      expect(homeJson).not.toContain("SECRET_COLLECTOR_MARKER");
+      expect(homeJson).not.toContain("SECRET_ATTENDANCE_NOTE");
+      expect(homeJson).not.toContain("0909123456");
+      expect(homeJson).not.toContain("987654");
+
+      expect(homeData.settings.tournament_fund_note).toBe("");
+      expect(homeData.settings.bank_account_no).toBe("88889999");
+      expect(homeData.settings.tournament_fund_reserve).toBe(2500000);
+      expect(homeData.otherIncomes).toEqual([]);
+      expect(homeData.expenses).toEqual([]);
+      expect(homeData.matches[0].venue).toBe("Sân Gò Nổi");
+      expect(homeData.matches[0].opponent).toBe("FC Bạn");
+      expect(homeData.matches[0].team_score).toBe(3);
+      expect(homeData.matches[0].opponent_score).toBe(1);
+      expect(homeData.matches[0].fee_per_player).toBe(100000);
+      expect(homeData.matches[0].pitch_cost).toBe(0);
+      expect(homeData.matches[0].payer_name).toBe("");
+      expect(homeData.matches[0].notes).toBe("");
+      expect(homeData.attendances[0].paid).toBe(0);
+      expect(homeData.attendances[0].amount).toBe(0);
+      expect(homeData.attendances[0].collected_by).toBe("");
+      expect(homeData.attendances[0].note).toBe("");
+
+      const profileData = await getPublicPlayerProfileByIdOrJersey(String(playerRow.id));
+      const profileJson = JSON.stringify(profileData);
+      expect(profileJson).not.toContain("SECRET_PAYER_MARKER");
+      expect(profileJson).not.toContain("SECRET_MATCH_NOTE_MARKER");
+      expect(profileJson).not.toContain("SECRET_PLAYER_NOTE");
+      expect(profileJson).not.toContain("SECRET_COLLECTOR_MARKER");
+      expect(profileJson).not.toContain("SECRET_ATTENDANCE_NOTE");
+      expect(profileJson).not.toContain("987654");
+
+      expect(profileData.player?.full_name).toBe("Nguyễn Công Khai");
+      expect(profileData.player?.avatar_url).toBe("https://cdn.example.com/a.webp");
+      expect(profileData.player?.profile_image_url).toBe("https://cdn.example.com/p.webp");
+      expect(profileData.player?.gallery_urls).toEqual(["https://cdn.example.com/g1.webp"]);
+      expect(profileData.matches[0].pitch_cost).toBe(0);
+      expect(profileData.matches[0].payer_name).toBe("");
+      expect(profileData.matches[0].notes).toBe("");
+      expect(profileData.attendances[0].paid).toBe(0);
+      expect(profileData.attendances[0].amount).toBe(0);
+      expect(profileData.attendances[0].collected_by).toBe("");
+      expect(profileData.attendances[0].note).toBe("");
     } finally {
       raw.close();
     }

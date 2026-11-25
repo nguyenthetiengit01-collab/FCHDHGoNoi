@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - fix/phase-7.1-pre-release-remediation
   push:
     branches:
       - main

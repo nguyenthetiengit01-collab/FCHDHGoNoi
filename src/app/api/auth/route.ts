@@ -5,9 +5,9 @@ import {
   verifyCredentials,
   createSessionToken,
   getAuthSecret,
-  getAuthSession,
-  getPasswordFingerprint,
+  getCurrentAuthContextFromToken,
   isDefaultPassword,
+  isPlayerStatusAllowedForAuth,
   projectSafePlayer,
   SESSION_COOKIE_NAME,
   requireManagerSession,
@@ -50,45 +50,40 @@ async function handleGetAuth(req: NextRequest): Promise<NextResponse> {
       throw err;
     }
 
-    const session = getAuthSession(req);
-    if (!session) {
+    const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    if (!token) {
       return NextResponse.json({ authenticated: false, player: null });
     }
 
-    const db = getAsyncDb();
-    const playerRow =
-      (await db.queryOne<Player>(
-        `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-        [session.playerId]
-      )) || undefined;
-
-    if (!playerRow || playerRow.status === "inactive") {
-      const res = NextResponse.json({ authenticated: false, player: null });
-      res.cookies.delete(SESSION_COOKIE_NAME);
-      return res;
-    }
-
-    // Thu hồi phiên tức thì nếu mật khẩu đã bị thay đổi hoặc thiếu credential
-    const currentFp = getPasswordFingerprint(playerRow.pin_code);
-    if (!currentFp || !session.pwdFingerprint || session.pwdFingerprint !== currentFp) {
+    const ctx = await getCurrentAuthContextFromToken(token);
+    if (!ctx.authorized) {
+      if (ctx.status === 503) {
+        return NextResponse.json(
+          {
+            authenticated: false,
+            player: null,
+            error: ctx.error,
+          },
+          { status: 503 }
+        );
+      }
       const res = NextResponse.json({
         authenticated: false,
         player: null,
-        error: "Mật khẩu của bạn đã được thay đổi. Vui lòng đăng nhập lại.",
+        error: ctx.error,
       });
       res.cookies.delete(SESSION_COOKIE_NAME);
       return res;
     }
 
     // Luôn ẩn mã PIN trước khi gửi về client (allow-list projection)
-    const safePlayer = projectSafePlayer(playerRow);
-
-    const mustChangePassword = isDefaultPassword(playerRow.pin_code);
+    const safePlayer = projectSafePlayer(ctx.player);
+    const mustChangePassword = isDefaultPassword(ctx.player.pin_code);
 
     return NextResponse.json({
       authenticated: true,
       player: safePlayer,
-      role: playerRow.access_role,
+      role: ctx.role,
       mustChangePassword,
     });
   } catch (error) {
@@ -180,7 +175,7 @@ async function handlePostAuth(req: NextRequest): Promise<NextResponse> {
         );
       }
 
-      if (playerRow.status === "inactive") {
+      if (!isPlayerStatusAllowedForAuth(playerRow.status)) {
         return NextResponse.json(
           { success: false, error: "Không thể chuyển phiên sang tài khoản đã ngừng hoạt động." },
           { status: 403 }

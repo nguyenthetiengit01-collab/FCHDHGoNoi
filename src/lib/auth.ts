@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 import { getAsyncDb } from "./db";
+import { classifyPlayerStatus } from "./teamStatistics";
 import { validatePasswordStrength, type PasswordStrengthResult } from "./passwordStrength";
 export { validatePasswordStrength, type PasswordStrengthResult };
 import {
@@ -459,6 +460,15 @@ function runDummyScryptVerification(
   verifyPassword(cleanPin, DUMMY_SCRYPT_HASH);
 }
 
+export function isPlayerStatusAllowedForAuth(status?: string | null): boolean {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (!normalized || normalized === "inactive") {
+    return false;
+  }
+  const category = classifyPlayerStatus(status);
+  return category === "active" || category === "paused";
+}
+
 export const AUTH_PLAYER_PROFILE_COLUMNS = `
   id, code_order, full_name, short_name, username, jersey_number,
   position, phone, birth_year, avatar_url, profile_image_url,
@@ -546,8 +556,8 @@ export async function verifyCredentials(
     return false;
   });
 
-  // Chống rò rỉ tài khoản & Timing Attack: luôn chạy Scrypt ngay cả khi tài khoản không tồn tại / bị khóa
-  if (!matched || matched.status === "inactive") {
+  // Chống rò rỉ tài khoản & Timing Attack: luôn chạy Scrypt ngay cả khi tài khoản không tồn tại / không đủ điều kiện trạng thái
+  if (!matched || !isPlayerStatusAllowedForAuth(matched.status)) {
     runDummyScryptVerification(cleanPin, !matched ? "missing" : "inactive");
     return {
       success: false,
@@ -647,10 +657,101 @@ export async function verifyCredentials(
 
 export interface AuthCheckResult {
   authorized: boolean;
-  status: 200 | 401 | 403;
+  status: 200 | 401 | 403 | 503;
   error?: string;
   session?: SessionPayload;
   player?: Player;
+}
+
+export type AuthContextResult =
+  | {
+      authorized: true;
+      status: 200;
+      role: "manager" | "player";
+      session: SessionPayload;
+      player: Player;
+    }
+  | {
+      authorized: false;
+      status: 401 | 503;
+      error: string;
+    };
+
+/**
+ * Xác thực token phiên làm việc theo nguyên tắc DB-first (fail-closed):
+ * - Xác minh chữ ký và hạn session bằng verifySessionToken().
+ * - Truy vấn hồ sơ player hiện hành từ DB bằng AUTH_PLAYER_PROFILE_COLUMNS.
+ * - Từ chối nếu tài khoản không tồn tại hoặc status === "inactive".
+ * - Đối chiếu pwdFingerprint với PIN hash hiện tại trong DB.
+ * - Trả về role và player hiện hành từ DB, không tin claim role trong token cũ.
+ */
+export async function getCurrentAuthContextFromToken(
+  token?: string | null
+): Promise<AuthContextResult> {
+  if (!token) {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Yêu cầu đăng nhập tài khoản.",
+    };
+  }
+
+  const session = verifySessionToken(token);
+  if (!session) {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Yêu cầu đăng nhập tài khoản.",
+    };
+  }
+
+  try {
+    const db = getAsyncDb();
+    const players = await db.query<Player>(
+      `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+      [session.playerId]
+    );
+    const player = players[0];
+
+    if (!player || !isPlayerStatusAllowedForAuth(player.status)) {
+      return {
+        authorized: false,
+        status: 401,
+        error: "Tài khoản không tồn tại hoặc đã bị ngừng hoạt động.",
+      };
+    }
+
+    // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi hoặc thiếu credential
+    const currentFingerprint = getPasswordFingerprint(player.pin_code);
+    if (!currentFingerprint || !session.pwdFingerprint || session.pwdFingerprint !== currentFingerprint) {
+      return {
+        authorized: false,
+        status: 401,
+        error:
+          "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
+      };
+    }
+
+    const dbRole: "manager" | "player" =
+      player.access_role === "manager" ? "manager" : "player";
+
+    return {
+      authorized: true,
+      status: 200,
+      role: dbRole,
+      session: {
+        ...session,
+        accessRole: dbRole,
+      },
+      player,
+    };
+  } catch {
+    return {
+      authorized: false,
+      status: 503,
+      error: "Hệ thống xác thực tạm thời không khả dụng do lỗi kết nối cơ sở dữ liệu.",
+    };
+  }
 }
 
 /**
@@ -695,8 +796,8 @@ export function verifyCsrfOrigin(req: NextRequest): boolean {
 export async function requireManagerSession(
   req: NextRequest
 ): Promise<AuthCheckResult> {
-  const session = getAuthSession(req);
-  if (!session) {
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!token) {
     return {
       authorized: false,
       status: 401,
@@ -704,22 +805,19 @@ export async function requireManagerSession(
     };
   }
 
-  const db = getAsyncDb();
-  const players = await db.query<Player>(
-    `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-    [session.playerId]
-  );
-  const player = players[0];
-
-  if (!player || (player as unknown as { status?: string }).status === "inactive") {
+  const ctx = await getCurrentAuthContextFromToken(token);
+  if (!ctx.authorized) {
     return {
       authorized: false,
-      status: 401,
-      error: "Tài khoản không tồn tại hoặc đã bị ngừng hoạt động.",
+      status: ctx.status,
+      error:
+        ctx.status === 401 && ctx.error === "Yêu cầu đăng nhập tài khoản."
+          ? "Yêu cầu đăng nhập tài khoản Ban Quản Lý."
+          : ctx.error,
     };
   }
 
-  if (player.access_role !== "manager") {
+  if (ctx.role !== "manager") {
     return {
       authorized: false,
       status: 403,
@@ -727,18 +825,7 @@ export async function requireManagerSession(
     };
   }
 
-  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi hoặc thiếu credential
-  const currentFingerprint = getPasswordFingerprint(player.pin_code);
-  if (!currentFingerprint || !session.pwdFingerprint || session.pwdFingerprint !== currentFingerprint) {
-    return {
-      authorized: false,
-      status: 401,
-      error:
-        "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
-    };
-  }
-
-  return { authorized: true, status: 200, session, player };
+  return { authorized: true, status: 200, session: ctx.session, player: ctx.player };
 }
 
 /**
@@ -747,42 +834,13 @@ export async function requireManagerSession(
 export async function requirePlayerSession(
   req: NextRequest
 ): Promise<AuthCheckResult> {
-  const session = getAuthSession(req);
-  if (!session) {
-    return {
-      authorized: false,
-      status: 401,
-      error: "Yêu cầu đăng nhập tài khoản.",
-    };
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const ctx = await getCurrentAuthContextFromToken(token);
+  if (!ctx.authorized) {
+    return ctx;
   }
 
-  const db = getAsyncDb();
-  const players = await db.query<Player>(
-    `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-    [session.playerId]
-  );
-  const player = players[0];
-
-  if (!player || (player as unknown as { status?: string }).status === "inactive") {
-    return {
-      authorized: false,
-      status: 401,
-      error: "Tài khoản không tồn tại hoặc đã bị ngừng hoạt động.",
-    };
-  }
-
-  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi hoặc thiếu credential
-  const currentFingerprint = getPasswordFingerprint(player.pin_code);
-  if (!currentFingerprint || !session.pwdFingerprint || session.pwdFingerprint !== currentFingerprint) {
-    return {
-      authorized: false,
-      status: 401,
-      error:
-        "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
-    };
-  }
-
-  return { authorized: true, status: 200, session, player };
+  return { authorized: true, status: 200, session: ctx.session, player: ctx.player };
 }
 
 // =========================================================================
