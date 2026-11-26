@@ -15,6 +15,7 @@ import {
   isMissingMustChangePinColumnError,
   verifyPassword,
   validatePasswordStrength,
+  validateTemporaryPasswordStrength,
   createSessionToken,
   SESSION_COOKIE_NAME,
   requireManagerSession,
@@ -201,6 +202,18 @@ function parseMatchFeeFlagsAndAmount(params: {
   };
 }
 
+class MissingMustChangePinSchemaError extends Error {
+  status = 503;
+  code = "PIN_CHANGE_SCHEMA_REQUIRED";
+
+  constructor() {
+    super(
+      "Hệ thống chưa hoàn tất nâng cấp schema bảo mật (thiếu cột must_change_pin). Vui lòng chạy migration trước khi cấp lại hoặc đổi mật khẩu."
+    );
+    this.name = "MissingMustChangePinSchemaError";
+  }
+}
+
 async function updatePlayerPinAndMustChange(
   db: ReturnType<typeof getAsyncDb>,
   playerId: number,
@@ -214,11 +227,7 @@ async function updatePlayerPinAndMustChange(
     );
   } catch (err) {
     if (isMissingMustChangePinColumnError(err)) {
-      await db.run("UPDATE players SET pin_code = ? WHERE id = ?", [
-        hashedPin,
-        playerId,
-      ]);
-      return;
+      throw new MissingMustChangePinSchemaError();
     }
     throw err;
   }
@@ -875,7 +884,7 @@ export async function POST(req: NextRequest) {
             { status: 404 }
           );
         }
-        const strength = validatePasswordStrength(cleanPin, targetRow.username);
+        const strength = validateTemporaryPasswordStrength(cleanPin, targetRow.username);
         if (!strength.valid) {
           if (session) {
             await recordAuditLog({
@@ -888,7 +897,7 @@ export async function POST(req: NextRequest) {
             });
           }
           return NextResponse.json(
-            { error: strength.message || "Mật khẩu mới chưa đủ an toàn (tối thiểu 6 ký tự)." },
+            { error: strength.message || "Mật khẩu tạm thời chưa đủ an toàn (tối thiểu 20 ký tự)." },
             { status: 400 }
           );
         }
@@ -2131,6 +2140,12 @@ export async function POST(req: NextRequest) {
 
     return res;
   } catch (error) {
+    if (error instanceof MissingMustChangePinSchemaError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status }
+      );
+    }
     if (error instanceof MediaValidationError) {
       return NextResponse.json(
         { error: error.message },

@@ -26,10 +26,13 @@ import {
   ChevronRight,
   Loader2,
   BarChart3,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import type { FullAppData, AuthSession, Player } from "@/types/app";
 import { FANPAGE_URL, OFFICIAL_LOGO_URL } from "@/types/app";
 import { formatVND } from "@/lib/format";
+import { validatePasswordStrength } from "@/lib/passwordStrength";
 import {
   createTransitionSafeData,
   executeSessionHydration,
@@ -138,7 +141,11 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   // Login modal & session hydration states
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [dismissSecurityBanner, setDismissSecurityBanner] = useState(false);
+  const [forcedOldPin, setForcedOldPin] = useState("");
+  const [forcedNewPin, setForcedNewPin] = useState("");
+  const [forcedConfirmPin, setForcedConfirmPin] = useState("");
+  const [forcedPinError, setForcedPinError] = useState("");
+  const [showForcedPins, setShowForcedPins] = useState(false);
   const [isHydratingSession, setIsHydratingSession] = useState(false);
   const [hydrationError, setHydrationError] = useState<string | null>(null);
   const [importErrorMessage, setImportErrorMessage] = useState<string | null>(null);
@@ -560,7 +567,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   </span>
                 </div>
 
-                {session.role === "manager" && (
+                {session.role === "manager" && !session.mustChangePassword && (
                   <>
                     <label
                       className="hidden md:inline-flex items-center gap-1.5 min-h-10 rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 px-2.5 lg:px-3 py-2 text-xs font-bold text-white transition cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus-on-dark"
@@ -590,32 +597,34 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 )}
 
                 {/* Nút hiển thị Vai trò hiện tại & Đổi tài khoản */}
-                <button
-                  type="button"
-                  onClick={() => setLoginModalOpen(true)}
-                  className="inline-flex items-center gap-2 min-h-10 rounded-lg bg-gold-500 hover:bg-gold-450 px-2.5 sm:px-3 py-1.5 text-xs font-extrabold text-ink-primary transition shadow-xs focus-visible:outline-2 focus-visible:outline-white"
-                >
-                  {currentPlayerObj?.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={currentPlayerObj.avatar_url}
-                      alt={session.shortName}
-                      className="h-6 w-6 rounded-full object-cover border border-navy-800"
-                    />
-                  ) : (
-                    <ShieldCheck className="h-4 w-4 text-ink-primary" />
-                  )}
-                  <div className="text-left leading-tight">
-                    <div className="text-[9px] uppercase font-extrabold text-ink-primary/80">
-                      {session.role === "manager"
-                        ? "Ban Quản Lý"
-                        : "Cầu Thủ"}
+                {!session.mustChangePassword && (
+                  <button
+                    type="button"
+                    onClick={() => setLoginModalOpen(true)}
+                    className="inline-flex items-center gap-2 min-h-10 rounded-lg bg-gold-500 hover:bg-gold-450 px-2.5 sm:px-3 py-1.5 text-xs font-extrabold text-ink-primary transition shadow-xs focus-visible:outline-2 focus-visible:outline-white"
+                  >
+                    {currentPlayerObj?.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={currentPlayerObj.avatar_url}
+                        alt={session.shortName}
+                        className="h-6 w-6 rounded-full object-cover border border-navy-800"
+                      />
+                    ) : (
+                      <ShieldCheck className="h-4 w-4 text-ink-primary" />
+                    )}
+                    <div className="text-left leading-tight">
+                      <div className="text-[9px] uppercase font-extrabold text-ink-primary/80">
+                        {session.role === "manager"
+                          ? "Ban Quản Lý"
+                          : "Cầu Thủ"}
+                      </div>
+                      <div className="font-extrabold">
+                        #{session.jerseyNumber ?? "-"} {session.shortName}
+                      </div>
                     </div>
-                    <div className="font-extrabold">
-                      #{session.jerseyNumber ?? "-"} {session.shortName}
-                    </div>
-                  </div>
-                </button>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -628,44 +637,48 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 </button>
 
                 {/* Nút mở Menu trên Mobile */}
-                <button
-                  type="button"
-                  onClick={() => setMobileMenuOpen(true)}
-                  title="Mở toàn bộ menu chức năng"
-                  aria-label="Mở menu điều hướng"
-                  aria-expanded={mobileMenuOpen}
-                  className="md:hidden inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg bg-gold-500 hover:bg-gold-450 text-ink-primary font-black shadow-xs transition focus-visible:outline-2 focus-visible:outline-white"
-                >
-                  <Menu className="h-4 w-4" />
-                </button>
+                {!session.mustChangePassword && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileMenuOpen(true)}
+                    title="Mở toàn bộ menu chức năng"
+                    aria-label="Mở menu điều hướng"
+                    aria-expanded={mobileMenuOpen}
+                    className="md:hidden inline-flex items-center justify-center min-h-10 min-w-10 rounded-lg bg-gold-500 hover:bg-gold-450 text-ink-primary font-black shadow-xs transition focus-visible:outline-2 focus-visible:outline-white"
+                  >
+                    <Menu className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Desktop Navigation Tabs */}
-            <nav
-              aria-label="Điều hướng chính"
-              className="hidden md:flex items-center gap-1 pt-1 -mb-px overflow-x-auto gn-hide-scroll"
-            >
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setActiveTab(item.id)}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`inline-flex items-center gap-1.5 min-h-10 px-3 py-2 text-xs lg:text-sm font-bold border-b-2 transition whitespace-nowrap focus-visible:outline-2 focus-visible:outline-focus-on-dark ${isActive
-                      ? "border-gold-500 text-gold-300 bg-navy-800/75 rounded-t-lg font-extrabold"
-                      : "border-transparent text-sky-100/85 hover:text-white hover:bg-white/10 rounded-t-lg"
-                      }`}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
+            {!session.mustChangePassword && (
+              <nav
+                aria-label="Điều hướng chính"
+                className="hidden md:flex items-center gap-1 pt-1 -mb-px overflow-x-auto gn-hide-scroll"
+              >
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setActiveTab(item.id)}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`inline-flex items-center gap-1.5 min-h-10 px-3 py-2 text-xs lg:text-sm font-bold border-b-2 transition whitespace-nowrap focus-visible:outline-2 focus-visible:outline-focus-on-dark ${isActive
+                        ? "border-gold-500 text-gold-300 bg-navy-800/75 rounded-t-lg font-extrabold"
+                        : "border-transparent text-sky-100/85 hover:text-white hover:bg-white/10 rounded-t-lg"
+                        }`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            )}
           </div>
         </header>
       ) : null}
@@ -678,49 +691,6 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
           onClose={() => setToastMessage(null)}
         />
       )}
-
-      {/* Cảnh báo bảo mật tài khoản nếu đang dùng mật khẩu mặc định */}
-      {session.role !== "guest" &&
-        session.mustChangePassword &&
-        !dismissSecurityBanner && (
-          <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 pt-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl bg-amber-50 border border-amber-300 shadow-xs">
-              <div className="flex items-start sm:items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-100 text-amber-700 border border-amber-200 shrink-0">
-                  <ShieldAlert className="h-5 w-5" />
-                </div>
-                <div className="text-xs sm:text-sm">
-                  <p className="font-bold text-amber-950">
-                    Cảnh báo bảo mật tài khoản
-                  </p>
-                  <p className="text-amber-800 text-xs mt-0.5">
-                    Tài khoản của bạn đang dùng mật khẩu tạm thời do Ban Quản Lý cấp. Vui
-                    lòng đổi mật khẩu cá nhân mới để bảo vệ thông tin và mở khóa đầy đủ chức năng.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("personal")}
-                  className="inline-flex items-center gap-1.5 min-h-11 md:min-h-9 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition"
-                >
-                  <KeyRound className="h-3.5 w-3.5" />
-                  <span>Đổi mật khẩu ngay</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDismissSecurityBanner(true)}
-                  aria-label="Đóng cảnh báo bảo mật"
-                  className="inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-9 md:min-w-9 rounded-lg text-amber-700 hover:text-amber-950 hover:bg-amber-200/60 transition"
-                  title="Bỏ qua nhắc nhở"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
       {/* Persistent Excel Import Error Summary Banner (when modal dismissed) */}
       {session.role === "manager" &&
@@ -816,6 +786,19 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                 Đăng xuất về Trang Khách
               </button>
             </div>
+          </div>
+        ) : session.role !== "guest" && session.mustChangePassword ? (
+          <div
+            role="status"
+            className="mx-auto my-12 max-w-lg rounded-xl border border-amber-200 bg-white p-6 text-center shadow-sm space-y-2"
+          >
+            <KeyRound className="mx-auto h-8 w-8 text-amber-600" aria-hidden="true" />
+            <h2 className="text-base font-extrabold text-slate-900">
+              Yêu cầu đổi mật khẩu bắt buộc
+            </h2>
+            <p className="text-xs text-slate-600">
+              Vui lòng hoàn tất đổi mật khẩu mới hoặc đăng xuất để tiếp tục.
+            </p>
           </div>
         ) : (
           <>
@@ -926,7 +909,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       </main>
 
       {/* Mobile Bottom Navigation Bar — Thiết kế hiện đại, khoa học, ưu tiên Điểm danh */}
-      {session.role !== "guest" && (
+      {session.role !== "guest" && !session.mustChangePassword && (
         <nav
           aria-label="Điều hướng di động"
           className="md:hidden safe-bottom fixed bottom-0 inset-x-0 z-40 bg-navy-800 text-white border-t border-royal-500/60 grid grid-cols-5 shadow-2xl backdrop-blur-lg"
@@ -1001,7 +984,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       )}
 
       {/* ===================== MOBILE MORE MENU BOTTOM SHEET / DRAWER ===================== */}
-      {mobileMenuOpen && (
+      {mobileMenuOpen && !session.mustChangePassword && (
         <div
           ref={mobileDrawerRef}
           role="dialog"
@@ -1236,6 +1219,158 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
             </Button>
           </div>
         </div>
+      </ModalDialog>
+
+      {/* Modal Bắt Buộc Đổi Mật Khẩu Mới (Không thể bỏ qua khi mustChangePassword=true) */}
+      <ModalDialog
+        isOpen={session.role !== "guest" && Boolean(session.mustChangePassword)}
+        preventDismiss
+        onClose={() => {}}
+        title="Bắt buộc đổi mật khẩu cá nhân"
+        subtitle="Tài khoản đang sử dụng mật khẩu tạm thời. Bạn phải đặt mật khẩu mới để tiếp tục sử dụng hệ thống."
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!session.playerId || isSaving) return;
+            const oldTrimmed = forcedOldPin.trim();
+            const newTrimmed = forcedNewPin.trim();
+            const confirmTrimmed = forcedConfirmPin.trim();
+            if (!oldTrimmed) {
+              setForcedPinError("Vui lòng nhập mật khẩu tạm thời hiện tại.");
+              return;
+            }
+            if (!newTrimmed) {
+              setForcedPinError("Vui lòng nhập mật khẩu mới.");
+              return;
+            }
+            if (newTrimmed !== confirmTrimmed) {
+              setForcedPinError("Mật khẩu mới và xác nhận mật khẩu không khớp.");
+              return;
+            }
+            if (newTrimmed === oldTrimmed) {
+              setForcedPinError("Mật khẩu mới không được trùng với mật khẩu tạm thời.");
+              return;
+            }
+            const strength = validatePasswordStrength(
+              newTrimmed,
+              currentPlayerObj?.username || session.fullName
+            );
+            if (!strength.valid) {
+              setForcedPinError(
+                strength.error || "Mật khẩu mới chưa đủ an toàn (tối thiểu 6 ký tự)."
+              );
+              return;
+            }
+            setForcedPinError("");
+            const result = await handleMutate("change_own_password", {
+              player_id: session.playerId,
+              old_pin: oldTrimmed,
+              new_pin: newTrimmed,
+            });
+            if (!result.ok) {
+              setForcedPinError(result.error || "Không thể cập nhật mật khẩu mới.");
+              return;
+            }
+            setForcedOldPin("");
+            setForcedNewPin("");
+            setForcedConfirmPin("");
+            setForcedPinError("");
+            setShowForcedPins(false);
+          }}
+          className="space-y-4"
+        >
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            Mọi chức năng khác đang tạm khóa cho đến khi bạn hoàn tất đổi mật khẩu.
+          </div>
+
+          {forcedPinError && (
+            <div
+              role="alert"
+              className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700"
+            >
+              {forcedPinError}
+            </div>
+          )}
+
+          <div>
+            <label
+              htmlFor="forced-old-pin"
+              className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5"
+            >
+              Mật khẩu tạm thời hiện tại
+            </label>
+            <input
+              id="forced-old-pin"
+              type={showForcedPins ? "text" : "password"}
+              value={forcedOldPin}
+              onChange={(e) => setForcedOldPin(e.target.value)}
+              placeholder="Nhập mật khẩu tạm thời vừa đăng nhập"
+              className="form-input"
+              required
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="forced-new-pin"
+              className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5"
+            >
+              Mật khẩu cá nhân mới
+            </label>
+            <input
+              id="forced-new-pin"
+              type={showForcedPins ? "text" : "password"}
+              value={forcedNewPin}
+              onChange={(e) => setForcedNewPin(e.target.value)}
+              placeholder="Tối thiểu 6 ký tự an toàn"
+              className="form-input"
+              required
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="forced-confirm-pin"
+              className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5"
+            >
+              Xác nhận mật khẩu mới
+            </label>
+            <input
+              id="forced-confirm-pin"
+              type={showForcedPins ? "text" : "password"}
+              value={forcedConfirmPin}
+              onChange={(e) => setForcedConfirmPin(e.target.value)}
+              placeholder="Nhập lại mật khẩu mới"
+              className="form-input"
+              required
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowForcedPins((v) => !v)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
+          >
+            {showForcedPins ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            <span>{showForcedPins ? "Ẩn mật khẩu" : "Hiện mật khẩu"}</span>
+          </button>
+
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => handleQuickSwitchRole(null)}
+              disabled={isSaving}
+            >
+              Đăng xuất
+            </Button>
+            <Button type="submit" variant="primary" disabled={isSaving}>
+              {isSaving ? "Đang lưu..." : "Cập nhật mật khẩu & tiếp tục"}
+            </Button>
+          </div>
+        </form>
       </ModalDialog>
 
       {/* Modal Đăng Nhập Thành Viên & Ban Quản Lý Chuyên Nghiệp */}

@@ -6,8 +6,16 @@ import {
   evaluateAuthRateLimit,
 } from "./authRateLimit";
 import type { Player, FullAppData, PublicPlayerDTO } from "@/types/app";
-import { validatePasswordStrength } from "./passwordStrength";
-export { validatePasswordStrength };
+import {
+  TEMPORARY_PIN_MIN_LENGTH,
+  validatePasswordStrength,
+  validateTemporaryPasswordStrength,
+} from "./passwordStrength";
+export {
+  TEMPORARY_PIN_MIN_LENGTH,
+  validatePasswordStrength,
+  validateTemporaryPasswordStrength,
+};
 
 const DEV_TEST_FALLBACK_SECRET =
   "fc-hdh-go-noi-sapphire-secret-key-2026-secure-32chars";
@@ -551,7 +559,7 @@ export function isMissingMustChangePinColumnError(err: unknown): boolean {
   return /no such column:\s*must_change_pin/i.test(msg);
 }
 
-async function queryAuthPlayerById(
+export async function queryAuthPlayerById(
   db: ReturnType<typeof getAsyncDb>,
   playerId: number
 ): Promise<Player | undefined> {

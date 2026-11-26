@@ -207,14 +207,14 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
       },
       body: JSON.stringify({
         action: "reset_player_password",
-        payload: { player_id: 3, new_pin: "NewStrong@99" },
+        payload: { player_id: 3, new_pin: "NewStrong@99#TempCredential2026" },
       }),
     });
     const okRes = await postTeamRoute(okReq);
     expect(okRes.status).toBe(200);
     const updated = raw.prepare("SELECT pin_code FROM players WHERE id = 3").get() as { pin_code: string };
     expect(updated.pin_code.startsWith("scrypt$")).toBe(true);
-    expect(verifyPassword("NewStrong@99", updated.pin_code)).toBe(true);
+    expect(verifyPassword("NewStrong@99#TempCredential2026", updated.pin_code)).toBe(true);
     expect(isDefaultPassword(updated.pin_code)).toBe(false);
   });
 
@@ -908,7 +908,7 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
         },
         body: JSON.stringify({
           action: "reset_player_password",
-          payload: { player_id: 2, new_pin: "TempStrong@2026" },
+          payload: { player_id: 2, new_pin: "TempStrong@2026!SecurePass" },
         }),
       })
     );
@@ -926,7 +926,7 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
     expect(auditRow.summary).toContain("target=#2");
     expect(auditRow.summary).toContain("targetRole=player");
     expect(auditRow.summary).toContain("result=success");
-    expect(auditRow.summary).not.toContain("TempStrong@2026");
+    expect(auditRow.summary).not.toContain("TempStrong@2026!SecurePass");
     expect(auditRow.summary).not.toContain("scrypt$");
 
     // Player #2 logs in -> 200 with mustChangePassword: true
@@ -938,7 +938,7 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
           origin: "http://localhost:3000",
           host: "localhost:3000",
         },
-        body: JSON.stringify({ action: "login", username: "ply2", pin: "TempStrong@2026" }),
+        body: JSON.stringify({ action: "login", username: "ply2", pin: "TempStrong@2026!SecurePass" }),
       })
     );
     const loginJson = await loginRes.json();
@@ -1026,7 +1026,7 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
         },
         body: JSON.stringify({
           action: "change_own_password",
-          payload: { player_id: 2, old_pin: "TempStrong@2026", new_pin: "TempStrong@2026" },
+          payload: { player_id: 2, old_pin: "TempStrong@2026!SecurePass", new_pin: "TempStrong@2026!SecurePass" },
         }),
       })
     );
@@ -1044,7 +1044,7 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
         },
         body: JSON.stringify({
           action: "change_own_password",
-          payload: { player_id: 2, old_pin: "TempStrong@2026", new_pin: "FinalOwn@2026!" },
+          payload: { player_id: 2, old_pin: "TempStrong@2026!SecurePass", new_pin: "FinalOwn@2026!" },
         }),
       })
     );
@@ -1170,5 +1170,198 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
     const rerunRes = mcpMig.runMustChangePinLocalMigration({ db, dryRun: false });
     expect(rerunRes.alreadyApplied).toBe(true);
     expect(rerunRes.applied).toBe(false);
+  });
+
+  it("Phase 1.2: fails closed (503 PIN_CHANGE_SCHEMA_REQUIRED) on reset/change when must_change_pin is missing without mutating pin_code or logging success", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    const db = new DatabaseSync(":memory:");
+    openDbs.push(db);
+    db.exec(`
+      CREATE TABLE players (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code_order INTEGER NOT NULL DEFAULT 1,
+        full_name TEXT NOT NULL,
+        short_name TEXT NOT NULL,
+        jersey_number INTEGER,
+        position TEXT NOT NULL DEFAULT 'Đa năng',
+        phone TEXT NOT NULL DEFAULT '',
+        birth_year TEXT NOT NULL DEFAULT '',
+        avatar_url TEXT NOT NULL DEFAULT '',
+        profile_image_url TEXT NOT NULL DEFAULT '',
+        bio TEXT NOT NULL DEFAULT '',
+        role TEXT NOT NULL DEFAULT 'Thành viên',
+        access_role TEXT NOT NULL DEFAULT 'player',
+        username TEXT NOT NULL DEFAULT '',
+        pin_code TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
+        notes TEXT NOT NULL DEFAULT ''
+      );
+      CREATE TABLE audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        actor_id INTEGER,
+        actor_name TEXT,
+        actor_role TEXT,
+        action TEXT NOT NULL,
+        summary TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+    `);
+    const managerPin = hashPassword("MgrStrongPass!2026");
+    const playerPin = hashPassword("OldPlayerPass!2026");
+    db.prepare(
+      `INSERT INTO players (code_order, full_name, short_name, access_role, username, pin_code, status)
+       VALUES (1, 'Mgr One', 'Mgr', 'manager', 'mgr1', ?, 'Đang sinh hoạt')`
+    ).run(managerPin);
+    db.prepare(
+      `INSERT INTO players (code_order, full_name, short_name, access_role, username, pin_code, status)
+       VALUES (2, 'Player Two', 'Two', 'player', 'player2', ?, 'Đang sinh hoạt')`
+    ).run(playerPin);
+
+    const legacyAsyncDb: AsyncDb = {
+      async query<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
+        return db.prepare(sql).all(...(params as never[])) as T[];
+      },
+      async queryOne<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T | null> {
+        return (db.prepare(sql).get(...(params as never[])) as T | undefined) ?? null;
+      },
+      async run(sql: string, params: unknown[] = []) {
+        const res = db.prepare(sql).run(...(params as never[]));
+        return { changes: Number(res.changes ?? 0), lastInsertRowid: Number(res.lastInsertRowid ?? 0) };
+      },
+      async exec(sql: string) {
+        db.exec(sql);
+      },
+      async batch(statements) {
+        for (const s of statements) await this.run(s.sql, s.params);
+      },
+      async transaction<T>(fn: (tx: dbModule.AsyncDbTx) => Promise<T>): Promise<T> {
+        return fn(this);
+      },
+    };
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(legacyAsyncDb);
+
+    const mgrRow = db.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+    const cookie = makeCookieHeader(mgrRow);
+    const resetRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "reset_player_password",
+          payload: { player_id: 2, new_pin: "TempCredential#2026Strong!" },
+        }),
+      })
+    );
+    expect(resetRes.status).toBe(503);
+    const resetBody = (await resetRes.json()) as { code?: string };
+    expect(resetBody.code).toBe("PIN_CHANGE_SCHEMA_REQUIRED");
+
+    const playerRow = db.prepare("SELECT pin_code FROM players WHERE id = 2").get() as { pin_code: string };
+    expect(playerRow.pin_code).toBe(playerPin);
+    const successLogs = db.prepare("SELECT summary FROM audit_logs WHERE summary LIKE '%result=success%'").all();
+    expect(successLogs.length).toBe(0);
+  });
+
+  it("Phase 1.2: enforces >= 20 char temporary credential policy on reset_player_password and sets must_change_pin=1 on migrated DB", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    const { raw, asyncDb } = createFullTempAsyncDb();
+    seedPlayers(raw);
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(asyncDb);
+    const manager = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+    const cookie = makeCookieHeader(manager);
+
+    const shortRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "reset_player_password",
+          payload: { player_id: 2, new_pin: "ShortTemp#2026" },
+        }),
+      })
+    );
+    expect(shortRes.status).toBe(400);
+
+    const longTempPin = "GoNoi#TempPass2026!Secure";
+    expect(longTempPin.length).toBeGreaterThanOrEqual(20);
+    const okRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "reset_player_password",
+          payload: { player_id: 2, new_pin: longTempPin },
+        }),
+      })
+    );
+    expect(okRes.status).toBe(200);
+    const updatedRow = raw.prepare("SELECT must_change_pin FROM players WHERE id = 2").get() as { must_change_pin: number };
+    expect(updatedRow.must_change_pin).toBe(1);
+  });
+
+  it("Phase 1.2: blocks switch_role and quick_login when target player has must_change_pin=1", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    const { raw, asyncDb } = createFullTempAsyncDb();
+    seedPlayers(raw);
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(asyncDb);
+    const tempHash = hashPassword("GoNoi#TempPass2026!Secure");
+    raw.prepare("UPDATE players SET pin_code = ?, must_change_pin = 1 WHERE id = 2").run(tempHash);
+    const manager = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+    const cookie = makeCookieHeader(manager);
+
+    for (const action of ["switch_role", "quick_login"]) {
+      const res = await postAuthRoute(
+        new NextRequest("http://localhost:3000/api/auth", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            cookie,
+            origin: "http://localhost:3000",
+            host: "localhost:3000",
+          },
+          body: JSON.stringify({ action, playerId: 2 }),
+        })
+      );
+      expect(res.status).toBe(403);
+      const body = (await res.json()) as { code?: string };
+      expect(body.code).toBe("PIN_CHANGE_REQUIRED");
+      expect(res.headers.get("set-cookie")).toBeNull();
+    }
+  });
+
+  it("Phase 1.2: UI enforces non-dismissible forced PIN change, navigation lock, personal modal error retention, and 20-char reset policy", () => {
+    const modalSrc = fs.readFileSync(path.resolve(process.cwd(), "src/components/ModalDialog.tsx"), "utf8");
+    expect(modalSrc).toContain("preventDismiss");
+    expect(modalSrc).toContain('closedby: preventDismiss ? "none" : "any"');
+    expect(modalSrc).toContain("onCancel");
+
+    const appSrc = fs.readFileSync(path.resolve(process.cwd(), "src/components/TeamManagerApp.tsx"), "utf8");
+    expect(appSrc).toContain("preventDismiss");
+    expect(appSrc).toContain("session.role !== \"guest\" && Boolean(session.mustChangePassword)");
+    expect(appSrc).toContain("!session.mustChangePassword");
+    expect(appSrc).not.toContain("dismissSecurityBanner");
+
+    const personalSrc = fs.readFileSync(path.resolve(process.cwd(), "src/components/PlayerPersonalTab.tsx"), "utf8");
+    expect(personalSrc).toContain("const result = await onMutate(\"change_own_password\"");
+    expect(personalSrc).toContain("if (result && !result.ok)");
+
+    const playersTabSrc = fs.readFileSync(path.resolve(process.cwd(), "src/components/PlayersTab.tsx"), "utf8");
+    expect(playersTabSrc).toContain("validateTemporaryPasswordStrength");
+    expect(playersTabSrc).toContain("TEMPORARY_PIN_MIN_LENGTH");
   });
 });

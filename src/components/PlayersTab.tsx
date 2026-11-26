@@ -29,7 +29,11 @@ import type {
   AuthSession,
 } from "@/types/app";
 import { OFFICIAL_LOGO_URL } from "@/types/app";
-import { validatePasswordStrength } from "@/lib/passwordStrength";
+import {
+  TEMPORARY_PIN_MIN_LENGTH,
+  validatePasswordStrength,
+  validateTemporaryPasswordStrength,
+} from "@/lib/passwordStrength";
 import {
   calculatePlayerAttendanceStats,
   calculateTeamAvgAttendanceRate,
@@ -342,9 +346,9 @@ export function PlayersTab({
       return;
     }
 
-    const strength = validatePasswordStrength(
+    const strength = validateTemporaryPasswordStrength(
       resetNewPin,
-      resetPinTarget.phone || resetPinTarget.full_name
+      resetPinTarget.username || resetPinTarget.phone || resetPinTarget.full_name
     );
     if (!strength.valid) {
       setResetPinError(
@@ -1563,7 +1567,7 @@ export function PlayersTab({
             ? `Đặt lại mã PIN cho ${resetPinTarget.full_name}`
             : "Đặt lại mã PIN cầu thủ"
         }
-        subtitle="Nhập mã PIN mới tối thiểu 6 ký tự (không dùng PIN mặc định hoặc chuỗi đơn giản)."
+        subtitle={`Nhập mật khẩu tạm thời tối thiểu ${TEMPORARY_PIN_MIN_LENGTH} ký tự (hệ thống sẽ bắt buộc đổi lại ngay khi đăng nhập).`}
       >
         <form onSubmit={handleConfirmResetPin} className="space-y-4">
           {resetPinError && (
@@ -1576,14 +1580,15 @@ export function PlayersTab({
               htmlFor="reset-new-pin"
               className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5"
             >
-              Mã PIN mới
+              Mật khẩu tạm thời mới
             </label>
             <input
               id="reset-new-pin"
               type="password"
+              minLength={TEMPORARY_PIN_MIN_LENGTH}
               value={resetNewPin}
               onChange={(e) => setResetNewPin(e.target.value)}
-              placeholder="Nhập tối thiểu 6 ký tự an toàn"
+              placeholder={`Nhập tối thiểu ${TEMPORARY_PIN_MIN_LENGTH} ký tự an toàn`}
               className="form-input"
               required
               autoFocus

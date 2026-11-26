@@ -23,6 +23,7 @@ import type {
 } from "@/types/app";
 import { OFFICIAL_QR_URL } from "@/types/app";
 import { formatVND, formatDateVN } from "@/lib/format";
+import { validatePasswordStrength } from "@/lib/passwordStrength";
 import {
   convertMultipleFilesToWebp,
 } from "@/lib/imageToWebp";
@@ -252,12 +253,29 @@ export function PlayerPersonalTab({
         return;
       }
     }
-    await onMutate("change_own_password", {
+    if (newPin.trim()) {
+      const strength = validatePasswordStrength(
+        newPin.trim(),
+        newUsername.trim() || me.username
+      );
+      if (!strength.valid) {
+        setPwdError(
+          strength.error || "Mật khẩu mới chưa đủ an toàn (tối thiểu 6 ký tự)."
+        );
+        return;
+      }
+    }
+
+    const result = await onMutate("change_own_password", {
       player_id: me.id,
       old_pin: oldPin.trim(),
       new_pin: newPin.trim() || undefined,
       new_username: newUsername.trim() || undefined,
     });
+    if (result && !result.ok) {
+      setPwdError(result.error || "Không thể cập nhật mật khẩu.");
+      return;
+    }
     setPwdModalOpen(false);
     setOldPin("");
     setNewPin("");

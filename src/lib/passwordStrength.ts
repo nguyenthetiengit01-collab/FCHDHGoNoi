@@ -1,3 +1,5 @@
+export const TEMPORARY_PIN_MIN_LENGTH = 20;
+
 export interface PasswordStrengthResult {
   valid: boolean;
   score: number;
@@ -63,4 +65,27 @@ export function validatePasswordStrength(
   if (/[^a-zA-Z0-9]/.test(p) || p.length >= 10) score++;
 
   return { valid: true, score };
+}
+
+/**
+ * Policy for Manager-issued temporary credentials (reset_player_password):
+ * requires at least 20 characters in addition to standard strength, username,
+ * and common-password checks.
+ */
+export function validateTemporaryPasswordStrength(
+  pin: string,
+  username?: string
+): PasswordStrengthResult {
+  const p = String(pin || "").trim();
+  const base = validatePasswordStrength(p, username);
+  if (!base.valid) {
+    return base;
+  }
+
+  if (p.length < TEMPORARY_PIN_MIN_LENGTH) {
+    const msg = `Mật khẩu tạm thời do Ban Quản Lý cấp phải có tối thiểu ${TEMPORARY_PIN_MIN_LENGTH} ký tự để đảm bảo an toàn.`;
+    return { valid: false, score: base.score, message: msg, error: msg };
+  }
+
+  return { valid: true, score: 4 };
 }

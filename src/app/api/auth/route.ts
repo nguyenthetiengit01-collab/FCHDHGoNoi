@@ -8,6 +8,7 @@ import {
   getAuthSecret,
   getCurrentAuthContextFromToken,
   isDefaultPassword,
+  queryAuthPlayerById,
   runAuthDbQuery,
   SESSION_COOKIE_NAME,
   requireManagerSession,
@@ -153,11 +154,7 @@ export async function POST(req: NextRequest) {
 
       const { db, playerRow } = await runAuthDbQuery(async () => {
         const asyncDb = getAsyncDb();
-        const found =
-          (await asyncDb.queryOne<Player>(
-            `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-            [playerId]
-          )) || undefined;
+        const found = await queryAuthPlayerById(asyncDb, playerId);
         return { db: asyncDb, playerRow: found };
       });
 
@@ -189,6 +186,18 @@ export async function POST(req: NextRequest) {
             code: "DEFAULT_PIN_RESET_REQUIRED",
             error:
               "Không thể chuyển phiên sang tài khoản đang sử dụng mã PIN mặc định. Vui lòng đặt lại mã PIN mới trước.",
+          },
+          { status: 403 }
+        );
+      }
+
+      if (Number(playerRow.must_change_pin) === 1) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "PIN_CHANGE_REQUIRED",
+            error:
+              "Không thể chuyển phiên sang tài khoản đang chờ đổi mật khẩu tạm thời.",
           },
           { status: 403 }
         );
