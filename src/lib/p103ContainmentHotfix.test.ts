@@ -1364,4 +1364,174 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
     expect(playersTabSrc).toContain("validateTemporaryPasswordStrength");
     expect(playersTabSrc).toContain("TEMPORARY_PIN_MIN_LENGTH");
   });
+
+  it("Phase 1.2.1: enforces strict self-service authorization on change_own_password (no Manager exception) while preserving update_own_profile & reset_player_password", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    const { raw, asyncDb } = createFullTempAsyncDb();
+    seedPlayers(raw);
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(asyncDb);
+
+    const managerPinBefore = hashPassword("MgrOwnStrong!2026");
+    const player2PinBefore = hashPassword("Ply2OwnStrong!2026");
+    const player3PinBefore = hashPassword("Ply3OwnStrong!2026");
+    raw.prepare("UPDATE players SET pin_code = ?, must_change_pin = 0 WHERE id = 1").run(managerPinBefore);
+    raw.prepare("UPDATE players SET pin_code = ?, must_change_pin = 0 WHERE id = 2").run(player2PinBefore);
+    raw.prepare("UPDATE players SET pin_code = ?, must_change_pin = 0 WHERE id = 3").run(player3PinBefore);
+
+    const manager = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+    const player2 = raw.prepare("SELECT * FROM players WHERE id = 2").get() as unknown as Player;
+    const mgrCookie = makeCookieHeader(manager);
+    const ply2Cookie = makeCookieHeader(player2);
+
+    // 1. Player cannot change another player's PIN (403)
+    const plyCrossRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: ply2Cookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "change_own_password",
+          payload: { player_id: 3, old_pin: "Ply3OwnStrong!2026", new_pin: "HackedPin!2026" },
+        }),
+      })
+    );
+    expect(plyCrossRes.status).toBe(403);
+    expect((raw.prepare("SELECT pin_code FROM players WHERE id = 3").get() as { pin_code: string }).pin_code).toBe(player3PinBefore);
+
+    // 2. Manager CANNOT change another player's PIN via change_own_password (403, no Manager exception)
+    const mgrCrossRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: mgrCookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "change_own_password",
+          payload: { player_id: 2, old_pin: "Ply2OwnStrong!2026", new_pin: "MgrHijack!2026" },
+        }),
+      })
+    );
+    expect(mgrCrossRes.status).toBe(403);
+    expect((raw.prepare("SELECT pin_code FROM players WHERE id = 2").get() as { pin_code: string }).pin_code).toBe(player2PinBefore);
+
+    // 3. Manager with must_change_pin=1 CANNOT change another account via change_own_password (403)
+    raw.prepare("UPDATE players SET must_change_pin = 1 WHERE id = 1").run();
+    const mgrForced = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+    const mgrForcedCookie = makeCookieHeader(mgrForced);
+    const mgrForcedCrossRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: mgrForcedCookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "change_own_password",
+          payload: { player_id: 2, old_pin: "Ply2OwnStrong!2026", new_pin: "ForcedMgrHijack!2026" },
+        }),
+      })
+    );
+    expect(mgrForcedCrossRes.status).toBe(403);
+    expect((raw.prepare("SELECT pin_code FROM players WHERE id = 2").get() as { pin_code: string }).pin_code).toBe(player2PinBefore);
+
+    // Restore Manager must_change_pin=0 for remaining checks
+    raw.prepare("UPDATE players SET must_change_pin = 0 WHERE id = 1").run();
+
+    // 4. Manager can still edit another player's profile via update_own_profile
+    const editProfileRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: mgrCookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "update_own_profile",
+          payload: { player_id: 2, bio: "Updated by manager" },
+        }),
+      })
+    );
+    expect(editProfileRes.status).toBe(200);
+    expect((raw.prepare("SELECT bio FROM players WHERE id = 2").get() as { bio: string }).bio).toBe("Updated by manager");
+
+    // 5. Manager can reset another player's PIN only through reset_player_password (>= 20 chars)
+    const resetRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: mgrCookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "reset_player_password",
+          payload: { player_id: 3, new_pin: "MgrResetTempPass#2026!" },
+        }),
+      })
+    );
+    expect(resetRes.status).toBe(200);
+    expect((raw.prepare("SELECT must_change_pin FROM players WHERE id = 3").get() as { must_change_pin: number }).must_change_pin).toBe(1);
+
+    // 6. Each user can change their own PIN & 7. Old sessions are invalidated after PIN change
+    const oldPly2SessionRes = await getAuthRoute(
+      new NextRequest("http://localhost:3000/api/auth", { headers: { cookie: ply2Cookie } })
+    );
+    expect(oldPly2SessionRes.status).toBe(200);
+
+    const ownChangeRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: ply2Cookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "change_own_password",
+          payload: { player_id: 2, old_pin: "Ply2OwnStrong!2026", new_pin: "Ply2NewStrong!2027" },
+        }),
+      })
+    );
+    expect(ownChangeRes.status).toBe(200);
+
+    const oldSessionAfterChange = await getAuthRoute(
+      new NextRequest("http://localhost:3000/api/auth", { headers: { cookie: ply2Cookie } })
+    );
+    expect(oldSessionAfterChange.status).toBe(200);
+    const oldSessionJson = (await oldSessionAfterChange.json()) as { authenticated: boolean };
+    expect(oldSessionJson.authenticated).toBe(false);
+  });
+
+  it("Phase 1.2.1: TeamManagerApp clears all forced credential state on logout, identity change, and success without persisting", () => {
+    const appSrc = fs.readFileSync(path.resolve(process.cwd(), "src/components/TeamManagerApp.tsx"), "utf8");
+    expect(appSrc).toContain("const clearForcedPinState = () => {");
+    expect(appSrc).toContain("setForcedOldPin(\"\");");
+    expect(appSrc).toContain("setForcedNewPin(\"\");");
+    expect(appSrc).toContain("setForcedConfirmPin(\"\");");
+    expect(appSrc).toContain("setForcedPinError(\"\");");
+    expect(appSrc).toContain("setShowForcedPins(false);");
+
+    // Called on logout before GUEST_SESSION, on playerId change, on hydration transition, and on success
+    expect(appSrc).toMatch(/clearForcedPinState\(\);\s*setLoginModalOpen\(false\);\s*await hydrateForSession\(GUEST_SESSION, "public"\);/);
+    expect(appSrc).toMatch(/if \(lastPlayerIdRef\.current !== session\.playerId\) \{\s*lastPlayerIdRef\.current = session\.playerId;\s*clearForcedPinState\(\);\s*\}/);
+    expect(appSrc).toMatch(/if \(nextSession\.playerId !== lastPlayerIdRef\.current\) \{\s*clearForcedPinState\(\);\s*\}/);
+    expect(appSrc).toMatch(/if \(!result\.ok\) \{\s*setForcedPinError\(result\.error \|\| "Không thể cập nhật mật khẩu mới\."\);\s*return;\s*\}\s*clearForcedPinState\(\);/);
+
+    // Never persisted to localStorage, sessionStorage, cookies, or URL
+    expect(appSrc).not.toMatch(/localStorage\.setItem\([^)]*forced/);
+    expect(appSrc).not.toMatch(/sessionStorage\.setItem\([^)]*forced/);
+  });
 });

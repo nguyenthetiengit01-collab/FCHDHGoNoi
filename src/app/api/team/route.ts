@@ -339,11 +339,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Các hành động yêu cầu cầu thủ đã đăng nhập vào hệ thống
-    if (action === "update_own_profile" || action === "change_own_password") {
+    // Đổi mật khẩu cá nhân: bắt buộc chính chủ (không có ngoại lệ Ban Quản Lý; Manager cấp mật khẩu tạm chỉ qua reset_player_password)
+    if (action === "change_own_password") {
       const auth = await requirePlayerSession(req, {
-        allowMustChangePin: action === "change_own_password",
+        allowMustChangePin: true,
       });
+      if (!auth.authorized) {
+        return NextResponse.json(
+          {
+            error: auth.error || "Vui lòng đăng nhập để đổi mật khẩu cá nhân",
+            ...(auth.errorCode ? { code: auth.errorCode } : {}),
+          },
+          { status: auth.status, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+      const targetPlayerId = Number(payload?.player_id ?? payload?.id);
+      if (
+        !Number.isInteger(targetPlayerId) ||
+        targetPlayerId <= 0 ||
+        targetPlayerId !== auth.player?.id
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Bảo mật: Bạn chỉ có thể tự đổi mật khẩu cho chính tài khoản đang đăng nhập.",
+          },
+          { status: 403, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+    }
+
+    // Cập nhật hồ sơ cá nhân: chính chủ hoặc Ban Quản Lý
+    if (action === "update_own_profile") {
+      const auth = await requirePlayerSession(req);
       if (!auth.authorized) {
         return NextResponse.json(
           {

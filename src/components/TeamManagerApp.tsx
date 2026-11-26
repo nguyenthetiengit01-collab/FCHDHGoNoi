@@ -153,10 +153,26 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const [importErrorModalOpen, setImportErrorModalOpen] = useState(false);
 
   const isMountedRef = useRef(true);
+  const lastPlayerIdRef = useRef<number | null>(session.playerId);
   const hydrationEpochRef = useRef(0);
   const hydrationAbortRef = useRef<AbortController | null>(null);
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
   const drawerCloseBtnRef = useRef<HTMLButtonElement>(null);
+
+  const clearForcedPinState = () => {
+    setForcedOldPin("");
+    setForcedNewPin("");
+    setForcedConfirmPin("");
+    setForcedPinError("");
+    setShowForcedPins(false);
+  };
+
+  useEffect(() => {
+    if (lastPlayerIdRef.current !== session.playerId) {
+      lastPlayerIdRef.current = session.playerId;
+      clearForcedPinState();
+    }
+  }, [session.playerId]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -184,6 +200,9 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       nextTab,
       signal: controller.signal,
       onStartTransition: () => {
+        if (nextSession.playerId !== lastPlayerIdRef.current) {
+          clearForcedPinState();
+        }
         setIsHydratingSession(true);
         setHydrationError(null);
         setData((prev) => createTransitionSafeData(prev));
@@ -356,6 +375,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       } catch {
         // ignore
       }
+      clearForcedPinState();
       setLoginModalOpen(false);
       await hydrateForSession(GUEST_SESSION, "public");
       showToast("Đã đăng xuất về Trang Khách");
@@ -1272,11 +1292,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
               setForcedPinError(result.error || "Không thể cập nhật mật khẩu mới.");
               return;
             }
-            setForcedOldPin("");
-            setForcedNewPin("");
-            setForcedConfirmPin("");
-            setForcedPinError("");
-            setShowForcedPins(false);
+            clearForcedPinState();
           }}
           className="space-y-4"
         >
