@@ -186,7 +186,7 @@ test.describe("Phase 6.5 – Live Browser Visual, Contrast & Layout QA", () => {
   for (const route of ROUTES.slice(1)) {
     test(`public route ${route} passes overflow and axe-core WCAG 2.2 AA`, async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
-      await page.goto(route, { waitUntil: "load" });
+      await page.goto(route, { waitUntil: "domcontentloaded" });
       await expect(page.locator("main#main-content")).toBeVisible();
       const overflowMobile = await page.evaluate(() => ({
         scrollWidth: document.documentElement.scrollWidth,
@@ -195,14 +195,48 @@ test.describe("Phase 6.5 – Live Browser Visual, Contrast & Layout QA", () => {
       expect(overflowMobile.scrollWidth).toBeLessThanOrEqual(overflowMobile.innerWidth);
 
       await page.setViewportSize({ width: 1440, height: 900 });
-      await page.goto(route, { waitUntil: "load" });
       await expect(page.locator("main#main-content")).toBeVisible();
+      const overflowDesktop = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        innerWidth: window.innerWidth,
+      }));
+      expect(overflowDesktop.scrollWidth).toBeLessThanOrEqual(overflowDesktop.innerWidth);
       const axeResults = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag22aa"])
         .analyze();
       expect(axeResults.violations, `${route}: ${JSON.stringify(axeResults.violations, null, 2)}`).toEqual([]);
     });
   }
+
+  test("public routes load all images and optimize DSC06522.webp without errors", async ({ page }) => {
+    const failedImageResponses: Array<{ url: string; status: number }> = [];
+    page.on("response", (res) => {
+      const url = res.url();
+      if ((url.includes("/images/") || url.includes("/_next/image")) && res.status() >= 400) {
+        failedImageResponses.push({ url, status: res.status() });
+      }
+    });
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    for (const route of ROUTES) {
+      await page.goto(route, { waitUntil: "load" });
+      await expect(page.locator("main#main-content")).toBeVisible();
+      const brokenImgs = await page.evaluate(() =>
+        Array.from(document.querySelectorAll("img"))
+          .filter((img) => img.complete && img.naturalWidth === 0)
+          .map((img) => img.getAttribute("src") || "")
+      );
+      expect(brokenImgs, `${route} has broken <img> elements`).toEqual([]);
+    }
+
+    const optRes = await page.request.get(
+      "/_next/image?url=%2Fimages%2Fhinhanh-webp%2Fgiaidau%2FDSC06522.webp&w=1080&q=75",
+      { timeout: 20_000 }
+    );
+    expect(optRes.status()).toBe(200);
+    expect(optRes.headers()["content-type"] || "").toMatch(/^image\//);
+    expect(failedImageResponses).toEqual([]);
+  });
 
   test("prefers-reduced-motion suppresses CSS animations", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });

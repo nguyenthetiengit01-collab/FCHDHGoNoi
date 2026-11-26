@@ -457,6 +457,31 @@ const DATA_DIR = IS_VERCEL ? os.tmpdir() : BUNDLED_DATA_DIR;
 const DB_PATH = path.join(DATA_DIR, "gonoifc.sqlite");
 
 let dbInstance: DatabaseSyncType | null = null;
+let dbShutdownHooksRegistered = false;
+
+export function closeDb(): void {
+  if (!dbInstance) return;
+  try {
+    dbInstance.exec("PRAGMA wal_checkpoint(TRUNCATE);");
+  } catch {
+    // best-effort checkpoint
+  }
+  try {
+    dbInstance.close();
+  } catch {
+    // ignore close errors during shutdown
+  } finally {
+    dbInstance = null;
+  }
+}
+
+function registerDbShutdownHooks(): void {
+  if (dbShutdownHooksRegistered) return;
+  dbShutdownHooksRegistered = true;
+  process.once("SIGTERM", closeDb);
+  process.once("SIGINT", closeDb);
+  process.once("beforeExit", closeDb);
+}
 
 export {
   EXPENSE_CATEGORIES,
@@ -499,7 +524,7 @@ export function getDb(customDbPath?: string): DatabaseSyncType {
     "node:sqlite"
   ) as typeof import("node:sqlite");
   const db = new sqlite.DatabaseSync(resolvedPath);
-  db.exec("PRAGMA journal_mode = WAL;");
+  db.exec(qaPath ? "PRAGMA journal_mode = DELETE;" : "PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
 
   initSchema(db);
@@ -507,6 +532,7 @@ export function getDb(customDbPath?: string): DatabaseSyncType {
   seedInitialDataIfNeeded(db);
 
   dbInstance = db;
+  registerDbShutdownHooks();
   return db;
 }
 
