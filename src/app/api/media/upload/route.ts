@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
-import { getAuthSession, verifyCsrfOrigin } from "@/lib/auth";
+import { requirePlayerSession, verifyCsrfOrigin } from "@/lib/auth";
 import {
   MediaStorageError,
   getMediaStorageProvider,
@@ -40,13 +40,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const session = getAuthSession(req);
-    if (!session) {
+    const auth = await requirePlayerSession(req);
+    if (!auth.authorized || !auth.session) {
       return NextResponse.json(
-        { error: "Vui lòng đăng nhập để tải ảnh lên." },
-        { status: 401, headers: NO_STORE_HEADERS }
+        {
+          error: auth.error || "Vui lòng đăng nhập để tải ảnh lên.",
+          ...(auth.errorCode ? { code: auth.errorCode } : {}),
+        },
+        { status: auth.status, headers: NO_STORE_HEADERS }
       );
     }
+    const session = auth.session;
 
     if (!isMediaStorageEnabled()) {
       return NextResponse.json(

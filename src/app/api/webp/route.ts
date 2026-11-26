@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
-import { getAuthSession } from "@/lib/auth";
+import { requirePlayerSession } from "@/lib/auth";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -12,11 +12,14 @@ function clampInt(raw: FormDataEntryValue | null, fallback: number, min: number,
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAuthSession(req);
-    if (!session) {
+    const auth = await requirePlayerSession(req);
+    if (!auth.authorized) {
       return NextResponse.json(
-        { error: "Vui lòng đăng nhập để tải và xử lý ảnh" },
-        { status: 401 }
+        {
+          error: auth.error || "Vui lòng đăng nhập để tải và xử lý ảnh",
+          ...(auth.errorCode ? { code: auth.errorCode } : {}),
+        },
+        { status: auth.status }
       );
     }
 

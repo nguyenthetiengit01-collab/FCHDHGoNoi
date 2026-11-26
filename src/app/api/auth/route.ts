@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
       authenticated: true,
       player: safePlayer,
       role: ctx.player.access_role === "manager" ? "manager" : "player",
-      mustChangePassword: false,
+      mustChangePassword: Boolean(ctx.mustChangePin),
     });
   } catch (error) {
     console.error("GET /api/auth error:", error instanceof Error ? error.name : "UNKNOWN");

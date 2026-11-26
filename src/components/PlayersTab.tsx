@@ -371,19 +371,35 @@ export function PlayersTab({
 
   async function handleChangeOwnPassword(e: React.FormEvent) {
     e.preventDefault();
-    if (!session.playerId) return;
-    if (newPin.trim().length < 4) {
-      setPwdError("Mật khẩu mới cần ít nhất 4 ký tự");
+    if (!session.playerId || isSaving) return;
+
+    const strength = validatePasswordStrength(
+      newPin,
+      session.shortName || session.fullName
+    );
+    if (!strength.valid) {
+      setPwdError(
+        strength.error ||
+          "Mật khẩu mới phải có ít nhất 6 ký tự an toàn."
+      );
       return;
     }
-    await onMutate("change_own_password", {
+
+    setPwdError("");
+    const result = await onMutate("change_own_password", {
       player_id: session.playerId,
       old_pin: oldPin.trim(),
       new_pin: newPin.trim(),
     });
+    if (result && !result.ok) {
+      setPwdError(result.error || "Không thể đổi mật khẩu.");
+      return;
+    }
+
     setPwdModalOpen(false);
     setOldPin("");
     setNewPin("");
+    setPwdError("");
   }
 
   function handleDeletePlayer(p: Player) {
@@ -1368,6 +1384,8 @@ export function PlayersTab({
             <input
               id="self-new-pin"
               type="password"
+              minLength={6}
+              placeholder="Tối thiểu 6 ký tự an toàn"
               required
               value={newPin}
               onChange={(e) => setNewPin(e.target.value)}

@@ -540,6 +540,39 @@ export const AUTH_PLAYER_PROFILE_COLUMNS = `
   bio, role, access_role, pin_code, status, notes
 `;
 
+const AUTH_PLAYER_PROFILE_COLUMNS_WITH_MUST_CHANGE = `
+  id, code_order, full_name, short_name, username, jersey_number,
+  position, phone, birth_year, avatar_url, profile_image_url,
+  bio, role, access_role, pin_code, must_change_pin, status, notes
+`;
+
+export function isMissingMustChangePinColumnError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err || "");
+  return /no such column:\s*must_change_pin/i.test(msg);
+}
+
+async function queryAuthPlayerById(
+  db: ReturnType<typeof getAsyncDb>,
+  playerId: number
+): Promise<Player | undefined> {
+  try {
+    const rows = await db.query<Player>(
+      `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS_WITH_MUST_CHANGE} FROM players WHERE id = ? LIMIT 1`,
+      [playerId]
+    );
+    return rows[0];
+  } catch (err) {
+    if (isMissingMustChangePinColumnError(err)) {
+      const legacyRows = await db.query<Player>(
+        `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+        [playerId]
+      );
+      return legacyRows[0] ? { ...legacyRows[0], must_change_pin: 0 } : undefined;
+    }
+    throw err;
+  }
+}
+
 /**
  * Xác thực thông tin đăng nhập từ Server Database với chuẩn chống Brute-force, Anti-Enumeration & Auto Re-hash
  */
@@ -728,12 +761,7 @@ export async function verifyCredentials(
         ]);
         finalPinCode = secureHash;
       }
-      return (
-        (await db.queryOne<Player>(
-          `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-          [matched.id]
-        )) || undefined
-      );
+      return queryAuthPlayerById(db, matched.id);
     });
   } catch (err) {
     if (err instanceof AuthDatabaseError) {
@@ -756,13 +784,13 @@ export async function verifyCredentials(
   }
 
   hydratedPlayer.pin_code = finalPinCode;
-  const isDefault = isDefaultPassword(finalPinCode);
+  const mustChangePassword = Number(hydratedPlayer.must_change_pin) === 1;
 
   return {
     success: true,
     status: 200,
     player: hydratedPlayer,
-    mustChangePassword: isDefault,
+    mustChangePassword,
   };
 }
 
@@ -775,6 +803,7 @@ export interface AuthCheckResult {
   status: 200 | 401 | 403 | 503;
   errorCode?: string;
   error?: string;
+  mustChangePin?: boolean;
   session?: SessionPayload;
   player?: Player;
 }
@@ -834,11 +863,7 @@ export async function getCurrentAuthContextFromToken(
   try {
     player = await runAuthDbQuery(async () => {
       const db = getAsyncDb();
-      const players = await db.query<Player>(
-        `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-        [session.playerId]
-      );
-      return players[0];
+      return queryAuthPlayerById(db, session.playerId);
     });
   } catch (err) {
     if (err instanceof AuthDatabaseError) {
@@ -888,10 +913,12 @@ export async function getCurrentAuthContextFromToken(
 
   const dbAccessRole: "manager" | "player" =
     player.access_role === "manager" ? "manager" : "player";
+  const mustChangePin = Number(player.must_change_pin) === 1;
 
   return {
     authorized: true,
     status: 200,
+    mustChangePin,
     session: {
       ...session,
       accessRole: dbAccessRole,
@@ -906,7 +933,8 @@ export async function getCurrentAuthContextFromToken(
  * không chỉ tin tưởng vào claim trong session token cũ.
  */
 export async function requireManagerSession(
-  req: NextRequest
+  req: NextRequest,
+  options?: { allowMustChangePin?: boolean }
 ): Promise<AuthCheckResult> {
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (!token) {
@@ -920,6 +948,16 @@ export async function requireManagerSession(
   const ctx = await getCurrentAuthContextFromToken(token);
   if (!ctx.authorized || !ctx.player) {
     return ctx;
+  }
+
+  if (ctx.mustChangePin && !options?.allowMustChangePin) {
+    return {
+      authorized: false,
+      status: 403,
+      errorCode: "PIN_CHANGE_REQUIRED",
+      error:
+        "Tài khoản của bạn cần đổi mật khẩu cá nhân mới trước khi thực hiện thao tác quản trị.",
+    };
   }
 
   if (ctx.player.access_role !== "manager") {
@@ -937,10 +975,26 @@ export async function requireManagerSession(
  * Xác thực bắt buộc thành viên / cầu thủ đã đăng nhập vào hệ thống
  */
 export async function requirePlayerSession(
-  req: NextRequest
+  req: NextRequest,
+  options?: { allowMustChangePin?: boolean }
 ): Promise<AuthCheckResult> {
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-  return getCurrentAuthContextFromToken(token);
+  const ctx = await getCurrentAuthContextFromToken(token);
+  if (!ctx.authorized) {
+    return ctx;
+  }
+
+  if (ctx.mustChangePin && !options?.allowMustChangePin) {
+    return {
+      authorized: false,
+      status: 403,
+      errorCode: "PIN_CHANGE_REQUIRED",
+      error:
+        "Tài khoản của bạn cần đổi mật khẩu cá nhân mới trước khi tiếp tục sử dụng hệ thống.",
+    };
+  }
+
+  return ctx;
 }
 
 // =========================================================================

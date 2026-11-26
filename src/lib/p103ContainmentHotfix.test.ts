@@ -6,8 +6,11 @@ import * as XLSX from "xlsx";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET as getAuthRoute, POST as postAuthRoute } from "@/app/api/auth/route";
-import { POST as postTeamRoute } from "@/app/api/team/route";
+import { GET as getTeamRoute, POST as postTeamRoute } from "@/app/api/team/route";
 import { POST as postImportRoute } from "@/app/api/import/route";
+import { GET as getExportRoute } from "@/app/api/export/route";
+import { GET as getAuditLogsRoute } from "@/app/api/audit-logs/route";
+import { POST as postWebpRoute } from "@/app/api/webp/route";
 import * as publicHomeModule from "@/lib/publicHome";
 import {
   createSessionToken,
@@ -876,5 +879,296 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
       })
     ).toThrow(/Pre-commit PRAGMA integrity_check failed/);
     assertUntouchedLegacyState(multiRowIntDb);
+  });
+
+  it("enforces persistent must_change_pin lifecycle, API restrictions, session re-issue, and audit privacy", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    const { raw, asyncDb } = createFullTempAsyncDb();
+    seedPlayers(raw);
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(asyncDb);
+
+    // Existing users default to must_change_pin = 0
+    const initialFlag = raw.prepare("SELECT must_change_pin FROM players WHERE id = 2").get() as {
+      must_change_pin: number;
+    };
+    expect(initialFlag.must_change_pin).toBe(0);
+
+    const manager = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+    const mgrCookie = makeCookieHeader(manager);
+
+    // Manager resets Player #2 with strong temporary PIN -> sets must_change_pin = 1 & audits target/role/result without PIN/hash
+    const resetRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: mgrCookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "reset_player_password",
+          payload: { player_id: 2, new_pin: "TempStrong@2026" },
+        }),
+      })
+    );
+    expect(resetRes.status).toBe(200);
+    const afterReset = raw
+      .prepare("SELECT pin_code, must_change_pin FROM players WHERE id = 2")
+      .get() as { pin_code: string; must_change_pin: number };
+    expect(afterReset.must_change_pin).toBe(1);
+
+    const auditRow = raw
+      .prepare("SELECT actor_id, action, summary FROM audit_logs ORDER BY id DESC LIMIT 1")
+      .get() as { actor_id: number; action: string; summary: string };
+    expect(auditRow.actor_id).toBe(1);
+    expect(auditRow.action).toBe("reset_player_password");
+    expect(auditRow.summary).toContain("target=#2");
+    expect(auditRow.summary).toContain("targetRole=player");
+    expect(auditRow.summary).toContain("result=success");
+    expect(auditRow.summary).not.toContain("TempStrong@2026");
+    expect(auditRow.summary).not.toContain("scrypt$");
+
+    // Player #2 logs in -> 200 with mustChangePassword: true
+    const loginRes = await postAuthRoute(
+      new NextRequest("http://localhost:3000/api/auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({ action: "login", username: "ply2", pin: "TempStrong@2026" }),
+      })
+    );
+    const loginJson = await loginRes.json();
+    expect(loginRes.status).toBe(200);
+    expect(loginJson.mustChangePassword).toBe(true);
+    const setCookie = loginRes.headers.get("set-cookie") || "";
+    const tempCookie = setCookie.split(";")[0];
+
+    // GET /api/auth permitted & exposes mustChangePassword: true
+    const statusRes = await getAuthRoute(
+      new NextRequest("http://localhost:3000/api/auth", { headers: { cookie: tempCookie } })
+    );
+    const statusJson = await statusRes.json();
+    expect(statusRes.status).toBe(200);
+    expect(statusJson.authenticated).toBe(true);
+    expect(statusJson.mustChangePassword).toBe(true);
+
+    // Business APIs blocked while must_change_pin === 1
+    const rsvpBlocked = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: tempCookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({ action: "set_rsvp", payload: { match_id: 1, player_id: 2, rsvp_status: "yes" } }),
+      })
+    );
+    expect(rsvpBlocked.status).toBe(403);
+    expect((await rsvpBlocked.json()).code).toBe("PIN_CHANGE_REQUIRED");
+
+    const webpBlocked = await postWebpRoute(
+      new NextRequest("http://localhost:3000/api/webp", {
+        method: "POST",
+        headers: { cookie: tempCookie },
+      })
+    );
+    expect(webpBlocked.status).toBe(403);
+
+    const getTeamPublicOnly = await getTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", { headers: { cookie: tempCookie } })
+    );
+    const teamJson = await getTeamPublicOnly.json();
+    expect(teamJson.players.every((p: { phone?: string }) => !p.phone)).toBe(true);
+
+    // Manager with must_change_pin = 1 is also blocked on Manager business endpoints
+    raw.prepare("UPDATE players SET must_change_pin = 1 WHERE id = 1").run();
+    for (const res of [
+      await getAuditLogsRoute(new NextRequest("http://localhost:3000/api/audit-logs", { headers: { cookie: mgrCookie } })),
+      await getExportRoute(new NextRequest("http://localhost:3000/api/export", { headers: { cookie: mgrCookie } })),
+      await postImportRoute(
+        new NextRequest("http://localhost:3000/api/import", {
+          method: "POST",
+          headers: { cookie: mgrCookie, origin: "http://localhost:3000", host: "localhost:3000" },
+        })
+      ),
+      await postAuthRoute(
+        new NextRequest("http://localhost:3000/api/auth", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            cookie: mgrCookie,
+            origin: "http://localhost:3000",
+            host: "localhost:3000",
+          },
+          body: JSON.stringify({ action: "switch_role", playerId: 2 }),
+        })
+      ),
+    ]) {
+      expect(res.status).toBe(403);
+    }
+    raw.prepare("UPDATE players SET must_change_pin = 0 WHERE id = 1").run();
+
+    // Player #2 cannot reuse temporary PIN
+    const reuseRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: tempCookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "change_own_password",
+          payload: { player_id: 2, old_pin: "TempStrong@2026", new_pin: "TempStrong@2026" },
+        }),
+      })
+    );
+    expect(reuseRes.status).toBe(400);
+
+    // Player #2 changes PIN -> clears must_change_pin = 0, re-issues cookie, invalidates old cookie
+    const changeRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: tempCookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "change_own_password",
+          payload: { player_id: 2, old_pin: "TempStrong@2026", new_pin: "FinalOwn@2026!" },
+        }),
+      })
+    );
+    expect(changeRes.status).toBe(200);
+    const cleared = raw.prepare("SELECT must_change_pin FROM players WHERE id = 2").get() as {
+      must_change_pin: number;
+    };
+    expect(cleared.must_change_pin).toBe(0);
+
+    const newCookie = (changeRes.headers.get("set-cookie") || "").split(";")[0];
+    expect(newCookie).toContain(`${SESSION_COOKIE_NAME}=`);
+    expect(newCookie).not.toBe(tempCookie);
+
+    // Old tempCookie is immediately invalid (401)
+    const oldSessionCheck = await requirePlayerSession(
+      new NextRequest("http://localhost:3000/api/team", { headers: { cookie: tempCookie } })
+    );
+    expect(oldSessionCheck.authorized).toBe(false);
+    expect(oldSessionCheck.status).toBe(401);
+
+    // New cookie is authorized and mustChangePassword is false
+    const newStatusRes = await getAuthRoute(
+      new NextRequest("http://localhost:3000/api/auth", { headers: { cookie: newCookie } })
+    );
+    const newStatusJson = await newStatusRes.json();
+    expect(newStatusRes.status).toBe(200);
+    expect(newStatusJson.authenticated).toBe(true);
+    expect(newStatusJson.mustChangePassword).toBe(false);
+
+    // Logout is permitted even when must_change_pin = 1
+    const logoutRes = await postAuthRoute(
+      new NextRequest("http://localhost:3000/api/auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: tempCookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({ action: "logout" }),
+      })
+    );
+    expect(logoutRes.status).toBe(200);
+  });
+
+  it("supports additive must_change_pin migration and backward compatibility on legacy schema without must_change_pin", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fc-p103-mcp-"));
+    tempDirs.push(dir);
+    const db = new DatabaseSync(path.join(dir, "legacy-no-mcp.sqlite"));
+    openDbs.push(db);
+    db.exec(`
+      CREATE TABLE players (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code_order INTEGER NOT NULL,
+        full_name TEXT NOT NULL,
+        short_name TEXT NOT NULL,
+        jersey_number INTEGER,
+        position TEXT NOT NULL DEFAULT 'Đa năng',
+        phone TEXT NOT NULL DEFAULT '',
+        birth_year TEXT NOT NULL DEFAULT '',
+        avatar_url TEXT NOT NULL DEFAULT '',
+        profile_image_url TEXT NOT NULL DEFAULT '',
+        bio TEXT NOT NULL DEFAULT '',
+        role TEXT NOT NULL DEFAULT 'Thành viên',
+        access_role TEXT NOT NULL DEFAULT 'player',
+        username TEXT NOT NULL DEFAULT '',
+        pin_code TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
+        notes TEXT NOT NULL DEFAULT ''
+      );
+    `);
+    const strongPin = hashPassword("LegacyStrong@2026");
+    db.prepare(
+      `INSERT INTO players (code_order, full_name, short_name, access_role, username, pin_code, status)
+       VALUES (1, 'Legacy Owner', 'Owner', 'manager', 'owner1', ?, 'Đang sinh hoạt')`
+    ).run(strongPin);
+
+    // Backward-compatible auth works even BEFORE additive migration runs
+    const legacyAsyncDb: AsyncDb = {
+      async query<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
+        return db.prepare(sql).all(...(params as never[])) as T[];
+      },
+      async queryOne<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T | null> {
+        return (db.prepare(sql).get(...(params as never[])) as T | undefined) ?? null;
+      },
+      async run(sql: string, params: unknown[] = []) {
+        const res = db.prepare(sql).run(...(params as never[]));
+        return { changes: Number(res.changes ?? 0), lastInsertRowid: Number(res.lastInsertRowid ?? 0) };
+      },
+      async exec(sql: string) {
+        db.exec(sql);
+      },
+      async batch(statements) {
+        for (const s of statements) await this.run(s.sql, s.params);
+      },
+      async transaction<T>(fn: (tx: dbModule.AsyncDbTx) => Promise<T>): Promise<T> {
+        return fn(this);
+      },
+    };
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(legacyAsyncDb);
+    const legacyLogin = await verifyCredentials("owner1", "LegacyStrong@2026", "10.0.0.15");
+    expect(legacyLogin.success).toBe(true);
+    expect(legacyLogin.mustChangePassword).toBe(false);
+
+    // Additive migration adds must_change_pin DEFAULT 0 and is idempotent
+    const mcpMig = await import(
+      path.resolve(process.cwd(), "scripts/migrations/phase7-p103-must-change-pin-v1.mjs")
+    );
+    const dryRes = mcpMig.runMustChangePinLocalMigration({ db, dryRun: true });
+    expect(dryRes.applied).toBe(false);
+    expect(dryRes.actions.length).toBeGreaterThan(0);
+
+    const applyRes = mcpMig.runMustChangePinLocalMigration({ db, dryRun: false });
+    expect(applyRes.applied).toBe(true);
+    const rowAfter = db.prepare("SELECT full_name, must_change_pin FROM players WHERE id = 1").get() as {
+      full_name: string;
+      must_change_pin: number;
+    };
+    expect(rowAfter.full_name).toBe("Legacy Owner");
+    expect(rowAfter.must_change_pin).toBe(0);
+
+    const rerunRes = mcpMig.runMustChangePinLocalMigration({ db, dryRun: false });
+    expect(rerunRes.alreadyApplied).toBe(true);
+    expect(rerunRes.applied).toBe(false);
   });
 });

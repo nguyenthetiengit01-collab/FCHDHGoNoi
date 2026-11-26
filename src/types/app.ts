@@ -57,6 +57,7 @@ export interface Player {
   access_role: "manager" | "player";
   username?: string;
   pin_code: string;
+  must_change_pin?: number | boolean;
   status: string;
   notes: string;
   bio?: string;

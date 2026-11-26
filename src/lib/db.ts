@@ -557,6 +557,7 @@ function initSchema(db: DatabaseSyncType) {
       access_role TEXT NOT NULL DEFAULT 'player',
       username TEXT NOT NULL DEFAULT '',
       pin_code TEXT NOT NULL DEFAULT '',
+      must_change_pin INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
       notes TEXT NOT NULL DEFAULT ''
     );
@@ -688,6 +689,11 @@ function runMigrations(db: DatabaseSyncType) {
   if (!hasColumn(db, "players", "pin_code")) {
     db.exec(
       `ALTER TABLE players ADD COLUMN pin_code TEXT NOT NULL DEFAULT '';`
+    );
+  }
+  if (!hasColumn(db, "players", "must_change_pin")) {
+    db.exec(
+      `ALTER TABLE players ADD COLUMN must_change_pin INTEGER NOT NULL DEFAULT 0;`
     );
   }
   if (!hasColumn(db, "players", "birth_year")) {

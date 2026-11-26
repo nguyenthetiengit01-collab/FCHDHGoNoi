@@ -694,8 +694,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                     Cảnh báo bảo mật tài khoản
                   </p>
                   <p className="text-amber-800 text-xs mt-0.5">
-                    Tài khoản của bạn đang dùng mật khẩu mặc định (1234). Vui
-                    lòng đổi mật khẩu cá nhân mới để bảo vệ thông tin.
+                    Tài khoản của bạn đang dùng mật khẩu tạm thời do Ban Quản Lý cấp. Vui
+                    lòng đổi mật khẩu cá nhân mới để bảo vệ thông tin và mở khóa đầy đủ chức năng.
                   </p>
                 </div>
               </div>
