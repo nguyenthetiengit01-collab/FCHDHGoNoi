@@ -1,4 +1,7 @@
-import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterAll, beforeAll, describe, it, expect } from "vitest";
 import { NextRequest } from "next/server";
 import * as XLSX from "xlsx";
 import { POST as importPost } from "@/app/api/import/route";
@@ -6,6 +9,26 @@ import { GET as exportGet } from "@/app/api/export/route";
 import { getAsyncDb, getFullAppData } from "@/lib/db";
 import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 import type { Player } from "@/types/app";
+
+let tmpDir = "";
+
+beforeAll(() => {
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "fc-excel-sec-"));
+  process.env.USE_LOCAL_SQLITE = "true";
+  process.env.SQLITE_DB_PATH = path.join(tmpDir, "excel-sec.sqlite");
+});
+
+afterAll(() => {
+  delete process.env.USE_LOCAL_SQLITE;
+  delete process.env.SQLITE_DB_PATH;
+  if (tmpDir && fs.existsSync(tmpDir)) {
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      // Ignore Windows EPERM lock while singleton SQLite adapter closes on worker exit
+    }
+  }
+});
 
 async function getTestActors(): Promise<{ manager: Player; player: Player }> {
   await getFullAppData();

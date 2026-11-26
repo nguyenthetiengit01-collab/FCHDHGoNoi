@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import {
   getAsyncDb,
   getFullAppData,
@@ -353,6 +354,7 @@ export async function POST(req: NextRequest) {
           code_order,
           full_name,
           short_name,
+          username,
           jersey_number,
           position,
           phone,
@@ -416,17 +418,37 @@ export async function POST(req: NextRequest) {
         if (id) {
           const existing = await db.queryOne<{
             pin_code: string;
+            username: string;
             gallery_urls_json: string;
             profile_image_url?: string;
             status?: string;
           }>(
-            "SELECT pin_code, gallery_urls_json, profile_image_url, status FROM players WHERE id = ?",
+            "SELECT pin_code, username, gallery_urls_json, profile_image_url, status FROM players WHERE id = ?",
             [Number(id)]
           );
-          const rawPin = String(pin_code || "").trim();
-          let finalPin = existing?.pin_code || "1234";
+          const rawPin = typeof pin_code === "string" ? pin_code.trim() : "";
+          const targetUsername =
+            typeof username === "string" && username.trim()
+              ? username.trim()
+              : existing?.username || "";
+          let finalPin = existing?.pin_code?.trim()
+            ? existing.pin_code
+            : hashPassword(crypto.randomBytes(24).toString("base64url"));
           if (rawPin) {
-            finalPin = rawPin.startsWith("scrypt$") ? rawPin : hashPassword(rawPin);
+            if (rawPin.startsWith("scrypt$")) {
+              return NextResponse.json(
+                { error: "Không được phép gửi trực tiếp chuỗi hash mật khẩu từ client." },
+                { status: 400 }
+              );
+            }
+            const strength = validatePasswordStrength(rawPin, targetUsername);
+            if (!strength.valid) {
+              return NextResponse.json(
+                { error: strength.message || "Mật khẩu chưa đủ an toàn (tối thiểu 6 ký tự)." },
+                { status: 400 }
+              );
+            }
+            finalPin = hashPassword(rawPin);
           }
           const finalGalleryJson =
             gallery_urls !== undefined
@@ -484,6 +506,29 @@ export async function POST(req: NextRequest) {
             });
           }
         } else {
+          const rawCreatePin = typeof pin_code === "string" ? pin_code.trim() : "";
+          let createPinHash: string;
+          if (!rawCreatePin) {
+            createPinHash = hashPassword(crypto.randomBytes(24).toString("base64url"));
+          } else {
+            if (rawCreatePin.startsWith("scrypt$")) {
+              return NextResponse.json(
+                { error: "Không được phép gửi trực tiếp chuỗi hash mật khẩu từ client." },
+                { status: 400 }
+              );
+            }
+            const createUsername =
+              typeof username === "string" ? username.trim() : "";
+            const strength = validatePasswordStrength(rawCreatePin, createUsername);
+            if (!strength.valid) {
+              return NextResponse.json(
+                { error: strength.message || "Mật khẩu chưa đủ an toàn (tối thiểu 6 ký tự)." },
+                { status: 400 }
+              );
+            }
+            createPinHash = hashPassword(rawCreatePin);
+          }
+
           const maxRow = await db.queryOne<{ maxOrder: number }>(
             "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
           );
@@ -512,9 +557,7 @@ export async function POST(req: NextRequest) {
               typeof bio === "string" ? bio : typeof payload.bio === "string" ? payload.bio : "",
               role || "Thành viên",
               access_role === "manager" ? "manager" : "player",
-              String(pin_code || "1234").trim().startsWith("scrypt$")
-                ? String(pin_code || "1234").trim()
-                : hashPassword(String(pin_code || "1234").trim()),
+              createPinHash,
               status || "Đang sinh hoạt",
               notes || "",
               String(hometown || "").trim(),
@@ -680,7 +723,7 @@ export async function POST(req: NextRequest) {
             { status: 404 }
           );
         }
-        if (!verifyPassword(providedOldPin, row.pin_code || "1234")) {
+        if (!String(row.pin_code || "").trim() || !verifyPassword(providedOldPin, row.pin_code)) {
           return NextResponse.json(
             { error: "Mật khẩu hiện tại không đúng. Vui lòng kiểm tra lại hoặc liên hệ Ban Quản Lý." },
             { status: 400 }
@@ -727,14 +770,44 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // Ban quản lý reset mật khẩu giúp cầu thủ
+      // Ban quản lý reset mật khẩu giúp cầu thủ (bắt buộc nhập PIN mạnh tường minh, không fallback "1234")
       case "reset_player_password": {
         const { player_id, new_pin } = payload;
-        const cleanPin = String(new_pin || "1234").trim() || "1234";
+        const parsedPlayerId = Number(player_id);
+        if (!Number.isInteger(parsedPlayerId) || parsedPlayerId <= 0) {
+          return NextResponse.json(
+            { error: "Mã cầu thủ không hợp lệ." },
+            { status: 400 }
+          );
+        }
+        const cleanPin = typeof new_pin === "string" ? new_pin.trim() : "";
+        if (!cleanPin) {
+          return NextResponse.json(
+            { error: "Vui lòng nhập mật khẩu mới (PIN) rõ ràng khi đặt lại mật khẩu." },
+            { status: 400 }
+          );
+        }
+        const targetRow = await db.queryOne<{ id: number; username: string }>(
+          "SELECT id, username FROM players WHERE id = ?",
+          [parsedPlayerId]
+        );
+        if (!targetRow) {
+          return NextResponse.json(
+            { error: "Không tìm thấy hồ sơ cầu thủ." },
+            { status: 404 }
+          );
+        }
+        const strength = validatePasswordStrength(cleanPin, targetRow.username);
+        if (!strength.valid) {
+          return NextResponse.json(
+            { error: strength.message || "Mật khẩu mới chưa đủ an toàn (tối thiểu 6 ký tự)." },
+            { status: 400 }
+          );
+        }
         const hashedPin = hashPassword(cleanPin);
         await db.run(
           "UPDATE players SET pin_code = ? WHERE id = ?",
-          [hashedPin, Number(player_id)]
+          [hashedPin, parsedPlayerId]
         );
         break;
       }
@@ -1337,16 +1410,18 @@ export async function POST(req: NextRequest) {
           const maxRow = await db.queryOne<{ maxOrder: number }>(
             "SELECT COALESCE(MAX(code_order), 0) as maxOrder FROM players"
           );
+          const randomPinHash = hashPassword(crypto.randomBytes(24).toString("base64url"));
           const res = await db.run(
             `INSERT INTO players (
               code_order, full_name, short_name, jersey_number,
               position, phone, role, access_role, pin_code, status, notes
             )
-            VALUES (?, ?, ?, NULL, 'Đa năng', '', 'Thành viên', 'player', '1234', 'Đang sinh hoạt', 'Bổ sung trực tiếp tại sân')`,
+            VALUES (?, ?, ?, NULL, 'Đa năng', '', 'Thành viên', 'player', ?, 'Đang sinh hoạt', 'Bổ sung trực tiếp tại sân')`,
             [
               ((maxRow?.maxOrder ?? 0) + 1),
               cleanName,
               derivedShort,
+              randomPinHash,
             ]
           );
           targetPlayerId = Number(res.lastInsertRowid);

@@ -4,8 +4,7 @@ import { getFullAppData } from "@/lib/db";
 import { getPublicHomePageData } from "@/lib/publicHome";
 import {
   SESSION_COOKIE_NAME,
-  verifySessionToken,
-  sanitizeDataForPublic,
+  getCurrentAuthContextFromToken,
   sanitizeDataForPlayer,
 } from "@/lib/auth";
 import { buildPageMetadata } from "@/lib/seo";
@@ -23,24 +22,34 @@ export const metadata: Metadata = buildPageMetadata({
 export default async function HomePage() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  const session = sessionCookie ? verifySessionToken(sessionCookie) : null;
 
-  if (!session) {
+  if (!sessionCookie) {
+    const initialData = await getPublicHomePageData();
+    return <TeamManagerApp initialData={initialData} />;
+  }
+
+  let authCtx;
+  try {
+    authCtx = await getCurrentAuthContextFromToken(sessionCookie);
+  } catch {
+    const initialData = await getPublicHomePageData();
+    return <TeamManagerApp initialData={initialData} />;
+  }
+
+  // Fail-closed: nếu session không hợp lệ, tài khoản inactive/PIN mặc định, hoặc DB outage (503) -> chỉ trả public data
+  if (!authCtx.authorized || !authCtx.player) {
     const initialData = await getPublicHomePageData();
     return <TeamManagerApp initialData={initialData} />;
   }
 
   const data = await getFullAppData();
-  let initialData = sanitizeDataForPublic(data);
-
-  if (session.accessRole === "manager") {
-    initialData = {
-      ...data,
-      players: data.players.map((p) => ({ ...p, pin_code: "" })),
-    };
-  } else {
-    initialData = sanitizeDataForPlayer(data, session.playerId);
-  }
+  const initialData =
+    authCtx.player.access_role === "manager"
+      ? {
+        ...data,
+        players: data.players.map((p) => ({ ...p, pin_code: "" })),
+      }
+      : sanitizeDataForPlayer(data, authCtx.player.id);
 
   return <TeamManagerApp initialData={initialData} />;
 }

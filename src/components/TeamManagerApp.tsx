@@ -218,7 +218,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
           void hydrateForSession(restoredSession, "public");
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     // Xoá cache localStorage cũ để luôn lấy dữ liệu chuẩn mới nhất từ Turso Cloud Database
     try {
@@ -242,7 +242,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
   const handleMutate = async (
     action: string,
     payload?: unknown
-  ) => {
+  ): Promise<{ ok: boolean; error?: string }> => {
     setIsSaving(true);
     try {
       const res = await fetch("/api/team", {
@@ -252,15 +252,16 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       });
       const json = await res.json();
       if (!res.ok) {
-        showToast(json.error || "Có lỗi xảy ra", "error");
-        return;
+        const message = json.error || "Có lỗi xảy ra";
+        showToast(message, "error");
+        return { ok: false, error: message };
       }
       setData(json);
       if (action === "change_own_password") {
         setSession((prev) => ({ ...prev, mustChangePassword: false }));
         showToast("Đã cập nhật mật khẩu mới thành công!");
       } else if (action === "reset_player_password") {
-        showToast("Đã reset mật khẩu cầu thủ về mặc định (1234)!");
+        showToast("Đã đặt lại mật khẩu (PIN) mới cho cầu thủ thành công!");
       } else if (action === "upsert_club_post") {
         showToast("Đã đăng / cập nhật bài viết CLB (Ảnh chuẩn WebP)!");
       } else if (action === "delete_club_post") {
@@ -277,9 +278,11 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       ) {
         showToast("Đã lưu thay đổi vào Cơ sở dữ liệu Cloud!");
       }
+      return { ok: true };
     } catch (err) {
       console.error(err);
       showToast("Không thể kết nối máy chủ", "error");
+      return { ok: false, error: "Không thể kết nối máy chủ" };
     } finally {
       setIsSaving(false);
     }
@@ -300,10 +303,10 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       if (!res.ok) {
         const apiError =
           json &&
-          typeof json === "object" &&
-          "error" in json &&
-          typeof (json as { error?: unknown }).error === "string" &&
-          (json as { error: string }).error.trim().length > 0
+            typeof json === "object" &&
+            "error" in json &&
+            typeof (json as { error?: unknown }).error === "string" &&
+            (json as { error: string }).error.trim().length > 0
             ? (json as { error: string }).error.trim()
             : "Không thể nhập file Excel. Vui lòng kiểm tra cấu trúc và dữ liệu hợp lệ.";
         setImportErrorFileName(file.name);
@@ -373,8 +376,7 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
       const ok = await hydrateForSession(newSession, "schedule");
       if (ok) {
         showToast(
-          `Đã đăng nhập: ${safePlayer.full_name} (${
-            newSession.role === "manager" ? "Ban Quản Lý" : "Cầu thủ"
+          `Đã đăng nhập: ${safePlayer.full_name} (${newSession.role === "manager" ? "Ban Quản Lý" : "Cầu thủ"
           })`
         );
       }
@@ -509,9 +511,8 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
   return (
     <div
-      className={`min-h-dvh flex flex-col ${
-        session.role === "guest" ? "bg-navy-950" : "pb-20 md:pb-8"
-      }`}
+      className={`min-h-dvh flex flex-col ${session.role === "guest" ? "bg-navy-950" : "pb-20 md:pb-8"
+        }`}
     >
       <a href="#main-content" className="skip-link">Bỏ qua điều hướng, tới nội dung chính</a>
       {/* Top Navigation Bar — Khi đã đăng nhập (Cầu thủ / Quản lý) hiển thị App Header; khi là Khách hiển thị thanh công khai */}
@@ -654,11 +655,10 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                     type="button"
                     onClick={() => setActiveTab(item.id)}
                     aria-current={isActive ? "page" : undefined}
-                    className={`inline-flex items-center gap-1.5 min-h-10 px-3 py-2 text-xs lg:text-sm font-bold border-b-2 transition whitespace-nowrap focus-visible:outline-2 focus-visible:outline-focus-on-dark ${
-                      isActive
-                        ? "border-gold-500 text-gold-300 bg-navy-800/75 rounded-t-lg font-extrabold"
-                        : "border-transparent text-sky-100/85 hover:text-white hover:bg-white/10 rounded-t-lg"
-                    }`}
+                    className={`inline-flex items-center gap-1.5 min-h-10 px-3 py-2 text-xs lg:text-sm font-bold border-b-2 transition whitespace-nowrap focus-visible:outline-2 focus-visible:outline-focus-on-dark ${isActive
+                      ? "border-gold-500 text-gold-300 bg-navy-800/75 rounded-t-lg font-extrabold"
+                      : "border-transparent text-sky-100/85 hover:text-white hover:bg-white/10 rounded-t-lg"
+                      }`}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     <span>{item.label}</span>
@@ -772,10 +772,10 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
 
       {/* Main Content Area */}
       <main id="main-content" key={`${session.role}-${activeTab}`} className={
-          session.role === "guest"
-            ? "tab-enter w-full flex-1"
-            : "tab-enter mx-auto w-full max-w-7xl flex-1 px-3 sm:px-6 py-4 sm:py-5"
-        }>
+        session.role === "guest"
+          ? "tab-enter w-full flex-1"
+          : "tab-enter mx-auto w-full max-w-7xl flex-1 px-3 sm:px-6 py-4 sm:py-5"
+      }>
         {isHydratingSession ? (
           <div
             role="status"
@@ -819,106 +819,108 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
           </div>
         ) : (
           <>
-        {session.role === "guest" && (
-          <PublicGuestPortal
-            data={data}
-            onOpenLogin={() => setLoginModalOpen(true)}
-          />
-        )}
+            {session.role === "guest" && (
+              <PublicGuestPortal
+                data={data}
+                onOpenLogin={() => setLoginModalOpen(true)}
+              />
+            )}
 
-        {session.role !== "guest" && activeTab === "personal" && (
-          <PlayerPersonalTab
-            data={data}
-            session={session}
-            onMutate={handleMutate}
-            isSaving={isSaving}
-          />
-        )}
+            {session.role !== "guest" && activeTab === "personal" && (
+              <PlayerPersonalTab
+                data={data}
+                session={session}
+                onMutate={handleMutate}
+                isSaving={isSaving}
+              />
+            )}
 
-        {session.role !== "guest" && activeTab === "dashboard" && (
-          <DashboardTab
-            data={data}
-            onNavigateTab={(tab) => setActiveTab(tab)}
-            onGoToCollection={
-              session.role === "manager"
-                ? () => setActiveTab("collection")
-                : undefined
-            }
-          />
-        )}
+            {session.role !== "guest" && activeTab === "dashboard" && (
+              <DashboardTab
+                data={data}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+                onGoToCollection={
+                  session.role === "manager"
+                    ? () => setActiveTab("collection")
+                    : undefined
+                }
+              />
+            )}
 
-        {session.role === "manager" && activeTab === "analytics" && (
-          <AnalyticsCenterTab onNavigateTab={(tab) => setActiveTab(tab)} />
-        )}
+            {session.role === "manager" && activeTab === "analytics" && (
+              <AnalyticsCenterTab onNavigateTab={(tab) => setActiveTab(tab)} />
+            )}
 
-        {session.role !== "guest" && activeTab === "schedule" && (
-          <ScheduleTab
-            data={data}
-            session={session}
-            onMutate={handleMutate}
-            isSaving={isSaving}
-            onGoToCollection={
-              session.role === "manager"
-                ? () => setActiveTab("collection")
-                : undefined
-            }
-          />
-        )}
+            {session.role !== "guest" && activeTab === "schedule" && (
+              <ScheduleTab
+                data={data}
+                session={session}
+                onMutate={handleMutate}
+                isSaving={isSaving}
+                onGoToCollection={
+                  session.role === "manager"
+                    ? () => setActiveTab("collection")
+                    : undefined
+                }
+              />
+            )}
 
-        {session.role === "manager" && activeTab === "collection" && (
-          <CollectionTab
-            data={data}
-            session={session}
-            onMutate={handleMutate}
-            isSaving={isSaving}
-          />
-        )}
+            {session.role === "manager" && activeTab === "collection" && (
+              <CollectionTab
+                data={data}
+                session={session}
+                onMutate={handleMutate}
+                isSaving={isSaving}
+              />
+            )}
 
-        {session.role !== "guest" && activeTab === "matrix" && (
-          <MatrixTab
-            data={data}
-            session={session}
-            onGoToCollection={
-              session.role === "manager"
-                ? () => setActiveTab("collection")
-                : undefined
-            }
-          />
-        )}
+            {session.role !== "guest" && activeTab === "matrix" && (
+              <MatrixTab
+                data={data}
+                session={session}
+                onGoToCollection={
+                  session.role === "manager"
+                    ? () => setActiveTab("collection")
+                    : undefined
+                }
+              />
+            )}
 
-        {session.role !== "guest" && activeTab === "players" && (
-          <PlayersTab
-            data={data}
-            session={session}
-            onMutate={handleMutate}
-            isSaving={isSaving}
-          />
-        )}
+            {session.role !== "guest" && activeTab === "players" && (
+              <PlayersTab
+                data={data}
+                session={session}
+                onMutate={handleMutate}
+                isSaving={isSaving}
+              />
+            )}
 
-        {session.role === "manager" && activeTab === "finance" && (
-          <FinanceTab
-            data={data}
-            onMutate={handleMutate}
-            isSaving={isSaving}
-          />
-        )}
+            {session.role === "manager" && activeTab === "finance" && (
+              <FinanceTab
+                data={data}
+                onMutate={handleMutate}
+                isSaving={isSaving}
+              />
+            )}
 
-        {session.role === "manager" && activeTab === "sponsors" && (
-          <SponsorsTab
-            data={data}
-            onMutate={handleMutate}
-            isSaving={isSaving}
-          />
-        )}
+            {session.role === "manager" && activeTab === "sponsors" && (
+              <SponsorsTab
+                data={data}
+                onMutate={handleMutate}
+                isSaving={isSaving}
+              />
+            )}
 
-        {session.role !== "guest" && activeTab === "posts" && (
-          <ClubPostsTab
-            data={data}
-            session={session}
-            onMutate={handleMutate}
-            isSaving={isSaving}
-          />
-        )}
+            {session.role !== "guest" && activeTab === "posts" && (
+              <ClubPostsTab
+                data={data}
+                session={session}
+                onMutate={async (action, payload) => {
+                  await handleMutate(action, payload);
+                }}
+                isSaving={isSaving}
+              />
+            )}
           </>
         )}
       </main>
@@ -936,13 +938,13 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
               label: string;
               icon: React.ComponentType<{ className?: string }>;
             }> = isManager
-              ? [
+                ? [
                   { id: "schedule", label: "Điểm danh", icon: CalendarDays },
                   { id: "collection", label: "Thu tiền", icon: HandCoins },
                   { id: "players", label: "Đội hình", icon: Users },
                   { id: "finance", label: "Sổ quỹ", icon: Wallet },
                 ]
-              : [
+                : [
                   { id: "schedule", label: "Điểm danh", icon: CalendarDays },
                   { id: "players", label: "Đội hình", icon: Users },
                   { id: "personal", label: "Cá nhân", icon: UserCircle2 },
@@ -966,11 +968,10 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                         setMobileMenuOpen(false);
                       }}
                       aria-current={isActive ? "page" : undefined}
-                      className={`flex flex-col items-center justify-center py-2 px-1 text-[11px] font-bold transition cursor-pointer ${
-                        isActive
-                          ? "text-gold-400 bg-navy-500/80 border-t-2 border-gold-400"
-                          : "text-sky-200/80 hover:text-white"
-                      }`}
+                      className={`flex flex-col items-center justify-center py-2 px-1 text-[11px] font-bold transition cursor-pointer ${isActive
+                        ? "text-gold-400 bg-navy-500/80 border-t-2 border-gold-400"
+                        : "text-sky-200/80 hover:text-white"
+                        }`}
                     >
                       <Icon className="h-5 w-5 mb-0.5" />
                       <span className="truncate max-w-full">{tab.label}</span>
@@ -982,11 +983,10 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                   type="button"
                   onClick={() => setMobileMenuOpen(true)}
                   aria-expanded={mobileMenuOpen}
-                  className={`flex flex-col items-center justify-center py-2 px-1 text-[11px] font-bold transition cursor-pointer relative ${
-                    isMoreActive
-                      ? "text-gold-400 bg-navy-500/80 border-t-2 border-gold-400"
-                      : "text-sky-200/80 hover:text-white"
-                  }`}
+                  className={`flex flex-col items-center justify-center py-2 px-1 text-[11px] font-bold transition cursor-pointer relative ${isMoreActive
+                    ? "text-gold-400 bg-navy-500/80 border-t-2 border-gold-400"
+                    : "text-sky-200/80 hover:text-white"
+                    }`}
                 >
                   <MoreHorizontal className="h-5 w-5 mb-0.5" />
                   <span className="truncate max-w-full">Thêm</span>
@@ -1075,19 +1075,17 @@ export function TeamManagerApp({ initialData }: TeamManagerAppProps) {
                         setActiveTab(item.id);
                         setMobileMenuOpen(false);
                       }}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition cursor-pointer text-left ${
-                        isActive
-                          ? "bg-navy-500 border-gold-400 text-gold-400 shadow-md"
-                          : "bg-navy-800/70 hover:bg-navy-500 border-white/10 text-white"
-                      }`}
+                      className={`flex items-center justify-between p-3 rounded-xl border transition cursor-pointer text-left ${isActive
+                        ? "bg-navy-500 border-gold-400 text-gold-400 shadow-md"
+                        : "bg-navy-800/70 hover:bg-navy-500 border-white/10 text-white"
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`p-2 rounded-lg ${
-                            isActive
-                              ? "bg-gold-400 text-slate-950"
-                              : "bg-navy-900 text-gold-400"
-                          }`}
+                          className={`p-2 rounded-lg ${isActive
+                            ? "bg-gold-400 text-slate-950"
+                            : "bg-navy-900 text-gold-400"
+                            }`}
                         >
                           <Icon className="h-4 w-4" />
                         </div>

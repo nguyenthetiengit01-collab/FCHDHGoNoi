@@ -1,5 +1,6 @@
 import { cache } from "react";
-import { getAsyncDb } from "@/lib/db";
+import { getAsyncDb, getFullAppData } from "@/lib/db";
+import { getCurrentAuthContextFromToken, sanitizeDataForPlayer } from "@/lib/auth";
 import { formatBirthYear } from "@/lib/athleteProfile";
 import { getTeamStatistics } from "@/lib/teamStatistics";
 import { CLUB_ACTIVITIES_POSTS, type ClubActivityPost } from "@/data/clubActivities";
@@ -454,3 +455,36 @@ export const getPublicPlayerProfileByIdOrJersey = cache(
     };
   }
 );
+
+/**
+ * DB-first SSR initial data resolver for HomePage.
+ * Fail-closed: returns public homepage data whenever session is missing, invalid,
+ * belongs to an inactive or default-PIN account, or DB verification fails (503).
+ */
+export async function resolveHomePageInitialData(
+  sessionCookie?: string | null
+): Promise<FullAppData> {
+  if (!sessionCookie) {
+    return getPublicHomePageData();
+  }
+
+  let authCtx;
+  try {
+    authCtx = await getCurrentAuthContextFromToken(sessionCookie);
+  } catch {
+    return getPublicHomePageData();
+  }
+
+  if (!authCtx.authorized || !authCtx.player) {
+    return getPublicHomePageData();
+  }
+
+  const data = await getFullAppData();
+  if (authCtx.player.access_role === "manager") {
+    return {
+      ...data,
+      players: data.players.map((p) => ({ ...p, pin_code: "" })),
+    };
+  }
+  return sanitizeDataForPlayer(data, authCtx.player.id);
+}

@@ -297,4 +297,4 @@ export interface PublicClubData {
 export type MutateActionFn = (
   action: string,
   payload: Record<string, unknown>
-) => Promise<void>;
+) => Promise<{ ok: boolean; error?: string } | void>;
