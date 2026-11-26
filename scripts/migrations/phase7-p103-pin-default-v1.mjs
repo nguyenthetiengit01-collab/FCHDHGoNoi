@@ -308,6 +308,42 @@ export function runPhase7P103PinDefaultLocalMigration({
   };
 }
 
+export function resolvePinDefaultStagingPreflightConfig(env = process.env) {
+  const rawUrl = env.TURSO_STAGING_RESTORE_DATABASE_URL;
+  const rawToken = env.TURSO_STAGING_RESTORE_AUTH_TOKEN;
+  const preflight = validateStagingTarget({
+    url: rawUrl,
+    token: rawToken,
+    envUrlName: "TURSO_STAGING_RESTORE_DATABASE_URL",
+    envTokenName: "TURSO_STAGING_RESTORE_AUTH_TOKEN",
+    role: "target",
+    disallowUrls: [env.TURSO_DATABASE_URL, env.TURSO_STAGING_DATABASE_URL],
+  });
+  return {
+    url: String(rawUrl).trim(),
+    authToken: String(rawToken).trim(),
+    ...preflight,
+  };
+}
+
+export async function runPinDefaultRemotePreflight({ client, dryRun = false }) {
+  const colsRes = await client.execute("PRAGMA table_info(players)");
+  const pinCol = colsRes.rows.find((r) => String(r.name) === "pin_code");
+  const hasLegacyDefault = String(pinCol?.dflt_value ?? "").trim() === "'1234'";
+  if (dryRun || !hasLegacyDefault) {
+    return {
+      status: "ok",
+      mode: "staging-preflight",
+      version: MIGRATION_VERSION,
+      dryRun,
+      hasLegacyDefault,
+    };
+  }
+  throw new Error(
+    "Remote Turso/libSQL table rebuild cannot toggle PRAGMA foreign_keys = OFF atomically over HTTP; run verified offline SQLite rebuild and restore to a fresh disposable Turso target per docs/operations-runbook.md Section 3."
+  );
+}
+
 async function main() {
   const sqlitePath = getArg("--sqlite");
   const envName = getArg("--env");
@@ -331,31 +367,11 @@ async function main() {
     return;
   }
 
-  const { url, authToken } = validateStagingTarget(process.env);
+  const { url, authToken } = resolvePinDefaultStagingPreflightConfig(process.env);
   const client = createClient({ url, authToken });
   try {
-    const colsRes = await client.execute("PRAGMA table_info(players)");
-    const pinCol = colsRes.rows.find((r) => String(r.name) === "pin_code");
-    const hasLegacyDefault = String(pinCol?.dflt_value ?? "").trim() === "'1234'";
-    if (dryRun || !hasLegacyDefault) {
-      console.log(
-        JSON.stringify(
-          {
-            status: "ok",
-            mode: "staging-preflight",
-            version: MIGRATION_VERSION,
-            dryRun,
-            hasLegacyDefault,
-          },
-          null,
-          2
-        )
-      );
-      return;
-    }
-    throw new Error(
-      "Remote Turso/libSQL table rebuild cannot toggle PRAGMA foreign_keys = OFF atomically over HTTP; run verified offline SQLite rebuild and restore to a fresh disposable Turso target per docs/operations-runbook.md Section 3."
-    );
+    const result = await runPinDefaultRemotePreflight({ client, dryRun });
+    console.log(JSON.stringify(result, null, 2));
   } finally {
     client.close();
   }

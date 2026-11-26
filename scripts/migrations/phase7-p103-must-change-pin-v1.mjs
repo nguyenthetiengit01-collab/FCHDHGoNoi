@@ -248,6 +248,24 @@ export async function runMustChangePinTursoStagingMigration({
   };
 }
 
+export function resolveMustChangePinStagingTargetConfig(env = process.env) {
+  const rawUrl = env.TURSO_STAGING_RESTORE_DATABASE_URL;
+  const rawToken = env.TURSO_STAGING_RESTORE_AUTH_TOKEN;
+  const preflight = validateStagingTarget({
+    url: rawUrl,
+    token: rawToken,
+    envUrlName: "TURSO_STAGING_RESTORE_DATABASE_URL",
+    envTokenName: "TURSO_STAGING_RESTORE_AUTH_TOKEN",
+    role: "target",
+    disallowUrls: [env.TURSO_DATABASE_URL, env.TURSO_STAGING_DATABASE_URL],
+  });
+  return {
+    url: String(rawUrl).trim(),
+    authToken: String(rawToken).trim(),
+    ...preflight,
+  };
+}
+
 async function main() {
   const sqlitePath = getArg("--sqlite");
   const envName = getArg("--env");
@@ -271,14 +289,7 @@ async function main() {
     return;
   }
 
-  const { url, authToken } = validateStagingTarget({
-    url: process.env.TURSO_STAGING_DATABASE_URL,
-    token: process.env.TURSO_STAGING_AUTH_TOKEN,
-    envUrlName: "TURSO_STAGING_DATABASE_URL",
-    envTokenName: "TURSO_STAGING_AUTH_TOKEN",
-    role: "target",
-    disallowUrls: [process.env.TURSO_DATABASE_URL],
-  });
+  const { url, authToken } = resolveMustChangePinStagingTargetConfig(process.env);
   const client = createClient({ url, authToken });
   try {
     const result = await runMustChangePinTursoStagingMigration({ client, dryRun });

@@ -1534,4 +1534,118 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
     expect(appSrc).not.toMatch(/localStorage\.setItem\([^)]*forced/);
     expect(appSrc).not.toMatch(/sessionStorage\.setItem\([^)]*forced/);
   });
+
+  it("Phase 1.4A: staging preflight guards require TURSO_STAGING_RESTORE_* with role=target, block Prod/source/fallback, redact tokens, and dry-run performs zero writes", async () => {
+    const mcpMig = await import(
+      path.resolve(process.cwd(), "scripts/migrations/phase7-p103-must-change-pin-v1.mjs")
+    );
+    const pinDefMig = await import(
+      path.resolve(process.cwd(), "scripts/migrations/phase7-p103-pin-default-v1.mjs")
+    );
+
+    const secretToken = "SECRET_STAGING_TOKEN_DO_NOT_LEAK";
+    const resolvers = [
+      mcpMig.resolveMustChangePinStagingTargetConfig,
+      pinDefMig.resolvePinDefaultStagingPreflightConfig,
+    ];
+
+    for (const resolveFn of resolvers) {
+      // 1. Missing Staging Restore URL/token + 5. No fallback to TURSO_DATABASE_URL
+      expect(() =>
+        resolveFn({
+          TURSO_DATABASE_URL: "libsql://fchdhgonoi-org.turso.io",
+          TURSO_AUTH_TOKEN: secretToken,
+        })
+      ).toThrow(/TURSO_STAGING_RESTORE_DATABASE_URL/);
+
+      expect(() =>
+        resolveFn({
+          TURSO_STAGING_RESTORE_DATABASE_URL: "libsql://fchdhgonoi-staging-restore-org.turso.io",
+        })
+      ).toThrow(/TURSO_STAGING_RESTORE_AUTH_TOKEN/);
+
+      // 2. Production URL: BLOCKED (and token never leaked in error)
+      let prodErr = "";
+      try {
+        resolveFn({
+          TURSO_STAGING_RESTORE_DATABASE_URL: "libsql://fchdhgonoi-nguyenthetiengit01.turso.io",
+          TURSO_STAGING_RESTORE_AUTH_TOKEN: secretToken,
+        });
+      } catch (e) {
+        prodErr = e instanceof Error ? e.message : String(e);
+      }
+      expect(prodErr).toMatch(/Preflight blocked/i);
+      expect(prodErr).not.toContain(secretToken);
+
+      // 3. Staging source URL used with wrong role (role="target"): BLOCKED
+      let sourceErr = "";
+      try {
+        resolveFn({
+          TURSO_STAGING_RESTORE_DATABASE_URL: "libsql://fchdhgonoi-staging-org.turso.io",
+          TURSO_STAGING_RESTORE_AUTH_TOKEN: secretToken,
+        });
+      } catch (e) {
+        sourceErr = e instanceof Error ? e.message : String(e);
+      }
+      expect(sourceErr).toMatch(/allowlist.*target/i);
+      expect(sourceErr).not.toContain(secretToken);
+
+      // Disallow overlapping TURSO_STAGING_DATABASE_URL
+      expect(() =>
+        resolveFn({
+          TURSO_STAGING_DATABASE_URL: "libsql://fchdhgonoi-staging-restore-org.turso.io",
+          TURSO_STAGING_RESTORE_DATABASE_URL: "libsql://fchdhgonoi-staging-restore-org.turso.io",
+          TURSO_STAGING_RESTORE_AUTH_TOKEN: secretToken,
+        })
+      ).toThrow(/disallowed/i);
+
+      // 4. Staging restore URL matching allowlist: ACCEPTED
+      const accepted = resolveFn({
+        TURSO_DATABASE_URL: "libsql://fchdhgonoi-org.turso.io",
+        TURSO_STAGING_DATABASE_URL: "libsql://fchdhgonoi-staging-org.turso.io",
+        TURSO_STAGING_RESTORE_DATABASE_URL: "libsql://fchdhgonoi-staging-restore-org.turso.io",
+        TURSO_STAGING_RESTORE_AUTH_TOKEN: secretToken,
+      });
+      expect(accepted.role).toBe("target");
+      expect(accepted.dbName).toBe("fchdhgonoi-staging-restore-org");
+      expect(accepted.allowedBaseName).toBe("fchdhgonoi-staging-restore");
+    }
+
+    // 7. Dry-run & remote preflight perform ZERO write operations
+    const executedSqls: string[] = [];
+    const mockReadOnlyClient = {
+      async execute(stmt: string | { sql: string }) {
+        const sql = typeof stmt === "string" ? stmt : stmt.sql;
+        executedSqls.push(sql);
+        if (sql.includes("PRAGMA table_info(players)")) {
+          return { rows: [{ name: "pin_code", dflt_value: "'1234'" }] };
+        }
+        return { rows: [] };
+      },
+    };
+
+    const mcpDryRes = await mcpMig.runMustChangePinTursoStagingMigration({
+      client: mockReadOnlyClient,
+      dryRun: true,
+    });
+    expect(mcpDryRes.dryRun).toBe(true);
+    expect(mcpDryRes.applied).toBe(false);
+
+    const pinDefDryRes = await pinDefMig.runPinDefaultRemotePreflight({
+      client: mockReadOnlyClient,
+      dryRun: true,
+    });
+    expect(pinDefDryRes.mode).toBe("staging-preflight");
+    expect(pinDefDryRes.hasLegacyDefault).toBe(true);
+    expect(JSON.stringify(pinDefDryRes)).not.toContain(secretToken);
+
+    // Remote non-dry-run with legacy default MUST block remote table rebuild
+    await expect(
+      pinDefMig.runPinDefaultRemotePreflight({ client: mockReadOnlyClient, dryRun: false })
+    ).rejects.toThrow(/Remote Turso\/libSQL table rebuild cannot toggle PRAGMA foreign_keys = OFF/);
+
+    for (const sql of executedSqls) {
+      expect(sql).not.toMatch(/\b(INSERT|UPDATE|DELETE|ALTER|DROP|CREATE)\b/i);
+    }
+  });
 });
