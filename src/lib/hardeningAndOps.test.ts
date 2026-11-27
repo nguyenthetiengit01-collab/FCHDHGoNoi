@@ -22,7 +22,7 @@ describe("Phase 5 Hardening, Audit Logs & Security Matrix", () => {
 
   it("enforces authentication (401) and 10MB file size limit (413) on POST /api/webp", async () => {
     const { POST: postWebp } = await import("../app/api/webp/route");
-    const { getFullAppData } = await import("./db");
+    const { getAsyncDb, getFullAppData } = await import("./db");
     const { createSessionToken, SESSION_COOKIE_NAME } = await import("./auth");
 
     // 1. Unauthenticated -> 401
@@ -37,7 +37,14 @@ describe("Phase 5 Hardening, Audit Logs & Security Matrix", () => {
     const realPlayer = appData.players.find((p) => p.access_role === "player");
     expect(realPlayer).toBeTruthy();
 
-    const playerToken = createSessionToken(realPlayer!);
+    const pinRow = await getAsyncDb().queryOne<{ pin_code: string }>(
+      "SELECT pin_code FROM players WHERE id = ?",
+      [realPlayer!.id]
+    );
+    const playerToken = createSessionToken({
+      ...realPlayer!,
+      pin_code: pinRow?.pin_code || "",
+    });
     const oversizedBytes = new Uint8Array(10 * 1024 * 1024 + 1024);
     const form = new FormData();
     form.append("file", new File([oversizedBytes], "oversized.png", { type: "image/png" }));
@@ -62,7 +69,7 @@ describe("Phase 5 Hardening, Audit Logs & Security Matrix", () => {
   });
 
   it("enforces RBAC (401 Guest, 403 Player, 200 Manager) on /api/audit-logs, /api/export, /api/import, and /api/team mutations", async () => {
-    const { getAuditLogs, getFullAppData, recordAuditLog } = await import("./db");
+    const { getAsyncDb, getAuditLogs, getFullAppData, recordAuditLog } = await import("./db");
     const { createSessionToken, SESSION_COOKIE_NAME } = await import("./auth");
     const { GET: getAuditLogsRoute } = await import("../app/api/audit-logs/route");
     const { GET: getExportRoute } = await import("../app/api/export/route");
@@ -75,8 +82,11 @@ describe("Phase 5 Hardening, Audit Logs & Security Matrix", () => {
     expect(realManager).toBeTruthy();
     expect(realPlayer).toBeTruthy();
 
-    const playerToken = createSessionToken(realPlayer!);
-    const managerToken = createSessionToken(realManager!);
+    const db = getAsyncDb();
+    const mgrPin = await db.queryOne<{ pin_code: string }>("SELECT pin_code FROM players WHERE id = ?", [realManager!.id]);
+    const plyPin = await db.queryOne<{ pin_code: string }>("SELECT pin_code FROM players WHERE id = ?", [realPlayer!.id]);
+    const playerToken = createSessionToken({ ...realPlayer!, pin_code: plyPin?.pin_code || "" });
+    const managerToken = createSessionToken({ ...realManager!, pin_code: mgrPin?.pin_code || "" });
 
     // Public GET /api/team must never expose pin_code or phone
     const publicTeamRes = await getTeamRoute(new NextRequest("http://localhost:3000/api/team"));

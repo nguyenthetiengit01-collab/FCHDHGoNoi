@@ -2159,7 +2159,7 @@ export function ScheduleTab({
                   required
                   value={pwdOldPin}
                   onChange={(e) => setPwdOldPin(e.target.value)}
-                  placeholder="Nhập mật khẩu hiện tại (mặc định 1234)"
+                  placeholder="Nhập mật khẩu hiện tại"
                   className="w-full rounded-xl border border-slate-300 pl-3 pr-12 py-2 text-sm text-slate-900 focus:border-royal-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus-on-light"
                 />
                 <button

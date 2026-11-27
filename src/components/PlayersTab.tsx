@@ -30,6 +30,11 @@ import type {
 } from "@/types/app";
 import { OFFICIAL_LOGO_URL } from "@/types/app";
 import {
+  TEMPORARY_PIN_MIN_LENGTH,
+  validatePasswordStrength,
+  validateTemporaryPasswordStrength,
+} from "@/lib/passwordStrength";
+import {
   calculatePlayerAttendanceStats,
   calculateTeamAvgAttendanceRate,
   formatAttendanceRate,
@@ -96,9 +101,13 @@ export function PlayersTab({
   const [filterPosition, setFilterPosition] = useState<string>("Tất cả");
   const [filterStatus, setFilterStatus] = useState<string>("Tất cả");
   const [pendingConfirm, setPendingConfirm] = useState<{
-    kind: "reset_pin" | "delete";
+    kind: "delete";
     player: Player;
   } | null>(null);
+  const [resetPinTarget, setResetPinTarget] = useState<Player | null>(null);
+  const [resetNewPin, setResetNewPin] = useState("");
+  const [resetConfirmPin, setResetConfirmPin] = useState("");
+  const [resetPinError, setResetPinError] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [detailPlayer, setDetailPlayer] = useState<Player | null>(null);
@@ -122,7 +131,7 @@ export function PlayersTab({
   const [profileWebpInfo, setProfileWebpInfo] = useState("");
   const [role, setRole] = useState("Thành viên");
   const [accessRole, setAccessRole] = useState<"manager" | "player">("player");
-  const [pinCode, setPinCode] = useState("1234");
+  const [pinCode, setPinCode] = useState("");
   const [status, setStatus] = useState("Đang sinh hoạt");
   const [notes, setNotes] = useState("");
   const [hometown, setHometown] = useState("Điện Quang");
@@ -168,7 +177,7 @@ export function PlayersTab({
     setProfileWebpInfo("");
     setRole("Thành viên");
     setAccessRole("player");
-    setPinCode("1234");
+    setPinCode("");
     setStatus("Đang sinh hoạt");
     setNotes("");
     setHometown("Điện Quang");
@@ -271,7 +280,7 @@ export function PlayersTab({
     e.preventDefault();
     if (!isManager && editingPlayer && editingPlayer.id === session.playerId) {
       // Cầu thủ tự sửa thông tin của chính mình
-      await onMutate("update_own_profile", {
+      const result = await onMutate("update_own_profile", {
         player_id: editingPlayer.id,
         full_name: fullName,
         short_name: shortName,
@@ -288,12 +297,13 @@ export function PlayersTab({
         bio,
         gallery_urls: galleryUrls,
       });
+      if (result && !result.ok) return;
       setFormOpen(false);
       return;
     }
 
     // Ban Quản Lý lưu toàn bộ thông tin & phân quyền
-    await onMutate("upsert_player", {
+    const result = await onMutate("upsert_player", {
       id: editingPlayer?.id,
       code_order: editingPlayer?.code_order,
       full_name: fullName,
@@ -315,29 +325,85 @@ export function PlayersTab({
       bio,
       gallery_urls: galleryUrls,
     });
+    if (result && !result.ok) return;
     setFormOpen(false);
   }
 
   function handleResetPassword(p: Player) {
     if (!isManager) return;
-    setPendingConfirm({ kind: "reset_pin", player: p });
+    setResetPinTarget(p);
+    setResetNewPin("");
+    setResetConfirmPin("");
+    setResetPinError("");
+  }
+
+  async function handleConfirmResetPin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetPinTarget || isSaving) return;
+
+    if (resetNewPin !== resetConfirmPin) {
+      setResetPinError("Mã PIN mới và xác nhận mã PIN không khớp.");
+      return;
+    }
+
+    const strength = validateTemporaryPasswordStrength(
+      resetNewPin,
+      resetPinTarget.username || resetPinTarget.phone || resetPinTarget.full_name
+    );
+    if (!strength.valid) {
+      setResetPinError(
+        strength.error || "Mã PIN mới không đạt yêu cầu bảo mật."
+      );
+      return;
+    }
+
+    setResetPinError("");
+    const result = await onMutate("reset_player_password", {
+      player_id: resetPinTarget.id,
+      new_pin: resetNewPin,
+    });
+    if (result && !result.ok) {
+      setResetPinError(result.error || "Không thể đặt lại mã PIN.");
+      return;
+    }
+
+    setResetPinTarget(null);
+    setResetNewPin("");
+    setResetConfirmPin("");
+    setResetPinError("");
   }
 
   async function handleChangeOwnPassword(e: React.FormEvent) {
     e.preventDefault();
-    if (!session.playerId) return;
-    if (newPin.trim().length < 4) {
-      setPwdError("Mật khẩu mới cần ít nhất 4 ký tự");
+    if (!session.playerId || isSaving) return;
+
+    const strength = validatePasswordStrength(
+      newPin,
+      session.shortName || session.fullName
+    );
+    if (!strength.valid) {
+      setPwdError(
+        strength.error ||
+          "Mật khẩu mới phải có ít nhất 6 ký tự an toàn."
+      );
       return;
     }
-    await onMutate("change_own_password", {
+
+    setPwdError("");
+    const result = await onMutate("change_own_password", {
       player_id: session.playerId,
       old_pin: oldPin.trim(),
       new_pin: newPin.trim(),
     });
+    if (result && !result.ok) {
+      setPwdError(result.error || "Không thể đổi mật khẩu.");
+      return;
+    }
+
     setPwdModalOpen(false);
     setOldPin("");
     setNewPin("");
+    setPwdError("");
   }
 
   function handleDeletePlayer(p: Player) {
@@ -829,7 +895,7 @@ export function PlayersTab({
                           type="button"
                           onClick={() => handleResetPassword(p)}
                           className="inline-flex items-center gap-1 min-h-11 md:min-h-8 rounded-md bg-slate-100 hover:bg-amber-100 border border-slate-200 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:text-amber-900 transition"
-                          title="Đặt lại mật khẩu mặc định (1234)"
+                          title="Đặt lại mật khẩu mới (PIN)"
                         >
                           <KeyRound className="h-3 w-3 text-slate-500" />
                           <span>Reset PIN</span>
@@ -888,7 +954,7 @@ export function PlayersTab({
                       <button
                         type="button"
                         onClick={() => handleResetPassword(p)}
-                        title={`Reset mật khẩu của ${p.full_name} về 1234`}
+                        title={`Đặt lại mật khẩu mới (PIN) cho ${p.full_name}`}
                         className="inline-flex items-center gap-1 min-h-11 md:min-h-8 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-100 cursor-pointer"
                       >
                         <RotateCcw className="h-3 w-3" aria-hidden="true" />
@@ -1228,7 +1294,7 @@ export function PlayersTab({
                       id="player-pin"
                       name="pin_code"
                       type="text"
-                      placeholder={editingPlayer ? "Để trống để giữ nguyên mật khẩu hiện tại" : "Mặc định 1234"}
+                      placeholder={editingPlayer ? "Để trống để giữ nguyên mật khẩu hiện tại" : "Để trống để tạo ngẫu nhiên hoặc nhập ≥ 6 ký tự"}
                       value={pinCode}
                       onChange={(e) => setPinCode(e.target.value)}
                       className="form-input !pl-9"
@@ -1322,6 +1388,8 @@ export function PlayersTab({
             <input
               id="self-new-pin"
               type="password"
+              minLength={6}
+              placeholder="Tối thiểu 6 ký tự an toàn"
               required
               value={newPin}
               onChange={(e) => setNewPin(e.target.value)}
@@ -1484,6 +1552,81 @@ export function PlayersTab({
         onNavigate={setLightboxIndex}
       />
 
+      <ModalDialog
+        isOpen={Boolean(resetPinTarget)}
+        onClose={() => {
+          if (!isSaving) {
+            setResetPinTarget(null);
+            setResetNewPin("");
+            setResetConfirmPin("");
+            setResetPinError("");
+          }
+        }}
+        title={
+          resetPinTarget
+            ? `Đặt lại mã PIN cho ${resetPinTarget.full_name}`
+            : "Đặt lại mã PIN cầu thủ"
+        }
+        subtitle={`Nhập mật khẩu tạm thời tối thiểu ${TEMPORARY_PIN_MIN_LENGTH} ký tự (hệ thống sẽ bắt buộc đổi lại ngay khi đăng nhập).`}
+      >
+        <form onSubmit={handleConfirmResetPin} className="space-y-4">
+          {resetPinError && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">
+              {resetPinError}
+            </div>
+          )}
+          <div>
+            <label
+              htmlFor="reset-new-pin"
+              className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5"
+            >
+              Mật khẩu tạm thời mới
+            </label>
+            <input
+              id="reset-new-pin"
+              type="password"
+              minLength={TEMPORARY_PIN_MIN_LENGTH}
+              value={resetNewPin}
+              onChange={(e) => setResetNewPin(e.target.value)}
+              placeholder={`Nhập tối thiểu ${TEMPORARY_PIN_MIN_LENGTH} ký tự an toàn`}
+              className="form-input"
+              required
+              autoFocus
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="reset-confirm-pin"
+              className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5"
+            >
+              Xác nhận mã PIN mới
+            </label>
+            <input
+              id="reset-confirm-pin"
+              type="password"
+              value={resetConfirmPin}
+              onChange={(e) => setResetConfirmPin(e.target.value)}
+              placeholder="Nhập lại mã PIN mới"
+              className="form-input"
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setResetPinTarget(null)}
+              disabled={isSaving}
+            >
+              Hủy
+            </Button>
+            <Button type="submit" variant="primary" disabled={isSaving}>
+              {isSaving ? "Đang lưu..." : "Xác nhận đặt lại PIN"}
+            </Button>
+          </div>
+        </form>
+      </ModalDialog>
+
       <ConfirmDialog
         isOpen={Boolean(pendingConfirm)}
         onClose={() => {
@@ -1493,32 +1636,19 @@ export function PlayersTab({
           if (!pendingConfirm || isSaving) return;
           const target = pendingConfirm;
           try {
-            if (target.kind === "reset_pin") {
-              await onMutate("reset_player_password", {
-                player_id: target.player.id,
-                new_pin: "1234",
-              });
-            } else {
-              await onMutate("delete_player", { id: target.player.id });
-            }
+            await onMutate("delete_player", { id: target.player.id });
           } finally {
             setPendingConfirm(null);
           }
         }}
-        title={
-          pendingConfirm?.kind === "reset_pin"
-            ? "Xác nhận reset mã PIN"
-            : "Xác nhận xoá hồ sơ cầu thủ"
-        }
+        title="Xác nhận xoá hồ sơ cầu thủ"
         description={
-          pendingConfirm?.kind === "reset_pin"
-            ? `Ban Quản Lý xác nhận đặt lại mật khẩu (PIN) của cầu thủ "${pendingConfirm.player.full_name}" về mặc định "1234"?`
-            : pendingConfirm
-              ? `Bạn có chắc muốn xoá hồ sơ cầu thủ "${pendingConfirm.player.full_name}" khỏi danh sách đội bóng?`
-              : ""
+          pendingConfirm
+            ? `Bạn có chắc muốn xoá hồ sơ cầu thủ "${pendingConfirm.player.full_name}" khỏi danh sách đội bóng?`
+            : ""
         }
-        confirmLabel={pendingConfirm?.kind === "reset_pin" ? "Reset PIN" : "Xoá hồ sơ"}
-        danger={pendingConfirm?.kind === "delete"}
+        confirmLabel="Xoá hồ sơ"
+        danger
         loading={isSaving}
       />
     </div>

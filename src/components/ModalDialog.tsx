@@ -9,6 +9,7 @@ interface ModalDialogProps {
   onClose: () => void;
   title: string;
   subtitle?: string;
+  preventDismiss?: boolean;
   children: React.ReactNode;
 }
 
@@ -17,6 +18,7 @@ export function ModalDialog({
   onClose,
   title,
   subtitle,
+  preventDismiss = false,
   children,
 }: ModalDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -25,7 +27,7 @@ export function ModalDialog({
 
   useDialogA11y({
     isOpen,
-    onClose,
+    onClose: preventDismiss ? () => {} : onClose,
     containerRef: dialogRef,
   });
 
@@ -46,14 +48,22 @@ export function ModalDialog({
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
-      {...({ closedby: "any" } as React.DialogHTMLAttributes<HTMLDialogElement>)}
+      {...({ closedby: preventDismiss ? "none" : "any" } as React.DialogHTMLAttributes<HTMLDialogElement>)}
+      onCancel={(e) => {
+        if (preventDismiss) {
+          e.preventDefault();
+        }
+      }}
       onPointerDown={(e) => {
-        if (dialogRef.current) {
+        if (!preventDismiss && dialogRef.current) {
           pressedOutsideRef.current = isOutsideDialog(e, dialogRef.current);
+        } else {
+          pressedOutsideRef.current = false;
         }
       }}
       onPointerUp={(e) => {
         if (
+          !preventDismiss &&
           dialogRef.current &&
           pressedOutsideRef.current &&
           isOutsideDialog(e, dialogRef.current)
@@ -73,14 +83,16 @@ export function ModalDialog({
               <p className="text-sm text-slate-600 mt-0.5">{subtitle}</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => (dialogRef.current?.open ? dialogRef.current.close() : onClose())}
-            aria-label="Đóng hộp thoại"
-            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200/70 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-light"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {!preventDismiss && (
+            <button
+              type="button"
+              onClick={() => (dialogRef.current?.open ? dialogRef.current.close() : onClose())}
+              aria-label="Đóng hộp thoại"
+              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200/70 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-on-light"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
         </div>
         <div className="overflow-y-auto p-5">{children}</div>
       </div>

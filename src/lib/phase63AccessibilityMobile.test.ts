@@ -376,13 +376,12 @@ describe("Phase 6.3 – Accessibility & Mobile UX Remediation", () => {
         /aria-label="Đóng hộp thoại"[\s\S]*?min-h-11 min-w-11/
       );
 
-      // 8. TeamManagerApp security banner targets (reduce only at md:)
+      // 8. TeamManagerApp forced PIN change modal & logout touch targets
       const appSrc = readSrc("src/components/TeamManagerApp.tsx");
+      expect(appSrc).toContain("preventDismiss");
+      expect(appSrc).toContain("Cập nhật mật khẩu & tiếp tục");
       expect(appSrc).toMatch(
-        /onClick=\{\(\) => setActiveTab\("personal"\)\}[\s\S]*?min-h-11 md:min-h-9[\s\S]*?Đổi mật khẩu ngay/
-      );
-      expect(appSrc).toMatch(
-        /aria-label="Đóng cảnh báo bảo mật"[\s\S]*?min-h-11 min-w-11 md:min-h-9 md:min-w-9/
+        /aria-label="Đăng xuất về Trang Khách"[\s\S]*?min-h-10 min-w-10/
       );
       for (const vw of [320, 375, 639, 640, 767]) {
         expect(resolveMinPxAtViewport("min-h-11 md:min-h-9", "h", vw)).toBe(44);

@@ -6,6 +6,16 @@ import {
   evaluateAuthRateLimit,
 } from "./authRateLimit";
 import type { Player, FullAppData, PublicPlayerDTO } from "@/types/app";
+import {
+  TEMPORARY_PIN_MIN_LENGTH,
+  validatePasswordStrength,
+  validateTemporaryPasswordStrength,
+} from "./passwordStrength";
+export {
+  TEMPORARY_PIN_MIN_LENGTH,
+  validatePasswordStrength,
+  validateTemporaryPasswordStrength,
+};
 
 const DEV_TEST_FALLBACK_SECRET =
   "fc-hdh-go-noi-sapphire-secret-key-2026-secure-32chars";
@@ -24,6 +34,89 @@ export class AuthSecretError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "AuthSecretError";
+  }
+}
+
+export class AuthDatabaseError extends Error {
+  readonly code = "AUTH_DATABASE_UNAVAILABLE";
+  readonly status = 503;
+
+  constructor(message = "Database authentication query failed.", options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "AuthDatabaseError";
+  }
+}
+
+const TRANSIENT_DB_ERROR_CODES = new Set([
+  "SQLITE_BUSY",
+  "SQLITE_LOCKED",
+  "SQLITE_IOERR",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "EAI_AGAIN",
+  "ENOTFOUND",
+  "EPIPE",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_BODY_TIMEOUT",
+  "UND_ERR_SOCKET",
+  "HRANA_WEBSOCKET_ERROR",
+  "HRANA_CLOSED_ERROR",
+  "SERVER_ERROR",
+  "HTTP_STATUS_500",
+  "HTTP_STATUS_502",
+  "HTTP_STATUS_503",
+  "HTTP_STATUS_504",
+]);
+
+function isDatabaseOutageError(err: unknown, visited = new Set<unknown>()): boolean {
+  if (!err || typeof err !== "object" || visited.has(err)) return false;
+  visited.add(err);
+
+  if (err instanceof AuthDatabaseError) return true;
+
+  const record = err as { code?: unknown; name?: unknown; message?: unknown; cause?: unknown };
+  const code = typeof record.code === "string" ? record.code.trim().toUpperCase() : "";
+  if (code && TRANSIENT_DB_ERROR_CODES.has(code)) {
+    return true;
+  }
+
+  const msg = typeof record.message === "string" ? record.message : "";
+  if (
+    record instanceof TypeError &&
+    /fetch failed|network|socket|terminated|connect|timeout/i.test(msg)
+  ) {
+    return true;
+  }
+
+  if (
+    /sqlite_busy|database is locked|turso.*timeout|timed out|econnreset|econnrefused|etimedout|socket hang up|fetch failed|turso.*missing|libsql/i.test(
+      msg
+    ) &&
+    !/syntax error|no such column|no such table|constraint failed/i.test(msg)
+  ) {
+    return true;
+  }
+
+  if (record.cause !== undefined) {
+    return isDatabaseOutageError(record.cause, visited);
+  }
+  return false;
+}
+
+export async function runAuthDbQuery<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (isDatabaseOutageError(err)) {
+      throw new AuthDatabaseError("Cơ sở dữ liệu xác thực tạm thời không khả dụng.", {
+        cause: err,
+      });
+    }
+    throw err;
   }
 }
 
@@ -132,12 +225,15 @@ export function hashPassword(password: string): string {
 }
 
 /**
- * Tạo dấu vân tay ngắn cho mật khẩu để nhúng vào session token
+ * Tạo dấu vân tay ngắn cho mật khẩu để nhúng vào session token.
+ * Fail-closed: trả về null nếu thiếu credential material (không fallback về "1234").
  */
-export function getPasswordFingerprint(pinOrHash: string): string {
+export function getPasswordFingerprint(pinOrHash?: string | null): string | null {
+  const clean = String(pinOrHash || "").trim();
+  if (!clean) return null;
   return crypto
     .createHash("sha256")
-    .update(String(pinOrHash || "1234").trim())
+    .update(clean)
     .digest("hex")
     .slice(0, 12);
 }
@@ -189,90 +285,6 @@ export function needsRehash(storedHashOrPlain: string): boolean {
 export function isDefaultPassword(pinOrHash?: string | null): boolean {
   if (!pinOrHash) return true;
   return verifyPassword("1234", pinOrHash);
-}
-
-/**
- * Kiểm tra độ mạnh và tính hợp lệ của mật khẩu mới
- */
-export function validatePasswordStrength(
-  password: string,
-  username = ""
-): { valid: boolean; score: number; message?: string; error?: string } {
-  const p = String(password || "").trim();
-
-  if (p.length < 6) {
-    const msg = "Mật khẩu phải có độ dài tối thiểu từ 6 ký tự trở lên.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  if (p.length > 128) {
-    const msg = "Mật khẩu không được vượt quá 128 ký tự.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  if (/^(.)\1{5,}$/.test(p)) {
-    const msg = "Mật khẩu quá đơn giản và dễ đoán. Vui lòng chọn mật khẩu an toàn hơn.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  const commonWeak = [
-    "123456",
-    "12345678",
-    "123456789",
-    "000000",
-    "111111",
-    "666666",
-    "888888",
-    "password",
-    "matkhau",
-    "qwerty",
-    "admin123",
-    "fchdhgonoi",
-    "gonoi123",
-  ];
-
-  if (commonWeak.includes(p.toLowerCase())) {
-    const msg = "Mật khẩu quá đơn giản và dễ đoán. Vui lòng chọn mật khẩu an toàn hơn.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  if (username && p.toLowerCase() === username.trim().toLowerCase()) {
-    const msg = "Mật khẩu không được trùng với tên đăng nhập.";
-    return {
-      valid: false,
-      score: 1,
-      message: msg,
-      error: msg,
-    };
-  }
-
-  // Đánh giá điểm sức mạnh từ 1 đến 4
-  let score = 1;
-  if (p.length >= 8) score++;
-  if (/[a-zA-Z]/.test(p) && /[0-9]/.test(p)) score++;
-  if (/[^a-zA-Z0-9]/.test(p) || p.length >= 10) score++;
-
-  return { valid: true, score };
 }
 
 // =========================================================================
@@ -394,6 +406,10 @@ export function createSessionToken(
   player: Player,
   durationHours = 24 * 7
 ): string {
+  const pwdFingerprint = getPasswordFingerprint(player.pin_code);
+  if (!pwdFingerprint) {
+    throw new Error("Cannot create session token for account without credential material.");
+  }
   const exp = Math.floor(Date.now() / 1000) + durationHours * 3600;
   const payload: SessionPayload = {
     playerId: player.id,
@@ -401,7 +417,7 @@ export function createSessionToken(
     fullName: player.full_name,
     shortName: player.short_name,
     jerseyNumber: player.jersey_number,
-    pwdFingerprint: getPasswordFingerprint(player.pin_code || "1234"),
+    pwdFingerprint,
     exp,
   };
 
@@ -456,7 +472,9 @@ export function verifySessionToken(
       typeof payload.playerId !== "number" ||
       !Number.isInteger(payload.playerId) ||
       typeof payload.exp !== "number" ||
-      (payload.accessRole !== "manager" && payload.accessRole !== "player")
+      (payload.accessRole !== "manager" && payload.accessRole !== "player") ||
+      typeof payload.pwdFingerprint !== "string" ||
+      !payload.pwdFingerprint.trim()
     ) {
       return null;
     }
@@ -467,11 +485,11 @@ export function verifySessionToken(
       return null; // Hết hạn
     }
 
-    // Nếu cung cấp mật khẩu hiện tại trong DB: đối chiếu dấu vân tay
-    if (currentPinOrHash && payload.pwdFingerprint) {
+    // Nếu cung cấp mật khẩu hiện tại trong DB: đối chiếu dấu vân tay (fail-closed nếu DB thiếu credential)
+    if (currentPinOrHash !== undefined) {
       const currentFingerprint = getPasswordFingerprint(currentPinOrHash);
-      if (payload.pwdFingerprint !== currentFingerprint) {
-        return null; // Mật khẩu đã thay đổi, vô hiệu hóa phiên cũ
+      if (!currentFingerprint || payload.pwdFingerprint !== currentFingerprint) {
+        return null; // Mật khẩu đã thay đổi hoặc thiếu credential, vô hiệu hóa phiên cũ
       }
     }
 
@@ -530,6 +548,39 @@ export const AUTH_PLAYER_PROFILE_COLUMNS = `
   bio, role, access_role, pin_code, status, notes
 `;
 
+const AUTH_PLAYER_PROFILE_COLUMNS_WITH_MUST_CHANGE = `
+  id, code_order, full_name, short_name, username, jersey_number,
+  position, phone, birth_year, avatar_url, profile_image_url,
+  bio, role, access_role, pin_code, must_change_pin, status, notes
+`;
+
+export function isMissingMustChangePinColumnError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err || "");
+  return /no such column:\s*must_change_pin/i.test(msg);
+}
+
+export async function queryAuthPlayerById(
+  db: ReturnType<typeof getAsyncDb>,
+  playerId: number
+): Promise<Player | undefined> {
+  try {
+    const rows = await db.query<Player>(
+      `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS_WITH_MUST_CHANGE} FROM players WHERE id = ? LIMIT 1`,
+      [playerId]
+    );
+    return rows[0];
+  } catch (err) {
+    if (isMissingMustChangePinColumnError(err)) {
+      const legacyRows = await db.query<Player>(
+        `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
+        [playerId]
+      );
+      return legacyRows[0] ? { ...legacyRows[0], must_change_pin: 0 } : undefined;
+    }
+    throw err;
+  }
+}
+
 /**
  * Xác thực thông tin đăng nhập từ Server Database với chuẩn chống Brute-force, Anti-Enumeration & Auto Re-hash
  */
@@ -539,7 +590,7 @@ export async function verifyCredentials(
   clientIp = "local"
 ): Promise<{
   success: boolean;
-  status?: 200 | 401 | 429 | 503;
+  status?: 200 | 401 | 403 | 429 | 503;
   errorCode?: string;
   waitSeconds?: number;
   player?: Player;
@@ -580,8 +631,7 @@ export async function verifyCredentials(
   }
 
   // 2. Chỉ truy vấn các cột định danh tối thiểu phục vụ tìm kiếm ứng viên (không pin_code, không SELECT *)
-  const db = getAsyncDb();
-  const lookupCandidates = await db.query<{
+  let lookupCandidates: Array<{
     id: number;
     full_name: string;
     short_name: string;
@@ -589,11 +639,35 @@ export async function verifyCredentials(
     jersey_number: number | null;
     phone: string;
     status: string;
-  }>(
-    `SELECT id, full_name, short_name, username, jersey_number, phone, status
-     FROM players
-     ORDER BY id ASC`
-  );
+  }>;
+  try {
+    lookupCandidates = await runAuthDbQuery(async () => {
+      const db = getAsyncDb();
+      return db.query<{
+        id: number;
+        full_name: string;
+        short_name: string;
+        username: string | null;
+        jersey_number: number | null;
+        phone: string;
+        status: string;
+      }>(
+        `SELECT id, full_name, short_name, username, jersey_number, phone, status
+         FROM players
+         ORDER BY id ASC`
+      );
+    });
+  } catch (err) {
+    if (err instanceof AuthDatabaseError) {
+      return {
+        success: false,
+        status: 503,
+        errorCode: err.code,
+        error: err.message,
+      };
+    }
+    throw err;
+  }
 
   const uNorm = normalizeLoginString(cleanUsername);
   const cleanDigits = cleanUsername.replace(/\D/g, "");
@@ -622,12 +696,37 @@ export async function verifyCredentials(
   }
 
   // Chỉ truy vấn pin_code cho đúng 1 ứng viên đã khớp và đang hoạt động
-  const pinRow = await db.queryOne<{ pin_code: string | null }>(
-    "SELECT pin_code FROM players WHERE id = ? LIMIT 1",
-    [matched.id]
-  );
+  let pinRow: { pin_code: string | null } | null;
+  try {
+    pinRow = await runAuthDbQuery(async () => {
+      const db = getAsyncDb();
+      return db.queryOne<{ pin_code: string | null }>(
+        "SELECT pin_code FROM players WHERE id = ? LIMIT 1",
+        [matched.id]
+      );
+    });
+  } catch (err) {
+    if (err instanceof AuthDatabaseError) {
+      return {
+        success: false,
+        status: 503,
+        errorCode: err.code,
+        error: err.message,
+      };
+    }
+    throw err;
+  }
 
-  const storedPinOrHash = pinRow?.pin_code || "1234";
+  const storedPinOrHash = String(pinRow?.pin_code || "").trim();
+  if (!storedPinOrHash) {
+    runDummyScryptVerification(cleanPin, "missing");
+    return {
+      success: false,
+      status: 401,
+      error: UNIFIED_LOGIN_ERROR_MESSAGE,
+    };
+  }
+
   const isMatch = verifyPassword(cleanPin, storedPinOrHash);
 
   if (!isMatch) {
@@ -642,30 +741,47 @@ export async function verifyCredentials(
     };
   }
 
+  // Từ chối đăng nhập và không auto-rehash nếu tài khoản vẫn đang dùng mã PIN mặc định "1234"
+  if (isDefaultPassword(storedPinOrHash)) {
+    return {
+      success: false,
+      status: 403,
+      errorCode: "DEFAULT_PIN_RESET_REQUIRED",
+      error:
+        "Tài khoản đang sử dụng mã PIN mặc định không còn được phép đăng nhập. Vui lòng liên hệ Ban Quản Lý để được cấp lại mã PIN mới.",
+    };
+  }
+
   // Đăng nhập thành công -> Xóa bộ đếm Rate Limit theo tài khoản / cặp
   await clearAuthRateLimitOnSuccess({ username: cleanUsername, clientIp });
 
   let finalPinCode = storedPinOrHash;
-  // Auto Re-hash: Nếu mật khẩu trong DB chưa được băm scrypt, tự động nâng cấp ngầm
-  if (needsRehash(storedPinOrHash)) {
-    try {
-      const secureHash = hashPassword(cleanPin);
-      await db.run("UPDATE players SET pin_code = ? WHERE id = ?", [
-        secureHash,
-        matched.id,
-      ]);
-      finalPinCode = secureHash;
-    } catch (err) {
-      console.error("Auto re-hash failed:", err);
-    }
-  }
-
   // Chỉ tải hồ sơ chi tiết cho đúng 1 người dùng đã xác thực thành công
-  const hydratedPlayer =
-    (await db.queryOne<Player>(
-      `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-      [matched.id]
-    )) || undefined;
+  let hydratedPlayer: Player | undefined;
+  try {
+    hydratedPlayer = await runAuthDbQuery(async () => {
+      const db = getAsyncDb();
+      if (needsRehash(storedPinOrHash)) {
+        const secureHash = hashPassword(cleanPin);
+        await db.run("UPDATE players SET pin_code = ? WHERE id = ?", [
+          secureHash,
+          matched.id,
+        ]);
+        finalPinCode = secureHash;
+      }
+      return queryAuthPlayerById(db, matched.id);
+    });
+  } catch (err) {
+    if (err instanceof AuthDatabaseError) {
+      return {
+        success: false,
+        status: 503,
+        errorCode: err.code,
+        error: err.message,
+      };
+    }
+    throw err;
+  }
 
   if (!hydratedPlayer) {
     return {
@@ -676,13 +792,13 @@ export async function verifyCredentials(
   }
 
   hydratedPlayer.pin_code = finalPinCode;
-  const isDefault = isDefaultPassword(finalPinCode);
+  const mustChangePassword = Number(hydratedPlayer.must_change_pin) === 1;
 
   return {
     success: true,
     status: 200,
     player: hydratedPlayer,
-    mustChangePassword: isDefault,
+    mustChangePassword,
   };
 }
 
@@ -692,8 +808,10 @@ export async function verifyCredentials(
 
 export interface AuthCheckResult {
   authorized: boolean;
-  status: 200 | 401 | 403;
+  status: 200 | 401 | 403 | 503;
+  errorCode?: string;
   error?: string;
+  mustChangePin?: boolean;
   session?: SessionPayload;
   player?: Player;
 }
@@ -733,68 +851,14 @@ export function verifyCsrfOrigin(req: NextRequest): boolean {
 }
 
 /**
- * Xác thực bắt buộc quyền Ban Quản Lý (Manager).
- * Kiểm tra trực tiếp trạng thái và vai trò hiện hành trong Cơ Sở Dữ Liệu,
- * không chỉ tin tưởng vào claim trong session token cũ.
+ * Xác thực phiên làm việc DB-first từ raw session token:
+ * kiểm tra chữ ký, hạn token, tài khoản tồn tại/active, dấu vân tay mật khẩu,
+ * và từ chối mọi tài khoản vẫn đang sử dụng PIN mặc định "1234" (kể cả phiên cũ).
  */
-export async function requireManagerSession(
-  req: NextRequest
+export async function getCurrentAuthContextFromToken(
+  token?: string | null
 ): Promise<AuthCheckResult> {
-  const session = getAuthSession(req);
-  if (!session) {
-    return {
-      authorized: false,
-      status: 401,
-      error: "Yêu cầu đăng nhập tài khoản Ban Quản Lý.",
-    };
-  }
-
-  const db = getAsyncDb();
-  const players = await db.query<Player>(
-    `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-    [session.playerId]
-  );
-  const player = players[0];
-
-  if (!player || (player as unknown as { status?: string }).status === "inactive") {
-    return {
-      authorized: false,
-      status: 401,
-      error: "Tài khoản không tồn tại hoặc đã bị ngừng hoạt động.",
-    };
-  }
-
-  if (player.access_role !== "manager") {
-    return {
-      authorized: false,
-      status: 403,
-      error: "Thao tác yêu cầu quyền Ban Quản Lý (Manager).",
-    };
-  }
-
-  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi
-  if (session.pwdFingerprint) {
-    const currentFingerprint = getPasswordFingerprint(player.pin_code || "1234");
-    if (session.pwdFingerprint !== currentFingerprint) {
-      return {
-        authorized: false,
-        status: 401,
-        error:
-          "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
-      };
-    }
-  }
-
-  return { authorized: true, status: 200, session, player };
-}
-
-/**
- * Xác thực bắt buộc thành viên / cầu thủ đã đăng nhập vào hệ thống
- */
-export async function requirePlayerSession(
-  req: NextRequest
-): Promise<AuthCheckResult> {
-  const session = getAuthSession(req);
+  const session = token ? verifySessionToken(token) : null;
   if (!session) {
     return {
       authorized: false,
@@ -803,12 +867,23 @@ export async function requirePlayerSession(
     };
   }
 
-  const db = getAsyncDb();
-  const players = await db.query<Player>(
-    `SELECT ${AUTH_PLAYER_PROFILE_COLUMNS} FROM players WHERE id = ? LIMIT 1`,
-    [session.playerId]
-  );
-  const player = players[0];
+  let player: Player | undefined;
+  try {
+    player = await runAuthDbQuery(async () => {
+      const db = getAsyncDb();
+      return queryAuthPlayerById(db, session.playerId);
+    });
+  } catch (err) {
+    if (err instanceof AuthDatabaseError) {
+      return {
+        authorized: false,
+        status: 503,
+        errorCode: err.code,
+        error: err.message,
+      };
+    }
+    throw err;
+  }
 
   if (!player || (player as unknown as { status?: string }).status === "inactive") {
     return {
@@ -818,20 +893,116 @@ export async function requirePlayerSession(
     };
   }
 
-  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi
-  if (session.pwdFingerprint) {
-    const currentFingerprint = getPasswordFingerprint(player.pin_code || "1234");
-    if (session.pwdFingerprint !== currentFingerprint) {
-      return {
-        authorized: false,
-        status: 401,
-        error:
-          "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
-      };
-    }
+  // Thu hồi phiên làm việc tức thì nếu mật khẩu đã bị đổi hoặc thiếu credential
+  const currentFingerprint = getPasswordFingerprint(player.pin_code);
+  if (
+    !currentFingerprint ||
+    !session.pwdFingerprint ||
+    session.pwdFingerprint !== currentFingerprint
+  ) {
+    return {
+      authorized: false,
+      status: 401,
+      error:
+        "Phiên đăng nhập đã hết hạn do mật khẩu đã thay đổi. Vui lòng đăng nhập lại.",
+    };
   }
 
-  return { authorized: true, status: 200, session, player };
+  // Từ chối phiên cũ nếu tài khoản vẫn đang sử dụng mã PIN mặc định "1234"
+  if (isDefaultPassword(player.pin_code)) {
+    return {
+      authorized: false,
+      status: 403,
+      errorCode: "DEFAULT_PIN_RESET_REQUIRED",
+      error:
+        "Tài khoản đang sử dụng mã PIN mặc định không còn được phép truy cập. Vui lòng liên hệ Ban Quản Lý để được cấp lại mã PIN mới.",
+    };
+  }
+
+  const dbAccessRole: "manager" | "player" =
+    player.access_role === "manager" ? "manager" : "player";
+  const mustChangePin = Number(player.must_change_pin) === 1;
+
+  return {
+    authorized: true,
+    status: 200,
+    mustChangePin,
+    session: {
+      ...session,
+      accessRole: dbAccessRole,
+    },
+    player,
+  };
+}
+
+/**
+ * Xác thực bắt buộc quyền Ban Quản Lý (Manager).
+ * Kiểm tra trực tiếp trạng thái và vai trò hiện hành trong Cơ Sở Dữ Liệu,
+ * không chỉ tin tưởng vào claim trong session token cũ.
+ */
+export async function requireManagerSession(
+  req: NextRequest,
+  options?: { allowMustChangePin?: boolean }
+): Promise<AuthCheckResult> {
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!token) {
+    return {
+      authorized: false,
+      status: 401,
+      error: "Yêu cầu đăng nhập tài khoản Ban Quản Lý.",
+    };
+  }
+
+  const ctx = await getCurrentAuthContextFromToken(token);
+  if (!ctx.authorized || !ctx.player) {
+    return ctx;
+  }
+
+  if (ctx.mustChangePin && !options?.allowMustChangePin) {
+    return {
+      authorized: false,
+      status: 403,
+      errorCode: "PIN_CHANGE_REQUIRED",
+      error:
+        "Tài khoản của bạn cần đổi mật khẩu cá nhân mới trước khi thực hiện thao tác quản trị.",
+    };
+  }
+
+  if (ctx.player.access_role !== "manager") {
+    return {
+      authorized: false,
+      status: 403,
+      error: "Thao tác yêu cầu quyền Ban Quản Lý (Manager).",
+    };
+  }
+
+  return ctx;
+}
+
+/**
+ * Xác thực bắt buộc thành viên / cầu thủ đã đăng nhập vào hệ thống
+ */
+export async function requirePlayerSession(
+  req: NextRequest,
+  options?: { allowMustChangePin?: boolean }
+): Promise<AuthCheckResult> {
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const ctx = await getCurrentAuthContextFromToken(token);
+  if (!ctx.authorized) {
+    return ctx;
+  }
+
+  if (ctx.mustChangePin && !options?.allowMustChangePin) {
+    return {
+      authorized: false,
+      status: 403,
+      errorCode: "PIN_CHANGE_REQUIRED",
+      error:
+        "Tài khoản của bạn cần đổi mật khẩu cá nhân mới trước khi tiếp tục sử dụng hệ thống.",
+    };
+  }
+
+  return ctx;
 }
 
 // =========================================================================

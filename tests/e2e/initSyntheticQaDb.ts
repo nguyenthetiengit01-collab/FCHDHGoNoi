@@ -46,7 +46,7 @@ export function initSyntheticQaDatabase(): SyntheticFixtureCounts {
 
   const db = new sqlite.DatabaseSync(qaDbPath);
   try {
-    db.exec("PRAGMA journal_mode = WAL;");
+    db.exec("PRAGMA journal_mode = DELETE;");
     db.exec("PRAGMA foreign_keys = ON;");
 
     initQaDatabaseSchema(db as unknown as Parameters<typeof initQaDatabaseSchema>[0]);
@@ -91,8 +91,8 @@ export function initSyntheticQaDatabase(): SyntheticFixtureCounts {
         "Tiền đạo",
         "0900000001",
         "1998",
-        "/images/hinhanh-webp/01.webp",
-        "/images/hinhanh-webp/01.webp",
+        "/images/hinhanh-webp/giaidau/DSC06533.webp",
+        "/images/hinhanh-webp/giaidau/DSC06533.webp",
         "Hồ sơ cầu thủ tổng hợp phục vụ kiểm thử tự động Phase 6.5.1.",
         "Thành viên",
         "player",
@@ -115,8 +115,8 @@ export function initSyntheticQaDatabase(): SyntheticFixtureCounts {
         "Hậu vệ",
         "0900000002",
         "1997",
-        "/images/hinhanh-webp/02.webp",
-        "/images/hinhanh-webp/02.webp",
+        "/images/hinhanh-webp/giaidau/DSC06534.webp",
+        "/images/hinhanh-webp/giaidau/DSC06534.webp",
         "Hồ sơ hậu vệ tổng hợp phục vụ kiểm thử tương phản huy hiệu.",
         "Thành viên",
         "player",
@@ -187,7 +187,7 @@ export function initSyntheticQaDatabase(): SyntheticFixtureCounts {
         "Tóm tắt nội dung tổng hợp phục vụ kiểm thử hiển thị và trợ năng.",
         "2026-10-25",
         "Ban Quản Lý QA",
-        "/images/hinhanh-webp/01.webp",
+        "/images/hinhanh-webp/giaidau/DSC06533.webp",
         "[]",
         "2 phút đọc",
         JSON.stringify(["Nội dung bài viết tổng hợp không chứa dữ liệu thật."]),
@@ -204,8 +204,8 @@ export function initSyntheticQaDatabase(): SyntheticFixtureCounts {
         1,
         "Đơn Vị Đồng Hành QA",
         "title",
-        "/images/hinhanh-webp/01.webp",
-        "/images/hinhanh-webp/02.webp",
+        "/images/hinhanh-webp/giaidau/DSC06533.webp",
+        "/images/hinhanh-webp/giaidau/DSC06534.webp",
         "https://example.invalid/sponsor-qa",
         "Nhà tài trợ tổng hợp phục vụ kiểm thử banner và footer.",
         '["home_banner","home_partners"]',

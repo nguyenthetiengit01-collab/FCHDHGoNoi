@@ -300,6 +300,13 @@ describe("Team Statistics – Lifecycle, Attendance & Data Contracts", () => {
   it("omits pin_code completely, enforces role permissions, and keeps statistics consistent across Public, Player, and Manager", async () => {
     const synthetic = buildSyntheticData();
     vi.spyOn(dbModule, "getFullAppData").mockResolvedValue(synthetic);
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+      query: vi.fn(async (_sql: string, params: unknown[] = []) => {
+        const id = Number(params[0]);
+        const found = synthetic.players.find((p) => p.id === id);
+        return found ? [found] : [];
+      }),
+    } as unknown as ReturnType<typeof dbModule.getAsyncDb>);
 
     const expectedStats = getTeamStatistics(synthetic);
 

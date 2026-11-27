@@ -57,6 +57,7 @@ export interface Player {
   access_role: "manager" | "player";
   username?: string;
   pin_code: string;
+  must_change_pin?: number | boolean;
   status: string;
   notes: string;
   bio?: string;
@@ -297,4 +298,4 @@ export interface PublicClubData {
 export type MutateActionFn = (
   action: string,
   payload: Record<string, unknown>
-) => Promise<void>;
+) => Promise<{ ok: boolean; error?: string } | void>;

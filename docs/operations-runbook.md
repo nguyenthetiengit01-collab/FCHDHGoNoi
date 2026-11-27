@@ -66,7 +66,10 @@ Workflow [turso-backup.yml](../.github/workflows/turso-backup.yml) chỉ kích h
    ```bash
    node scripts/db-restore.mjs --in ../backups/gonoi-backup.json --target ../backups/verify.sqlite --confirm
    ```
-3. **Đẩy dữ liệu đã kiểm tra lên Turso DB phục hồi** (dùng `turso db shell` hoặc client đã xác thực) và kiểm tra bảng `team_settings`, `players`, `matches`, `match_attendances`, `other_incomes`, `expenses`, `audit_logs`.
+3. **Đẩy dữ liệu đã kiểm tra lên Turso DB phục hồi** (dùng `db-restore.mjs --env staging` với `TURSO_STAGING_RESTORE_DATABASE_URL` / `TURSO_STAGING_RESTORE_AUTH_TOKEN` cho Staging Restore `fchdhgonoi-staging-restore`, hoặc client đã xác thực cho DB đích mới) và kiểm tra bảng `team_settings`, `players`, `matches`, `match_attendances`, `other_incomes`, `expenses`, `audit_logs`.
+   - **Lưu ý migration P1-03**:
+     - Không bao giờ rebuild bảng `players` trực tiếp qua Turso HTTP (`phase7-p103-pin-default-v1.mjs --env staging` chỉ là preflight read-only trên `TURSO_STAGING_RESTORE_DATABASE_URL`). Mọi thao tác rebuild `players` phải chạy trên file SQLite cô lập (`--sqlite <isolated-temp-path.sqlite>`) rồi mới restore lên Turso DB đích sạch.
+     - Migration bổ sung cột (`phase7-p103-must-change-pin-v1.mjs --env staging`) sử dụng `TURSO_STAGING_RESTORE_DATABASE_URL` và `TURSO_STAGING_RESTORE_AUTH_TOKEN` (`role="target"`), tách biệt hoàn toàn với DB nguồn `TURSO_STAGING_DATABASE_URL` và Production `TURSO_DATABASE_URL`.
 4. **Chuyển trỏ biến môi trường Production** trên Vercel Dashboard (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`) sang DB phục hồi, redeploy Production và kiểm tra `GET /api/health` + `/bao-cao-tai-chinh`.
 
 ---

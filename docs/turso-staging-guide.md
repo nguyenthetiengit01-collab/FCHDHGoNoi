@@ -87,3 +87,20 @@ Script sẽ in ra JSON xác nhận `mode: "staging-restore"`, `targetHost`, `dbN
 ### Bước 3: Đối chiếu sau Restore
 - So sánh `schemaTables` và `restoredCounts` từ output của `db-restore.mjs` với `rowCounts` trong file `../backups/staging-drill.json`.
 - Xác nhận không có token/credential nào xuất hiện trong log terminal.
+
+---
+
+## 4. Đồng Bộ Biến Môi Trường Cho Migration Scripts (P1-03)
+
+Các script migration chỉ thao tác trên **DB đích Restore Staging** (`role="target"`), tuyệt đối không dùng `TURSO_DATABASE_URL` (Production) hay `TURSO_STAGING_DATABASE_URL` (DB nguồn Staging):
+
+| Thành phần | Vai trò DB | Tên DB allowlist | Biến môi trường bắt buộc |
+| --- | --- | --- | --- |
+| `scripts/db-backup.mjs --env staging` | DB nguồn (`source`) | `fchdhgonoi-staging` | `TURSO_STAGING_DATABASE_URL`, `TURSO_STAGING_AUTH_TOKEN` |
+| `scripts/db-restore.mjs --env staging` | DB đích (`target`) | `fchdhgonoi-staging-restore` | `TURSO_STAGING_RESTORE_DATABASE_URL`, `TURSO_STAGING_RESTORE_AUTH_TOKEN` |
+| `scripts/migrations/phase7-p103-must-change-pin-v1.mjs --env staging` | DB đích (`target`) | `fchdhgonoi-staging-restore` | `TURSO_STAGING_RESTORE_DATABASE_URL`, `TURSO_STAGING_RESTORE_AUTH_TOKEN` |
+| `scripts/migrations/phase7-p103-pin-default-v1.mjs --env staging --dry-run` | Preflight read-only (`target`) | `fchdhgonoi-staging-restore` | `TURSO_STAGING_RESTORE_DATABASE_URL`, `TURSO_STAGING_RESTORE_AUTH_TOKEN` |
+
+> [!IMPORTANT]
+> - `phase7-p103-pin-default-v1.mjs` **không bao giờ rebuild bảng `players` trực tiếp qua Turso HTTP**. Chế độ `--env staging` chỉ chạy preflight/read-only.
+> - Để rebuild bảng `players` (gỡ `DEFAULT '1234'`), bắt buộc chạy trên file SQLite cô lập ngoại tuyến (`--sqlite ../backups/isolated.sqlite`), sau đó restore sang DB Turso đích sạch bằng `db-restore.mjs`.

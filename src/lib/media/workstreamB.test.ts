@@ -272,6 +272,17 @@ describe("Workstream B — Media Storage Upload, Auth & Feature Flag", () => {
       status: "Đang sinh hoạt",
       notes: "",
     });
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+      query: vi.fn(async (_sql: string, params: unknown[] = []) => [
+        {
+          id: Number(params[0]),
+          access_role: Number(params[0]) === 1 ? "manager" : "player",
+          pin_code: "hash",
+          status: "Đang sinh hoạt",
+          must_change_pin: 0,
+        },
+      ]),
+    } as unknown as ReturnType<typeof dbModule.getAsyncDb>);
 
     const validFile = new File([new Uint8Array(webpBuf)], "test.webp", { type: "image/webp" });
 
@@ -567,6 +578,11 @@ describe("Workstream B Remediation — Legacy Post TEXT IDs, Gallery Compatibili
     const webpBuf = await makeTinyWebpBuffer();
     const managerCookie = createSessionToken(makeTestPlayer(1, "manager"));
     const playerCookie = createSessionToken(makeTestPlayer(7, "player"));
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue({
+      query: vi.fn(async (_sql: string, params: unknown[] = []) => [
+        makeTestPlayer(Number(params[0]), Number(params[0]) === 1 ? "manager" : "player"),
+      ]),
+    } as unknown as ReturnType<typeof dbModule.getAsyncDb>);
 
     process.env.MEDIA_STORAGE_ENABLED = "true";
     process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_test_token";

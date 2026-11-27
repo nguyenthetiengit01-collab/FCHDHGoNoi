@@ -46,7 +46,7 @@ describe("Phase 5.2 (P1): Financial API Validation & Transaction Atomicity", () 
   }
 
   beforeAll(async () => {
-    const { getFullAppData } = await import("./db");
+    const { getAsyncDb, getFullAppData } = await import("./db");
     const { createSessionToken, SESSION_COOKIE_NAME } = await import("./auth");
 
     const data = await getFullAppData();
@@ -56,7 +56,14 @@ describe("Phase 5.2 (P1): Financial API Validation & Transaction Atomicity", () 
     expect(player).toBeTruthy();
     expect(data.matches.length).toBeGreaterThanOrEqual(2);
 
-    managerCookie = `${SESSION_COOKIE_NAME}=${createSessionToken(manager!)}`;
+    const pinRow = await getAsyncDb().queryOne<{ pin_code: string }>(
+      "SELECT pin_code FROM players WHERE id = ?",
+      [manager!.id]
+    );
+    managerCookie = `${SESSION_COOKIE_NAME}=${createSessionToken({
+      ...manager!,
+      pin_code: pinRow?.pin_code || "",
+    })}`;
     matchId = data.matches[0].id;
     otherMatchId = data.matches[1].id;
     playerId = player!.id;

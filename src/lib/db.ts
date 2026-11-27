@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import os from "os";
+import crypto from "crypto";
 import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
 import { createClient, type Client, type InArgs } from "@libsql/client";
 import { EXPENSE_CATEGORIES, FANPAGE_URL } from "@/types/app";
@@ -456,6 +457,31 @@ const DATA_DIR = IS_VERCEL ? os.tmpdir() : BUNDLED_DATA_DIR;
 const DB_PATH = path.join(DATA_DIR, "gonoifc.sqlite");
 
 let dbInstance: DatabaseSyncType | null = null;
+let dbShutdownHooksRegistered = false;
+
+export function closeDb(): void {
+  if (!dbInstance) return;
+  try {
+    dbInstance.exec("PRAGMA wal_checkpoint(TRUNCATE);");
+  } catch {
+    // best-effort checkpoint
+  }
+  try {
+    dbInstance.close();
+  } catch {
+    // ignore close errors during shutdown
+  } finally {
+    dbInstance = null;
+  }
+}
+
+function registerDbShutdownHooks(): void {
+  if (dbShutdownHooksRegistered) return;
+  dbShutdownHooksRegistered = true;
+  process.once("SIGTERM", closeDb);
+  process.once("SIGINT", closeDb);
+  process.once("beforeExit", closeDb);
+}
 
 export {
   EXPENSE_CATEGORIES,
@@ -498,7 +524,7 @@ export function getDb(customDbPath?: string): DatabaseSyncType {
     "node:sqlite"
   ) as typeof import("node:sqlite");
   const db = new sqlite.DatabaseSync(resolvedPath);
-  db.exec("PRAGMA journal_mode = WAL;");
+  db.exec(qaPath ? "PRAGMA journal_mode = DELETE;" : "PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
 
   initSchema(db);
@@ -506,6 +532,7 @@ export function getDb(customDbPath?: string): DatabaseSyncType {
   seedInitialDataIfNeeded(db);
 
   dbInstance = db;
+  registerDbShutdownHooks();
   return db;
 }
 
@@ -555,7 +582,8 @@ function initSchema(db: DatabaseSyncType) {
       role TEXT NOT NULL DEFAULT 'Thành viên',
       access_role TEXT NOT NULL DEFAULT 'player',
       username TEXT NOT NULL DEFAULT '',
-      pin_code TEXT NOT NULL DEFAULT '1234',
+      pin_code TEXT NOT NULL DEFAULT '',
+      must_change_pin INTEGER NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Đang sinh hoạt',
       notes TEXT NOT NULL DEFAULT ''
     );
@@ -686,7 +714,12 @@ function runMigrations(db: DatabaseSyncType) {
   }
   if (!hasColumn(db, "players", "pin_code")) {
     db.exec(
-      `ALTER TABLE players ADD COLUMN pin_code TEXT NOT NULL DEFAULT '1234';`
+      `ALTER TABLE players ADD COLUMN pin_code TEXT NOT NULL DEFAULT '';`
+    );
+  }
+  if (!hasColumn(db, "players", "must_change_pin")) {
+    db.exec(
+      `ALTER TABLE players ADD COLUMN must_change_pin INTEGER NOT NULL DEFAULT 0;`
     );
   }
   if (!hasColumn(db, "players", "birth_year")) {
@@ -1205,9 +1238,13 @@ export async function seedAsyncInitialDataIfNeeded(
     for (let idx = 0; idx < INITIAL_PLAYERS.length; idx++) {
       const p = INITIAL_PLAYERS[idx];
       const picIdx = (idx % 14) + 1;
+      const salt = crypto.randomBytes(16).toString("hex");
+      const randomSecret = crypto.randomBytes(24).toString("base64url");
+      const derived = crypto.scryptSync(randomSecret, salt, 64).toString("hex");
+      const pinHash = `scrypt$${salt}$${derived}`;
       const res = await tx.run(
         `INSERT INTO players (code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes)
-         VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', '')`,
+         VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, 'Đang sinh hoạt', '')`,
         [
           p.code_order,
           p.full_name,
@@ -1219,6 +1256,7 @@ export async function seedAsyncInitialDataIfNeeded(
           p.bio,
           p.role,
           p.access_role,
+          pinHash,
         ]
       );
       playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
@@ -1363,13 +1401,17 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
 
     const insertPlayer = db.prepare(`
       INSERT INTO players (code_order, full_name, short_name, jersey_number, position, phone, birth_year, avatar_url, bio, role, access_role, pin_code, status, notes)
-      VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, '1234', 'Đang sinh hoạt', '')
+      VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, 'Đang sinh hoạt', '')
     `);
 
     const playerIdByName = new Map<string, number>();
     for (let idx = 0; idx < INITIAL_PLAYERS.length; idx++) {
       const p = INITIAL_PLAYERS[idx];
       const picIdx = (idx % 14) + 1;
+      const salt = crypto.randomBytes(16).toString("hex");
+      const randomSecret = crypto.randomBytes(24).toString("base64url");
+      const derived = crypto.scryptSync(randomSecret, salt, 64).toString("hex");
+      const pinHash = `scrypt$${salt}$${derived}`;
       const res = insertPlayer.run(
         p.code_order,
         p.full_name,
@@ -1380,7 +1422,8 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
         `/uploads/avatars/member-${picIdx}.jpg`,
         p.bio,
         p.role,
-        p.access_role
+        p.access_role,
+        pinHash
       );
       playerIdByName.set(p.full_name, Number(res.lastInsertRowid));
     }

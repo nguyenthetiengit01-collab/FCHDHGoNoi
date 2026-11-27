@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import path from "path";
 import fs from "fs";
 import * as XLSX from "xlsx";
@@ -791,7 +792,7 @@ export async function POST(req: NextRequest) {
         bio: existing?.bio || "",
         role: existing?.role || defaultRole,
         accessRole: existing?.access_role || (isManager ? "manager" : "player"),
-        pinCode: existing?.pin_code || hashPassword("1234"),
+        pinCode: existing?.pin_code || hashPassword(crypto.randomBytes(24).toString("base64url")),
         status: existing?.status || "Đang sinh hoạt",
         notes: existing?.notes || notes,
         hometown: existing?.hometown || "",
