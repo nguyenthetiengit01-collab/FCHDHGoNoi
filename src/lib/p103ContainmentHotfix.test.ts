@@ -1735,4 +1735,63 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
     expect(ply2After.pin_code).toBe(ply2Before.pin_code);
     expect(ply2After.must_change_pin).toBe(1);
   });
+
+  it("normal account (must_change_pin=0) can update username-only via change_own_password without changing pin_code or must_change_pin and re-issues session", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    const { raw, asyncDb } = createFullTempAsyncDb();
+    seedPlayers(raw);
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(asyncDb);
+
+    const ply2Before = raw
+      .prepare("SELECT * FROM players WHERE id = 2")
+      .get() as unknown as Player & { must_change_pin: number };
+    expect(Number(ply2Before.must_change_pin)).toBe(0);
+    const ply2Cookie = makeCookieHeader(ply2Before);
+
+    const res = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: ply2Cookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "change_own_password",
+          payload: {
+            player_id: 2,
+            old_pin: "PlyStrong@2026",
+            new_username: "ply2_renamed_user",
+          },
+        }),
+      })
+    );
+    expect(res.status).toBe(200);
+
+    const setCookieHeader = res.headers.get("set-cookie") || "";
+    expect(setCookieHeader).toContain(`${SESSION_COOKIE_NAME}=`);
+
+    const ply2After = raw
+      .prepare("SELECT username, pin_code, must_change_pin FROM players WHERE id = 2")
+      .get() as { username: string; pin_code: string; must_change_pin: number };
+    expect(ply2After.username).toBe("ply2_renamed_user");
+    expect(ply2After.pin_code).toBe(ply2Before.pin_code);
+    expect(Number(ply2After.must_change_pin)).toBe(0);
+
+    // Re-issued cookie authenticates cleanly with updated username
+    const cookiePair = setCookieHeader.split(";")[0];
+    const authRes = await getAuthRoute(
+      new NextRequest("http://localhost:3000/api/auth", {
+        headers: { cookie: cookiePair },
+      })
+    );
+    expect(authRes.status).toBe(200);
+    const authJson = (await authRes.json()) as {
+      authenticated: boolean;
+      player?: { username: string };
+    };
+    expect(authJson.authenticated).toBe(true);
+    expect(authJson.player?.username).toBe("ply2_renamed_user");
+  });
 });
