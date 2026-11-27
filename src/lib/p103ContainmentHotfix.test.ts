@@ -559,6 +559,22 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
     expect(fullDataSpy).not.toHaveBeenCalled();
     expect(defaultData.players.every((p) => !p.phone && !p.pin_code)).toBe(true);
 
+    // 1b. Manager with must_change_pin=1 -> falls back to public homepage data only (no getFullAppData, no private/financial data)
+    raw.prepare("UPDATE players SET must_change_pin = 1 WHERE id = 1").run();
+    const mgrForced = raw.prepare("SELECT * FROM players WHERE id = 1").get() as unknown as Player;
+    const mgrForcedToken = createSessionToken(mgrForced, 24);
+    const mgrForcedData = await publicHomeModule.resolveHomePageInitialData(mgrForcedToken);
+    expect(fullDataSpy).not.toHaveBeenCalled();
+    expect(mgrForcedData.otherIncomes).toEqual([]);
+    expect(mgrForcedData.expenses).toEqual([]);
+    expect(mgrForcedData.players.every((p) => !p.phone && !p.notes && !p.pin_code)).toBe(true);
+    raw.prepare("UPDATE players SET must_change_pin = 0 WHERE id = 1").run();
+
+    // HomePage uses resolveHomePageInitialData as its sole SSR flow
+    const homePageSrc = fs.readFileSync(path.resolve(process.cwd(), "src/app/page.tsx"), "utf8");
+    expect(homePageSrc).toContain("resolveHomePageInitialData(sessionCookie)");
+    expect(homePageSrc).not.toContain("getFullAppData");
+
     // 2. DB outage during SSR -> fail-closed to safe fallback without getFullAppData
     vi.spyOn(dbModule, "getAsyncDb").mockImplementation(() => {
       const err = new TypeError("fetch failed") as TypeError & { code?: string };
@@ -1647,5 +1663,76 @@ describe("P1-03 Default PIN Containment Hotfix", () => {
     for (const sql of executedSqls) {
       expect(sql).not.toMatch(/\b(INSERT|UPDATE|DELETE|ALTER|DROP|CREATE)\b/i);
     }
+  });
+
+  it("forced-change rejects username-only and username update with 400 PIN_CHANGE_REQUIRED without DB write or cookie", async () => {
+    process.env.AUTH_SECRET = VALID_TEST_SECRET;
+    const { raw, asyncDb } = createFullTempAsyncDb();
+    seedPlayers(raw);
+    vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(asyncDb);
+
+    // Put Player #2 in forced-change state (must_change_pin = 1)
+    raw.prepare("UPDATE players SET must_change_pin = 1 WHERE id = 2").run();
+    const ply2Before = raw
+      .prepare("SELECT id, username, pin_code, must_change_pin FROM players WHERE id = 2")
+      .get() as { id: number; username: string; pin_code: string; must_change_pin: number };
+    const ply2Full = raw.prepare("SELECT * FROM players WHERE id = 2").get() as unknown as Player;
+    const ply2Cookie = makeCookieHeader(ply2Full);
+
+    // 1. Username-only request -> 400 PIN_CHANGE_REQUIRED, no username change, flag stays 1, no cookie
+    const usernameOnlyRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: ply2Cookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "change_own_password",
+          payload: {
+            player_id: 2,
+            old_pin: "Ply2OwnStrong!2026",
+            new_username: "ply2_bypass_attempt",
+          },
+        }),
+      })
+    );
+    expect(usernameOnlyRes.status).toBe(400);
+    expect((await usernameOnlyRes.json()).code).toBe("PIN_CHANGE_REQUIRED");
+    expect(usernameOnlyRes.headers.get("set-cookie")).toBeNull();
+
+    // 2. Username + new_pin during forced-change -> 400 PIN_CHANGE_REQUIRED, no DB write, no cookie
+    const usernameWithPinRes = await postTeamRoute(
+      new NextRequest("http://localhost:3000/api/team", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          cookie: ply2Cookie,
+          origin: "http://localhost:3000",
+          host: "localhost:3000",
+        },
+        body: JSON.stringify({
+          action: "change_own_password",
+          payload: {
+            player_id: 2,
+            old_pin: "Ply2OwnStrong!2026",
+            new_pin: "Ply2ForcedNew!2027",
+            new_username: "ply2_bypass_attempt",
+          },
+        }),
+      })
+    );
+    expect(usernameWithPinRes.status).toBe(400);
+    expect((await usernameWithPinRes.json()).code).toBe("PIN_CHANGE_REQUIRED");
+    expect(usernameWithPinRes.headers.get("set-cookie")).toBeNull();
+
+    const ply2After = raw
+      .prepare("SELECT username, pin_code, must_change_pin FROM players WHERE id = 2")
+      .get() as { username: string; pin_code: string; must_change_pin: number };
+    expect(ply2After.username).toBe(ply2Before.username);
+    expect(ply2After.pin_code).toBe(ply2Before.pin_code);
+    expect(ply2After.must_change_pin).toBe(1);
   });
 });

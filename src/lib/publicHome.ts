@@ -459,7 +459,7 @@ export const getPublicPlayerProfileByIdOrJersey = cache(
 /**
  * DB-first SSR initial data resolver for HomePage.
  * Fail-closed: returns public homepage data whenever session is missing, invalid,
- * belongs to an inactive or default-PIN account, or DB verification fails (503).
+ * belongs to an inactive, default-PIN, or must_change_pin=1 account, or DB verification fails (503).
  */
 export async function resolveHomePageInitialData(
   sessionCookie?: string | null
@@ -475,7 +475,7 @@ export async function resolveHomePageInitialData(
     return getPublicHomePageData();
   }
 
-  if (!authCtx.authorized || !authCtx.player) {
+  if (!authCtx.authorized || !authCtx.player || authCtx.mustChangePin) {
     return getPublicHomePageData();
   }
 

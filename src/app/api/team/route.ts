@@ -299,6 +299,7 @@ export async function POST(req: NextRequest) {
     const session = getAuthSession(req);
     let auditSummaryOverride: string | null = null;
     let reissuedPinHash: string | null = null;
+    let forcedPinChangeRequired = false;
 
     // Danh sách các hành động nhạy cảm yêu cầu quyền Ban Quản Lý (Manager)
     const MANAGER_ONLY_ACTIONS = new Set([
@@ -353,6 +354,7 @@ export async function POST(req: NextRequest) {
           { status: auth.status, headers: { "Cache-Control": "no-store" } }
         );
       }
+      forcedPinChangeRequired = Boolean(auth.mustChangePin);
       const targetPlayerId = Number(payload?.player_id ?? payload?.id);
       if (
         !Number.isInteger(targetPlayerId) ||
@@ -785,6 +787,27 @@ export async function POST(req: NextRequest) {
             { error: "Vui lòng nhập mật khẩu hiện tại để xác thực" },
             { status: 400 }
           );
+        }
+
+        if (forcedPinChangeRequired) {
+          if (!cleanNewPin) {
+            return NextResponse.json(
+              {
+                error: "Tài khoản đang bị bắt buộc đổi mật khẩu. Vui lòng nhập mật khẩu (PIN) mới.",
+                code: "PIN_CHANGE_REQUIRED",
+              },
+              { status: 400, headers: { "Cache-Control": "no-store" } }
+            );
+          }
+          if (cleanNewUser) {
+            return NextResponse.json(
+              {
+                error: "Không được đổi tên đăng nhập trong bước đổi mật khẩu bắt buộc.",
+                code: "PIN_CHANGE_REQUIRED",
+              },
+              { status: 400, headers: { "Cache-Control": "no-store" } }
+            );
+          }
         }
 
         const row = await db.queryOne<{
