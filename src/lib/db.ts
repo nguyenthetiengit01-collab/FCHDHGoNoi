@@ -8,6 +8,7 @@ import { EXPENSE_CATEGORIES, FANPAGE_URL } from "@/types/app";
 import { CLUB_ACTIVITIES_POSTS, type ClubActivityPost } from "@/data/clubActivities";
 import { calculateFinancialSummary } from "./financialCalculations";
 import { formatBirthYear } from "./athleteProfile";
+import { isCutoverWriteFrozen } from "./cutoverFreeze";
 import type {
   TeamSettings,
   Player,
@@ -1526,7 +1527,7 @@ export function seedInitialDataIfNeeded(db: DatabaseSyncType, forceReset = false
 let clubPostsInitialized = false;
 
 export async function ensureClubPostsReady(db: AsyncDb): Promise<void> {
-  if (clubPostsInitialized) return;
+  if (clubPostsInitialized || isCutoverWriteFrozen()) return;
   try {
     await db.exec(`
       CREATE TABLE IF NOT EXISTS club_posts (
@@ -1653,7 +1654,7 @@ export async function ensureClubPostsReady(db: AsyncDb): Promise<void> {
 let sponsorsInitialized = false;
 
 export async function ensureSponsorsReady(db: AsyncDb): Promise<void> {
-  if (sponsorsInitialized) return;
+  if (sponsorsInitialized || isCutoverWriteFrozen()) return;
   try {
     await db.exec(`
       CREATE TABLE IF NOT EXISTS sponsors (
@@ -1881,6 +1882,7 @@ export interface AuditLogEntry {
 let auditTableInitPromise: Promise<void> | null = null;
 
 export async function ensureAuditLogsReady(): Promise<void> {
+  if (isCutoverWriteFrozen()) return;
   if (!auditTableInitPromise) {
     auditTableInitPromise = (async () => {
       const db = getAsyncDb();

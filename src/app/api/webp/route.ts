@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { requirePlayerSession } from "@/lib/auth";
+import { guardCutoverWrite } from "@/lib/cutoverFreeze";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -11,6 +12,9 @@ function clampInt(raw: FormDataEntryValue | null, fallback: number, min: number,
 }
 
 export async function POST(req: NextRequest) {
+  const freezeRes = guardCutoverWrite("POST /api/webp");
+  if (freezeRes) return freezeRes;
+
   try {
     const auth = await requirePlayerSession(req);
     if (!auth.authorized) {

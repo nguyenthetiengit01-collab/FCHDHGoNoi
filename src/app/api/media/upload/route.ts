@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { requirePlayerSession, verifyCsrfOrigin } from "@/lib/auth";
+import { guardCutoverWrite } from "@/lib/cutoverFreeze";
 import {
   MediaStorageError,
   getMediaStorageProvider,
@@ -32,6 +33,9 @@ function clampInt(
 }
 
 export async function POST(req: NextRequest) {
+  const freezeRes = guardCutoverWrite("POST /api/media/upload");
+  if (freezeRes) return freezeRes;
+
   try {
     if (!verifyCsrfOrigin(req)) {
       return NextResponse.json(

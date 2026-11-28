@@ -15,6 +15,7 @@ import {
   hashPassword,
 } from "@/lib/auth";
 import { recordPlayerLifecycleEvent } from "@/lib/analytics/lifecycle";
+import { guardCutoverWrite } from "@/lib/cutoverFreeze";
 import type { Player } from "@/types/app";
 
 const MAX_IMPORT_SIZE_BYTES = 5 * 1024 * 1024; // Giới hạn 5MB chống cạn kiệt bộ nhớ
@@ -570,6 +571,9 @@ function parseDetailSheet(wsDetail: XLSX.WorkSheet): {
 }
 
 export async function POST(req: NextRequest) {
+  const freezeRes = guardCutoverWrite("POST /api/import");
+  if (freezeRes) return freezeRes;
+
   try {
     // 1. Kiểm tra CSRF / Origin
     if (!verifyCsrfOrigin(req)) {

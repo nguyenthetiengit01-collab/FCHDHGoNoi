@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthSession, verifyCsrfOrigin } from "@/lib/auth";
 import { getAsyncDb } from "@/lib/db";
+import { guardCutoverWrite } from "@/lib/cutoverFreeze";
 import { isAnalyticsEnabled } from "@/lib/analytics/config";
 import { logAnalyticsEvent } from "@/lib/analytics/observability";
 import {
@@ -20,6 +21,9 @@ const NO_STORE_HEADERS = {
 const MAX_BODY_BYTES = 32 * 1024;
 
 export async function POST(req: NextRequest) {
+  const freezeRes = guardCutoverWrite("POST /api/analytics/events");
+  if (freezeRes) return freezeRes;
+
   const startedAt = Date.now();
   try {
     if (!verifyCsrfOrigin(req)) {
