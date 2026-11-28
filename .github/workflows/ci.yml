@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - hotfix/p1-03-default-pin-containment
   push:
     branches:
       - main

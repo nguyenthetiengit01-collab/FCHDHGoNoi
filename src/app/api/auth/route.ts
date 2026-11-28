@@ -16,6 +16,7 @@ import {
 } from "@/lib/auth";
 import { extractTrustedClientIp } from "@/lib/authRateLimit";
 import { getAsyncDb, recordAuditLog } from "@/lib/db";
+import { guardCutoverWrite } from "@/lib/cutoverFreeze";
 import type { Player } from "@/types/app";
 
 /**
@@ -94,6 +95,9 @@ export async function GET(req: NextRequest) {
  * Xử lý đăng nhập và đăng xuất an toàn với chuẩn chống Brute-force và Session Timeout
  */
 export async function POST(req: NextRequest) {
+  const freezeRes = guardCutoverWrite("POST /api/auth");
+  if (freezeRes) return freezeRes;
+
   try {
     if (!verifyCsrfOrigin(req)) {
       return NextResponse.json(

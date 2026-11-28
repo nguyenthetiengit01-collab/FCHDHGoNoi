@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getAsyncDb } from "@/lib/db";
+import { guardCutoverWrite } from "@/lib/cutoverFreeze";
 import { ANALYTICS_RAW_RETENTION_DAYS } from "@/lib/analytics/config";
 import {
   CleanupAlreadyRunningError,
@@ -43,6 +44,9 @@ export async function DELETE() {
 }
 
 export async function GET(req: NextRequest) {
+  const freezeRes = guardCutoverWrite("GET /api/cron/analytics-cleanup");
+  if (freezeRes) return freezeRes;
+
   const startedAt = Date.now();
   const cronSecret = typeof process.env.CRON_SECRET === "string" ? process.env.CRON_SECRET.trim() : "";
 

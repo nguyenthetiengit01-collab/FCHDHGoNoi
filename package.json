@@ -32,6 +32,9 @@
   "overrides": {
     "next": {
       "postcss": "8.5.32"
+    },
+    "@vercel/oidc@3.8.10": {
+      "@vercel/cli-config": "0.3.8"
     }
   },
   "devDependencies": {
@@ -46,7 +49,7 @@
     "eslint-config-next": "^15.5.29",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.0",
-    "typescript": "^5.8.3",
+    "typescript": "5.9.3",
     "vitest": "^5.1.0"
   }
 }

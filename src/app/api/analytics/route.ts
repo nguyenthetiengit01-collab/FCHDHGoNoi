@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/auth";
 import { getAsyncDb, recordAuditLog } from "@/lib/db";
+import { isCutoverWriteFrozen } from "@/lib/cutoverFreeze";
 import { ANALYTICS_TIMEZONE, isAnalyticsEnabled } from "@/lib/analytics/config";
 import { queryAnalyticsSection } from "@/lib/analytics/queries";
 import {
@@ -107,7 +108,8 @@ export async function GET(req: NextRequest) {
       section === "my-insights" &&
       session.accessRole === "manager" &&
       requestedPlayerIdRaw &&
-      Number(requestedPlayerIdRaw) !== session.playerId
+      Number(requestedPlayerIdRaw) !== session.playerId &&
+      !isCutoverWriteFrozen()
     ) {
       await recordAuditLog({
         actorId: session.playerId,

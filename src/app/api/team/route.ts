@@ -32,6 +32,7 @@ import {
   validateSponsorIdForIncome,
 } from "@/lib/analytics/lifecycle";
 import type { FullAppData } from "@/types/app";
+import { guardCutoverWrite } from "@/lib/cutoverFreeze";
 
 type ValidationResult<T> =
   | { ok: true; value: T }
@@ -284,6 +285,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const freezeRes = guardCutoverWrite("POST /api/team");
+  if (freezeRes) return freezeRes;
+
   try {
     // 1. Chống CSRF trên toàn bộ mutating actions
     if (!verifyCsrfOrigin(req)) {
