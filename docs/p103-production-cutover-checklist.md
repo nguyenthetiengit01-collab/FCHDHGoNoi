@@ -21,15 +21,18 @@ Sử dụng checklist này song song với [p103-production-cutover-plan.md](p10
 ## 1. Trình Tự Cắt Chuyển Chuẩn (Bootstrap → Stage 1 → Legacy Token Expiry → Callback Drain → Stage 2 → Read-only Turso)
 > **Lưu ý:** Tuyệt đối không dùng bản snapshot cũ làm final cutover backup. Tuân thủ đúng trình tự: `Bootstrap Deployment → Stage 1 → Legacy Token Expiry → Callback Drain → Stage 2 → Read-only Turso → Final Backup → Offline Migration → Restore → DB Switch → Smoke Test → Unfreeze`.
 
-- [ ] **Bootstrap Deployment**:
-  - [ ] Owner phê duyệt & merge PR #19 lên `main` (bản tương thích legacy schema, có `cutoverFreeze.ts` + `clientUploadCallback.ts`), giữ `TURSO_AUTH_TOKEN` quyền ghi và `MEDIA_STORAGE_ENABLED=true`. Đợi Deployment `Ready`. *(Rollback nếu lỗi: Vercel Instant Rollback về deployment trước đó).*
-- [ ] **Stage 1 (Stop issuing new upload tokens)**:
-  - [ ] *(Tầng Edge)* Bật rule **Vercel Firewall / WAF (`Deny` → HTTP `403`)** chặn `POST /api/*` **ngoại trừ `/api/media/client-upload/callback` và `/api/media/client-upload`** (endpoint `/api/media/client-upload` vẫn tự chặn cấp token mới với `503`) và chặn `GET /api/cron/analytics-cleanup`.
-  - [ ] **Giữ nguyên `TURSO_AUTH_TOKEN` (quyền ghi) và `MEDIA_STORAGE_ENABLED=true`**; đặt `P103_CUTOVER_FREEZE_WRITES=true` (giữ `P103_CUTOVER_FREEZE_CALLBACKS` tắt) và ghi nhận mốc `T_stage1`.
+- [ ] **Tích hợp PR & Bootstrap Deployment (Bắt buộc trước Stage 1)**:
+  - [ ] Owner phê duyệt & merge **PR #21** (`feat/p103-production-cutover-readiness` → `hotfix/p1-03-default-pin-containment`).
+  - [ ] Chạy lại & xác nhận toàn bộ CI trên **PR #19** (`hotfix/p1-03-default-pin-containment` → `main`) pass sau khi đã chứa code freeze/callback từ PR #21.
+  - [ ] Owner phê duyệt & merge **PR #19 vào `main`** để deploy Bootstrap Deployment (giữ `TURSO_AUTH_TOKEN` quyền ghi và `MEDIA_STORAGE_ENABLED=true`), xác nhận Deployment SHA trên Production chứa đủ containment + freeze/callback. *(Rollback nếu lỗi: Vercel Instant Rollback về deployment trước đó).*
+- [ ] **Stage 1 (Stop issuing new upload tokens & Ghi nhận `T_drain-start`)**:
+  - [ ] *(Tầng Edge)* Bật rule **Vercel Firewall / WAF (`Deny` → HTTP `403`)** chặn `POST /api/*` **ngoại trừ cả hai path `/api/media/client-upload/callback` và `/api/media/client-upload`** (endpoint cũ vẫn tự chặn cấp token mới với `503`; endpoint mới chặn cấp token với `403`) và chặn `GET /api/cron/analytics-cleanup`.
+  - [ ] **Giữ nguyên `TURSO_AUTH_TOKEN` (quyền ghi) và `MEDIA_STORAGE_ENABLED=true`**; đặt `P103_CUTOVER_FREEZE_WRITES=true` (giữ `P103_CUTOVER_FREEZE_CALLBACKS` tắt).
+  - [ ] Xác minh **mọi Production ingress và mọi Production deployment** đều không thể cấp Legacy Token nữa, rồi ghi nhận mốc **`T_drain-start`** (ISO-8601 kèm múi giờ, Deployment ID/SHA và bằng chứng chặn token-gen).
   - [ ] *(Tùy chọn cho smoke test 6)* Lưu 1 cookie `fc_session` Manager hợp lệ trước khi đóng băng ghi.
 - [ ] **Legacy Token Expiry & Callback Drain**:
-  - [ ] Chờ hết **thời hạn tối đa còn lại của token cũ (`3.600 giây` / 60 phút từ `T_stage1` + 5 phút an toàn = `>= 65 phút`)**, vì bản deploy cũ trước Bootstrap cấp token mặc định 1 giờ (`handleUpload`).
-  - [ ] Xác nhận không còn upload/multipart upload in-flight, callback đã hoàn tất và `media_upload_records` / DB metadata nhất quán (không còn Blob mồ côi).
+  - [ ] Chờ đủ **`3.900 giây` (65 phút)** tính từ **`T_drain-start`** (`3.600 giây` legacy max TTL + `300 giây` safety margin).
+  - [ ] Xác nhận không còn upload/multipart upload in-flight, callback & retry đã hoàn tất và `media_upload_records` / DB metadata nhất quán (không còn Blob mồ côi).
 - [ ] **Stage 2 → Read-only Turso**:
   - [ ] Bật `P103_CUTOVER_FREEZE_CALLBACKS=true` (app trả `503 CUTOVER_WRITE_FROZEN`) và bật WAF `Deny` chặn toàn bộ `POST /api/*` gồm cả callback (`403`).
   - [ ] **Sau khi Stage 2 có hiệu lực**, tạo `--read-only` token cho Turso Production DB cũ (`turso db tokens create <old-prod-db> --read-only`), lưu RW token cũ vào Password Manager, đặt `TURSO_AUTH_TOKEN` = RO token và `MEDIA_STORAGE_ENABLED=false` trên Vercel Production rồi redeploy (đợi `Ready`).
@@ -86,7 +89,7 @@ Sử dụng checklist này song song với [p103-production-cutover-plan.md](p10
 ---
 
 ## 4. Restore Lên Turso Production Mới & Kiểm Chứng
-- [ ] Chạy `--dry-run` với `scripts/p103-cutover-restore.mjs` dùng `TURSO_CUTOVER_TARGET_DATABASE_URL` / `TURSO_CUTOVER_TARGET_AUTH_TOKEN` (tên DB `fchdhgonoi-prod-cutover*` hoặc thêm `--expected-target-host <hostname>`):
+- [ ] Chạy `--dry-run` với `scripts/p103-cutover-restore.mjs` dùng `TURSO_CUTOVER_TARGET_DATABASE_URL` / `TURSO_CUTOVER_TARGET_AUTH_TOKEN` (khớp chính xác host `fchdhgonoi-prod-cutover-nguyenthetiengit01-collab.aws-ap-northeast-1.turso.io` & DB `fchdhgonoi-prod-cutover-nguyenthetiengit01-collab`; `--expected-target-host` chỉ là xác nhận bổ sung):
   ```bash
   TURSO_CUTOVER_TARGET_DATABASE_URL="<new-prod-turso-url>" \
   TURSO_CUTOVER_TARGET_AUTH_TOKEN="<new-prod-rw-token>" \

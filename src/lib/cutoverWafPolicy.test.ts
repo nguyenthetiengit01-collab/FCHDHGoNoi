@@ -1,8 +1,10 @@
+import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as dbModule from "./db";
 import * as authModule from "./auth";
 import * as mediaStorageModule from "./media/storage";
+import { CUTOVER_FREEZE_ERROR_CODE } from "./cutoverFreeze";
 import { GET as getHealthRoute } from "@/app/api/health/route";
 import { GET as getTeamRoute, POST as postTeamRoute } from "@/app/api/team/route";
 import { GET as getAuthRoute, POST as postAuthRoute } from "@/app/api/auth/route";
@@ -15,14 +17,16 @@ import type { FullAppData } from "@/types/app";
 type WafFreezeStage = "stage1_drain" | "stage2_closed";
 
 /**
- * Simulates the Vercel Firewall / Edge WAF Deny rule documented in
- * docs/p103-production-cutover-plan.md during Two-Stage Cutover Freeze:
+ * In-test simulation of the Vercel Firewall / Edge WAF Deny policy documented in
+ * docs/p103-production-cutover-plan.md (NOT live Vercel Firewall verification).
  *
- * - Stage 1 (Drain): Edge WAF Deny returns HTTP 403 for POST /api/* EXCEPT
- *   /api/media/client-upload/callback (allowing Vercel-signed callbacks to drain),
- *   and denies GET /api/cron/analytics-cleanup.
+ * - Stage 1 (Drain): Edge WAF Deny returns HTTP 403 for POST /api/* EXCEPT BOTH
+ *   callback paths (/api/media/client-upload and /api/media/client-upload/callback),
+ *   because the Edge WAF cannot inspect JSON body.type to distinguish
+ *   blob.generate-client-token from blob.upload-completed on the legacy endpoint;
+ *   it also denies GET /api/cron/analytics-cleanup.
  * - Stage 2 (Closed): Edge WAF Deny returns HTTP 403 for ALL POST /api/*
- *   including /api/media/client-upload/callback.
+ *   including both /api/media/client-upload and /api/media/client-upload/callback.
  *
  * Distinct from application-level guardCutoverWrite() / guardCutoverCallbackWrite(),
  * which return HTTP 503 CUTOVER_WRITE_FROZEN.
@@ -36,7 +40,8 @@ function shouldEdgeWafDeny(
   if (upperMethod === "POST" && pathname.startsWith("/api/")) {
     if (
       stage === "stage1_drain" &&
-      pathname === "/api/media/client-upload/callback"
+      (pathname === "/api/media/client-upload/callback" ||
+        pathname === "/api/media/client-upload")
     ) {
       return false;
     }
@@ -61,6 +66,48 @@ async function dispatchThroughEdgeWaf(
     );
   }
   return appHandler(req);
+}
+
+function signVercelBlobCallback(body: unknown, token: string): string {
+  return crypto
+    .createHmac("sha256", token)
+    .update(JSON.stringify(body))
+    .digest("hex");
+}
+
+function createInMemoryMediaDb(sqlite: import("node:sqlite").DatabaseSync) {
+  const adapter: ReturnType<typeof dbModule.getAsyncDb> = {
+    async query<T>(sql: string, params: unknown[] = []) {
+      return sqlite
+        .prepare(sql)
+        .all(...(params as Array<string | number | null>)) as T[];
+    },
+    async queryOne<T>(sql: string, params: unknown[] = []) {
+      const row = sqlite
+        .prepare(sql)
+        .get(...(params as Array<string | number | null>));
+      return (row as T | undefined) ?? null;
+    },
+    async run(sql: string, params: unknown[] = []) {
+      const res = sqlite
+        .prepare(sql)
+        .run(...(params as Array<string | number | null>));
+      return {
+        lastInsertRowid: Number(res.lastInsertRowid),
+        changes: Number(res.changes),
+      };
+    },
+    async batch() {},
+    async exec(sql: string) {
+      sqlite.exec(sql);
+    },
+    async transaction<T>(
+      fn: (tx: ReturnType<typeof dbModule.getAsyncDb>) => Promise<T>
+    ) {
+      return fn(adapter);
+    },
+  } as unknown as ReturnType<typeof dbModule.getAsyncDb>;
+  return adapter;
 }
 
 function makeMinimalFullAppData(): FullAppData {
@@ -97,9 +144,11 @@ function makeMinimalFullAppData(): FullAppData {
   };
 }
 
-describe("WAF-level edge barrier integration assertions (HTTP 403 Deny vs app-level 503)", () => {
+describe("In-test Edge WAF policy simulation (HTTP 403 Deny vs app-level 503; live Vercel Firewall verified separately)", () => {
   const originalFreezeEnv = process.env.P103_CUTOVER_FREEZE_WRITES;
   const originalCallbackFreezeEnv = process.env.P103_CUTOVER_FREEZE_CALLBACKS;
+  const originalMediaEnabled = process.env.MEDIA_STORAGE_ENABLED;
+  const originalBlobToken = process.env.BLOB_READ_WRITE_TOKEN;
 
   beforeEach(() => {
     delete process.env.P103_CUTOVER_FREEZE_WRITES;
@@ -118,82 +167,210 @@ describe("WAF-level edge barrier integration assertions (HTTP 403 Deny vs app-le
     } else {
       process.env.P103_CUTOVER_FREEZE_CALLBACKS = originalCallbackFreezeEnv;
     }
+    if (originalMediaEnabled === undefined) {
+      delete process.env.MEDIA_STORAGE_ENABLED;
+    } else {
+      process.env.MEDIA_STORAGE_ENABLED = originalMediaEnabled;
+    }
+    if (originalBlobToken === undefined) {
+      delete process.env.BLOB_READ_WRITE_TOKEN;
+    } else {
+      process.env.BLOB_READ_WRITE_TOKEN = originalBlobToken;
+    }
   });
 
-  it("Stage 1 Drain: blocks POST /api/* (403) before app handlers while allowing /api/media/client-upload/callback through Edge WAF", async () => {
-    const getAsyncDbSpy = vi.spyOn(dbModule, "getAsyncDb");
+  it("Stage 1 Drain: WAF denies mutating POST /api/* & cron GET (403), allows BOTH callback paths through, while app blocks token-gen (503 legacy / 403 new) and persists signed callbacks", async () => {
+    const { DatabaseSync } = await import("node:sqlite");
+    const sqlite = new DatabaseSync(":memory:");
+    const adapter = createInMemoryMediaDb(sqlite);
+    const getAsyncDbSpy = vi.spyOn(dbModule, "getAsyncDb").mockReturnValue(adapter);
     const verifyCredsSpy = vi.spyOn(authModule, "verifyCredentials");
     const getMediaProviderSpy = vi.spyOn(
       mediaStorageModule,
       "getMediaStorageProvider"
     );
 
-    const postTargets: Array<{
-      url: string;
-      handler: (r: NextRequest) => Promise<Response>;
-    }> = [
-      { url: "http://localhost:3000/api/team", handler: postTeamRoute },
-      { url: "http://localhost:3000/api/auth", handler: postAuthRoute },
+    const rwToken = "vercel_blob_rw_mockstore123_secret456";
+    process.env.P103_CUTOVER_FREEZE_WRITES = "true";
+    process.env.MEDIA_STORAGE_ENABLED = "true";
+    process.env.BLOB_READ_WRITE_TOKEN = rwToken;
+
+    try {
+      // 1. Other mutating POST /api/* and cron GET are blocked at Edge WAF with 403 before handlers run
+      for (const url of [
+        "http://localhost:3000/api/team",
+        "http://localhost:3000/api/auth",
+      ]) {
+        const res = await dispatchThroughEdgeWaf(
+          new NextRequest(url, { method: "POST" }),
+          "stage1_drain",
+          url.endsWith("/team") ? postTeamRoute : postAuthRoute
+        );
+        expect(res.status).toBe(403);
+        expect(res.headers.get("Cache-Control")).toBe("no-store");
+      }
+
+      const cronRes = await dispatchThroughEdgeWaf(
+        new NextRequest("http://localhost:3000/api/cron/analytics-cleanup", {
+          method: "GET",
+        }),
+        "stage1_drain",
+        getCronAnalyticsCleanupRoute
+      );
+      expect(cronRes.status).toBe(403);
+      expect(verifyCredsSpy).not.toHaveBeenCalled();
+      expect(getMediaProviderSpy).not.toHaveBeenCalled();
+
+      // 2. Legacy /api/media/client-upload passes Stage 1 WAF, but app blocks token-gen with 503 CUTOVER_WRITE_FROZEN
+      const legacyTokenRes = await dispatchThroughEdgeWaf(
+        new NextRequest("http://localhost:3000/api/media/client-upload", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ type: "blob.generate-client-token" }),
+        }),
+        "stage1_drain",
+        postMediaClientUploadRoute
+      );
+      expect(legacyTokenRes.status).toBe(503);
+      expect(((await legacyTokenRes.json()) as { code?: string }).code).toBe(
+        CUTOVER_FREEZE_ERROR_CODE
+      );
+
+      // 3. New /api/media/client-upload/callback passes Stage 1 WAF, app rejects token-gen with 403 CALLBACK_TOKEN_GENERATION_FORBIDDEN
+      const newTokenRes = await dispatchThroughEdgeWaf(
+        new NextRequest(
+          "http://localhost:3000/api/media/client-upload/callback",
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ type: "blob.generate-client-token" }),
+          }
+        ),
+        "stage1_drain",
+        postMediaClientUploadCallbackRoute
+      );
+      expect(newTokenRes.status).toBe(403);
+      expect(((await newTokenRes.json()) as { code?: string }).code).toBe(
+        "CALLBACK_TOKEN_GENERATION_FORBIDDEN"
+      );
+      expect(getAsyncDbSpy).not.toHaveBeenCalled();
+
+      // 4. Valid signed blob.upload-completed succeeds on BOTH legacy and new paths through Stage 1 WAF
+      const legacyCallbackBody = {
+        type: "blob.upload-completed",
+        payload: {
+          blob: {
+            url: "https://mockstore123.public.blob.vercel-storage.com/public-media/uploads/player/waf-legacy.webp",
+            downloadUrl:
+              "https://mockstore123.public.blob.vercel-storage.com/public-media/uploads/player/waf-legacy.webp?download=1",
+            pathname: "public-media/uploads/player/waf-legacy.webp",
+            contentType: "image/webp",
+            contentDisposition: 'inline; filename="waf-legacy.webp"',
+          },
+          tokenPayload: JSON.stringify({
+            entity: "player",
+            uploadedByPlayerId: 7,
+          }),
+        },
+      };
+      const legacyOkRes = await dispatchThroughEdgeWaf(
+        new NextRequest("http://localhost:3000/api/media/client-upload", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-vercel-signature": signVercelBlobCallback(
+              legacyCallbackBody,
+              rwToken
+            ),
+          },
+          body: JSON.stringify(legacyCallbackBody),
+        }),
+        "stage1_drain",
+        postMediaClientUploadRoute
+      );
+      expect(legacyOkRes.status).toBe(200);
+      expect(await legacyOkRes.json()).toEqual({
+        type: "blob.upload-completed",
+        response: "ok",
+      });
+
+      const newCallbackBody = {
+        type: "blob.upload-completed",
+        payload: {
+          blob: {
+            url: "https://mockstore123.public.blob.vercel-storage.com/public-media/uploads/post/waf-new.webp",
+            downloadUrl:
+              "https://mockstore123.public.blob.vercel-storage.com/public-media/uploads/post/waf-new.webp?download=1",
+            pathname: "public-media/uploads/post/waf-new.webp",
+            contentType: "image/webp",
+            contentDisposition: 'inline; filename="waf-new.webp"',
+          },
+          tokenPayload: JSON.stringify({
+            entity: "post",
+            playerId: null,
+            uploadedByPlayerId: 1,
+            issuedAt: Date.now() - 2000,
+            expiresAt: Date.now() + 58_000,
+          }),
+        },
+      };
+      const newOkRes = await dispatchThroughEdgeWaf(
+        new NextRequest(
+          "http://localhost:3000/api/media/client-upload/callback",
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-vercel-signature": signVercelBlobCallback(
+                newCallbackBody,
+                rwToken
+              ),
+            },
+            body: JSON.stringify(newCallbackBody),
+          }
+        ),
+        "stage1_drain",
+        postMediaClientUploadCallbackRoute
+      );
+      expect(newOkRes.status).toBe(200);
+      expect(await newOkRes.json()).toEqual({
+        type: "blob.upload-completed",
+        response: "ok",
+      });
+
+      const total = sqlite
+        .prepare("SELECT COUNT(*) as cnt FROM media_upload_records")
+        .get() as { cnt: number };
+      expect(total.cnt).toBe(2);
+    } finally {
+      sqlite.close();
+    }
+  });
+
+  it("Stage 2 Closed: Edge WAF denies BOTH /api/media/client-upload and /api/media/client-upload/callback with HTTP 403 before app handlers run", async () => {
+    const getAsyncDbSpy = vi.spyOn(dbModule, "getAsyncDb");
+
+    for (const target of [
       {
         url: "http://localhost:3000/api/media/client-upload",
         handler: postMediaClientUploadRoute,
       },
-    ];
-
-    for (const target of postTargets) {
-      const req = new NextRequest(target.url, { method: "POST" });
+      {
+        url: "http://localhost:3000/api/media/client-upload/callback",
+        handler: postMediaClientUploadCallbackRoute,
+      },
+    ]) {
       const res = await dispatchThroughEdgeWaf(
-        req,
-        "stage1_drain",
+        new NextRequest(target.url, { method: "POST" }),
+        "stage2_closed",
         target.handler
       );
       expect(res.status).toBe(403);
-      expect(res.headers.get("Cache-Control")).toBe("no-store");
+      const json = (await res.json()) as { error: string };
+      expect(json.error).toContain("Edge WAF");
     }
 
-    const cronRes = await dispatchThroughEdgeWaf(
-      new NextRequest("http://localhost:3000/api/cron/analytics-cleanup", {
-        method: "GET",
-      }),
-      "stage1_drain",
-      getCronAnalyticsCleanupRoute
-    );
-    expect(cronRes.status).toBe(403);
-
-    // Callback route passes through Edge WAF in Stage 1 (reaches app handler, which rejects unsigned body with 403/401, not WAF 403)
-    const callbackReq = new NextRequest(
-      "http://localhost:3000/api/media/client-upload/callback",
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ type: "blob.generate-client-token" }),
-      }
-    );
-    const callbackRes = await dispatchThroughEdgeWaf(
-      callbackReq,
-      "stage1_drain",
-      postMediaClientUploadCallbackRoute
-    );
-    const callbackJson = (await callbackRes.json()) as { code?: string };
-    expect(callbackRes.status).toBe(403);
-    expect(callbackJson.code).toBe("CALLBACK_TOKEN_GENERATION_FORBIDDEN");
-
     expect(getAsyncDbSpy).not.toHaveBeenCalled();
-    expect(verifyCredsSpy).not.toHaveBeenCalled();
-    expect(getMediaProviderSpy).not.toHaveBeenCalled();
-  });
-
-  it("Stage 2 Closed: blocks /api/media/client-upload/callback with HTTP 403 at Edge WAF before app handler runs", async () => {
-    const callbackRes = await dispatchThroughEdgeWaf(
-      new NextRequest("http://localhost:3000/api/media/client-upload/callback", {
-        method: "POST",
-      }),
-      "stage2_closed",
-      postMediaClientUploadCallbackRoute
-    );
-    expect(callbackRes.status).toBe(403);
-    const json = (await callbackRes.json()) as { error: string };
-    expect(json.error).toContain("Edge WAF");
   });
 
   it("allows read-only GET routes through Edge WAF (200 OK)", async () => {

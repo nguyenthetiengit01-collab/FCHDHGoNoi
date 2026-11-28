@@ -349,6 +349,97 @@ describe("P103 Production Cutover Restore Tooling", () => {
       ).toThrow(/not valid JSON/i);
     });
 
+    it("enforces strict v3 completeness across schema, objects.tables, tables, and rowCounts, and rejects malformed input before any DB call", async () => {
+      const valid = buildValidP103BackupV3();
+      const clone = () => JSON.parse(JSON.stringify(valid));
+
+      // 1. Missing data table for a schema table (e.g., expenses)
+      const missingData = clone();
+      missingData.schema.expenses = "CREATE TABLE expenses (id INTEGER PRIMARY KEY, amount INTEGER NOT NULL)";
+      missingData.objects.tables.push({ name: "expenses", sql: missingData.schema.expenses });
+      missingData.rowCounts.expenses = 0;
+      expect(() =>
+        loadAndValidateCutoverBackup({ rawContent: JSON.stringify(missingData) })
+      ).toThrow(/missing data array in 'tables'.*"expenses"/i);
+
+      // 2. Missing rowCounts entry
+      const missingRowCount = clone();
+      delete missingRowCount.rowCounts.payments;
+      expect(() =>
+        loadAndValidateCutoverBackup({ rawContent: JSON.stringify(missingRowCount) })
+      ).toThrow(/missing 'rowCounts' entry.*"payments"/i);
+
+      // 3. Data table with no DDL/schema entry
+      const missingDdl = clone();
+      missingDdl.tables.audit_logs = [];
+      expect(() =>
+        loadAndValidateCutoverBackup({ rawContent: JSON.stringify(missingDdl) })
+      ).toThrow(/data table "audit_logs" has no matching DDL/i);
+
+      // 4. Extra rowCounts key with no DDL
+      const extraRowCount = clone();
+      extraRowCount.rowCounts.matches = 0;
+      expect(() =>
+        loadAndValidateCutoverBackup({ rawContent: JSON.stringify(extraRowCount) })
+      ).toThrow(/orphan 'rowCounts' key "matches"/i);
+
+      // 5. Negative row count
+      const negativeCount = clone();
+      negativeCount.rowCounts.payments = -1;
+      expect(() =>
+        loadAndValidateCutoverBackup({ rawContent: JSON.stringify(negativeCount) })
+      ).toThrow(/non-negative safe integer/i);
+
+      // 6. Fractional row count
+      const fractionalCount = clone();
+      fractionalCount.rowCounts.payments = 1.5;
+      expect(() =>
+        loadAndValidateCutoverBackup({ rawContent: JSON.stringify(fractionalCount) })
+      ).toThrow(/non-negative safe integer/i);
+
+      // 7. Row count not equal to rows.length
+      const mismatchCount = clone();
+      mismatchCount.rowCounts.payments = 99;
+      expect(() =>
+        loadAndValidateCutoverBackup({ rawContent: JSON.stringify(mismatchCount) })
+      ).toThrow(/rowCount mismatch.*"payments"/i);
+
+      // 8. Duplicate objects.tables entry
+      const dupObj = clone();
+      dupObj.objects.tables.push({ ...dupObj.objects.tables[0] });
+      expect(() =>
+        loadAndValidateCutoverBackup({ rawContent: JSON.stringify(dupObj) })
+      ).toThrow(/duplicate table/i);
+
+      // 9. Conflicting schema[name] and objects.tables[].sql
+      const conflictDdl = clone();
+      conflictDdl.schema.players = "CREATE TABLE players (id INTEGER PRIMARY KEY)";
+      expect(() =>
+        loadAndValidateCutoverBackup({ rawContent: JSON.stringify(conflictDdl) })
+      ).toThrow(/conflicting DDL/i);
+
+      // 10. runCutoverRestore() rejects malformed backup before ANY target DB query
+      const db = new DatabaseSync(":memory:");
+      const client = createSqliteLibsqlAdapter(db);
+      const preflight = validateCutoverTarget({
+        url: `libsql://${APPROVED_CUTOVER_TARGET_HOST}`,
+        token: "secret-token",
+      });
+      try {
+        await expect(
+          runCutoverRestore({
+            client,
+            backup: missingDdl,
+            preflight,
+            dryRun: false,
+          })
+        ).rejects.toThrow(/has no matching DDL/i);
+        expect(client.executedSql).toEqual([]);
+      } finally {
+        client.close();
+      }
+    });
+
     it("decrypts and validates an encrypted v3 backup, and rejects missing private key", () => {
       const backup = buildValidP103BackupV3();
       const { publicKey, privateKey } = generateBackupKeypair();

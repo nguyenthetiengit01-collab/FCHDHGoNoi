@@ -61,7 +61,8 @@ export function isValidIdentifier(name) {
   return typeof name === "string" && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
 }
 
-export function validateBackupPayload(backup) {
+export function validateBackupPayload(backup, options = {}) {
+  const { requireSchemaMap = false } = options;
   if (!backup || typeof backup !== "object" || Array.isArray(backup)) {
     throw new Error("Invalid backup file: root must be a JSON object.");
   }
@@ -108,6 +109,83 @@ export function validateBackupPayload(backup) {
     }
     if (!backup.rowCounts || typeof backup.rowCounts !== "object" || Array.isArray(backup.rowCounts)) {
       throw new Error("Invalid v3 backup file: missing 'rowCounts' object.");
+    }
+
+    const hasSchemaMap = backup.schema !== undefined;
+    if (requireSchemaMap && (!backup.schema || typeof backup.schema !== "object" || Array.isArray(backup.schema))) {
+      throw new Error("Invalid v3 backup file: missing or invalid 'schema' object.");
+    }
+    if (hasSchemaMap) {
+      if (!backup.schema || typeof backup.schema !== "object" || Array.isArray(backup.schema)) {
+        throw new Error("Invalid v3 backup file: invalid 'schema' object.");
+      }
+      for (const [tableName, ddl] of Object.entries(backup.schema)) {
+        if (!isValidIdentifier(tableName)) {
+          throw new Error(`Invalid v3 backup file: unsafe table name "${tableName}" in 'schema'.`);
+        }
+        if (typeof ddl !== "string" || !ddl.trim()) {
+          throw new Error(`Invalid v3 backup file: empty DDL for table "${tableName}" in 'schema'.`);
+        }
+      }
+    }
+
+    const objectTablesByName = new Map();
+    for (const obj of backup.objects.tables) {
+      if (objectTablesByName.has(obj.name)) {
+        throw new Error(`Invalid v3 backup file: duplicate table "${obj.name}" in 'objects.tables'.`);
+      }
+      objectTablesByName.set(obj.name, obj.sql);
+    }
+
+    const schemaNames = hasSchemaMap ? new Set(Object.keys(backup.schema)) : null;
+    const objectTableNames = new Set(objectTablesByName.keys());
+    const dataTableNames = new Set(Object.keys(backup.tables));
+    const rowCountNames = new Set(Object.keys(backup.rowCounts));
+
+    for (const name of objectTableNames) {
+      if (schemaNames) {
+        if (!schemaNames.has(name)) {
+          throw new Error(`Invalid v3 backup file: table "${name}" in 'objects.tables' is missing from 'schema'.`);
+        }
+        if (backup.schema[name].trim() !== objectTablesByName.get(name).trim()) {
+          throw new Error(`Invalid v3 backup file: conflicting DDL between 'schema' and 'objects.tables' for table "${name}".`);
+        }
+      }
+      if (!dataTableNames.has(name)) {
+        throw new Error(`Invalid v3 backup file: missing data array in 'tables' for schema table "${name}".`);
+      }
+      if (!rowCountNames.has(name)) {
+        throw new Error(`Invalid v3 backup file: missing 'rowCounts' entry for table "${name}".`);
+      }
+    }
+
+    if (schemaNames) {
+      for (const name of schemaNames) {
+        if (!objectTableNames.has(name)) {
+          throw new Error(`Invalid v3 backup file: table "${name}" in 'schema' is missing from 'objects.tables'.`);
+        }
+      }
+    }
+
+    for (const name of dataTableNames) {
+      if (!objectTableNames.has(name)) {
+        throw new Error(`Invalid v3 backup file: data table "${name}" has no matching DDL in 'objects.tables'.`);
+      }
+    }
+
+    for (const name of rowCountNames) {
+      if (!objectTableNames.has(name)) {
+        throw new Error(`Invalid v3 backup file: orphan 'rowCounts' key "${name}" has no matching schema table.`);
+      }
+      const count = backup.rowCounts[name];
+      if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) {
+        throw new Error(`Invalid v3 backup file: rowCount for table "${name}" must be a non-negative safe integer.`);
+      }
+      if (count !== backup.tables[name].length) {
+        throw new Error(
+          `Invalid v3 backup file: rowCount mismatch for table "${name}" (rowCounts=${count}, rows.length=${backup.tables[name].length}).`
+        );
+      }
     }
     if (backup.sequences !== undefined) {
       if (!Array.isArray(backup.sequences)) {

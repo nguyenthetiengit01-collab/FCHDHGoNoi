@@ -12,8 +12,10 @@
  * - Rejects source Production (`fchdhgonoi.<org>`), staging, syn15d, and
  *   restore-staging hostnames, as well as any overlap with `TURSO_DATABASE_URL`,
  *   `TURSO_STAGING_DATABASE_URL`, or `TURSO_STAGING_RESTORE_DATABASE_URL`.
- * - Requires explicit allowlist match (`fchdhgonoi-prod-cutover*` or
- *   `--expected-target-host <hostname>`).
+ * - Requires exact Owner-approved allowlist match
+ *   (`APPROVED_CUTOVER_TARGET_HOST` and `APPROVED_CUTOVER_TARGET_DB_NAME`);
+ *   `--expected-target-host <hostname>` is an additional confirmation only
+ *   and never overrides or broadens the allowlist.
  * - Defaults to `--dry-run` (zero writes). Writes require BOTH `--apply` and
  *   `--confirm-production-cutover`.
  * - Validates backup v3 payload BEFORE touching the target database.
@@ -253,7 +255,7 @@ export function loadAndValidateCutoverBackup({ rawContent, privateKey = "" }) {
     }
   }
 
-  const { version } = validateBackupPayload(backup);
+  const { version } = validateBackupPayload(backup, { requireSchemaMap: true });
   if (version !== 3) {
     throw new Error(
       `Production cutover restore requires backup version 3 (received version ${version}).`
@@ -437,6 +439,13 @@ export async function runCutoverRestore({
   dryRun = true,
   encrypted = false,
 }) {
+  const { version } = validateBackupPayload(backup, { requireSchemaMap: true });
+  if (version !== 3) {
+    throw new Error(
+      `Production cutover restore requires backup version 3 (received version ${version}).`
+    );
+  }
+
   await assertEmptyTargetDatabase(client);
 
   const tableDefs = backup.objects.tables.map((t) => ({
@@ -488,16 +497,10 @@ export async function runCutoverRestore({
   for (const [tableName, rows] of Object.entries(backup.tables)) {
     if (!isValidIdentifier(tableName) || !Array.isArray(rows)) continue;
 
-    if (!schemaMap[tableName] && rows.length > 0) {
-      const fallbackCols = Object.keys(rows[0])
-        .filter((c) => isValidIdentifier(c))
-        .map((c) => `"${c}" TEXT`)
-        .join(", ");
-      if (fallbackCols) {
-        await client.execute(
-          `CREATE TABLE IF NOT EXISTS "${tableName}" (${fallbackCols});`
-        );
-      }
+    if (!schemaMap[tableName]) {
+      throw new Error(
+        `Restore blocked: missing DDL in objects.tables for data table "${tableName}".`
+      );
     }
 
     if (rows.length === 0) {
